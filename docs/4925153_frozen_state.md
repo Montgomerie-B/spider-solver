@@ -1,52 +1,60 @@
-# Deal 4925153 - Frozen Diagnostic State (July 2026)
+# Deal 4925153 - Current Project State (July 2026)
 
 ## Overview
 
-This document records the stabilised diagnostic and control infrastructure for MobilityWare 4-suit Spider Solitaire deal 4925153 as of July 2026.
+This document summarises the current status of work on MobilityWare 4-suit Spider Solitaire deal 4925153 as of July 2026.
 
-## Core Infrastructure (Frozen)
+## Major Achievement
 
-### 1. Whole-Deal Scaffold Ladder
-- **Registry**: `src/spider/planner/diagnostics/scaffolds/4925153_deal_scaffold_ladder.json`
-- **Decision Record**: `src/spider/planner/diagnostics/scaffolds/4925153_deal_scaffold_ladder_decision.md`
-- Contains 12 milestones from start to solved with explicit continuation policies.
+- **Validated solution**: 163 MobilityWare moves
+- This is the first complete, legal solved trace produced by the project.
+- It beats the referenced Solvitaire result of 167 moves by 4 moves.
+- MW 163 remains the accepted incumbent / best validated result.
 
-**Key Accepted Gold Scaffolds**:
-- `canonical_J8_third_foundation_cascade_quality` (MW=149)
-- `canonical_J17_pre_batch_cascade` (MW=158, cleanup ≥ 1593, cascade_firing)
+## Diagnostic & Infrastructure Layer (Mature)
 
-**Auxiliary Seeds**:
-- `beam_MW144_club_third_foundation` (MW=144) — faster third foundation but weaker cascade structure
-- B5 shortcut — valid first-foundation-only optimisation, not continuation scaffold
+### Key Components
+- Whole-deal scaffold ladder with 12 milestones and explicit continuation policies
+- `cleanup_cascade_potential` and `foundation_action_delta` (diagnostic-only)
+- `stage_classifier` with phase-aware feature arbitration
+- Experimental Stage-Aware Move Ordering Adapter (including hybrid mode)
+- Transition benchmark harness
+- Checkpoint / resume infrastructure for long runs
 
-### 2. Post-Deal-5 Diagnostics
-- `cleanup_cascade_potential` — diagnostic-only
-- `foundation_action_delta` — correctly distinguishes context-dependent exact foundations (J:8 club positive, J:11 hearts negative, J:17 firing)
+### Hybrid Adapter Performance
+- Phase A of Opt009A demonstrated **5.65× throughput improvement** over full adapter while preserving ordering quality at all key checkpoints.
+- Hybrid mode is now the recommended frozen configuration for future search work on this deal.
 
-### 3. Transition Benchmark Harness
-- Manifest and comparison utility for canonical vs candidate transitions
-- All 10 named transitions validated against expected metrics
+## Branch Status
 
-### 4. Stage Classifier / Feature Arbitration
-- `stage_classifier.py` with `classify_stage()`
-- Encodes phase-specific diagnostic priorities and risks
-- Calibrated on the full scaffold ladder
+Most explored branches have been closed as non-viable for improvement:
 
-### 5. Controlled Experiment 001
-- Bounded search from J:8 to J:17 (depth ≤ 10, beam ≤ 150)
-- Result: **match-only** (reproduced teacher path)
-- No replacement-candidate found
-- No premature heart completions (delta policy worked correctly)
+- **B5 shortcut**: Closed (first-foundation-only, non-continuation)
+- **MW144**: Closed (faster third foundation but weaker cascade structure)
+- **Exp005 early-deal branch**: Closed as auxiliary-only
+- **W12 near-target (J8→J17)**: Closed as structurally deceptive (Opt010)
 
-## Current Recommendation
+## Search Summary
 
-- Keep `canonical_J17_pre_batch_cascade` as the gold pre-batch scaffold.
-- Keep `canonical_J8_third_foundation_cascade_quality` as the gold third-foundation cascade scaffold.
-- `beam_MW144` remains auxiliary MW seed only.
+Extensive bounded search has been performed:
+- Multiple controlled experiments (Exp001–Exp006A)
+- Whole-deal incumbent challenge (Opt007)
+- Focused first-foundation work (Opt008)
+- Corridor shortcut scan + targeted recovery (Opt009B + Opt010)
 
-## Next Steps
+**Result**: No complete solution below MW 163 has been found. The canonical path remains the strongest validated route.
 
-Infrastructure is mature. Future work should use the stage classifier and transition benchmark harness for any new bounded experiments.
+## Current Goal
+
+User target: **119 moves or better** (current world-record territory on this deal).
+
+## Recommended Next Direction
+
+Given diminishing returns on broad search, the most productive paths forward are:
+
+1. Further targeted segment improvement on high-value windows (if specific near-miss signals emerge).
+2. Additional throughput / efficiency work on the hybrid adapter to enable more effective long runs.
+3. Documentation and archival of current 163-move solution as a strong baseline.
 
 ---
-*Generated: July 2026*
+*Last updated: July 2026*
