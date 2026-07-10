@@ -1,5 +1,7 @@
 # Planner Package (New Layered Development for Deal 4925153)
 
+> **Current Status Note (July 2026)**: Work on deal 4925153 has produced a validated 163-move solution (beats Solvitaire's 167). Most branches have been closed. The hybrid adapter (5.65× speedup) is now the recommended frozen configuration. See `docs/4925153_frozen_state.md` for the latest summary. The long-term goal remains reaching 119 moves or better.
+
 **Read this first**: The master plan and all progress is maintained in the root-level authoritative document:
 
 → **`docs/layered_planner_development_plan.md`**
