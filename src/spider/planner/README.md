@@ -1,108 +1,152 @@
 # Planner Package (New Layered Development for Deal 4925153)
 
-> **Current Status Note (July 2026)**: Work on deal 4925153 has produced a validated 163-move solution (beats Solvitaire's 167). Most branches have been closed. The hybrid adapter (5.65× speedup) is now the recommended frozen configuration. See `docs/4925153_frozen_state.md` for the latest summary. The long-term goal remains reaching 119 moves or better.
+> **Authoritative status — 11 July 2026:** The only complete solution is the original user-supplied 172-MobilityWare-move trace. A previously reported 163-move result was caused by defective legacy move accounting and is withdrawn; no distinct 163-move solution exists. The project has not yet generated its own complete solution or beaten the referenced Solvitaire result of 167. See `docs/4925153_frozen_state.md`, `docs/4925153_move_accounting_incident.md` and `docs/layered_planner_accounting_amendment.md`.
 
-**Read this first**: The master plan and all progress is maintained in the root-level authoritative document:
+**Read this first**: The historical master plan and progress log are maintained in:
 
 → **`docs/layered_planner_development_plan.md`**
 
+The July 2026 accounting amendment supersedes the historical plan’s old move-cost assumptions:
+
+→ **`docs/layered_planner_accounting_amendment.md`**
+
 This package (`src/spider/planner/`) is the exclusive home for new code under the layered planner architecture.
 
-## Key Rules (from the approved plan)
-- Legacy code, logs, solutions, analyzer, experiments (v1–v39+), GUI, harness, etc. are **frozen assets**. Do not modify them.
-- New code here may import from legacy modules (`spider.engine`, `spider.deal_analysis`, `spider.heuristics`, etc.) and mine human artifacts, but must not change their behavior.
-- At the end of every logical piece of work or decision point, append a dated entry to the **Progress Log** section of the master plan document.
-- The living todo list must stay synchronized with the phases/gates in the plan.
+## Mandatory result accounting
+
+All new planner and optimisation work must:
+
+- use corrected `mobilityware_moves`, never `legacy_mw`, for costs, ceilings and incumbent comparison;
+- treat 172 as the current verified incumbent;
+- independently replay every complete candidate from the true deal;
+- call `record_solution_if_better(...)` immediately after successful full replay;
+- require successful external archive write and read-back verification before claiming an improvement.
+
+The durable archive is documented in `docs/solution_archive.md` and defaults to:
+
+`C:\SpiderSolver\solutions\4925153`
+
+The immediate thresholds are:
+
+- 171 or fewer — first genuine project improvement;
+- 167 — match the referenced Solvitaire result;
+- 166 or fewer — beat it;
+- 119 or fewer — long-term stretch target.
+
+## Key Rules (from the approved plan, as amended)
+
+- Legacy code, logs, solutions, analyser outputs and historical experiments remain preserved assets.
+- New code here may import from legacy modules and mine human artefacts, but any use of historical `MW` values must be recalculated under corrected accounting.
+- At the end of every logical piece of work or decision point, append a dated entry to the Progress Log section of the master plan or an explicit superseding amendment.
+- The living todo list must stay synchronised with the phases and gates in the plan.
+- A free move to an empty column requires relocation of the entire fully open source column with no face-down cards beneath it.
 
 ## Current State
-See the Progress Log in the master plan.
 
-Phase 0 (infrastructure + baselining) complete. Phase 1 (Layer 2 Dependency Analyser) complete with diagnostics for initial + human checkpoints.
+See the Progress Log in the master plan for historical development and `docs/4925153_frozen_state.md` for the current authoritative state.
 
-Phase 2 (Layer 3 Plan/Campaign) + bridges to 3/4/5 (generator, labeled human trace, realizer/scorer stubs, controller with deal decision + validation) complete with artifacts. Layer 5 minimal plan beam search skeleton complete and tested on human checkpoint (explores sequences like Create_Gold_Spaces, Clearance_C).
+Phase 0 (infrastructure and baselining) is complete. Phase 1 (Layer 2 Dependency Analyser) is complete with diagnostics for the initial state and human checkpoints.
 
-First 'layered + legacy macro' integration test complete (test_macro_integration.py): beam shapes round 0 via explicit campaigns, legacy macro for rest. Modest budgets: layered start spaces=4/sw=15 (improved), legacy continues with [strategy] (incl low-sw best_deal at 7), overall 9999/no solve. High budget hunt (35s/6000/50k like old vN) launched in bg for measurable 'does campaign-shaped start help solve/cost vs pure legacy?' data.
+Phase 2 (Layer 3 Plan/Campaign) plus bridges to Layers 3/4/5 are complete with artefacts. The Layer 5 minimal plan beam-search skeleton is complete and tested on a human checkpoint.
 
-All per the baselined plan. Hunt in progress (bg task ~468s at last check, no output yet; modest baseline recorded).
+The hybrid move-ordering adapter demonstrated approximately 5.65x higher throughput while preserving calibration rankings. Checkpoint/resume and the durable solution archive are available for future long runs.
 
-## Package Structure (growing)
-- `dependency.py` — Layer 2 (dynamic per-state dependency & exposure analysis + diagnostics)
-- `plans.py` — Layer 3 (PlanStep dataclass, propose_campaigns_from_dependencies, human opening labeled trace)
-- `scorer.py` — Phase 3 (plan_aware_score composition: legacy space_work + plan progress + space_opp conversion)
-- `realizer.py` — Phase 4 (simple_realize_plan with plan-type-aware scoring for space vs clearance)
-- `controller.py` — Early Layer 5 (tiny_plan_controller_demo with explicit 'deal now?' using scorer)
-- `plan_search.py` — Layer 5 (minimal_plan_beam_search skeleton over plan choices + realize, using scorer)
-- `test_macro_integration.py` — Phase 6 direction (first layered beam shape round 0 + legacy macro rest; supports high_budget for hunt)
-- `diagnostics/` — human-readable artifacts (initial/human reports, comparisons, validation, beam traces, integration test runs)
+## Package Structure
 
-## Current Usage (stubs + tests; see master plan for gates)
-Run diagnostics:
+- `dependency.py` — Layer 2 dynamic dependency and exposure analysis
+- `plans.py` — Layer 3 `PlanStep`, campaign proposal and labelled human trace
+- `scorer.py` — plan-aware score composition
+- `realizer.py` — plan-type-aware tactical realisation
+- `controller.py` — early Layer 5 controller and deal decision
+- `plan_search.py` — minimal plan-level beam search
+- `test_macro_integration.py` — layered shaping followed by legacy macro continuation
+- `diagnostics/` — human-readable reports, comparisons, validations and experiment artefacts
+
+## Current Usage
+
+Run dependency diagnostics:
+
 ```python
 from spider.planner.dependency import run_full_phase1_gate_diagnostic
-run_full_phase1_gate_diagnostic()  # initial + human pre-deal1, writes reports + comparison
+run_full_phase1_gate_diagnostic()
 ```
 
-Generate proposals + trace:
+Generate proposals and labelled trace:
+
 ```python
 from spider.planner.plans import run_phase2_example_diagnostic, label_human_opening_trace
 run_phase2_example_diagnostic()
 label_human_opening_trace()
 ```
 
-Controller (campaign-driven shaping + deal decision):
+Controller:
+
 ```python
 from spider.planner.controller import tiny_plan_controller_demo
-spaces, sw = tiny_plan_controller_demo()  # from human checkpoint; uses scorer for 'deal now?'
+spaces, sw = tiny_plan_controller_demo()
 ```
 
-Minimal plan beam (Layer 5 search over campaigns):
+Minimal plan beam:
+
 ```python
 from spider.planner.plan_search import minimal_plan_beam_search
-nodes = minimal_plan_beam_search()  # explores sequences, prints top with histories
+nodes = minimal_plan_beam_search()
 ```
 
-Integration test (layered for round 0 + legacy rest):
+Integration test:
+
 ```python
 from spider.planner.test_macro_integration import test_layered_first_round_then_legacy
-test_layered_first_round_then_legacy(use_checkpoint=False)  # full from initial
-# For high budget hunt (per plan): test_... (high_budget=True)  -- see script comment
+test_layered_first_round_then_legacy(use_checkpoint=False)
 ```
 
-Produce replay-valid .moves candidate from shaper (Phase 6/7):
+## Replay and solution capture
+
+Any planner-generated `.moves` candidate must be replayed with the corrected rules engine. Historical files and reports that display an `MW` value may predate the accounting audit and must not be treated as verified MobilityWare scores without recalculation.
+
+A complete candidate must be passed to the central archive API:
+
 ```python
-# In the test with use_shaper=True it auto-exports to diagnostics/planner_shaper_*.moves
-# (shape moves + res.actions combined via legacy metrics.export_actions_to_moves_file)
-# Then replay-validate with metrics.replay_actions or tools/replay_moves_file.py
-# Modest example artifacts (after fix): planner_shaper_full_from_initial_modest.moves (90 actions, verified MW 89 non-solve playout)
-# and planner_shaper_from_human_checkpoint_modest.moves (delta cost 76 from ck). High-budget variants on high runs.
+from spider.solution_archive import record_solution_if_better
+
+record_solution_if_better(
+    deal_id="4925153",
+    moves=candidate_moves,
+    source="planner experiment",
+    experiment_id="experiment-id",
+)
 ```
 
-See master plan Progress Log for exact artifacts, runs, and comparisons (modest: layered campaign start helps shape; high hunt in bg for solve/cost data vs pure legacy).
+The archive independently replays the candidate, calculates corrected `mobilityware_moves`, compares it strictly with the verified incumbent and writes any genuine improvement atomically to the external archive.
 
-## Future Exposure (Phase 6 per plan)
-The planner is additive. To expose as mode (without touching legacy):
-- In optimizer_gui: add checkbox "Use layered planner for early rounds" that swaps the shaper in optimizer_session/macro for one or more rounds (use controller or beam to shape, then legacy for rest/finisher).
-- In CLI (optimize_deal.py): --layered-shaper or --use-planner flag to enable for round 0 (or until deal heuristic).
-- In MacroConfig: add use_layered_planner: bool or shaper_fn.
-This keeps legacy default and 100% compatible.
+## Future Exposure
 
-See master plan for full Phase 6 wiring.
+The planner remains additive. To expose it as a mode without removing the legacy path:
 
-All output from this package should be human-readable where possible, especially for diagnostics that can be compared to the human analyzer CSVs and `strategy_insights.md`.
+- add a GUI selector for layered planning during early rounds;
+- add a CLI flag such as `--layered-shaper`;
+- add a `MacroConfig` option such as `use_layered_planner`;
+- retain the legacy solver for A/B testing and fallback.
 
-## How to Run Early Diagnostics (once implemented)
-Typical pattern (from plan):
+All new completion paths must integrate the durable solution archive before unattended execution.
+
+## Diagnostics and explainability
+
+Outputs from this package should be human-readable where practical, especially diagnostics comparing planner decisions with human analyser data and canonical checkpoints.
+
+Typical dependency-analysis setup:
+
 ```python
 from spider.deal import tokens_from_file
 from spider.engine import SpiderState
 from spider.deal_analysis import build_deal_analysis
-from .dependency import DynamicDependencyAnalyser
+from spider.planner.dependency import DynamicDependencyAnalyser
 
 tokens = tokens_from_file("deals/4925153.txt")
 analysis = build_deal_analysis(tokens)
-state = SpiderState.from_cards(...)  # or load prefix
+state = SpiderState.from_cards(...)
 analyser = DynamicDependencyAnalyser(analysis)
 print(analyser.summarize(state))
 ```
 
-See the master plan for exact gates and validation targets (initial layout + human deal-1 point, reference/post_deal2 checkpoints, etc.).
+See the master plan for historical gates and `docs/4925153_frozen_state.md` for the current optimisation position.
