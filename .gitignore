@@ -38,3 +38,6 @@ src/spider/planner/diagnostics/experiments/*_ledger.*
 src/spider/planner/diagnostics/experiments/*_audit_results.json
 src/spider/planner/diagnostics/experiments/*_audit_report.md
 artifacts/
+
+artifacts/opt012/
+
