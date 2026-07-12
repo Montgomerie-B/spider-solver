@@ -32,3 +32,9 @@ Thumbs.db
 artifacts/opt011/feas_*/
 artifacts/opt011/opt011b_feasibility.json
 
+
+# Regenerable experiment outputs (accounting ledgers, Opt011 runtime)
+src/spider/planner/diagnostics/experiments/*_ledger.*
+src/spider/planner/diagnostics/experiments/*_audit_results.json
+src/spider/planner/diagnostics/experiments/*_audit_report.md
+artifacts/
