@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Opt011 / diagnostic runtime (mutable production output — never commit)
+artifacts/opt011/opt011_progress.jsonl
+artifacts/opt011/opt011_checkpoint.json
+artifacts/opt011/opt011_checkpoint.json.tmp*
+artifacts/opt011/*.lock
+artifacts/opt011/opt011.lock
+artifacts/opt011/**/*.tmp*
+src/spider/planner/diagnostics/checkpoints/runtime_opt011/
+**/runtime_opt011/
+**/opt011.lock
+**/*opt011*checkpoint*.json.tmp*
+
+# Large logs / local scratch
+*.log
+terminals/
+mcps/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Opt011B feasibility runtime
+artifacts/opt011/feas_*/
+artifacts/opt011/opt011b_feasibility.json
+
