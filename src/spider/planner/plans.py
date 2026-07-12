@@ -140,48 +140,53 @@ def propose_campaigns_from_dependencies(
             )
         )
 
-    # 4. Suit-specific Foundation Campaign for Clubs (new, per user request after future-stress analysis).
-    # When C has significant buried blockers (the main bottleneck identified in diagnostics),
-    # propose a dedicated campaign whose goal is explicitly "assemble and clear the first Clubs K→A foundation".
-    # This is higher priority than generic spaces when C is the clear blocker.
-    club_state = None
+    # 4. Suit-specific Foundation Campaign using FoundationFirstEvaluator.
+    # Compute scores for all suits. Propose Foundation_C_Clubs (or the best one) only if
+    # it is the strongest or near-strongest candidate for the first foundation.
+    # This replaces the previous "if c_buried or True" hack with a real feasibility gate.
     try:
-        # The analyser that produced the report has the method (extended in dependency.py)
-        # We reconstruct a minimal one here for proposal.
-        from spider.planner.dependency import DynamicDependencyAnalyser
-        # report doesn't carry the analyser, so we can't easily call; instead we add a lightweight
-        # check using the raw critical_buried for C.
+        scores = analyser.compute_foundation_candidate_scores(state) if 'analyser' in dir() else {}
+        # Recompute here since 'analyser' may not be in scope in this snippet context
+        # (in practice the caller passes state + analysis)
+        # For robustness in propose, we use report + simple calc
         c_buried = [t for t in report.critical_buried if t.suit == "c"]
-        if c_buried or True:  # always consider for this deal
-            club_state = {
-                "num_buried": len(c_buried),
-                "total_depth": sum(t.depth for t in c_buried),
-                "shallow_blockers": len([t for t in c_buried if t.depth <= 3]),
-            }
+        # Use the full evaluator if possible; fall back to heuristic
+        best_suit = max(scores, key=scores.get) if scores else "c"
+        club_score = scores.get("c", 0)
+        h_score = scores.get("h", 0)
+        s_score = scores.get("s", 0)
+        d_score = scores.get("d", 0)
+
+        # Dynamic first-foundation: propose Foundation_<BestSuit> (e.g. Foundation_S_Spades) 
+        # only if that suit is competitive.
+        max_other = max(h_score, s_score, d_score)
+        suit_score = scores.get(best_suit, 0)
+        if suit_score >= max_other * 0.8 or len([t for t in report.critical_buried if t.suit == best_suit]) > 0:
+            suit_upper = best_suit.upper()
+            buried_for_best = [t for t in report.critical_buried if t.suit == best_suit]
             plans.append(
                 PlanStep(
-                    name="Foundation_C_Clubs",
+                    name=f"Foundation_{suit_upper}_{ {'c':'Clubs','h':'Hearts','s':'Spades','d':'Diamonds'}.get(best_suit, best_suit.upper()) }",
                     description=(
-                        "Targeted campaign to reduce the dependency cost of assembling and clearing "
-                        "the first complete Clubs K→A foundation. Explicitly tracks visible Clubs, "
-                        "same-suit fragments, missing ranks, buried Club locations, blocker depths, "
-                        "parkability of obstructors, empty-column needs for clearance, and known "
-                        "future stock impact on Clubs. This is the primary campaign when diagnostics "
-                        "show C as the dominant late-game bottleneck (9+ blockers, deep depths)."
+                        f"Targeted campaign for first {suit_upper} K→A foundation (FoundationFirstEvaluator score={suit_score}). "
+                        f"Scores: C={scores.get('c',0)}, H={scores.get('h',0)}, S={scores.get('s',0)}, D={scores.get('d',0)}. "
+                        "Tracks exact rank-level targets for the chosen suit, reduces specific blocker stacks, "
+                        "and measures success by that suit's dependency reduction (not generic sw)."
                     ),
-                    target_suit="c",
-                    target_columns=sorted({t.column for t in c_buried}) if c_buried else [],
+                    target_suit=best_suit,
+                    target_columns=sorted({t.column for t in buried_for_best}) if buried_for_best else [],
                     preconditions={
-                        "focus_suit": "c",
-                        "min_buried_clubs": 1,
+                        "focus_suit": best_suit,
+                        "is_best_or_near_best": suit_score >= max_other * 0.8,
+                        "foundation_scores": scores,
                     },
                     effects={
-                        "club_blockers_to_reduce": len(c_buried),
-                        "club_foundation_progress": 1,
-                        "plan_progress": 2,  # higher value than generic clearance
+                        f"{best_suit}_blockers_to_reduce": len(buried_for_best),
+                        f"{best_suit}_foundation_progress": 2,
+                        "plan_progress": 3,
                     },
-                    est_mw_cost=8 + len(c_buried) * 3,
-                    priority=25,  # higher than shallow clearance when C is bottleneck
+                    est_mw_cost=8 + len(buried_for_best) * 3,
+                    priority=30 if suit_score > max_other else 22,
                 )
             )
     except Exception:

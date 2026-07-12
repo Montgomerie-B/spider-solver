@@ -1,0 +1,55 @@
+# Canonical checkpoint: 51 user moves + stock deal #1 (deal 4925153)
+# Deal 1 tops (cols 1-10 L->R): Js 9d 4d Kh 4d 6d 9s 7d 8s 5c
+
+move 3 6 1
+move 3 2 1
+move 8 3 1
+move 6 3 2
+move 6 3 1
+move 6 3 1
+move 6 5 1
+move 3 7 6
+move 9 3 1
+move 10 9 1
+move 10 5 1
+move 3 5 2
+move 9 5 2
+move 9 2 1   # JD col 9 -> Qs col 2, reveals 6s
+move 9 4 1   # 6S col 9 -> 7H col 4, reveals 3d
+move 10 4 1  # 5H col 10 -> 6S col 4, reveals 3d col 10
+move 8 4 1   # 4S col 8 -> 5H col 4, reveals 2c
+move 10 4 1  # 3D col 10 -> 4S col 4, reveals Ac
+move 10 8 1  # AC col 10 -> 2C col 8, open col 10
+move 8 9 2   # 2C+AC col 8 -> 3D col 9, reveals 4h
+move 4 8 1   # 3D col 4 -> 4H col 8, reveals 4s
+move 4 10 1  # 4S col 4 -> open col 10, reveals 5h
+move 8 10 1  # 3D col 8 -> 4S col 10, reveals 4h
+move 8 4 1   # 4H col 8 -> 5H col 4, reveals 2h
+move 8 10 1  # 2H col 8 -> 3D col 10, open col 8
+move 7 8 6   # 7S+ run col 7 -> open col 8, reveals 8d
+move 3 7 1   # 7D col 3 -> 8D col 7, reveals Jc
+move 3 6 1   # JC col 3 -> Qs col 6
+move 7 3 2   # 8D+7D col 7 -> col 3, reveals 10d
+move 7 2 1   # 10D col 7 -> Jd col 2, reveals 10s
+move 7 6 1   # 10S col 7 -> Jc col 6, reveals 6c
+move 7 5 1   # 6C col 7 -> 7c col 5, reveals 8h
+move 8 7 6   # 7S+ col 8 -> 8h col 7
+move 4 8 2   # 5H+4h col 4 -> empty col 8
+move 4 3 1   # 6S col 4 -> 7d col 3
+move 8 3 2   # 5H+4h col 8 -> 6s col 3
+move 9 8 2   # 2C+Ac col 9 -> col 8
+move 9 3 1   # 3D col 9 -> 4h col 3 (not col 4)
+move 8 3 2   # 2C+Ac col 8 -> 3d col 3; cols 8-9 open
+move 7 8 6   # 7S+ col 7 -> empty col 8, reveals 8h
+move 4 7 1   # 7H col 4 -> 8h col 7, reveals 6h
+move 4 7 1   # 6H col 4 -> 7h col 7, reveals 10h
+move 1 9 1   # 2S col 1 -> empty col 9, reveals 5c
+move 1 5 1   # 5C col 1 -> 6c col 5, reveals 8s
+move 8 1 6   # 7S+ col 8 -> 8s col 1
+move 9 8 1   # 2S col 9 -> col 8
+move 5 9 9   # KC+ club stack col 5 -> col 9, reveals 4c
+move 5 9 1   # 4C col 5 -> 5c col 9, reveals 3h
+move 10 5 1  # 2H col 10 -> 3h col 5
+move 8 10 1  # 2S col 8 -> col 10 (onto 4s; 3d under)
+move 1 8 7   # 8S+ col 1 -> col 8, reveals 6c
+deal   # stock deal 1 (cols 1-10): Js 9d 4d Kh 4d 6d 9s 7d 8s 5c

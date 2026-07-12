@@ -131,6 +131,7 @@ def layered_shape_round(
     analysis: "DealAnalysis",
     max_realize_steps: int = 12,  # bumped from 8 based on analysis of 89 candidate (more catalytic/park work beneficial pre-deal)
     force_plan: Optional["PlanStep"] = None,
+    campaign_stats: Optional[dict] = None,
 ) -> Tuple[SpiderState, int, List[Tuple[int, int, int]], int]:
     """Layered shaper for one round (pre-deal): uses L2 report + L3 proposals + realizer (with scorer influence via controller logic).
 
@@ -139,9 +140,12 @@ def layered_shape_round(
     This is the concrete exposure helper for Phase 6: plug this in before legacy _beam or deal in the old macro flow.
     Caller can combine shape_moves + legacy_res.actions and use metrics.export_actions_to_moves_file for a full replay-valid candidate.
 
-    If force_plan is provided, it is used as the active campaign (for suit-specific Foundation_C_Clubs mode)
+    If force_plan is provided, it is used as the active campaign (for suit-specific Foundation_<Suit> mode)
     instead of the top proposed plan. This allows keeping the layered planner focused on one critical
     suit campaign across multiple rounds (r1/r2/r3) without handing off to legacy.
+
+    campaign_stats (optional mutable dict) is passed through to the realizer for "Do No Harm" tracking:
+    considered_damaging, vetoed, allowed_compensated, damaging_details.
     """
     analyser = DynamicDependencyAnalyser(analysis)
     report = analyser.analyze(state)
@@ -153,7 +157,7 @@ def layered_shape_round(
             return state.clone(), 0, [], 0
         top = plans[0]
     work = state.clone()
-    moves, cost, status, unlock_earned = simple_realize_plan(top, work, max_moves=max_realize_steps, analysis=analysis)
+    moves, cost, status, unlock_earned = simple_realize_plan(top, work, max_moves=max_realize_steps, analysis=analysis, campaign_stats=campaign_stats)
     # Note: simple_realize_plan already mutates 'work' in place and returns the applied moves list + cost + unlock_earned (park counts for L4 scorer).
     # Do NOT re-apply here (would double-apply, causing state mismatch for downstream macro actions + replay validation).
     return work, cost, list(moves), unlock_earned  # shaped, cost, actions, realized unlock credit (for plan_aware_score)

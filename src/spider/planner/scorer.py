@@ -71,24 +71,27 @@ def plan_aware_score(
     if unlock_value > 0:
         score += 2.0 * unlock_value
 
-    # === Foundation_C_Clubs specific term (new suit-specific campaign mode) ===
-    # When the active plan is Foundation_C_Clubs, add a direct reward for progress toward the Clubs K→A foundation.
-    # This is the core of Task 2: the scorer now explicitly values reduction in Club foundation dependency.
+    # === Generic Foundation_<Suit> term + campaign-mode sw de-emphasis ===
+    # Foundation progress for the active suit can outweigh moderate sw deterioration.
+    is_foundation_campaign = False
+    active_suit = None
     if active_plans:
         for p in active_plans:
-            if p.name == "Foundation_C_Clubs" or "Foundation_C" in p.name:
-                # We expect the caller (controller / repeated shaper) to pass club_progress in the plan_progress dict
-                # or we can use a heuristic here. For now we look for a special key.
-                club_prog = 0.0
-                if plan_progress and "club_foundation" in plan_progress:
-                    club_prog = plan_progress["club_foundation"][0]  # (blockers_reduced, depth_reduced, ...)
+            if p.name.startswith("Foundation_"):
+                is_foundation_campaign = True
+                parts = p.name.split("_")
+                active_suit = parts[1].lower() if len(parts) > 1 else None
+                prog = 0.0
+                if plan_progress and "foundation" in plan_progress:
+                    prog = plan_progress["foundation"][0]
                 elif plan_progress and p.name in plan_progress:
-                    # fallback
-                    club_prog = plan_progress[p.name][0] * 0.5
-                # Reward actual Club progress more than generic plan progress
-                score += 12 * club_prog
-                # Small standing bonus while the Clubs campaign is active (encourages staying on it until feasible)
-                score += 4.0
+                    prog = plan_progress[p.name][0] * 0.5
+                score += 15 * prog
+                score += 5.0
+
+    if is_foundation_campaign:
+        if current_space_work < 20:
+            score += 12 * (current_space_work - 8)
 
     return score
 

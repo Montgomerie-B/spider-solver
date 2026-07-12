@@ -1,0 +1,46 @@
+{
+  "runs": [
+    {
+      "ceiling": 0,
+      "term": "exhausted",
+      "status": "exhaustive_failure",
+      "exp": 720,
+      "gen": 3600,
+      "fr": 0,
+      "tt": 720,
+      "peak_fr": 362,
+      "peak_tt": 720,
+      "t": 264.94,
+      "exp_s": 2.72,
+      "rss_peak": 46280704,
+      "rss_fin": 46284800,
+      "ck_bytes": 5466958,
+      "bytes_per_state": 64279
+    },
+    {
+      "ceiling": 1,
+      "term": "incomplete_draining",
+      "status": "incomplete_search",
+      "exp": 3500,
+      "fr": 27460,
+      "tt": 30960,
+      "peak_fr": 29960,
+      "peak_tt": 30960,
+      "t": 1452.4,
+      "exp_s": 2.4,
+      "note": "partial: TT stabilized ~30960 while frontier drains at ~2.4 exp/s"
+    }
+  ],
+  "cost7_extrapolation": {
+    "method": "geometric c0=720 exhausted to c1 TT~30960 (ratio~43)",
+    "ratio_c0_to_c1": 43.0,
+    "if_ratio_20_to_c7_states": 921600000000,
+    "if_ratio_43_to_c7_states": 195709399997040,
+    "est_rss_at_64KB_per_state": "far above 12 GiB under geometric growth",
+    "checkpoint_c0": "5.5 MiB JSON / 720 states (~7.6 KiB/state on disk)",
+    "throughput": "~2.5 expansions/s with structural keys + full state clones",
+    "confidence": "medium that naive in-memory cost-7 is impractical; low on exact multipliers",
+    "recommendation": "compact state representation, layer-wise frontier disposal, disk-backed TT, or corridor decomposition before cost-7"
+  },
+  "note": "Cost-7 production not launched. c1 not fully exhausted in study window."
+}
