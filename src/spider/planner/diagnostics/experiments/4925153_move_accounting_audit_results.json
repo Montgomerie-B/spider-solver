@@ -1,0 +1,376 @@
+{
+  "experiment_id": "4925153_move_accounting_audit",
+  "deal": "4925153",
+  "executive": {
+    "is_163_a_distinct_solution": false,
+    "alleged_163_file_identical_to_original": true,
+    "actual_complete_trace": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-opt011a\\solutions\\4925153_canonical.moves",
+    "explicit_commands": 174,
+    "tableau_moves": 169,
+    "stock_deals": 5,
+    "user_observed_mobilityware": 172,
+    "legacy_mw": 163,
+    "corrected_mobilityware_moves": 172,
+    "mobilityware_count_verified": true,
+    "verification_basis": "Command-level rule: every explicit command costs 1 except full-column relocate onto empty (face_down==0, entire face-up moved). Reproduces 172.",
+    "163_claim_withdrawn": true,
+    "beats_solvitaire_claim_withdrawn": true
+  },
+  "provenance": [
+    {
+      "path": "C:/Users/Codex/Documents/Grok Build/spider-solver-opt011a/deals/4925153.txt",
+      "exists": true,
+      "byte_size": 339,
+      "sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+      "line_count_nonempty": 8,
+      "tableau_moves": 0,
+      "stock_deals": 0,
+      "explicit_commands": 0,
+      "byte_identical_to_canonical": false
+    },
+    {
+      "path": "C:/Users/Codex/Documents/Grok Build/spider-solver-opt011a/solutions/4925153_canonical.moves",
+      "exists": true,
+      "byte_size": 8497,
+      "sha256": "2b4676e804e4cb2f2ac463a04df94cca24ca681b351ab25c32dd9e9f17161636",
+      "line_count_nonempty": 174,
+      "tableau_moves": 169,
+      "stock_deals": 5,
+      "explicit_commands": 174,
+      "byte_identical_to_canonical": true
+    },
+    {
+      "path": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-opt011a\\solutions\\4925153_canonical.moves.txt",
+      "exists": false
+    },
+    {
+      "path": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-opt011a\\4925153.txt",
+      "exists": false
+    },
+    {
+      "path": "\\mnt\\data\\4925153.txt",
+      "exists": false
+    },
+    {
+      "path": "\\mnt\\data\\4925153_canonical.moves.txt",
+      "exists": false
+    },
+    {
+      "path": "\\mnt\\data\\4925153_163_move_solution.txt",
+      "exists": false
+    }
+  ],
+  "taxonomy": {
+    "explicit_commands": "every player/replay line: tableau moves + stock deals",
+    "tableau_moves": "tableau-to-tableau only",
+    "stock_deals": "stock deal actions",
+    "automatic_foundation_removals": "K\u2192A same-suit auto remove",
+    "engine_actions": "player command + auto removals as separate engine events",
+    "legacy_mw": "defective counter using unrestricted full-face-up\u2192empty free cost",
+    "mobilityware_moves": "corrected UI-emulating count"
+  },
+  "ledger_summary": {
+    "explicit_commands": 174,
+    "tableau_moves": 169,
+    "stock_deals": 5,
+    "automatic_foundation_removals": 8,
+    "engine_actions": 182,
+    "legacy_mw": 163,
+    "mobilityware_moves": 172
+  },
+  "solved": true,
+  "first_divergence_command": 29,
+  "root_cause": {
+    "legacy_final": 163,
+    "mobilityware_final": 172,
+    "explicit_commands": 174,
+    "user_observed": 172,
+    "zero_cost_legacy_count": 11,
+    "zero_cost_mobilityware_count": 2,
+    "arithmetic_legacy": "174 explicit - 11 free(full face-up\u2192empty regardless of face-down) + 0 deal adjustments = 163",
+    "arithmetic_mobilityware": "174 explicit - 2 free(full-column relocate to empty, fd==0 only) = 172",
+    "discrepancy_legacy_vs_user": -9,
+    "discrepancy_breakdown": {
+      "extra_free_moves_in_legacy_vs_corrected": 9,
+      "explanation": "Legacy mw_move_cost treated ALL entire-face-up-stack moves onto empty columns as cost 0, including when face-down cards remain under the stack (reveal). Corrected MobilityWare rule treats only full-column relocates (face_down==0) as free. That is 9 extra free counts: 163 + 9 = 172 (matches user 172 when legacy was 163 and extra frees were 9).",
+      "legacy_zero_indices": [
+        29,
+        43,
+        46,
+        47,
+        51,
+        69,
+        79,
+        99,
+        129,
+        142,
+        150
+      ],
+      "mobilityware_zero_indices": [
+        46,
+        142
+      ],
+      "extra_free_only_in_legacy": [
+        29,
+        43,
+        47,
+        51,
+        69,
+        79,
+        99,
+        129,
+        150
+      ]
+    },
+    "code_path": {
+      "cost_function": "src/spider/rules.py::mw_move_cost / mobilityware_move_cost",
+      "application": "src/spider/engine.py::SpiderState.move",
+      "aggregation": "src/spider/metrics.py::replay_actions",
+      "constant": "src/spider/metrics.py::CANONICAL_MW_COST=163 (withdrawn)"
+    },
+    "automatic_removals": {
+      "count": 8,
+      "effect_on_legacy_mw": "none (removals do not adjust MW)",
+      "effect_on_mobilityware": "none (removals do not adjust move count)",
+      "events": [
+        {
+          "command_index": 91,
+          "command_text": "move 2 1 12  # QS run col 2 to col 1",
+          "foundations_after": 1
+        },
+        {
+          "command_index": 140,
+          "command_text": "move 5 1 2  # 2D run col 5 to col 1",
+          "foundations_after": 2
+        },
+        {
+          "command_index": 160,
+          "command_text": "move 4 9 1  # AC col 4 to 2C col 9 (completes club run)",
+          "foundations_after": 3
+        },
+        {
+          "command_index": 170,
+          "command_text": "move 3 10 4  # 4D run col 3 to 5D col 10 (completes diamond run)",
+          "foundations_after": 4
+        },
+        {
+          "command_index": 171,
+          "command_text": "move 7 6 11  # JS col 7 to QS col 6 (spade run K-A; completes spade run)",
+          "foundations_after": 5
+        },
+        {
+          "command_index": 172,
+          "command_text": "move 4 7 11  # JC run col 4 to QC col 7 (completes club run)",
+          "foundations_after": 6
+        },
+        {
+          "command_index": 173,
+          "command_text": "move 7 2 8  # 8H run col 7 to 9H col 2 (completes heart run)",
+          "foundations_after": 7
+        },
+        {
+          "command_index": 174,
+          "command_text": "move 5 1 7  # 7H run col 5 to 8H col 1 (game solved; you said col 4)",
+          "foundations_after": 8
+        }
+      ]
+    },
+    "stock_deals": {
+      "count": 5,
+      "each_cost_legacy": 1,
+      "each_cost_mobilityware": 1,
+      "indices": [
+        52,
+        90,
+        102,
+        120,
+        152
+      ]
+    }
+  },
+  "reconciliation_174_172_163": {
+    "explicit": 174,
+    "user_172": 172,
+    "difference": 2,
+    "accepted_hypothesis": "Exactly two tableau commands are free under MobilityWare: entire visible column (no face-down) moved onto an empty column. Commands: [46, 142]",
+    "rejected": [
+      {
+        "h": "stock deals free",
+        "predict": 169,
+        "reject": "would undercount vs 172"
+      },
+      {
+        "h": "all full face-up\u2192empty free (legacy)",
+        "predict": 163,
+        "reject": "matches engine 163 not user 172"
+      },
+      {
+        "h": "no free moves",
+        "predict": 174,
+        "reject": "2 above user 172"
+      },
+      {
+        "h": "only multi-card face-up\u2192empty free",
+        "predict": 167,
+        "reject": "Solvitaire-like 167 not user 172"
+      }
+    ]
+  },
+  "milestones": [
+    {
+      "milestone": "D1",
+      "explicit_command_index": 91,
+      "tableau_moves": 89,
+      "stock_deals": 2,
+      "explicit_commands": 91,
+      "automatic_foundation_removals": 1,
+      "legacy_mw": 84,
+      "mobilityware_moves": 90,
+      "old_reported_mw": 84,
+      "foundations": 1,
+      "stock": 30,
+      "sw": 11,
+      "spaces": 0,
+      "state_hash": 12926723717661379735,
+      "solved": false
+    },
+    {
+      "milestone": "H20",
+      "explicit_command_index": 140,
+      "tableau_moves": 136,
+      "stock_deals": 4,
+      "explicit_commands": 140,
+      "automatic_foundation_removals": 2,
+      "legacy_mw": 131,
+      "mobilityware_moves": 139,
+      "old_reported_mw": 131,
+      "foundations": 2,
+      "stock": 10,
+      "sw": 6,
+      "spaces": 2,
+      "state_hash": 20750130944392388752,
+      "solved": false
+    },
+    {
+      "milestone": "I1",
+      "explicit_command_index": 152,
+      "tableau_moves": 147,
+      "stock_deals": 5,
+      "explicit_commands": 152,
+      "automatic_foundation_removals": 2,
+      "legacy_mw": 141,
+      "mobilityware_moves": 150,
+      "old_reported_mw": 141,
+      "foundations": 2,
+      "stock": 0,
+      "sw": 3,
+      "spaces": 0,
+      "state_hash": 21036008280814208469,
+      "solved": false
+    },
+    {
+      "milestone": "J8",
+      "explicit_command_index": 160,
+      "tableau_moves": 155,
+      "stock_deals": 5,
+      "explicit_commands": 160,
+      "automatic_foundation_removals": 3,
+      "legacy_mw": 149,
+      "mobilityware_moves": 158,
+      "old_reported_mw": 149,
+      "foundations": 3,
+      "stock": 0,
+      "sw": 0,
+      "spaces": 3,
+      "state_hash": 22909653626281116844,
+      "solved": false
+    },
+    {
+      "milestone": "J11",
+      "explicit_command_index": 163,
+      "tableau_moves": 158,
+      "stock_deals": 5,
+      "explicit_commands": 163,
+      "automatic_foundation_removals": 3,
+      "legacy_mw": 152,
+      "mobilityware_moves": 161,
+      "old_reported_mw": 152,
+      "foundations": 3,
+      "stock": 0,
+      "sw": 0,
+      "spaces": 2,
+      "state_hash": 24958727806164630273,
+      "solved": false
+    },
+    {
+      "milestone": "J17",
+      "explicit_command_index": 169,
+      "tableau_moves": 164,
+      "stock_deals": 5,
+      "explicit_commands": 169,
+      "automatic_foundation_removals": 3,
+      "legacy_mw": 158,
+      "mobilityware_moves": 167,
+      "old_reported_mw": 158,
+      "foundations": 3,
+      "stock": 0,
+      "sw": 0,
+      "spaces": 2,
+      "state_hash": 28601143106324599424,
+      "solved": false
+    },
+    {
+      "milestone": "J22_solved",
+      "explicit_command_index": 174,
+      "tableau_moves": 169,
+      "stock_deals": 5,
+      "explicit_commands": 174,
+      "automatic_foundation_removals": 8,
+      "legacy_mw": 163,
+      "mobilityware_moves": 172,
+      "old_reported_mw": 163,
+      "foundations": 8,
+      "stock": 0,
+      "sw": 0,
+      "spaces": 10,
+      "state_hash": 90614136721115541707,
+      "solved": true
+    }
+  ],
+  "experiment_impact": {
+    "note": "No optimisation rerun in this task",
+    "matrix": [
+      {
+        "id": "canonical_replay_legality",
+        "class": "unaffected",
+        "reason": "legality/solved independent of cost"
+      },
+      {
+        "id": "Opt007/008/009/010 MW ceilings",
+        "class": "invalidated",
+        "reason": "ceilings and incumbent used legacy MW=163"
+      },
+      {
+        "id": "Exp001-006A structure",
+        "class": "numerically_affected",
+        "reason": "used MW for reporting; structural conclusions may stand"
+      },
+      {
+        "id": "beats Solvitaire 167",
+        "class": "invalidated",
+        "reason": "based on withdrawn 163 claim"
+      },
+      {
+        "id": "scaffold ladder MW fields",
+        "class": "requires_rerun",
+        "reason": "milestone MW values need regeneration under corrected counter"
+      }
+    ]
+  },
+  "status_choice": 1,
+  "status_text": "Corrected engine reproduces the externally observed MobilityWare 172 count with a fully documented rule.",
+  "recommendation": 1,
+  "recommendation_text": "Accounting fixed and verified; optimisation may resume using the corrected mobilityware_moves counter (not legacy_mw).",
+  "optimisation_executed": false,
+  "canonical_overwritten": false
+}
