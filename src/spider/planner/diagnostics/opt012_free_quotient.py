@@ -286,6 +286,10 @@ def expand_component_paid(
     return list(best.values())
 
 
+# Explicit oracle name used by Opt013 differential tests
+expand_component_bruteforce = expand_component_paid
+
+
 def reconstruct_free_path(
     start: SpiderState, goal_key: CanonicalStateKey
 ) -> Optional[List[Action]]:

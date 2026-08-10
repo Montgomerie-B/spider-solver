@@ -33,13 +33,18 @@ from spider.planner.diagnostics.experiment_4925153_opt011_cmd43_51_corridor impo
 from spider.planner.diagnostics.opt012_free_quotient import (
     apply_action,
     component_key_from_state,
-    expand_component_paid,
     free_closure,
-    free_moves,
     free_slot_analysis,
-    is_free_relocation,
     reconstruct_free_path,
     all_free_moves_reversible_in_component,
+)
+from spider.planner.diagnostics.opt013_algebraic_expansion import (
+    BACKEND_ID,
+    expand_component_algebraic,
+    expand_component_bruteforce,
+    build_state_from_arrangement,
+    canonical_arrangement,
+    model_from_state,
 )
 from spider.planner.diagnostics.opt012_pruning import TargetMonotonicFilter
 from spider.state_identity import CanonicalStateKey, canonical_state_key
@@ -48,10 +53,12 @@ DEAL = ROOT / "deals" / "4925153.txt"
 CANONICAL = ROOT / "solutions" / "4925153_canonical.moves"
 ARTIFACTS = ROOT / "artifacts" / "opt012"
 
-ALGORITHM_ID = "opt012_compact_quotient"
+ALGORITHM_ID = "opt013_algebraic_quotient"
 ALGORITHM_VERSION = "1"
 COMPONENT_KEY_VERSION = "CQ01"
 PRUNE_RULE_VERSION = "target_monotonic_v1"
+# Production expansion backend (bruteforce retained as oracle only)
+PRODUCTION_EXPAND = "algebraic"
 
 
 def action_label(a: Action) -> str:
@@ -149,6 +156,7 @@ def search_quotient(
     max_expanded: int = 10_000_000,
     wall_clock: float = 0.0,
     max_rss_gib: Optional[float] = None,
+    expand_mode: str = "algebraic",  # or "bruteforce" oracle
 ) -> SearchResult:
     """Layered BFS on paid edges between free components."""
     ep = build_corridor_endpoints()
@@ -259,17 +267,12 @@ def search_quotient(
         from spider.packed_state import unpack_state
 
         rep = unpack_state(node.rep_packed)
-        members = free_closure(rep)
 
         # Target in this component?
         if node.component_bytes == target_comp:
-            # find free path from rep (or any member) to exact target
-            # use start of component: reconstruct free path from rep to target
             path_free = reconstruct_free_path(rep, target_key)
             if path_free is not None:
-                # full path: root → … → this component via parents, then free to target
                 full = _reconstruct_full_path(nodes, nid, path_free)
-                # verify cost and exact target
                 st = start.clone()
                 mw = 0
                 ok = True
@@ -290,29 +293,39 @@ def search_quotient(
                         }
                     )
                     termination = "exact_improvement" if mw < 8 else "exact_reconnect"
-                    # for ceiling < 8 improvement vs canon corridor
                     break
 
         if node.paid_cost >= ceiling:
             continue
 
-        # Expand paid successors from all members (covers all free placements)
-        outs = expand_component_paid(rep, members=members)
+        if expand_mode == "bruteforce":
+            outs = expand_component_bruteforce(rep)
+        else:
+            outs = expand_component_algebraic(rep)
         unique_paid += len(outs)
         for rec in outs:
             generated_raw += 1
             st2: SpiderState = rec["succ_state"]
             if not filt.accept(st2, current_cost=node.paid_cost + 1):
                 continue
-            # free path from rep to pre-state of paid move
-            pre_key: CanonicalStateKey = rec["from_key"]
-            free_path = reconstruct_free_path(rep, pre_key) or []
+            free_path = rec.get("free_path")
+            if free_path is None:
+                pre_key: CanonicalStateKey = rec["from_key"]
+                free_path = reconstruct_free_path(rep, pre_key) or []
             free_labels = tuple(action_label(a) for a in free_path)
             paid_lab = action_label(rec["action"])
             ck2 = rec["succ_component_key"]
-            # representative for successor component
-            memb2 = free_closure(st2)
-            rep2 = _rep_from_component(st2, memb2)
+            # Representative of successor free component (no full free_closure).
+            # When n_empty==0 the free orbit is a singleton — keep the concrete
+            # successor. When n_empty>=1 any free arrangement is fine; use
+            # deterministic canonical placement.
+            m2 = model_from_state(st2)
+            if m2.n_empty == 0:
+                rep2 = st2
+            else:
+                rep2 = build_state_from_arrangement(
+                    m2, canonical_arrangement(m2), st2
+                )
             add_node(
                 ck2,
                 node.paid_cost + 1,
@@ -373,6 +386,8 @@ def search_quotient(
                 ((peak_rss or 0) - (rss0 or 0)) / max(1, len(nodes))
             ),
             "n_arena_nodes": len(nodes),
+            "expand_mode": expand_mode,
+            "backend_id": BACKEND_ID if expand_mode == "algebraic" else "bruteforce",
         },
     )
 
