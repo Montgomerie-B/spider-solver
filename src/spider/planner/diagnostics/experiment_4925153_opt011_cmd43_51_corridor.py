@@ -485,11 +485,15 @@ class RunLock:
         self.release()
 
 
-def rss_bytes() -> Optional[int]:
+_RSS_GETTER = None  # cached callable for fast repeated RSS samples
+
+
+def _make_rss_getter():
     try:
         import psutil  # type: ignore
 
-        return int(psutil.Process(os.getpid()).memory_info().rss)
+        proc = psutil.Process(os.getpid())
+        return lambda: int(proc.memory_info().rss)
     except Exception:
         pass
     if os.name == "nt":
@@ -499,8 +503,8 @@ def rss_bytes() -> Optional[int]:
 
             class PROCESS_MEMORY_COUNTERS_EX(ctypes.Structure):
                 _fields_ = [
-                    ("cb", wintypes.DWORD),
-                    ("PageFaultCount", wintypes.DWORD),
+                    ("cb", ctypes.c_ulong),
+                    ("PageFaultCount", ctypes.c_ulong),
                     ("PeakWorkingSetSize", ctypes.c_size_t),
                     ("WorkingSetSize", ctypes.c_size_t),
                     ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
@@ -514,42 +518,57 @@ def rss_bytes() -> Optional[int]:
 
             psapi = ctypes.WinDLL("psapi")
             kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-            counters = PROCESS_MEMORY_COUNTERS_EX()
-            counters.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS_EX)
+            gpm = psapi.GetProcessMemoryInfo
+            gpm.argtypes = [
+                wintypes.HANDLE,
+                ctypes.POINTER(PROCESS_MEMORY_COUNTERS_EX),
+                wintypes.DWORD,
+            ]
+            gpm.restype = wintypes.BOOL
             handle = kernel32.GetCurrentProcess()
-            ok = psapi.GetProcessMemoryInfo(
-                handle, ctypes.byref(counters), counters.cb
-            )
-            if ok:
-                return int(counters.WorkingSetSize)
-        except Exception:
-            pass
-        # Fallback: PowerShell working set for current PID
-        try:
-            import subprocess
+            size = ctypes.sizeof(PROCESS_MEMORY_COUNTERS_EX)
 
-            out = subprocess.check_output(
-                [
-                    "powershell",
-                    "-NoProfile",
-                    "-Command",
-                    f"(Get-Process -Id {os.getpid()}).WorkingSet64",
-                ],
-                text=True,
-                timeout=5,
-            )
-            return int(out.strip())
+            def _ctypes_rss() -> int:
+                counters = PROCESS_MEMORY_COUNTERS_EX()
+                counters.cb = size
+                if not gpm(handle, ctypes.byref(counters), size):
+                    raise OSError("GetProcessMemoryInfo failed")
+                return int(counters.WorkingSetSize)
+
+            # probe once
+            _ctypes_rss()
+            return _ctypes_rss
         except Exception:
             pass
     try:
         import resource  # type: ignore
 
-        r = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        if sys.platform == "darwin":
-            return int(r)
-        return int(r) * 1024
+        # Linux: ru_maxrss is KiB; macOS: bytes. Report peak-ish value.
+        def _res_rss() -> int:
+            r = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            return int(r * 1024) if r < 10**9 else int(r)
+
+        return _res_rss
+    except Exception:
+        pass
+    return None
+
+
+def rss_bytes() -> Optional[int]:
+    """Current process RSS in bytes. Prefer fast local APIs; avoid PowerShell."""
+    global _RSS_GETTER
+    if _RSS_GETTER is None:
+        _RSS_GETTER = _make_rss_getter()
+        if _RSS_GETTER is None:
+            _RSS_GETTER = False  # type: ignore
+    if _RSS_GETTER is False or _RSS_GETTER is None:
+        return None
+    try:
+        return int(_RSS_GETTER())  # type: ignore
     except Exception:
         return None
+
+
 
 
 def atomic_write_json(path: Path, data: Dict[str, Any]) -> None:

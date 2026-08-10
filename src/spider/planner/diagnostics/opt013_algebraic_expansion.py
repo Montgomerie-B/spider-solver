@@ -11,7 +11,7 @@ and empty slots on a fixed free-slot index set, with fixed columns invariant.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from spider.engine import SpiderState
@@ -47,16 +47,31 @@ class FreeEntity:
     """A complete movable open pile (no face-down)."""
 
     cards: PileT
+    _packed: bytes = field(init=False, repr=False, compare=False, hash=False)
+    _height: int = field(init=False, repr=False, compare=False, hash=False)
+    _card_objs: tuple = field(init=False, repr=False, compare=False, hash=False)
+
+    def __post_init__(self) -> None:
+        from spider.cards import Card
+        from spider.packed_state import SUIT_IDX
+
+        packed = bytes((SUIT_IDX[s] << 4) | (r & 0x0F) for s, r in self.cards)
+        objs = tuple(Card(s, r) for s, r in self.cards)
+        object.__setattr__(self, "_packed", packed)
+        object.__setattr__(self, "_height", len(self.cards))
+        object.__setattr__(self, "_card_objs", objs)
 
     @property
     def packed(self) -> bytes:
-        from spider.packed_state import SUIT_IDX
-
-        return bytes((SUIT_IDX[s] << 4) | (r & 0x0F) for s, r in self.cards)
+        return self._packed
 
     @property
     def height(self) -> int:
-        return len(self.cards)
+        return self._height
+
+    @property
+    def card_objs(self):
+        return self._card_objs
 
 
 @dataclass(frozen=True)
@@ -135,25 +150,29 @@ def arrangement_from_state(st: SpiderState) -> Arrangement:
 def build_state_from_arrangement(
     model: ComponentModel, arr: Arrangement, template: SpiderState
 ) -> SpiderState:
-    """Materialise a labelled arrangement into a SpiderState (clone of template base)."""
-    from spider.cards import Card
+    """Materialise a labelled arrangement into a SpiderState (clone of template base).
+
+    Fixed columns are taken from ``template`` when they already match the model
+    (typical free-rearrangement case); free slots are rewritten from ``arr``.
+    """
     from spider.engine import Column
 
     st = template.clone()
-    # restore fixed columns from model
-    for i, fd, fu in model.fixed_columns:
-        st.columns[i] = Column(
-            [Card(s, r) for s, r in fd],
-            [Card(s, r) for s, r in fu],
-        )
+    # Free slots only — fixed columns already correct on a free-orbit member.
     for i in model.free_slots:
         ent = arr[i]
         if ent is None:
             st.columns[i] = Column([], [])
         else:
-            st.columns[i] = Column([], [Card(s, r) for s, r in ent.cards])
-    # stock/foundations from template (must match model)
+            st.columns[i] = Column([], list(ent.card_objs))
     return st
+
+
+def _arrangement_signature(model: ComponentModel, arr: Arrangement) -> Tuple:
+    """Immutable exact signature of a free-slot assignment (for witness dedupe)."""
+    return tuple(
+        None if arr[s] is None else arr[s].packed for s in model.free_slots  # type: ignore
+    )
 
 
 def canonical_arrangement(model: ComponentModel) -> Arrangement:
@@ -372,8 +391,15 @@ def expand_component_algebraic(
     arr_rep = arrangement_from_state(representative)
 
     best: Dict[bytes, Dict[str, Any]] = {}
+    # Witness arrangements already expanded (exact signature of free assignment)
+    seen_arr: Set[Tuple] = set()
 
-    def record(st_pre: SpiderState, a: Action, st_post: SpiderState) -> None:
+    def record(
+        st_pre: SpiderState,
+        a: Action,
+        st_post: SpiderState,
+        arr_pre: Optional[Arrangement] = None,
+    ) -> None:
         s, d, k = a  # type: ignore
         cost = mobilityware_move_cost(
             cards_moved=k,
@@ -386,11 +412,12 @@ def expand_component_algebraic(
         ck = component_key_from_state(st_post).to_bytes()
         if ck in best:
             return
-        arr_pre = arrangement_from_state(st_pre)
+        if arr_pre is None:
+            arr_pre = arrangement_from_state(st_pre)
         try:
-            if set(arr_pre.keys()) == set(arr_rep.keys()) and model.n_empty >= 1:
+            if model.n_empty >= 1 and set(arr_pre.keys()) == set(arr_rep.keys()):
                 free_path = plan_free_rearrangement(arr_rep, arr_pre)
-            elif set(arr_pre.keys()) == set(arr_rep.keys()) and arr_pre == arr_rep:
+            elif arr_pre == arr_rep:
                 free_path = []
             else:
                 free_path = (
@@ -414,24 +441,44 @@ def expand_component_algebraic(
             "backend": BACKEND_ID,
         }
 
-    def try_all_paid_from(st: SpiderState) -> None:
-        for a, _cost, st2 in _paid_successors(st):
-            record(st, a, st2)
+    def try_all_paid_from(st: SpiderState, arr_pre: Optional[Arrangement] = None) -> None:
+        for a in st.enumerate_moves():
+            if a == ("deal",):
+                continue
+            s, d, k = a  # type: ignore
+            cost = mobilityware_move_cost(
+                cards_moved=k,
+                source_face_up_count=len(st.columns[s].face_up),
+                dest_was_empty=st.columns[d].is_empty(),
+                source_face_down_count=len(st.columns[s].face_down),
+            )
+            if cost != 1:
+                continue
+            st2 = st.clone()
+            try:
+                apply_action(st2, a)
+            except Exception:
+                continue
+            record(st, a, st2, arr_pre=arr_pre)
+
+    def expand_arrangement(arr: Arrangement) -> None:
+        sig = _arrangement_signature(model, arr)
+        if sig in seen_arr:
+            return
+        seen_arr.add(sig)
+        st = build_state_from_arrangement(model, arr, representative)
+        try_all_paid_from(st, arr_pre=arr)
 
     # ----- n_empty == 0: singleton free component -----
     if model.n_empty == 0 or not slots:
-        try_all_paid_from(representative)
+        try_all_paid_from(representative, arr_pre=arr_rep)
         return list(best.values())
 
-    # ----- n_empty >= 1: full free orbit -----
-    # 1) Canonical arrangement (fixed↔fixed, free-involved from sorted layout)
-    canon_arr = canonical_arrangement(model)
-    base = build_state_from_arrangement(model, canon_arr, representative)
-    try_all_paid_from(base)
+    # ----- n_empty >= 1: covering free-orbit witnesses -----
+    # 1) Canonical arrangement
+    expand_arrangement(canonical_arrangement(model))
 
-    # 2) Free-pile sources: each distinct pile at each free slot, with a
-    #    dedicated empty elsewhere (covers free→fixed, free→empty, partial
-    #    suffix, free→free-dest when rest is filled).
+    # 2) Free-pile sources at each free slot with a dedicated empty elsewhere
     seen_pile: Set[bytes] = set()
     for p in piles:
         if p.packed in seen_pile:
@@ -454,11 +501,9 @@ def expand_component_algebraic(
                 other_slots = [s for s in slots if s not in (src_slot, empty_slot)]
                 for s, ent in zip(other_slots, rest):
                     arr[s] = ent
-                st = build_state_from_arrangement(model, arr, representative)
-                try_all_paid_from(st)
+                expand_arrangement(arr)
 
-    # 3) Each free pile forced onto each free slot as destination (fixed→free,
-    #    free→free) with remaining piles placed canonically around it.
+    # 3) Each free pile forced onto each free slot as destination
     for dest_slot in slots:
         seen_dest: Set[bytes] = set()
         for p in piles:
@@ -477,12 +522,10 @@ def expand_component_algebraic(
             others = [s for s in slots if s != dest_slot]
             for s, ent in zip(others, rest):
                 arr[s] = ent
-            st = build_state_from_arrangement(model, arr, representative)
-            try_all_paid_from(st)
+            expand_arrangement(arr)
 
-    # 4) Representative arrangement itself (in case it is not covered above
-    #    when empties/piles align differently from canonical).
-    try_all_paid_from(representative)
+    # 4) Representative arrangement
+    expand_arrangement(arr_rep)
 
     return list(best.values())
 

@@ -160,7 +160,22 @@ class SpiderState:
         return [col.top() for col in self.columns]
 
     def clone(self) -> SpiderState:
-        return copy.deepcopy(self)
+        """Structural clone. Cards are frozen/immutable so list-of-Card is enough.
+
+        Intentionally not a full object-graph deep copy (dominant historical
+        cost in Opt012/Opt013 expansion). Undo history is not copied —
+        search/diagnostic paths never need it.
+        """
+        cols = [
+            Column(list(c.face_down), list(c.face_up)) for c in self.columns
+        ]
+        st = SpiderState(
+            cols,
+            list(self.stock),
+            [list(f) for f in self.foundations],
+        )
+        st.last_move = self.last_move
+        return st
 
     def is_solved(self) -> bool:
         return len(self.foundations) == 8 and not self.stock and all(
