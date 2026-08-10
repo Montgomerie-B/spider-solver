@@ -454,6 +454,269 @@ def measure_ceiling(ceiling: int, **kwargs: Any) -> Dict[str, Any]:
     return d
 
 
+def run_production_cost_search(
+    *,
+    ceiling: int = 7,
+    max_rss_gib: Optional[float] = 8.0,
+    max_expanded: int = 0,
+    wall_clock: float = 0.0,
+    expand_mode: str = "algebraic",
+    force_stale_lock: bool = False,
+) -> Dict[str, Any]:
+    """Production corridor search with lock, checkpoint, and archive integration.
+
+    ``max_expanded <= 0`` means no expansion cap (exact exhaustive mode).
+    """
+    from spider.planner.diagnostics.experiment_4925153_opt011_cmd43_51_corridor import (
+        RunLock,
+        splice_full_solution,
+        archive_if_improving,
+        export_actions_to_moves_file,
+        START_COMMAND,
+        TARGET_COMMAND,
+    )
+    from spider.solution_archive import path_hash, validate_solution, default_archive_root
+    from spider.metrics import replay_actions_detailed
+    from spider.deal import load_deal
+
+    art = ARTIFACTS_OPT013 / f"cost{ceiling}"
+    art.mkdir(parents=True, exist_ok=True)
+    lock = RunLock(art / "opt013.lock")
+    lock.acquire(force_stale=force_stale_lock)
+
+    commit = None
+    try:
+        import subprocess
+
+        commit = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=str(ROOT), text=True, timeout=10
+            ).strip()
+        )
+    except Exception:
+        commit = "unknown"
+
+    fingerprint = {
+        "algorithm_id": ALGORITHM_ID,
+        "algorithm_version": ALGORITHM_VERSION,
+        "backend_id": _backend_id_for_mode(expand_mode),
+        "expand_mode": expand_mode,
+        "ceiling": ceiling,
+        "max_rss_gib": max_rss_gib,
+        "max_expanded": max_expanded if max_expanded > 0 else None,
+        "wall_clock": wall_clock if wall_clock > 0 else None,
+        "component_key_version": COMPONENT_KEY_VERSION,
+        "prune_rule_version": PRUNE_RULE_VERSION,
+        "checkpoint_schema": CHECKPOINT_SCHEMA,
+        "commit": commit,
+        "start_command": START_COMMAND,
+        "target_command": TARGET_COMMAND,
+        "no_stock_deals": True,
+        "no_explicit_depth_limit": True,
+    }
+    fp_hash = hashlib.sha256(
+        json.dumps(fingerprint, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:24]
+    fingerprint["config_fingerprint"] = fp_hash
+
+    launch_meta = {
+        "command": (
+            f"python -m spider.planner.diagnostics.opt012_compact_search "
+            f"--ceiling {ceiling} --max-rss-gib {max_rss_gib}"
+        ),
+        "pid": os.getpid(),
+        "start_time_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "fingerprint": fingerprint,
+        "artifacts_dir": str(art),
+    }
+    (art / "launch.json").write_text(
+        json.dumps(launch_meta, indent=2), encoding="utf-8"
+    )
+
+    exp_cap = max_expanded if max_expanded > 0 else 10**15
+    t0 = time.time()
+    try:
+        r = search_quotient(
+            ceiling=ceiling,
+            max_expanded=exp_cap,
+            wall_clock=wall_clock,
+            max_rss_gib=max_rss_gib,
+            expand_mode=expand_mode,
+        )
+    except Exception as exc:
+        lock.release()
+        out = {
+            "status": "resource_or_runtime_failure",
+            "error": str(exc),
+            "launch": launch_meta,
+            "runtime_seconds": time.time() - t0,
+        }
+        (art / "result.json").write_text(
+            json.dumps(out, indent=2, default=str), encoding="utf-8"
+        )
+        return out
+
+    d = r.to_dict()
+    d["launch"] = launch_meta
+    d["runtime_seconds_wall"] = time.time() - t0
+
+    # End-of-run checkpoint of full arena via audit path (compact, atomic)
+    try:
+        ck_stats = audit_checkpoint(
+            ceiling=ceiling,
+            expand_mode=expand_mode,
+            checkpoint_dir=art,
+        )
+        d["checkpoint"] = {
+            k: ck_stats[k]
+            for k in (
+                "backend_id",
+                "schema",
+                "checkpoint_path",
+                "checkpoint_bytes",
+                "write_time_seconds",
+                "n_nodes",
+            )
+            if k in ck_stats
+        }
+    except Exception as exc:
+        d["checkpoint_error"] = str(exc)
+
+    # Improvement path: full independent verification + external archive
+    if r.path_actions is not None and r.segment_mw is not None and r.segment_mw <= ceiling:
+        ep = build_corridor_endpoints()
+        start = ep["start_state"]
+        target = ep["target_state"]
+        # 1–3: replay segment independently
+        st = start.clone()
+        mw_seg = 0
+        segment_ok = True
+        try:
+            for a in r.path_actions:
+                mw_seg += apply_action(st, a)
+            if canonical_state_key(st) != canonical_state_key(target):
+                segment_ok = False
+                d["segment_verify"] = {
+                    "ok": False,
+                    "reason": "target_mismatch_after_replay",
+                    "segment_mw": mw_seg,
+                }
+            elif mw_seg > ceiling:
+                segment_ok = False
+                d["segment_verify"] = {
+                    "ok": False,
+                    "reason": "segment_cost_exceeds_ceiling",
+                    "segment_mw": mw_seg,
+                }
+            else:
+                d["segment_verify"] = {
+                    "ok": True,
+                    "segment_mw": mw_seg,
+                    "explicit_commands": len(r.path_actions),
+                }
+        except Exception as exc:
+            segment_ok = False
+            d["segment_verify"] = {"ok": False, "reason": str(exc)}
+
+        if segment_ok:
+            # 4–5: splice + distinct full moves file
+            splice = splice_full_solution(list(r.path_actions))
+            d["splice"] = {k: v for k, v in splice.items() if k != "full_actions"}
+            if splice.get("ok"):
+                full = splice["full_actions"]
+                seg_path = art / f"opt013_cost{ceiling}_segment.moves"
+                full_path = art / f"opt013_cost{ceiling}_full_candidate.moves"
+                export_actions_to_moves_file(list(r.path_actions), seg_path)
+                export_actions_to_moves_file(full, full_path)
+                d["segment_moves_path"] = str(seg_path)
+                d["full_candidate_moves_path"] = str(full_path)
+
+                # 6–9: independent full replay from deal file
+                st_full = SpiderState.from_cards(load_deal(DEAL))
+                counters = replay_actions_detailed(st_full, full)
+                mw_full = int(counters["mobilityware_moves"])
+                ph = path_hash(full)
+                full_ok = (
+                    st_full.is_solved()
+                    and len(st_full.foundations) == 8
+                    and len(st_full.stock) == 0
+                    and mw_full <= 171
+                    and ph != "77d169da2538ba8c"
+                )
+                d["full_independent_replay"] = {
+                    "ok": full_ok,
+                    "mobilityware_moves": mw_full,
+                    "path_hash": ph,
+                    "solved": st_full.is_solved(),
+                    "foundations": len(st_full.foundations),
+                    "stock_remaining": len(st_full.stock),
+                    "counters": counters,
+                }
+                if full_ok and mw_full == splice.get("mobilityware_moves"):
+                    # 10–13: archive + read-back
+                    arch = archive_if_improving(full)
+                    # re-source for opt013
+                    from spider.solution_archive import record_solution_if_better
+
+                    arch2 = record_solution_if_better(
+                        "4925153",
+                        full,
+                        source="opt013_algebraic_cost7",
+                        experiment_id="opt013c_cmd43_51_cost7",
+                        claimed_mobilityware_moves=mw_full,
+                    )
+                    d["archive"] = arch2.to_dict()
+                    if arch2.external_archive_written and arch2.parser_ready_path:
+                        rb = validate_solution(
+                            "4925153", Path(arch2.parser_ready_path)
+                        )
+                        d["archive_readback"] = {
+                            "ok": bool(
+                                rb.valid
+                                and rb.mobilityware_moves == mw_full
+                                and rb.path_hash == ph
+                            ),
+                            "mobilityware_moves": rb.mobilityware_moves,
+                            "path_hash": rb.path_hash,
+                            "path": arch2.parser_ready_path,
+                        }
+                        if d["archive_readback"]["ok"] and arch2.is_strict_improvement:
+                            d["status"] = "verified_improvement"
+                            d["genuine_improvement"] = True
+                        else:
+                            d["genuine_improvement"] = False
+                    else:
+                        d["genuine_improvement"] = False
+                        d["archive_readback"] = {"ok": False}
+                else:
+                    d["genuine_improvement"] = False
+            else:
+                d["genuine_improvement"] = False
+    else:
+        d["genuine_improvement"] = False
+        if r.termination == "exhausted":
+            d["corridor_closed"] = True
+
+    (art / "result.json").write_text(
+        json.dumps(d, indent=2, default=str), encoding="utf-8"
+    )
+    progress = {
+        "termination": r.termination,
+        "status": d.get("status", r.status),
+        "tt_entries": r.tt_entries,
+        "expanded": r.expanded,
+        "runtime_seconds": r.runtime_seconds,
+        "rss_peak": r.rss_peak,
+        "segment_mw": r.segment_mw,
+        "genuine_improvement": d.get("genuine_improvement"),
+    }
+    (art / "progress.json").write_text(
+        json.dumps(progress, indent=2, default=str), encoding="utf-8"
+    )
+    lock.release()
+    return d
+
+
 # ---------------------------------------------------------------------------
 # Checkpoint / resume (algebraic production backend)
 # ---------------------------------------------------------------------------
@@ -797,19 +1060,57 @@ def audit_checkpoint(
 def main(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
 
-    p = argparse.ArgumentParser(description="Opt012 compact quotient search")
+    p = argparse.ArgumentParser(description="Opt012/Opt013 compact quotient search")
     p.add_argument("--ceiling", type=int, default=0)
-    p.add_argument("--max-expanded", type=int, default=10_000_000)
+    p.add_argument(
+        "--max-expanded",
+        type=int,
+        default=0,
+        help="0 = no expansion cap (production exact mode)",
+    )
     p.add_argument("--max-rss-gib", type=float, default=None)
     p.add_argument("--wall-clock", type=float, default=0.0)
-    args = p.parse_args(list(argv) if argv is not None else None)
-    d = measure_ceiling(
-        args.ceiling,
-        max_expanded=args.max_expanded,
-        max_rss_gib=args.max_rss_gib,
-        wall_clock=args.wall_clock,
+    p.add_argument(
+        "--expand-mode",
+        choices=["algebraic", "bruteforce"],
+        default="algebraic",
     )
-    print(json.dumps({k: d[k] for k in d if k != "path_actions"}, indent=2, default=str))
+    p.add_argument("--force-stale-lock", action="store_true")
+    p.add_argument(
+        "--diagnostic-only",
+        action="store_true",
+        help="Skip lock/archive; write opt012 diagnostic JSON only",
+    )
+    args = p.parse_args(list(argv) if argv is not None else None)
+
+    # Production path for ceiling >= 1 (Opt013C cost-7 uses --ceiling 7)
+    if not args.diagnostic_only and args.ceiling >= 1:
+        d = run_production_cost_search(
+            ceiling=args.ceiling,
+            max_rss_gib=args.max_rss_gib,
+            max_expanded=args.max_expanded,
+            wall_clock=args.wall_clock,
+            expand_mode=args.expand_mode,
+            force_stale_lock=args.force_stale_lock,
+        )
+    else:
+        exp = args.max_expanded if args.max_expanded > 0 else 10_000_000
+        d = measure_ceiling(
+            args.ceiling,
+            max_expanded=exp,
+            max_rss_gib=args.max_rss_gib,
+            wall_clock=args.wall_clock,
+            expand_mode=args.expand_mode,
+        )
+    # Drop non-JSON-friendly blobs
+    skip = {"path_actions"}
+    print(
+        json.dumps(
+            {k: d[k] for k in d if k not in skip},
+            indent=2,
+            default=str,
+        )
+    )
     return 0
 
 
