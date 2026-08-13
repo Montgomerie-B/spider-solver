@@ -1,56 +1,41 @@
-# Deal 4925153 — Current Project State (July 2026)
+# Deal 4925153 — Current Project State (August 2026)
 
 ## Authoritative status
 
-Deal 4925153 is the sole optimisation focus.
+Deal 4925153 remains the primary development benchmark, but the forward solver architecture is explicitly deal-independent.
 
-- **Verified incumbent:** 172 MobilityWare moves.
+- **Verified replayable incumbent:** 172 corrected MobilityWare moves.
 - **Source:** original user-supplied complete trace in `solutions/4925153_canonical.moves`.
 - **Trace contents:** 169 tableau moves, 5 stock deals, 174 explicit commands.
 - **Solved:** yes; 8 foundations completed and stock exhausted.
-- **Project-generated complete solution:** none yet.
-- **Referenced Solvitaire result:** 167 moves.
-- **First genuine improvement threshold:** 171.
-- **Match Solvitaire:** 167.
-- **Beat Solvitaire:** 166 or fewer.
+- **Project-generated complete solution below 172:** none yet.
+- **User historical leaderboard best:** 167.
+- **Other leaderboard evidence:** 154.
+- **Leaderboard best:** 119.
+
+The MobilityWare leaderboard screenshot labels the same benchmark as Deal #492515. The repository retains its historical internal identifier `4925153` until a deliberate repository-wide rename is undertaken.
+
+The 119 score is treated as credible evidence that a radically shorter legal route exists. It is benchmark evidence, not a hard-coded solver rule.
+
+## Move-accounting correction
 
 A previously reported 163-move result is withdrawn. No distinct 163-move sequence exists.
 
-## Move-accounting incident
-
 The legacy function `mw_move_cost` incorrectly assigned zero cost whenever a move transferred the entire face-up stack to an empty column, even when face-down cards remained beneath that stack.
 
-That defect fired eleven times in the complete trace and produced:
+The verified MobilityWare rule treats a move as free only when it relocates an entire fully open column to an empty column — the source has no face-down cards remaining.
 
-- explicit commands: 174
-- legacy zero-cost moves: 11
-- withdrawn legacy total: 163
-
-The verified MobilityWare rule treats a move as free only when it relocates an entire fully open column to an empty column — that is, the source has no face-down cards remaining.
-
-Only two commands in the trace qualify, so:
+For the canonical trace:
 
 - explicit commands: 174
 - verified free full-column relocations: 2
 - corrected MobilityWare total: 172
 
-Automatic foundation removals do not increment the move counter. All five stock deals cost one move.
+Automatic foundation removals cost zero. All five stock deals cost one.
 
-See `docs/4925153_move_accounting_incident.md` for the full reconciliation.
+`legacy_mw` is retained only for forensic compatibility and must never be used for search, pruning, ranking, incumbent comparison or benchmark claims.
 
-## Corrected canonical milestones
-
-| Milestone | Withdrawn `legacy_mw` | Verified `mobilityware_moves` |
-|---|---:|---:|
-| D1 | 84 | 90 |
-| H20 | 131 | 139 |
-| I1 | 141 | 150 |
-| J8 | 149 | 158 |
-| J11 | 152 | 161 |
-| J17 | 158 | 167 |
-| J22 solved | 163 | 172 |
-
-`legacy_mw` is retained only for forensic compatibility and must not be used for incumbent comparison, optimisation ceilings or benchmark claims.
+See `docs/4925153_move_accounting_incident.md`.
 
 ## Durable solution archive
 
@@ -67,69 +52,107 @@ Default external archive:
 
 `C:\SpiderSolver\solutions\4925153`
 
-Current verified files include:
-
-- `4925153_best_solution.txt`
-- `4925153_best_solution.moves.txt`
-- `4925153_best_solution_metadata.json`
-- `solution_archive.log`
-- `history\`
-
-The archive root can be overridden with `SPIDER_SOLUTION_ARCHIVE_ROOT`.
-
 A solver improvement does not operationally exist until the distinct move sequence has been independently replayed and successfully stored in the external archive.
 
 See `docs/solution_archive.md`.
 
-## Valid infrastructure and findings
+## Reusable infrastructure
 
-The accounting incident does not invalidate the following capabilities:
+The following capabilities are valid and should be reused:
 
-- rule-accurate replay of the complete user-supplied trace;
-- canonical state hashing and scaffold reconstruction;
-- stage classifier and diagnostic feature arbitration;
-- experimental stage-aware move ordering;
-- hybrid adapter throughput improvement of approximately 5.65x;
-- transposition support;
-- checkpoint and resume;
+- rule-accurate replay and corrected MobilityWare accounting;
+- canonical state reconstruction and structural hashing;
+- transposition/checkpoint support;
+- collision-safe exact state identity;
+- zero-cost free-column quotienting;
+- algebraic quotient expansion;
+- packed state representation;
+- exact corrected-cost corridor search;
+- hybrid/legacy move ordering where useful;
+- layered-planner dependency, campaign, scorer, realizer and controller experiments;
 - durable incumbent capture and read-back verification.
 
-Structural conclusions that depend only on legality or exact state comparison may remain useful. Numeric conclusions, search ceilings and benchmark comparisons based on `legacy_mw` require correction or rerun.
+These are implementation assets. They no longer define the high-level strategy by themselves.
 
-## Closed or historical branches
+## Exact corridor findings
 
-The following remain historical diagnostic findings, but any old move totals must be interpreted through the corrected metric:
+The mispriced-reveal hypothesis has been extensively tested under corrected accounting.
 
-- B5 shortcut — closed as first-foundation-only and continuation-incompatible;
-- faster-third-foundation auxiliary branch formerly labelled MW144 — closed as structurally weaker;
-- Exp005 early-deal branch — closed as auxiliary-only;
-- W12 J8→J17 near-target — exhausted under its frozen continuation bound and closed as structurally deceptive.
+Exact local one-move optimisation corridors have been closed around:
 
-## Current optimisation direction
+- commands 26-32 (reveal 29);
+- commands 43-51 (reveals 43/47/51);
+- commands 96-101 (reveal 99);
+- commands 126-132 (reveal 129);
+- commands 147-151 (reveal 150).
 
-Before resuming long search, all new runners must:
+For commands 69-79, exact search has exhausted ceilings through corrected cost 9 with no target. The remaining one-move saving would require a cost-10 search, whose naive projection was not justified by its expected runtime.
 
-- use corrected `mobilityware_moves` only;
-- load the incumbent from the independently verified external archive;
-- call `record_solution_if_better(...)` immediately after a complete candidate replays successfully;
-- never use `legacy_mw` for pruning, ranking, reporting or incumbent comparison.
+These negative results are genuine closures of the natural local-substitution hypothesis. They should not be reopened without new structural evidence or materially stronger admissible search machinery.
 
-The nine reveal moves that the legacy metric incorrectly treated as free are priority optimisation targets because earlier search had no cost incentive to avoid them:
+## Strategic conclusion
 
-`29, 43, 47, 51, 69, 79, 99, 129, 150`
+The project is no longer treating local optimisation of the 172 route as the main programme.
 
-A corrected-metric corridor scan around these transitions is the leading next optimisation direction. Any valid result below 172 would be the project’s first genuine improvement and must be captured automatically.
+The leaderboard evidence (172 replayed project route, user 167, another 154, best 119) strongly suggests that the major remaining opportunity is strategic rather than a collection of isolated one-move substitutions.
 
-## Current goal
+The forward architecture is therefore an **anytime perfect-information solver**:
 
-The immediate goal is a verified, archived solution at 171 or fewer.
+`analyse -> generate strategic options -> realise tactics -> first solve -> improve -> tighten bounds -> prove`
 
-The subsequent benchmark goals are:
+The canonical human route remains valuable as:
 
-- 167 — match the referenced Solvitaire result;
-- 166 or fewer — beat it;
-- 119 or fewer — long-term stretch target.
+- a verified incumbent;
+- a sequence of successful states and suffixes;
+- diagnostic evidence about human play;
+- a reconnection scaffold for selected optimisation searches.
+
+It is not assumed to resemble the optimal route.
+
+## Current development direction
+
+The authoritative forward documents are:
+
+- `docs/anytime_solver_architecture.md`
+- `docs/anytime_solver_development_plan.md`
+
+The immediate development sprint is **generic foundation-removal feasibility analysis**.
+
+For any deal/state, the analyser should determine:
+
+- earliest stock epoch in which each of the two foundations of each suit is theoretically possible, based on card availability;
+- foundations that are impossible before later stock rows for hard availability reasons;
+- practical build-readiness versus removal-readiness from the current tableau;
+- required buried cards and dependency chains;
+- existing same-suit fragments and blockers;
+- likely empty-column requirements;
+- strategic value of removal now versus consolidation for later.
+
+The output is a dynamic **removal frontier**, not a fixed suit order.
+
+This will then be combined with:
+
+1. downstream reveal/dependency analysis;
+2. empty-column lifecycle and recoverability;
+3. exact known-stock reception analysis;
+4. a generic admissible lower-bound API;
+5. strategic objective generation;
+6. tactical realisation using the existing exact quotient engine;
+7. an anytime controller that finds a first solution quickly and then improves it continuously.
+
+## Benchmark milestones
+
+These are diagnostics for this deal, not generic solver rules:
+
+- any solver-generated complete solution from scratch;
+- <=172;
+- <172 — first genuine project improvement;
+- <=167 — reach the user's historical level;
+- <=154 — demonstrate materially stronger strategic play;
+- approach/reach 119.
+
+Long-term success is not defined by this one deal alone. Strategic changes must also improve or remain sound on unseen Spider deals.
 
 ---
 
-*Last updated: 11 July 2026.*
+*Last updated: 13 August 2026.*

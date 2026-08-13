@@ -1,0 +1,565 @@
+# Anytime Spider Solver Development Plan
+
+**Status:** Forward implementation plan  
+**Date:** 2026-08-13  
+**Architecture:** `docs/anytime_solver_architecture.md`  
+**Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
+
+## 1. Objective
+
+Build a general perfect-information Spider solver that can:
+
+1. analyse any legal 1-, 2- or 4-suit deal using full knowledge of hidden tableau cards and stock;
+2. find a respectable complete solution quickly when one exists;
+3. continue improving the incumbent as more compute is available;
+4. use each incumbent as a global branch-and-bound ceiling;
+5. eventually prove optimality where tractable; and
+6. prove unsolvability only after exact exhaustion of the reachable state space.
+
+The intended operating pattern is:
+
+`analyse -> generate strategic options -> realise tactics -> first solve -> improve -> tighten bounds -> prove`
+
+Deal 4925153 is the development benchmark, not the algorithm. No move, column, suit order, score, command number or hard-coded route from this deal may be embedded in generic strategy logic.
+
+## 2. Why the plan changes now
+
+Recent work substantially improved the tactical and proof machinery, but repeated local optimisation around the 172-move human route has not produced a better complete solution. Exact corridor searches have nevertheless been valuable because they established reliable accounting, state identity, quotienting and proof infrastructure.
+
+The strategic model is now the main bottleneck.
+
+Human play suggests that good Spider decisions are dominated by:
+
+- exposing useful hidden cards rather than merely exposing as many cards as possible;
+- making low-regret same-suit consolidations;
+- creating empty columns;
+- using empty columns as temporary working memory;
+- recovering or replacing those spaces later;
+- shaping the tableau to receive known future stock rows;
+- building suit material before it is removable;
+- removing foundations when removal improves the future tableau, not simply because a suit is currently closest to completion.
+
+A perfect-information solver can do better than a human on these decisions because it knows every buried card and every future stock card in advance.
+
+The benchmark evidence is also decisive. The project has a replay-verified 172 solution, the user's historical leaderboard best is 167, another leaderboard score is 154, and the recorded best is 119. The 119 route is not available, but its existence is credible benchmark evidence that the 172 route contains large strategic inefficiencies rather than merely a few isolated tactical inefficiencies.
+
+## 3. Assets to preserve and reuse
+
+The new development is additive. Existing correct infrastructure should be treated as reusable components rather than rewritten without cause.
+
+### 3.1 Rules, state and replay
+
+Reuse and keep stable unless an explicit correctness issue is found:
+
+- `src/spider/engine.py`
+- `src/spider/rules.py`
+- deal loading/parsing
+- canonical state representation
+- replay validation
+- corrected `mobilityware_moves` accounting
+
+`legacy_mw` remains forensic only and must never control search, pruning, ranking or benchmark claims.
+
+### 3.2 Existing strategic/planner work
+
+The old layered planner is no longer the forward architecture, but it contains reusable components and diagnostics:
+
+- `src/spider/planner/dependency.py`
+- `src/spider/planner/plans.py`
+- `src/spider/planner/scorer.py`
+- `src/spider/planner/realizer.py`
+- `src/spider/planner/controller.py`
+- `src/spider/planner/plan_search.py`
+- `src/spider/deal_analysis.py`
+- historical human-solution analyser outputs and strategy notes
+
+These modules should be mined, refactored or wrapped where useful. They must not dictate a deal-specific suit order or reproduce the human route by rote.
+
+### 3.3 Exact tactical/proof machinery
+
+Reuse the successful Opt011-Opt013 work:
+
+- collision-safe structural state identity;
+- exact 0-1 style corrected-cost search where applicable;
+- free-column quotienting;
+- algebraic quotient expansion;
+- packed state representation;
+- target-state compatibility checks;
+- checkpoint/resume;
+- compact transposition storage;
+- exact corridor diagnostics.
+
+The previous corridor work becomes a tactical/proof backend and a regression suite, not the main strategy.
+
+### 3.4 Incumbent verification and archive
+
+Preserve the external archive invariant:
+
+1. candidate replays independently from the true deal;
+2. every move is legal;
+3. the game is solved;
+4. corrected `mobilityware_moves` is recalculated independently;
+5. the result is strictly better than the verified incumbent;
+6. the candidate is written atomically to the external archive; and
+7. the written move file is read back and independently replayed.
+
+A result does not exist operationally until this pipeline succeeds.
+
+### 3.5 Benchmark evidence
+
+Use the following only as diagnostics/benchmarks:
+
+- canonical 172 route and all canonical states;
+- user's historical 167 leaderboard score;
+- leaderboard 154 score;
+- leaderboard 119 best score;
+- exact negative corridor results;
+- historical Solvitaire behaviour observed by the user: first solve often within minutes, then useful improvements over roughly the next 10-20 minutes before plateau.
+
+None of this benchmark evidence may become hidden deal-specific strategy logic.
+
+## 4. Solver architecture to implement
+
+The implementation should keep three responsibilities distinct.
+
+### Strategic planner
+
+Chooses *what outcome to pursue next*.
+
+Examples:
+
+- expose a particular buried-card dependency chain;
+- create a recoverable empty column;
+- consolidate useful same-suit fragments;
+- prepare a foundation candidate without necessarily removing it;
+- shape the tableau for the exact next stock row;
+- preserve a hidden region because its cards are not yet useful;
+- prepare a multi-suit cascade;
+- remove a foundation because the resulting space/freedom is valuable.
+
+### Tactical realiser
+
+Chooses *how to achieve a strategic objective legally and cheaply*.
+
+This should reuse exact quotient search where tractable and bounded heuristic search where exact realisation would be disproportionate.
+
+### Proof/optimisation engine
+
+Answers *whether a branch can still beat the incumbent* and eventually *whether the incumbent is optimal*.
+
+Only admissible lower bounds may eliminate branches in proof mode.
+
+## 5. Strategic analysis model
+
+Phase 1 development should produce a single generic `StrategicAnalysis` view of any state. It should expose the following independent but interacting analyses.
+
+### 5.1 Foundation-removal feasibility map
+
+This becomes a primary strategic compass.
+
+#### Static theoretical availability
+
+Before search begins, compute for each suit and each of its two possible K-A foundations:
+
+- which stock epoch first contains enough copies of every required rank for that foundation to exist in theory;
+- therefore the earliest stock epoch at which removal is possible;
+- foundations that are impossible before particular stock deals because required cards remain in future stock.
+
+This is a hard availability constraint, not a heuristic.
+
+#### Dynamic practical feasibility
+
+At each state, for every theoretically available foundation candidate, estimate:
+
+- required cards currently exposed;
+- required cards buried and their dependency chains;
+- existing same-suit fragments;
+- number and quality of joins still required;
+- blockers that must move;
+- empty-column requirements;
+- likely space consumption/recovery;
+- interaction with the next known stock row;
+- structural value of removing the sequence now.
+
+The output should be a **removal frontier**, not a single fixed suit order.
+
+The planner may maintain several plausible foundation schedules simultaneously. A schedule is guidance, not a hard commitment; a reveal or new space can change the best order immediately.
+
+#### Build readiness versus removal readiness
+
+Track these separately.
+
+A suit can be strategically valuable to consolidate even when a missing card in later stock makes removal impossible. Compact same-suit material can reduce tableau complexity and be carried efficiently through later stock epochs.
+
+### 5.2 Reveal dependency and downstream unlock analysis
+
+For each current face-down frontier and buried card of strategic interest, compute:
+
+- known card(s) beneath the frontier;
+- minimum known blocking material above them;
+- available destinations for blockers;
+- whether space is required;
+- subsequent cards made reachable if the line is pursued;
+- same-suit joins enabled;
+- spaces created or destroyed;
+- foundation candidates advanced;
+- stock-reception effects;
+- approximate paid move cost.
+
+A reveal has no information value to the machine. It should be pursued only for structural value.
+
+Do not encode a generic King penalty. A King is evaluated by its actual downstream consequences, including whether consuming a space unlocks more valuable material and whether another space can later be recovered.
+
+### 5.3 Space lifecycle / recoverability analysis
+
+Model empty columns as strategic resources with a lifecycle:
+
+`create -> use -> occupy -> recover/replace -> carry through stock -> reuse`
+
+For each plausible empty-column opportunity calculate:
+
+- apparent cost to create;
+- whether occupation is temporary or effectively permanent;
+- useful manipulations enabled while free;
+- route to recover the same space;
+- route to create a replacement space;
+- expected state after the next stock deal;
+- whether the incoming stock card on that column has a known immediate destination and therefore makes the space cheaply recoverable;
+- whether using the space enables another foundation/reveal/space campaign.
+
+Raw empty-column count is not enough. The planner needs **effective workspace** and **recoverability**.
+
+### 5.4 Known-stock reception analysis
+
+For each remaining stock row:
+
+- know the exact ten incoming cards and destination columns;
+- score current/pre-deal column endings for useful same-suit or rank connections;
+- identify incoming cards that can be moved immediately;
+- identify columns that should be short, empty or structurally prepared before the deal;
+- identify opportunities where a stock card unlocks/recreates a space;
+- identify suit fragments that should be built before the deal so the incoming row completes or advances them.
+
+The strategic question is not simply `deal now?`; it is:
+
+> what low-cost tableau should we prefer immediately before this exact row is dealt?
+
+### 5.5 Admissible lower-bound interface
+
+Define a generic API such as:
+
+`lower_bound(state, objective=None) -> LowerBoundBreakdown`
+
+Initial safe components should include:
+
+- remaining face-down cards that must still be exposed;
+- remaining mandatory stock deals;
+- proven target-adjacency/breakpoint bounds where applicable;
+- proven disjoint structural requirements.
+
+Do not sum bounds unless additivity is proved. Conservative `max(...)` combinations are preferable to an unsafe stronger-looking bound.
+
+For a complete-solution search with incumbent `U`, prune only when:
+
+`g(state) + h(state) >= U`
+
+For an explicit benchmark target such as 119, an experimental target-bounded search may use 119 as the ceiling, but the number must remain an input/benchmark parameter rather than generic solver logic.
+
+## 6. Development phases and gates
+
+### Phase 0 - Documentation and baseline alignment
+
+**Work**
+
+- adopt `docs/anytime_solver_architecture.md` as the forward architecture;
+- adopt this file as the forward implementation plan;
+- retain `docs/layered_planner_development_plan.md` as historical baseline;
+- update root/planner README pointers and benchmark status;
+- preserve Opt011-Opt014 experiment records as historical evidence.
+
+**Gate**
+
+Repository contains one unambiguous current architecture and one unambiguous current development plan.
+
+### Phase 1 - Perfect-information strategic analyser
+
+Implement the four strategic analyses plus lower-bound API described in section 5.
+
+Suggested new modules under `src/spider/planner/`:
+
+- `strategic_analysis.py` - aggregate state analysis;
+- `foundation_feasibility.py` - static/dynamic removal frontier;
+- `reveal_graph.py` - downstream reveal/dependency analysis;
+- `space_lifecycle.py` - workspace creation/recovery analysis;
+- `stock_reception.py` - known-stock pre/post-deal analysis;
+- `lower_bounds.py` - admissible bound interface.
+
+Existing modules may be reused/refactored instead where that is cleaner, but public responsibilities should remain clear.
+
+**Diagnostics**
+
+Produce human-readable reports for:
+
+- initial benchmark state;
+- every canonical state immediately before a stock deal;
+- selected states immediately after a stock deal;
+- a small set of unseen test deals.
+
+**Gate**
+
+The analyser is deal-independent, deterministic, explainable and covered by tests. It correctly reports hard foundation availability by stock epoch and can explain meaningful reveal/space opportunities without using the canonical route as an instruction set.
+
+### Phase 2 - Strategic objective generation and evaluation
+
+Build a small portfolio of candidate objectives from `StrategicAnalysis`.
+
+Objective families:
+
+- targeted reveal chain;
+- create/recover workspace;
+- permanent/low-regret consolidation;
+- foundation-build campaign;
+- foundation-removal campaign;
+- pre-stock receiver shaping;
+- multi-suit cascade preparation;
+- deliberate postponement of low-value work.
+
+Each objective should record:
+
+- preconditions;
+- target predicate;
+- estimated paid cost;
+- expected structural gain;
+- stock epoch relevance;
+- foundation/removal relevance;
+- space effects;
+- uncertainty/confidence of the estimate.
+
+Keep several competing objectives. Never reduce the strategy to a single suit order.
+
+**Human-trace diagnostic**
+
+At canonical benchmark states, generate the legal alternatives and record where the human move/objective ranks. When the human move ranks poorly, inspect which structural property is missing from the evaluation. This is diagnostic calibration, not imitation learning.
+
+**Gate**
+
+The objective generator produces a small, diverse and sensible candidate set on both the benchmark and unseen deals. No benchmark-specific special cases.
+
+### Phase 3 - Tactical realiser integration
+
+Give each strategic objective a target predicate and ask the tactical engine to reach it cheaply.
+
+Reuse:
+
+- algebraic zero-cost quotient expansion;
+- packed state representation;
+- transposition/checkpoint machinery;
+- legacy move ordering where useful;
+- bounded beam/best-first search as a fallback.
+
+Support two modes:
+
+1. **fast realisation** - bounded approximate route to support first-solve search;
+2. **exact realisation** - cheapest route/proof where the tactical subproblem is small enough.
+
+**Gate**
+
+Representative strategic objectives from initial and mid-game states can be converted into replay-valid legal subsequences with measured corrected cost.
+
+### Phase 4 - Anytime first-solution controller
+
+This is the first major product milestone.
+
+Search primarily over strategic objective sequences, not raw moves. Raw move search remains inside the tactical realiser.
+
+Controller responsibilities:
+
+- maintain a beam/frontier of strategically distinct states;
+- select/continue/switch objectives;
+- decide when to take the next stock deal using known-stock reception and future opportunity;
+- preserve diversity so one early suit hypothesis does not dominate every branch;
+- detect transpositions/dead states;
+- archive the first complete solution immediately;
+- continue running after first solve.
+
+**Performance target (engineering target, not proof claim)**
+
+On contemporary consumer hardware, including the project's Optiplex-class machine, aim for a reliable first complete solution on ordinary solvable 4-suit deals in minutes rather than hours. On the primary benchmark, the first objective is simply to solve from scratch without using the 172 route as a prefix. Once that is reliable, drive first-solve time and score down.
+
+**Benchmark milestones**
+
+- M1: solver-generated complete solution, any score;
+- M2: solver-generated solution <=172;
+- M3: <172, first genuine project improvement;
+- M4: <=167, reach user's historical level;
+- M5: <=154, demonstrate materially better strategic play;
+- M6: approach 119.
+
+These are benchmark milestones only, not generic thresholds.
+
+**Gate**
+
+The solver can solve previously unseen deals from scratch and return the first incumbent without waiting for optimality.
+
+### Phase 5 - Incumbent-guided improvement
+
+Once any solution exists, turn the entire run into optimisation rather than launching a disconnected optimiser.
+
+- load verified incumbent globally;
+- apply `g+h>=U` pruning wherever `h` is admissible;
+- keep multiple strategic histories alive;
+- search alternative foundation schedules, reveal plans and space lifecycles;
+- use canonical/scaffold reconnection when available, but never require it;
+- run local exact optimisation only where strategic analysis identifies a promising subproblem;
+- archive every strict improvement.
+
+The desired runtime behaviour is Solvitaire-like but stronger:
+
+- first solution quickly;
+- several meaningful improvements over the next minutes;
+- diminishing returns thereafter;
+- exact/proof machinery continuing after heuristic improvements plateau.
+
+**Gate**
+
+On a benchmark suite, longer compute budgets yield non-increasing best scores and increasingly strong lower bounds.
+
+### Phase 6 - Stronger admissible bounds and proof search
+
+Develop proof-quality heuristics separately from heuristic strategic scoring.
+
+Candidates:
+
+- target adjacency/breakpoint bounds;
+- disjoint reveal requirements;
+- stock/foundation availability constraints;
+- pattern databases over selected card/column abstractions;
+- structural matching bounds;
+- exact target-state distances for compact subproblems.
+
+Then integrate A*, IDA*, branch-and-bound or an equivalent exact framework.
+
+Report:
+
+- incumbent score;
+- proven lower bound;
+- optimality gap;
+- nodes/states expanded;
+- memory/time.
+
+**Gate**
+
+Small/medium cases can be proven optimal, and the proof path never relies on non-admissible heuristic scores.
+
+### Phase 7 - Unsolvability proof
+
+For deals where heuristic search finds no solution:
+
+- exact deadlock detection;
+- quotient zero-cost equivalences;
+- dominance/transposition;
+- exhaustive reachability when feasible.
+
+Only report `proven unsolvable` after exhaustive exact closure. Otherwise report `unknown within resource budget`.
+
+### Phase 8 - General benchmark corpus and overfitting protection
+
+Build a corpus containing:
+
+- 1-suit, 2-suit and 4-suit deals;
+- easy, medium and hard solvable examples;
+- known-unsolvable examples where available;
+- deals with external/human scores;
+- unseen holdout deals not used during heuristic tuning.
+
+Track at minimum:
+
+- first-solve time;
+- first-solve score;
+- best score at 1, 5, 15, 30 and 60 minutes where practical;
+- proven lower bound;
+- optimality gap;
+- peak RSS;
+- raw and quotient states expanded;
+- solve/proof status.
+
+No strategic change should be accepted solely because it improves deal 4925153.
+
+### Phase 9 - Performance and parallelisation
+
+Only after strategic quality is demonstrated:
+
+- profile hot paths;
+- parallelise independent strategic branches/restarts;
+- improve packed-state and successor throughput;
+- consider C++/Rust/C extensions for proven bottlenecks;
+- retain deterministic replay/proof invariants.
+
+Do not use low-level optimisation to compensate for a poor strategic model.
+
+## 7. Immediate development sprint
+
+Begin with **Phase 1A: foundation-removal feasibility** because it supplies a high-level goal structure for the rest of the analyser and is largely deterministic.
+
+### Sprint 1A deliverables
+
+1. Create a generic foundation availability table from the full deal:
+   - for every suit;
+   - for foundation copy 1 and 2;
+   - earliest stock epoch at which all required ranks are in play in theory.
+2. Add dynamic analysis for the current state:
+   - available required cards;
+   - buried required cards;
+   - current same-suit fragments;
+   - blocker/reveal dependencies;
+   - preliminary space requirement;
+   - build-readiness and removal-readiness separately.
+3. Emit a human-readable `removal frontier` diagnostic rather than a fixed suit order.
+4. Run it on:
+   - initial benchmark state;
+   - pre-deal canonical checkpoints;
+   - at least one unrelated deal fixture.
+5. Add tests proving:
+   - a foundation is never reported removable before all required ranks have entered play;
+   - duplicate cards are handled correctly;
+   - two foundations of one suit require two copies of every rank;
+   - later stock cards correctly delay theoretical availability;
+   - no benchmark deal number/column assumption exists in the implementation.
+
+### Sprint 1A gate
+
+We can answer, for any deal and any stock epoch:
+
+- which foundations are impossible yet for hard card-availability reasons;
+- which are theoretically possible;
+- which are practically attractive to build/remove from the current tableau;
+- why.
+
+After this gate, implement reveal graph and space lifecycle next, then combine them into the first full `StrategicAnalysis` object.
+
+## 8. Development discipline
+
+- Keep changes modular and reviewable.
+- Prefer new generic modules over editing legacy experiment code.
+- Preserve old experiment outputs and historical docs.
+- Add regression tests before long searches.
+- Do not run multi-hour searches until the relevant phase gate is satisfied and a shorter benchmark demonstrates the intended effect.
+- Record exact negative results as closures; do not repeatedly reopen them without new evidence.
+- Heuristics may order and prioritise; proof pruning requires admissibility.
+- Corrected MobilityWare scoring and archive verification are non-negotiable.
+
+## 9. Definition of success
+
+### Near term
+
+A generic perfect-information analyser that can explain foundation timing, reveal value, workspace and stock reception better than the current flat heuristics.
+
+### Medium term
+
+A solver that reliably finds respectable full solutions in minutes and then improves them iteratively under a tightening incumbent ceiling.
+
+### Long term
+
+A high-performance general Spider solver that can approach record-quality solutions, prove optimality on tractable deals, and prove unsolvability where exact exhaustion is feasible.
+
+The benchmark deal is successful when the solver reaches progressively better scores because the general architecture improved - not because a route for that deal was encoded by hand.
