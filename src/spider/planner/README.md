@@ -32,8 +32,8 @@ The immediate implementation sequence is:
 2. ~~reveal/dependency downstream-value analysis~~ (**Sprint 1B done** — `reveal_graph.py`);
 3. ~~empty-column lifecycle and recoverability~~ (**Sprint 1C done** — `space_lifecycle.py`);
 4. ~~exact known-stock reception analysis~~ (**Sprint 1D done** — `stock_reception.py`; `strategic_analysis.py` aggregates 1A–1D);
-5. admissible lower-bound API / strategic objective generation;
-6. strategic objective generation;
+5. ~~admissible lower-bound API / strategic objective generation~~ (**Sprint 1E done** — `lower_bounds.py`, `strategic_objectives.py`);
+6. tactical realisation of objectives (exact/bounded paths to target predicates);
 7. tactical realisation using the existing exact quotient machinery;
 8. anytime first-solution search;
 9. incumbent-guided improvement and eventual proof.
