@@ -1,8 +1,12 @@
-"""Generic strategic campaigns generated from StrategicAnalysis (Sprint 1J).
+"""Generic strategic campaigns generated from StrategicAnalysis (Sprints 1J–1K).
 
 Campaigns group related atomic objectives so the planner can reanalyse and
 pursue several shallow steps in one epoch. No deal-number, suit, or column
 constants in selection policy.
+
+Sprint 1K: ACCESS tries several ranked reveal columns with fallback;
+FOUNDATION_BUILD stays suit-specific; WORKSPACE_EXPLOIT cannot degenerate
+into a generic reveal campaign.
 """
 
 from __future__ import annotations
@@ -40,6 +44,86 @@ class StrategicCampaign:
     heuristic_priority: float
 
 
+def _column_interest(analysis: Optional[StrategicAnalysis], col: int) -> float:
+    if analysis is None or analysis.reveal is None:
+        return 0.0
+    best = 0.0
+    for opp in analysis.reveal.opportunities:
+        if opp.prefix.column == col:
+            best = max(best, float(opp.heuristic_interest))
+    return best
+
+
+def foundation_candidate_is_actionable(cand) -> bool:
+    """True when a 1A candidate has real suit-specific work, not a label.
+
+    Heuristic gate for *generation* only. Not a proof prune.
+    """
+    if cand.already_completed:
+        return False
+    if cand.theoretically_available:
+        return True
+    if cand.longest_same_suit_fragment >= 2:
+        return True
+    if cand.heuristic_removal_readiness > 0:
+        return True
+    return False
+
+
+def objective_is_suit_relevant(
+    obj: StrategicObjective,
+    suit: str,
+    state: SpiderState,
+    analysis: Optional[StrategicAnalysis] = None,
+) -> bool:
+    """Whether ``obj`` is genuinely about ``suit`` (duplicates interchangeable)."""
+    if obj.kind == ObjectiveKind.DEAL_NOW:
+        return False
+    params = obj.target_params or {}
+    if params.get("suit") == suit:
+        return True
+    if obj.kind in (
+        ObjectiveKind.REMOVE_FOUNDATION,
+        ObjectiveKind.ADVANCE_FOUNDATION,
+        ObjectiveKind.CONSOLIDATE_SAME_SUIT,
+    ):
+        return params.get("suit") == suit
+    if obj.kind == ObjectiveKind.EXPOSE_REVEAL_PREFIX:
+        col = params.get("column")
+        if col is None or col < 0 or col >= len(state.columns):
+            return False
+        pile = state.columns[col]
+        if any(c.suit == suit for c in pile.face_down):
+            return True
+        if analysis is not None and analysis.reveal is not None:
+            for opp in analysis.reveal.opportunities:
+                if opp.prefix.column != col:
+                    continue
+                if any(c.suit == suit for c in opp.prefix.cards_unlocked):
+                    return True
+                if any(
+                    getattr(t, "code", "").startswith("foundation")
+                    and suit in str(t).lower()
+                    for t in opp.prefix.structural_tags
+                ):
+                    return True
+        return False
+    if obj.kind == ObjectiveKind.SHAPE_STOCK_RECEIVER:
+        if params.get("suit") == suit:
+            return True
+        col = params.get("column")
+        if analysis is None or analysis.stock_reception is None:
+            return False
+        for inc in analysis.stock_reception.incoming_row:
+            if inc.column == col and inc.card.suit == suit:
+                return True
+        for t in analysis.stock_reception.receiver_targets:
+            if t.column == col and t.incoming.suit == suit:
+                return True
+        return False
+    return False
+
+
 def generate_campaigns(
     state: SpiderState,
     *,
@@ -52,7 +136,7 @@ def generate_campaigns(
         analysis = analyze_strategic(state, cards=cards, run_shaping_probe=False)
     out: List[StrategicCampaign] = []
 
-    # ACCESS: best reveal columns by 1B interest (shallow first)
+    # ACCESS: one multi-column excavation campaign (fallback inside realizer)
     if analysis.reveal is not None:
         best_col: dict = {}
         for opp in analysis.reveal.opportunities:
@@ -64,25 +148,28 @@ def generate_campaigns(
             best_col.values(),
             key=lambda o: (-o.heuristic_interest, o.prefix.unavoidable_reveal_count),
         )
-        for opp in ranked[:2]:
-            col = opp.prefix.column
-            seq = " -> ".join(str(c) for c in opp.prefix.cards_unlocked[:4])
+        if ranked:
+            top = ranked[0]
+            ranked_txt = ", ".join(
+                f"c{o.prefix.column + 1}({o.heuristic_interest:.0f}/d{o.prefix.unavoidable_reveal_count})"
+                for o in ranked[:4]
+            )
             out.append(
                 StrategicCampaign(
                     kind=CampaignKind.ACCESS,
-                    campaign_id=f"access_c{col + 1}",
-                    description=f"Sustained excavation of col {col + 1}: {seq}",
-                    focus_column=col,
-                    focus_suit=None,
-                    reason=(
-                        f"1B interest={opp.heuristic_interest} "
-                        f"depth={opp.prefix.unavoidable_reveal_count}"
+                    campaign_id="access",
+                    description=(
+                        "Sustained excavation with fallback across ranked "
+                        f"reveal columns: {ranked_txt}"
                     ),
-                    heuristic_priority=opp.heuristic_interest,
+                    focus_column=top.prefix.column,
+                    focus_suit=None,
+                    reason=f"1B ranked {ranked_txt}",
+                    heuristic_priority=float(top.heuristic_interest),
                 )
             )
 
-    # WORKSPACE_EXPLOIT
+    # WORKSPACE_EXPLOIT — generated even if later blocked (diagnostic)
     empties = empty_count(state)
     out.append(
         StrategicCampaign(
@@ -100,12 +187,12 @@ def generate_campaigns(
         )
     )
 
-    # FOUNDATION_BUILD: pick from current 1A frontier (generic)
+    # FOUNDATION_BUILD: only when a candidate has real suit-specific work
     if analysis.foundation is not None:
         cands = [
             c
             for c in analysis.foundation.frontier.candidates
-            if not c.already_completed
+            if foundation_candidate_is_actionable(c)
         ]
         cands.sort(
             key=lambda c: (
@@ -181,11 +268,14 @@ def campaign_subobjectives(
     *,
     analysis: Optional[StrategicAnalysis] = None,
     cards=None,
+    max_access_candidates: int = 5,
 ) -> Tuple[StrategicObjective, ...]:
     """Filter/order the current portfolio for this campaign."""
     port = generate_objective_portfolio(
-        state, analysis=analysis, cards=cards, max_objectives=12
+        state, analysis=analysis, cards=cards, max_objectives=16
     )
+    if analysis is None:
+        analysis = analyze_strategic(state, cards=cards, run_shaping_probe=False)
     picked: List[StrategicObjective] = []
 
     def add(o: StrategicObjective) -> None:
@@ -195,63 +285,78 @@ def campaign_subobjectives(
             picked.append(o)
 
     if campaign.kind == CampaignKind.ACCESS:
-        col = campaign.focus_column
-        for o in port.objectives:
-            if o.kind != ObjectiveKind.EXPOSE_REVEAL_PREFIX:
-                continue
-            if col is not None and o.target_params.get("column") != col:
-                continue
-            # Prefer shallow
-            if int(o.target_params.get("required_reveals", 99)) > 2:
+        exposes = [
+            o
+            for o in port.objectives
+            if o.kind == ObjectiveKind.EXPOSE_REVEAL_PREFIX
+            and int(o.target_params.get("required_reveals", 99)) <= 2
+        ]
+        exposes.sort(
+            key=lambda o: (
+                -_column_interest(analysis, int(o.target_params.get("column", -1))),
+                int(o.target_params.get("required_reveals", 99)),
+                int(o.target_params.get("column", 99)),
+            )
+        )
+        # Keep a small ranked set; several columns, shallow first within a col
+        seen_cols = []
+        for o in exposes:
+            col = o.target_params.get("column")
+            if col not in seen_cols:
+                if len(seen_cols) >= max_access_candidates:
+                    continue
+                seen_cols.append(col)
+            # allow the shallow (and at most one extra) for each kept column
+            n_for_col = sum(
+                1 for x in picked if x.target_params.get("column") == col
+            )
+            if n_for_col >= 2:
                 continue
             add(o)
-        # allow workspace if it helps access
-        for o in port.objectives:
-            if o.kind == ObjectiveKind.CREATE_WORKSPACE:
-                add(o)
+        # workspace is a helper after ranked reveals, not a replacement
+        if empty_count(state) == 0:
+            for o in port.objectives:
+                if o.kind == ObjectiveKind.CREATE_WORKSPACE:
+                    add(o)
 
     elif campaign.kind == CampaignKind.WORKSPACE_EXPLOIT:
         empties = empty_count(state)
         if empties == 0:
+            # Must create first. Do not silently become a generic reveal campaign.
             for o in port.objectives:
                 if o.kind == ObjectiveKind.CREATE_WORKSPACE:
                     add(o)
-        for o in port.objectives:
-            if o.kind in (
-                ObjectiveKind.EXPOSE_REVEAL_PREFIX,
-                ObjectiveKind.CONSOLIDATE_SAME_SUIT,
-                ObjectiveKind.ADVANCE_FOUNDATION,
-            ):
-                if o.kind == ObjectiveKind.EXPOSE_REVEAL_PREFIX:
-                    if int(o.target_params.get("required_reveals", 99)) > 3:
-                        continue
-                add(o)
+        else:
+            for o in port.objectives:
+                if o.kind in (
+                    ObjectiveKind.EXPOSE_REVEAL_PREFIX,
+                    ObjectiveKind.CONSOLIDATE_SAME_SUIT,
+                    ObjectiveKind.ADVANCE_FOUNDATION,
+                ):
+                    if o.kind == ObjectiveKind.EXPOSE_REVEAL_PREFIX:
+                        if int(o.target_params.get("required_reveals", 99)) > 2:
+                            continue
+                    add(o)
 
     elif campaign.kind == CampaignKind.FOUNDATION_BUILD:
         suit = campaign.focus_suit
+        if not suit:
+            return ()
         for o in port.objectives:
-            if o.kind == ObjectiveKind.REMOVE_FOUNDATION:
-                if suit and o.target_params.get("suit") == suit:
-                    add(o)
-            if o.kind == ObjectiveKind.ADVANCE_FOUNDATION:
-                if suit and o.target_params.get("suit") == suit:
-                    add(o)
-            if o.kind == ObjectiveKind.CONSOLIDATE_SAME_SUIT:
-                if suit and o.target_params.get("suit") == suit:
-                    add(o)
-            if o.kind == ObjectiveKind.EXPOSE_REVEAL_PREFIX:
-                if int(o.target_params.get("required_reveals", 99)) <= 2:
-                    add(o)
-        for o in port.objectives:
+            if o.kind == ObjectiveKind.DEAL_NOW:
+                continue
             if o.kind == ObjectiveKind.CREATE_WORKSPACE:
-                add(o)
+                continue
+            if not objective_is_suit_relevant(o, suit, state, analysis):
+                continue
+            if o.kind == ObjectiveKind.EXPOSE_REVEAL_PREFIX:
+                if int(o.target_params.get("required_reveals", 99)) > 2:
+                    continue
+            add(o)
 
     elif campaign.kind == CampaignKind.STOCK_PREP:
         for o in port.objectives:
             if o.kind == ObjectiveKind.SHAPE_STOCK_RECEIVER:
-                add(o)
-        for o in port.objectives:
-            if o.kind == ObjectiveKind.CREATE_WORKSPACE:
                 add(o)
 
     return tuple(picked)

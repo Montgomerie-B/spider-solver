@@ -1,17 +1,20 @@
 """Sequential campaign execution via repeated shallow objective realisation.
 
+Sprint 1K: ACCESS falls through blocked reveal columns; semantic integrity
+per campaign kind; zero-progress results stay out of the productive frontier.
 Reanalyse after every successful sub-objective. Never deals. A miss/resource
-limit is not impossibility.
+limit is not impossibility and is not proof pruning.
 """
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from spider.engine import SpiderState
 from spider.metrics import replay_actions
+from spider.state_identity import CanonicalStateKey, canonical_state_key
 from spider.planner.lower_bounds import count_face_down
 from spider.planner.objective_realizer import (
     Action,
@@ -26,6 +29,7 @@ from spider.planner.strategic_campaigns import (
     StrategicCampaign,
     campaign_subobjectives,
     generate_campaigns,
+    objective_is_suit_relevant,
 )
 from spider.planner.plan_search_v2 import _longest_and_mass
 
@@ -40,12 +44,14 @@ class CampaignStep:
     face_down_after: int
     empty_after: int
     ss_after: int
+    focus_column: Optional[int] = None
+    fallback: bool = False
 
 
 @dataclass
 class CampaignResult:
     campaign: StrategicCampaign
-    status: str  # success / plateau / budget / resource_limit / already
+    status: str
     paid_cost: int
     actions: Tuple[Action, ...]
     steps: Tuple[CampaignStep, ...]
@@ -70,6 +76,12 @@ class CampaignResult:
     realizations_attempted: int
     nodes_expanded: int
     replay_verified: bool
+    fallbacks_tried: int = 0
+    resource_count: int = 0
+    miss_count: int = 0
+    productive_steps: int = 0
+    focus_history: Tuple[int, ...] = ()
+    access_focus_changes: int = 0
 
     @property
     def fd_reduction(self) -> int:
@@ -82,34 +94,59 @@ class CampaignResult:
         return self.fd_reduction / self.paid_cost
 
     @property
-    def productive(self) -> bool:
-        """Heuristic: did workspace/access produce useful follow-on work?
+    def zero_progress(self) -> bool:
+        return (
+            self.paid_cost == 0
+            and self.fd_reduction == 0
+            and self.end_ss == self.start_ss
+            and self.end_mass == self.start_mass
+            and self.end_empty == self.start_empty
+            and self.foundations_delta == 0
+            and self.end_stock_ss == self.start_stock_ss
+        )
 
-        Consuming an empty after using it still counts as productive.
-        Creating workspace with no follow-on reveal/join/foundation does not.
+    @property
+    def productive(self) -> bool:
+        """Heuristic: did this campaign produce kind-appropriate follow-on work?
+
+        Creating workspace with no follow-on reveal/join/foundation does not
+        count. Consuming an empty after using it still counts.
         """
+        if self.zero_progress:
+            return False
         used = (
             self.fd_reduction > 0
             or self.end_ss > self.start_ss
             or self.end_mass > self.start_mass
             or self.foundations_delta > 0
         )
+        if self.campaign.kind == CampaignKind.ACCESS:
+            return self.fd_reduction > 0
         if self.campaign.kind == CampaignKind.WORKSPACE_EXPLOIT:
             created = any(
                 s.objective_kind == "CREATE_WORKSPACE" and s.status == "found"
                 for s in self.steps
             )
-            held = self.end_empty > 0 or self.end_empty > self.start_empty
-            return (created or held) and used
+            held = self.start_empty > 0 or self.end_empty > 0 or created
+            return held and used
+        if self.campaign.kind == CampaignKind.FOUNDATION_BUILD:
+            return (
+                self.foundations_delta > 0
+                or self.end_ss > self.start_ss
+                or self.end_foundation_build > self.start_foundation_build
+                or self.end_foundation_removal > self.start_foundation_removal
+                or self.fd_reduction > 0
+            )
+        if self.campaign.kind == CampaignKind.STOCK_PREP:
+            return (
+                self.end_stock_ss > self.start_stock_ss
+                or self.end_empty > self.start_empty
+            )
         return used
 
     @property
     def productive_return_per_move(self) -> Optional[float]:
-        """HEURISTIC diagnostic: useful events / paid cost.
-
-        Useful events = face-down reductions + same-suit gains + foundation
-        removals. Workspace creation alone does not count.
-        """
+        """HEURISTIC diagnostic: useful events / paid cost."""
         if self.paid_cost <= 0:
             return None
         useful = (
@@ -166,21 +203,7 @@ def _is_deal_action(action: Action) -> bool:
 
 
 def _campaign_success(campaign: StrategicCampaign, result_like: CampaignResult) -> bool:
-    """Workspace creation alone is not a successful investment."""
-    if campaign.kind == CampaignKind.WORKSPACE_EXPLOIT:
-        return result_like.productive
-    if campaign.kind == CampaignKind.STOCK_PREP:
-        return (
-            result_like.end_stock_ss > result_like.start_stock_ss
-            or result_like.fd_reduction > 0
-            or result_like.end_ss > result_like.start_ss
-            or result_like.end_empty > result_like.start_empty
-        )
-    return (
-        result_like.fd_reduction > 0
-        or result_like.end_ss > result_like.start_ss
-        or result_like.foundations_delta > 0
-    )
+    return result_like.productive
 
 
 def realize_campaign(
@@ -189,13 +212,19 @@ def realize_campaign(
     *,
     cards=None,
     max_paid_cost: int = 10,
-    max_steps: int = 8,
+    max_steps: int = 16,
     tactical_max_cost: int = 4,
     tactical_max_nodes: int = 400,
     tactical_time_s: float = 0.3,
     workspace_max_cost: int = 6,
+    max_access_candidates: int = 5,
 ) -> CampaignResult:
-    """Repeatedly pick a related sub-objective and realise it cheaply."""
+    """Repeatedly pick a related sub-objective and realise it cheaply.
+
+    Strategic rank first, then a small bounded actionability probe. A blocked
+    probe is not impossibility; ACCESS falls through to the next ranked
+    reveal. Failed (state, objective) pairs are cached for the campaign.
+    """
     t0 = time.time()
     st = state.clone()
     analysis0 = analyze_strategic(st, cards=cards, run_shaping_probe=False)
@@ -212,28 +241,54 @@ def realize_campaign(
     paid = 0
     attempted = 0
     nodes = 0
-    fail_streak = 0
+    fallbacks = 0
+    resource_n = 0
+    miss_n = 0
+    productive_n = 0
+    focus_hist: List[int] = []
+    focus_changes = 0
     stop = "plateau"
     status = "plateau"
     any_progress = False
+    failed_probes: Set[Tuple[CanonicalStateKey, str]] = set()
+    blocked_oids: Set[str] = set()
+    last_empty = e0
 
-    while paid < max_paid_cost and len(steps) < max_steps:
+    while paid < max_paid_cost and len([s for s in steps if s.status == "found"]) < max_steps:
         analysis = analyze_strategic(st, cards=cards, run_shaping_probe=False)
-        subs = campaign_subobjectives(st, campaign, analysis=analysis, cards=cards)
+        if empty_count(st) != last_empty:
+            blocked_oids.clear()
+            last_empty = empty_count(st)
+        subs = campaign_subobjectives(
+            st,
+            campaign,
+            analysis=analysis,
+            cards=cards,
+            max_access_candidates=max_access_candidates,
+        )
         if not subs:
-            stop = "plateau"
-            status = "plateau"
+            stop = "no_relevant_subobjective"
+            status = "zero_progress" if not any_progress else "plateau"
             break
+        key = canonical_state_key(st)
         progressed = False
+        tried_this_round = 0
+        res_this_round = 0
+        miss_this_round = 0
         for obj in subs:
             remaining = max_paid_cost - paid
             if remaining <= 0:
                 break
+            if (key, obj.objective_id) in failed_probes:
+                continue
+            if obj.objective_id in blocked_oids:
+                continue
             if obj.kind.value == "CREATE_WORKSPACE":
                 bound = min(workspace_max_cost, remaining)
             else:
                 bound = min(tactical_max_cost, remaining)
             attempted += 1
+            tried_this_round += 1
             res = realize_objective(
                 st,
                 obj,
@@ -245,7 +300,13 @@ def realize_campaign(
             nodes += int(getattr(res, "nodes_expanded", 0) or 0)
             if res.status == RealizationStatus.ALREADY_SATISFIED:
                 continue
+            col = obj.target_params.get("column") if obj.target_params else None
             if res.status == RealizationStatus.RESOURCE_LIMIT:
+                resource_n += 1
+                res_this_round += 1
+                failed_probes.add((key, obj.objective_id))
+                blocked_oids.add(obj.objective_id)
+                fallbacks += 1
                 steps.append(
                     CampaignStep(
                         obj.objective_id,
@@ -256,29 +317,56 @@ def realize_campaign(
                         count_face_down(st),
                         empty_count(st),
                         _longest_and_mass(st)[0],
+                        focus_column=col,
+                        fallback=True,
                     )
                 )
-                fail_streak += 1
                 continue
             if res.status != RealizationStatus.FOUND:
-                fail_streak += 1
+                miss_n += 1
+                miss_this_round += 1
+                failed_probes.add((key, obj.objective_id))
+                blocked_oids.add(obj.objective_id)
+                fallbacks += 1
                 continue
             cost = int(res.corrected_mw_cost or 0)
             if paid + cost > max_paid_cost:
-                fail_streak += 1
+                miss_n += 1
+                miss_this_round += 1
+                failed_probes.add((key, obj.objective_id))
                 continue
             if any(_is_deal_action(a) for a in res.actions):
-                fail_streak += 1
+                miss_n += 1
+                failed_probes.add((key, obj.objective_id))
+                blocked_oids.add(obj.objective_id)
+                continue
+            if (
+                campaign.kind == CampaignKind.FOUNDATION_BUILD
+                and campaign.focus_suit
+                and not objective_is_suit_relevant(
+                    obj, campaign.focus_suit, st, analysis
+                )
+            ):
+                miss_n += 1
+                failed_probes.add((key, obj.objective_id))
+                blocked_oids.add(obj.objective_id)
                 continue
             chk = st.clone()
             recost = replay_actions(chk, list(res.actions))
             if recost != cost or not obj.is_satisfied(chk):
-                fail_streak += 1
+                miss_n += 1
+                miss_this_round += 1
+                failed_probes.add((key, obj.objective_id))
+                blocked_oids.add(obj.objective_id)
                 continue
             st = chk
             paid += cost
             actions.extend(res.actions)
             ss_now, _ = _longest_and_mass(st)
+            if col is not None:
+                if focus_hist and focus_hist[-1] != col:
+                    focus_changes += 1
+                focus_hist.append(int(col))
             steps.append(
                 CampaignStep(
                     obj.objective_id,
@@ -289,18 +377,29 @@ def realize_campaign(
                     count_face_down(st),
                     empty_count(st),
                     ss_now,
+                    focus_column=col,
+                    fallback=tried_this_round > 1,
                 )
             )
-            fail_streak = 0
+            productive_n += 1
             progressed = True
             any_progress = True
             break
         if not progressed:
-            stop = "plateau" if fail_streak < 6 else "resource_limit"
-            status = stop
+            if not any_progress:
+                if tried_this_round == 0 and attempted == 0:
+                    stop = "no_relevant_subobjective"
+                elif res_this_round > 0 and miss_this_round == 0:
+                    stop = "resource_limit"
+                else:
+                    stop = "all_candidates_blocked"
+                status = "zero_progress"
+            else:
+                stop = "plateau"
+                status = "plateau"
             break
     else:
-        if paid >= max_paid_cost or len(steps) >= max_steps:
+        if paid >= max_paid_cost or productive_n >= max_steps:
             stop = "budget"
             status = "budget"
 
@@ -314,7 +413,6 @@ def realize_campaign(
         analysis1, prefer_suit=campaign.focus_suit
     )
 
-    # Independent full replay from original start
     verify = state.clone()
     vcost = replay_actions(verify, list(actions)) if actions else 0
     verified = vcost == paid
@@ -346,11 +444,32 @@ def realize_campaign(
         realizations_attempted=attempted,
         nodes_expanded=nodes,
         replay_verified=verified,
+        fallbacks_tried=fallbacks,
+        resource_count=resource_n,
+        miss_count=miss_n,
+        productive_steps=productive_n,
+        focus_history=tuple(focus_hist),
+        access_focus_changes=focus_changes,
     )
-    if any_progress and _campaign_success(campaign, result):
-        if status in ("plateau", "budget"):
+    if result.zero_progress:
+        result.status = "zero_progress"
+        if result.stop_reason in ("plateau", "budget"):
+            if attempted == 0:
+                result.stop_reason = "no_relevant_subobjective"
+            else:
+                result.stop_reason = "all_candidates_blocked"
+    elif any_progress and _campaign_success(campaign, result):
+        if result.status in ("plateau", "budget", "zero_progress"):
             result.status = "success"
-            result.stop_reason = "success"
+            if stop in ("budget",):
+                result.stop_reason = "budget"
+            else:
+                result.stop_reason = "success"
+    elif any_progress and not _campaign_success(campaign, result):
+        # e.g. workspace created but never used
+        result.status = "plateau"
+        if result.stop_reason in ("success", "zero_progress"):
+            result.stop_reason = "plateau"
     return result
 
 
@@ -370,14 +489,23 @@ def prefix_at_budget(
     return paid, count_face_down(st), empty_count(st), ss, mass
 
 
+def productive_campaign_results(
+    results: Sequence[CampaignResult],
+) -> Tuple[CampaignResult, ...]:
+    return tuple(r for r in results if r.productive and not r.zero_progress)
+
+
 def pareto_campaign_results(
     results: Sequence[CampaignResult],
 ) -> Tuple[CampaignResult, ...]:
-    """Non-dominated results on cost / excavation / structure / foundations."""
+    """Non-dominated *productive* results on cost / excavation / structure."""
+    pool = list(productive_campaign_results(results))
+    if not pool:
+        return ()
     kept: List[CampaignResult] = []
-    for a in results:
+    for a in pool:
         dominated = False
-        for b in results:
+        for b in pool:
             if b is a:
                 continue
             le = (
@@ -410,7 +538,8 @@ def stratify_campaign_results(
     results: Sequence[CampaignResult], *, limit: int = 6
 ) -> Tuple[CampaignResult, ...]:
     """Cheapest, least fd, best efficiency, best ss, best foundation, productive."""
-    if not results:
+    pool = list(productive_campaign_results(results))
+    if not pool:
         return ()
     picks: List[CampaignResult] = []
 
@@ -422,9 +551,9 @@ def stratify_campaign_results(
         }:
             picks.append(r)
 
-    add(min(results, key=lambda r: (r.paid_cost, r.end_face_down)))
-    add(min(results, key=lambda r: (r.end_face_down, r.paid_cost)))
-    with_cost = [r for r in results if r.paid_cost > 0]
+    add(min(pool, key=lambda r: (r.paid_cost, r.end_face_down)))
+    add(min(pool, key=lambda r: (r.end_face_down, r.paid_cost)))
+    with_cost = [r for r in pool if r.paid_cost > 0]
     if with_cost:
         add(
             max(
@@ -436,10 +565,10 @@ def stratify_campaign_results(
                 ),
             )
         )
-    add(max(results, key=lambda r: (r.end_ss, r.end_mass, -r.paid_cost)))
+    add(max(pool, key=lambda r: (r.end_ss, r.end_mass, -r.paid_cost)))
     add(
         max(
-            results,
+            pool,
             key=lambda r: (
                 r.end_foundation_removal,
                 r.end_foundation_build,
@@ -448,18 +577,16 @@ def stratify_campaign_results(
             ),
         )
     )
-    productive = [r for r in results if r.productive]
-    if productive:
-        add(
-            max(
-                productive,
-                key=lambda r: (
-                    r.productive_return_per_move or 0.0,
-                    r.fd_reduction,
-                    -r.paid_cost,
-                ),
-            )
+    add(
+        max(
+            pool,
+            key=lambda r: (
+                r.productive_return_per_move or 0.0,
+                r.fd_reduction,
+                -r.paid_cost,
+            ),
         )
+    )
     return tuple(picks[:limit])
 
 
@@ -468,6 +595,8 @@ class CampaignFrontier:
     results: Tuple[CampaignResult, ...]
     pareto: Tuple[CampaignResult, ...]
     stratified: Tuple[CampaignResult, ...]
+    productive: Tuple[CampaignResult, ...] = ()
+    blocked: Tuple[CampaignResult, ...] = ()
     mix: Dict[str, int] = field(default_factory=dict)
     elapsed_seconds: float = 0.0
     nodes_expanded: int = 0
@@ -495,10 +624,14 @@ def run_campaign_frontier(
     for r in results:
         mix[r.campaign.kind.value] = mix.get(r.campaign.kind.value, 0) + 1
     tup = tuple(results)
+    prod = productive_campaign_results(tup)
+    blocked = tuple(r for r in tup if r.zero_progress or not r.productive)
     return CampaignFrontier(
         results=tup,
         pareto=pareto_campaign_results(tup),
         stratified=stratify_campaign_results(tup),
+        productive=prod,
+        blocked=blocked,
         mix=mix,
         elapsed_seconds=time.time() - t0,
         nodes_expanded=sum(r.nodes_expanded for r in results),

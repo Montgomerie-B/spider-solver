@@ -38,8 +38,9 @@ The immediate implementation sequence is:
 8. ~~two-epoch plan search~~ (**Sprint 1H done** — Deal 2);
 9. ~~post-Deal-2 maturation~~ (**Sprint 1I done** — `search_epoch_maturation`);
 10. ~~strategic campaigns / productive investment~~ (**Sprint 1J done** — `strategic_campaigns.py`, `campaign_realizer.py`);
-11. anytime first-solution search;
-12. incumbent-guided improvement and eventual proof.
+11. ~~robust / actionability-aware campaigns~~ (**Sprint 1K done** — ACCESS fallback, semantic integrity);
+12. anytime first-solution search;
+13. incumbent-guided improvement and eventual proof.
 
 Deal `4925153` remains the primary benchmark, but no generic planner logic may depend on its deal number, specific columns, move numbers, suit order or leaderboard scores.
 

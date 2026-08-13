@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sprint 1J — strategic campaign investment frontiers (no Deal 3)."""
+"""Sprint 1K — robust / actionability-aware campaign frontiers (no Deal 3)."""
 
 from __future__ import annotations
 
@@ -28,7 +28,12 @@ from spider.planner.plan_search_v2 import (
 )
 from spider.planner.space_lifecycle import empty_count
 from spider.planner.strategic_analysis import analyze_strategic
-from spider.planner.strategic_campaigns import CampaignKind, generate_campaigns
+from spider.planner.strategic_campaigns import (
+    CampaignKind,
+    generate_campaigns,
+    objective_is_suit_relevant,
+)
+from spider.planner.strategic_objectives import generate_objective_portfolio
 
 
 def _qline(label, g, fd, e, ss, mass, extra=""):
@@ -44,17 +49,20 @@ def _res_line(r, label=""):
     )
     kinds = [s.objective_kind for s in r.steps if s.status == "found"]
     print(
-        f"  {label}{r.campaign.campaign_id} {r.status} +{r.paid_cost} "
+        f"  {label}{r.campaign.campaign_id} {r.status}/{r.stop_reason} +{r.paid_cost} "
         f"fd={r.start_face_down}->{r.end_face_down} (Δ{r.fd_reduction}) "
         f"e={r.start_empty}->{r.end_empty} ss={r.start_ss}->{r.end_ss} "
         f"mass={r.start_mass}->{r.end_mass} foundΔ={r.foundations_delta} "
         f"stockSS={r.start_stock_ss}->{r.end_stock_ss} "
         f"fB={r.start_foundation_build:.0f}->{r.end_foundation_build:.0f} "
         f"fR={r.start_foundation_removal:.0f}->{r.end_foundation_removal:.0f} "
-        f"eff={eff} pret={pret} prod={r.productive} "
+        f"eff={eff} pret={pret} prod={r.productive} zp={r.zero_progress} "
         f"sel={r.selected_foundation} steps={kinds} "
-        f"try={r.realizations_attempted} nodes={r.nodes_expanded} "
-        f"t={r.elapsed_seconds:.2f}s replay={r.replay_verified}"
+        f"try={r.realizations_attempted} fb={r.fallbacks_tried} "
+        f"res={r.resource_count} miss={r.miss_count} "
+        f"focus={list(r.focus_history)} Δfocus={r.access_focus_changes} "
+        f"nodes={r.nodes_expanded} t={r.elapsed_seconds:.2f}s "
+        f"replay={r.replay_verified}"
     )
     print(f"    reason={r.campaign.reason}")
 
@@ -76,12 +84,17 @@ def _frontier_block(title, state, cards, budgets, **kwargs):
         state, cards=cards, max_paid_cost=biggest, max_campaigns=4, **kwargs
     )
     print(
-        f"  mix={fr.mix} elapsed={fr.elapsed_seconds:.2f}s "
+        f"  mix={fr.mix} productive={len(fr.productive)} "
+        f"blocked={len(fr.blocked)} elapsed={fr.elapsed_seconds:.2f}s "
         f"nodes={fr.nodes_expanded} n={len(fr.results)}"
     )
     assert all(("deal",) not in r.actions for r in fr.results)
     for r in fr.results:
         _res_line(r)
+        if r.campaign.kind == CampaignKind.FOUNDATION_BUILD and r.campaign.focus_suit:
+            ids = [s.objective_id for s in r.steps if s.status == "found"]
+            suit = r.campaign.focus_suit
+            print(f"    suit_focus={suit} found_ids={ids}")
         for b in budgets:
             if b >= biggest:
                 continue
@@ -95,9 +108,10 @@ def _frontier_block(title, state, cards, budgets, **kwargs):
     print("  stratified:")
     for r in fr.stratified:
         _res_line(r, "S ")
-    best_fd = min(fr.results, key=lambda r: (r.end_face_down, r.paid_cost))
+    pool = fr.productive or fr.results
+    best_fd = min(pool, key=lambda r: (r.end_face_down, r.paid_cost))
     best_eff = max(
-        [r for r in fr.results if r.paid_cost > 0] or fr.results,
+        [r for r in pool if r.paid_cost > 0] or pool,
         key=lambda r: (r.fd_per_paid or 0.0, r.fd_reduction, -r.paid_cost),
     )
     print(
@@ -159,7 +173,7 @@ def main() -> int:
     actions = parse_moves_file(ROOT / "solutions" / "4925153_canonical.moves")
     snaps = replay_canonical_epochs(start, actions, up_to_deals=3, cards=cards)
 
-    print("SPRINT 1J — STRATEGIC CAMPAIGNS / PRODUCTIVE INVESTMENT")
+    print("SPRINT 1K — ROBUST / ACTIONABILITY-AWARE CAMPAIGNS")
     print("HUMAN REFERENCE (canonical, diagnostic only)")
     for k in ("initial", "pre_deal_1", "post_deal_1", "pre_deal_2", "post_deal_2"):
         n = snaps.get(k)
@@ -185,18 +199,19 @@ def main() -> int:
     assert len(human_d2.state.stock) >= 30  # Deal 3 not yet taken (5 rows left after D2? 50-20=30)
 
     kw = dict(
-        max_steps=8,
+        max_steps=20,
         tactical_max_cost=4,
         tactical_max_nodes=350,
         tactical_time_s=0.25,
         workspace_max_cost=6,
+        max_access_candidates=5,
     )
 
     opening = _frontier_block(
         "A. OPENING INVESTMENT FRONTIER (no deal)",
         start,
         cards,
-        (5, 10, 20),
+        (5, 10, 20, 30),
         **kw,
     )
 
@@ -245,7 +260,7 @@ def main() -> int:
             f"B. POST-DEAL1 SEED[{i}] g={s.g} fd={s.quality.face_down}",
             s.state,
             cards,
-            (5, 10, 20),
+            (5, 10, 20, 30),
             **kw,
         )
         d1_frontiers.append(fr)
@@ -284,7 +299,7 @@ def main() -> int:
             f"C. POST-DEAL2 MACHINE SEED[{i}] g={s.g} fd={s.quality.face_down}",
             s.state,
             cards,
-            (5, 10, 20),
+            (5, 10, 20, 30),
             **kw,
         )
         d2_frontiers.append(fr)
@@ -308,9 +323,32 @@ def main() -> int:
         "HUMAN POST-D2 CAMPAIGNS",
         human_d2.state,
         cards,
-        (5, 10, 20),
+        (5, 10, 20, 30),
         **kw,
     )
+    for r in human_fr.results:
+        if r.campaign.kind == CampaignKind.FOUNDATION_BUILD and r.campaign.focus_suit:
+            analysis = analyze_strategic(human_d2.state, cards=cards, run_shaping_probe=False)
+            port = generate_objective_portfolio(
+                human_d2.state, analysis=analysis, cards=cards
+            )
+            by_id = {o.objective_id: o for o in port.objectives}
+            ok = True
+            for s in r.steps:
+                if s.status != "found":
+                    continue
+                obj = by_id.get(s.objective_id)
+                if obj is None:
+                    continue
+                if not objective_is_suit_relevant(
+                    obj, r.campaign.focus_suit, human_d2.state, analysis
+                ):
+                    ok = False
+            print(
+                f"  foundation {r.campaign.campaign_id} "
+                f"all_found_steps_suit_relevant={ok} "
+                f"focus={r.campaign.focus_suit} foundΔ={r.foundations_delta}"
+            )
 
     if d2_seeds:
         _foundation_selector(
@@ -351,7 +389,7 @@ def main() -> int:
     print(
         f"  opening best fd={open_best.end_face_down} +{open_best.paid_cost} "
         f"Δ{open_best.fd_reduction} kind={open_best.campaign.kind.value} "
-        f"vs human pre-D1 g=51 fd={human_pre_d1.quality.face_down}"
+        f"vs human pre-D1 g={human_pre_d1.g} fd={human_pre_d1.quality.face_down}"
     )
     if d2_frontiers:
         bests = [
