@@ -1,12 +1,13 @@
 # Spider Solver
 
-Project to build a human-like minimum-move solver for MobilityWare Spider Solitaire (4-suit), progressing toward a general perfect-information solver that can find solutions quickly, improve them continuously, and prove optimality or unsolvability when feasible.
+Project to build a human-like minimum-move solver for MobilityWare Spider Solitaire, progressing toward a general perfect-information solver that can find solutions quickly, improve them continuously, and prove optimality or unsolvability when feasible.
 
-## Forward Architecture
+## Forward Architecture and Plan
 
-The current forward development architecture is:
+The current forward documents are:
 
-- [`docs/anytime_solver_architecture.md`](docs/anytime_solver_architecture.md) — deal-independent anytime solver strategy and roadmap
+- [`docs/anytime_solver_architecture.md`](docs/anytime_solver_architecture.md) — deal-independent anytime solver architecture
+- [`docs/anytime_solver_development_plan.md`](docs/anytime_solver_development_plan.md) — phased implementation plan, gates and immediate development sprint
 
 The older [`docs/layered_planner_development_plan.md`](docs/layered_planner_development_plan.md) is retained as a historical baseline and source of reusable planner ideas, but it is no longer the forward strategic architecture.
 
@@ -21,7 +22,8 @@ The older [`docs/layered_planner_development_plan.md`](docs/layered_planner_deve
 - Leaderboard evidence for this benchmark includes the user's historical 167, another 154 result, and a best score of **119**. The 119 is treated as credible evidence that a radically shorter route exists, not as a deal-specific rule for the general solver.
 - The project has not yet generated its own complete solution below 172.
 - Recent exact-search work produced collision-safe structural identity, algebraic zero-cost quotient expansion, corrected-metric corridor proof searches, checkpoint/resume, and durable solution verification.
-- The next strategic development phase is a generic perfect-information analyser for downstream reveal value, empty-column lifecycle/recoverability, known-stock reception, and global incumbent-guided branch-and-bound.
+- The main bottleneck is now strategic rather than tactical: the solver needs better perfect-information reasoning about foundation timing, downstream reveal value, empty-column lifecycle/recoverability and exact stock reception.
+- The immediate development sprint is **foundation-removal feasibility**: compute, generically, which foundations are impossible, theoretically available, or practically attractive at each stock epoch, while separating build-readiness from removal-readiness.
 - A durable external solution archive independently replays every candidate and writes strict improvements to `C:\SpiderSolver\solutions\4925153`.
 
 A result is not accepted as an improvement until its distinct move sequence:
@@ -33,7 +35,8 @@ A result is not accepted as an improvement until its distinct move sequence:
 
 See:
 
-- [`docs/anytime_solver_architecture.md`](docs/anytime_solver_architecture.md) — forward architecture and development roadmap
+- [`docs/anytime_solver_architecture.md`](docs/anytime_solver_architecture.md) — forward architecture
+- [`docs/anytime_solver_development_plan.md`](docs/anytime_solver_development_plan.md) — forward implementation roadmap
 - [`docs/4925153_frozen_state.md`](docs/4925153_frozen_state.md) — authoritative benchmark state
 - [`docs/4925153_move_accounting_incident.md`](docs/4925153_move_accounting_incident.md) — 163/172 accounting incident and correction
 - [`docs/solution_archive.md`](docs/solution_archive.md) — durable incumbent capture policy
@@ -43,7 +46,9 @@ See:
 
 - Generalise to arbitrary perfect-information Spider deals rather than hard-code the benchmark deal
 - Leverage full hidden-card and stock visibility
+- Use foundation-removal feasibility as a strategic compass rather than a fixed suit order
 - Treat downstream reveal value and empty-column lifecycle as strategic planning concepts
+- Shape the tableau deliberately for exact known future stock rows
 - Find a legal solution quickly, then improve it iteratively under a tightening incumbent ceiling
 - Use only admissible lower bounds for proof pruning
 - Preserve exact corrected MobilityWare accounting and replay verification
