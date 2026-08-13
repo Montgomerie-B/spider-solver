@@ -239,16 +239,60 @@ def _realize_deal_now(state, objective, mode, t0) -> RealizationResult:
     )
 
 
-def _expand(st: SpiderState) -> List[Tuple[Action, int, SpiderState]]:
-    out: List[Tuple[Action, int, SpiderState]] = []
+def _heuristic_move_rank(
+    st: SpiderState,
+    src: int,
+    dst: int,
+    k: int,
+    cost: int,
+    objective: Optional[StrategicObjective],
+) -> Tuple:
+    """HEURISTIC ONLY: prefer target-column / workspace / same-suit moves.
+
+    Does not prune; only orders expansion. Unrelated zero-cost orbits last.
+    """
+    score = 0
+    tgt = None
+    if objective is not None:
+        tgt = objective.target_params.get("column")
+    dest_empty = st.columns[dst].is_empty()
+    src_col = st.columns[src]
+    src_empties = k == len(src_col.face_up)
+    if tgt is not None:
+        if src == tgt:
+            score -= 25
+            if src_col.face_down:
+                score -= 10
+        if dst == tgt:
+            score -= 8
+        if cost == 0 and src != tgt and dst != tgt:
+            score += 20
+    if dest_empty and src_empties and not src_col.face_down:
+        score -= 6
+    if dest_empty and src_empties and src_col.face_down:
+        score -= 12
+    run = src_col.face_up[-k:]
+    top = st.columns[dst].top()
+    if top is not None and run and top.suit == run[0].suit:
+        score -= 7
+    return (score, cost, src, dst, k)
+
+
+def _expand(
+    st: SpiderState,
+    objective: Optional[StrategicObjective] = None,
+) -> List[Tuple[Action, int, SpiderState]]:
+    raw: List[Tuple[Tuple, Action, int, SpiderState]] = []
     for src, dst, k in st.enumerate_moves():
         st2 = st.clone()
         try:
             c = st2.move(src, dst, k, rules=MW_RULES)
         except Exception:
             continue
-        out.append(((src, dst, k), c, st2))
-    return out
+        rank = _heuristic_move_rank(st, src, dst, k, c, objective)
+        raw.append((rank, (src, dst, k), c, st2))
+    raw.sort(key=lambda x: x[0])
+    return [(a, c, s) for _, a, c, s in raw]
 
 
 def _search_exact(
@@ -295,7 +339,7 @@ def _search_exact(
                 nodes,
                 (f"fact: exact found cost={cost} nodes={nodes}",),
             )
-        for action, c, st2 in _expand(st):
+        for action, c, st2 in _expand(st, objective):
             ncost = cost + c
             if ncost > max_cost:
                 continue
@@ -304,6 +348,16 @@ def _search_exact(
                 c == 0
                 and objective.target_key == "empty_count_ge"
                 and empty_count(st2) <= empty_count(st)
+            ):
+                continue
+            # Unrelated free relocate: skip if it does not touch expose target col
+            tgt = objective.target_params.get("column")
+            if (
+                c == 0
+                and objective.target_key == "column_face_down_le"
+                and tgt is not None
+                and action[0] != tgt
+                and action[1] != tgt
             ):
                 continue
             key = canonical_state_key(st2)
@@ -369,9 +423,18 @@ def _search_fast(
                     nodes,
                     (f"fact: fast found cost={cost} nodes={nodes}",),
                 )
-            for action, c, st2 in _expand(st):
+            for action, c, st2 in _expand(st, objective):
                 ncost = cost + c
                 if ncost > max_cost:
+                    continue
+                tgt = objective.target_params.get("column")
+                if (
+                    c == 0
+                    and objective.target_key == "column_face_down_le"
+                    and tgt is not None
+                    and action[0] != tgt
+                    and action[1] != tgt
+                ):
                     continue
                 key = canonical_state_key(st2)
                 prev = best.get(key)

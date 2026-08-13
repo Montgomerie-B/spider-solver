@@ -35,8 +35,9 @@ The immediate implementation sequence is:
 5. ~~admissible lower-bound API / strategic objective generation~~ (**Sprint 1E done** — `lower_bounds.py`, `strategic_objectives.py`);
 6. ~~tactical realisation of objectives~~ (**Sprint 1F done** — `objective_realizer.py`);
 7. ~~first limited plan-level objective search~~ (**Sprint 1G done** — opening→Deal 1);
-8. ~~two-epoch plan search~~ (**Sprint 1H done** — `plan_search_v2.search_to_stock_epoch`, Deal 2);
-9. anytime first-solution search;
+8. ~~two-epoch plan search~~ (**Sprint 1H done** — Deal 2);
+9. ~~post-Deal-2 maturation~~ (**Sprint 1I done** — `search_epoch_maturation`);
+10. anytime first-solution search;
 9. incumbent-guided improvement and eventual proof.
 
 Deal `4925153` remains the primary benchmark, but no generic planner logic may depend on its deal number, specific columns, move numbers, suit order or leaderboard scores.

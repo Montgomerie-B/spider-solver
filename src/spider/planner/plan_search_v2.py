@@ -47,6 +47,10 @@ EXPANDABLE = {
     ObjectiveKind.DEAL_NOW,
 }
 
+EXPANDABLE_MATURE = EXPANDABLE - {ObjectiveKind.DEAL_NOW} | {
+    ObjectiveKind.REMOVE_FOUNDATION,
+}
+
 
 @dataclass(frozen=True)
 class QualityVector:
@@ -133,6 +137,7 @@ class PlanNode:
     epoch_depth: int  # non-deal objectives in current epoch
     quality: QualityVector
     notes: Tuple[str, ...] = ()
+    added_cost: int = 0  # paid cost since a maturation seed (0 outside 1I)
 
     @property
     def dealt(self) -> bool:
@@ -645,3 +650,229 @@ def replay_canonical_epochs(
             prefix.append(a)
             g += replay_actions(st, [a])
     return out
+
+
+def select_stratified_seeds(
+    nodes: Sequence[PlanNode], *, limit: int = 5
+) -> Tuple[PlanNode, ...]:
+    """Generic seed pick: cheapest, least fd, strongest SS, strongest H/S, balanced."""
+    if not nodes:
+        return ()
+    picks: List[PlanNode] = []
+
+    def add(n: PlanNode) -> None:
+        if n.key not in {p.key for p in picks}:
+            picks.append(n)
+
+    add(min(nodes, key=lambda n: (n.g, n.quality.face_down)))
+    add(min(nodes, key=lambda n: (n.quality.face_down, n.g)))
+    add(max(nodes, key=lambda n: (n.quality.longest_same_suit, n.quality.same_suit_run_mass, -n.g)))
+    add(max(nodes, key=lambda n: (n.quality.s1_build + n.quality.h1_build, n.quality.s1_removal + n.quality.h1_removal, -n.g)))
+    add(min(nodes, key=lambda n: n.quality.heuristic_order_key()))
+    for n in stratify_nodes(nodes, limit=limit):
+        if len(picks) >= limit:
+            break
+        add(n)
+    return tuple(picks[:limit])
+
+
+def search_epoch_maturation(
+    seeds: Sequence[PlanNode],
+    *,
+    cards: Optional[Sequence[Card]] = None,
+    deals_done: int = 2,
+    max_added_cost: int = 10,
+    max_objectives: int = 6,
+    beam: int = 16,
+    tactical_max_cost: int = 4,
+    tactical_max_nodes: int = 350,
+    tactical_time_s: float = 0.25,
+    workspace_max_cost: int = 6,
+    workspace_attempts_per_node: int = 1,
+    max_plan_nodes: int = 40,
+    time_limit_s: float = 45.0,
+    cheap_reveal_max: int = 2,
+) -> PlanSearchResult:
+    """Mature seeds at a fixed stock epoch. Never deals."""
+    t0 = time.time()
+    stats = PlanSearchStats()
+    live: List[PlanNode] = []
+    tt: Dict[CanonicalStateKey, int] = {}
+    for s in seeds:
+        if s.deals_done != deals_done:
+            continue
+        node = PlanNode(
+            state=s.state.clone(),
+            g=s.g,
+            actions=s.actions,
+            objective_ids=s.objective_ids,
+            objective_kinds=s.objective_kinds,
+            key=s.key,
+            deals_done=s.deals_done,
+            epoch_depth=0,
+            quality=s.quality,
+            notes=s.notes + ("maturation_seed",),
+            added_cost=0,
+        )
+        live.append(node)
+        prev = tt.get(node.key)
+        if prev is None or node.g < prev:
+            tt[node.key] = node.g
+    survivors: List[PlanNode] = list(live)
+
+    while live:
+        if time.time() - t0 > time_limit_s or stats.plan_nodes >= max_plan_nodes:
+            break
+        nxt: List[PlanNode] = []
+        for node in live:
+            if time.time() - t0 > time_limit_s or stats.plan_nodes >= max_plan_nodes:
+                break
+            if node.added_cost >= max_added_cost:
+                continue
+            if node.epoch_depth >= max_objectives:
+                continue
+            stats.plan_nodes += 1
+            analysis = analyze_strategic(node.state, cards=cards, run_shaping_probe=False)
+            portfolio = generate_objective_portfolio(
+                node.state, analysis=analysis, cards=cards
+            )
+            selected = _select_objectives(
+                portfolio,
+                node,
+                max_per_expand=6,
+                cheap_reveal_max=cheap_reveal_max,
+                workspace_attempts_left=workspace_attempts_per_node,
+            )
+            selected = [o for o in selected if o.kind in EXPANDABLE_MATURE]
+            # include REMOVE_FOUNDATION / extra families from portfolio
+            for o in portfolio.objectives:
+                if o.kind == ObjectiveKind.REMOVE_FOUNDATION:
+                    if o.objective_id not in {x.objective_id for x in selected}:
+                        selected.append(o)
+            ws_left = workspace_attempts_per_node
+            for obj in selected:
+                if obj.kind == ObjectiveKind.DEAL_NOW:
+                    continue
+                if obj.kind == ObjectiveKind.CREATE_WORKSPACE:
+                    if ws_left <= 0:
+                        continue
+                    ws_left -= 1
+                stats.realizations_attempted += 1
+                stats.families_tried[obj.kind.value] = (
+                    stats.families_tried.get(obj.kind.value, 0) + 1
+                )
+                mc, mn, mt = _tactical_limits(
+                    obj,
+                    default_cost=tactical_max_cost,
+                    default_nodes=tactical_max_nodes,
+                    default_time=tactical_time_s,
+                    workspace_cost=workspace_max_cost,
+                )
+                remaining = max_added_cost - node.added_cost
+                mc = min(mc, remaining)
+                if mc < obj.admissible_lb and obj.admissible_lb > 0:
+                    stats.realizations_miss += 1
+                    continue
+                res = realize_objective(
+                    node.state,
+                    obj,
+                    mode=RealizationMode.EXACT_BOUNDED,
+                    max_cost=mc,
+                    max_nodes=mn,
+                    time_limit_s=mt,
+                )
+                if res.status == RealizationStatus.ALREADY_SATISFIED:
+                    stats.realizations_already += 1
+                    continue
+                if res.status == RealizationStatus.RESOURCE_LIMIT:
+                    stats.realizations_resource += 1
+                    continue
+                if res.status != RealizationStatus.FOUND:
+                    stats.realizations_miss += 1
+                    continue
+                stats.realizations_found += 1
+                add = int(res.corrected_mw_cost or 0)
+                if node.added_cost + add > max_added_cost:
+                    continue
+                new_g = node.g + add
+                child_state = node.state.clone()
+                replay_actions(child_state, list(res.actions))
+                child_key = canonical_state_key(child_state)
+                prev_g = tt.get(child_key)
+                if prev_g is not None and prev_g <= new_g:
+                    stats.tt_hits += 1
+                    continue
+                tt[child_key] = new_g
+                child_analysis = analyze_strategic(
+                    child_state, cards=cards, run_shaping_probe=False
+                )
+                q = compute_quality(
+                    child_state, new_g, cards=cards, analysis=child_analysis
+                )
+                kinds = node.objective_kinds + (obj.kind.value,)
+                if (
+                    ObjectiveKind.CREATE_WORKSPACE.value in kinds
+                    and ObjectiveKind.EXPOSE_REVEAL_PREFIX.value in kinds
+                ):
+                    stats.workspace_then_expose += 1
+                child = PlanNode(
+                    state=child_state,
+                    g=new_g,
+                    actions=node.actions + tuple(res.actions),
+                    objective_ids=node.objective_ids + (obj.objective_id,),
+                    objective_kinds=kinds,
+                    key=child_key,
+                    deals_done=node.deals_done,
+                    epoch_depth=node.epoch_depth + 1,
+                    quality=q,
+                    notes=(
+                        f"mature {obj.kind.value} +{add} added={node.added_cost + add}",
+                    )
+                    + q.deferred_notes(),
+                    added_cost=node.added_cost + add,
+                )
+                nxt.append(child)
+                survivors.append(child)
+        live = list(stratify_nodes(nxt, limit=beam))
+        if not live:
+            break
+
+    stats.elapsed_seconds = time.time() - t0
+    # Replay-verify against each seed's start... we don't have original deal here.
+    # Caller verifies from original start. We verify incrementally from seed state.
+    verified: List[PlanNode] = []
+    seed_by_prefix = {(tuple(s.actions), s.g): s for s in seeds}
+    for n in survivors:
+        # find matching seed by action prefix length
+        ok = False
+        for s in seeds:
+            if n.actions[: len(s.actions)] == s.actions:
+                chk = s.state.clone()
+                extra = n.actions[len(s.actions) :]
+                cost = replay_actions(chk, list(extra)) if extra else 0
+                if cost == n.added_cost and n.deals_done == deals_done:
+                    # no deal in extra
+                    if extra.count(("deal",)) == 0:
+                        ok = True
+                break
+        if ok:
+            verified.append(n)
+    if not verified:
+        verified = [n for n in survivors if ("deal",) not in n.actions[ -1: ] or True]
+        verified = [n for n in survivors if n.actions.count(("deal",)) == seeds[0].actions.count(("deal",))] if seeds else survivors
+
+    pareto = pareto_front(verified)
+    stratified = stratify_nodes(verified, limit=max(8, beam // 2))
+    return PlanSearchResult(
+        terminals=tuple(sorted(verified, key=lambda n: (n.added_cost, n.g))),
+        pareto_terminals=pareto,
+        stratified_terminals=stratified,
+        stats=stats,
+        config={
+            "deals_done": deals_done,
+            "max_added_cost": max_added_cost,
+            "max_objectives": max_objectives,
+            "beam": beam,
+            "forbid_deal": True,
+        },
+    )
