@@ -40,8 +40,9 @@ The immediate implementation sequence is:
 10. ~~strategic campaigns / productive investment~~ (**Sprint 1J done** — `strategic_campaigns.py`, `campaign_realizer.py`);
 11. ~~robust / actionability-aware campaigns~~ (**Sprint 1K done** — ACCESS fallback, semantic integrity);
 12. ~~ACCESS-integrated epoch planning through Deal 3~~ (**Sprint 1L done** — `use_access_campaigns` in `plan_search_v2`);
-13. anytime first-solution search;
-14. incumbent-guided improvement and eventual proof.
+13. ~~tactical workspace breakthrough~~ (**Sprint 1M done** — `workspace_tactics.py`);
+14. anytime first-solution search;
+15. incumbent-guided improvement and eventual proof.
 
 Deal `4925153` remains the primary benchmark, but no generic planner logic may depend on its deal number, specific columns, move numbers, suit order or leaderboard scores.
 
