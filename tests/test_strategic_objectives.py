@@ -156,19 +156,24 @@ def test_target_predicates():
         st, "column_top_is", {"column": 0, "suit": "c", "rank": 8}
     )
     assert evaluate_target(st, "column_empty", {"column": 1})
-    # expose: card not face-down
+    # expose: column face-down reduction (not duplicate rank/suit elsewhere)
     st2 = _pad(
         [
             Column([Card("s", 3)], [Card("h", 2)]),
-            Column([], []),  # empty so h2 can move
+            Column([], [Card("s", 3)]),  # duplicate 3s already face-up
         ]
     )
     assert not evaluate_target(
+        st2, "column_face_down_le", {"column": 0, "max_face_down": 0}
+    )
+    # Duplicate face-up elsewhere must NOT satisfy
+    assert not evaluate_target(
         st2, "expose_card", {"column": 0, "suit": "s", "rank": 3}
     )
-    st2.move(0, 1, 1)  # move h2 to empty, flip 3s
+    st2.columns[1] = Column([], [])  # empty dest
+    st2.move(0, 1, 1)  # flip 3s on col 0
     assert evaluate_target(
-        st2, "expose_card", {"column": 0, "suit": "s", "rank": 3}
+        st2, "column_face_down_le", {"column": 0, "max_face_down": 0}
     )
 
 

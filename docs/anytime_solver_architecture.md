@@ -163,8 +163,10 @@ For a fresh deal the solver first seeks any incumbent. For the current benchmark
 
 Only mathematically safe bounds may be used for proof pruning. Candidate components include:
 
-- remaining face-down cards that must still be exposed;
-- remaining mandatory stock deals;
+- remaining mandatory stock deals (each cost 1);
+- residual hidden-card flips not coverable by deal-side foundation flips,
+  using at most two flips per paid tableau move (raw face-down count is **not**
+  itself a paid-move lower bound; `face_down + deals` is **not** admissible);
 - proven target-adjacency or breakpoint bounds;
 - proven unavoidable structural repairs;
 - proven foundation/stock availability constraints.

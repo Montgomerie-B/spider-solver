@@ -126,31 +126,20 @@ def _freeze(d: Dict) -> Tuple:
 
 
 def evaluate_target(state: SpiderState, key: str, params: Dict) -> bool:
-    if key == "expose_card":
+    if key == "column_face_down_le":
+        """Expose a reveal prefix: this column's face-down count has dropped enough.
+
+        Face-down cards cannot move before exposure, so reducing
+        ``len(face_down)`` on the source column is the structural invariant.
+        Duplicate rank/suit cards elsewhere do NOT satisfy this target.
+        """
         col = params["column"]
-        suit = params["suit"]
-        rank = params["rank"]
-        # Card is face-up in that column (or already moved away — weaker:
-        # no longer face-down at original depth). Satisfaction: not face-down
-        # in that column with that identity, OR present face-up somewhere.
-        col_obj = state.columns[col]
-        for c in col_obj.face_down:
-            if c.suit == suit and c.rank == rank:
-                return False
-        # If it was the next-to-flip target, being face-up on this column counts
-        for c in col_obj.face_up:
-            if c.suit == suit and c.rank == rank:
-                return True
-        # Card may have been moved face-up elsewhere
-        for col2 in state.columns:
-            for c in col2.face_up:
-                if c.suit == suit and c.rank == rank:
-                    return True
-        # Or in foundations
-        for seq in state.foundations:
-            for c in seq:
-                if c.suit == suit and c.rank == rank:
-                    return True
+        return len(state.columns[col].face_down) <= int(params["max_face_down"])
+
+    if key == "expose_card":
+        # Backward-compat alias: treat as column face-down reduction if params allow.
+        if "max_face_down" in params:
+            return evaluate_target(state, "column_face_down_le", params)
         return False
 
     if key == "empty_count_ge":
@@ -347,6 +336,7 @@ def generate_objective_portfolio(
                 min_reveals=min_rev,
                 state=state,
             )
+            start_fd = analysis.reveal.chain_for_column(col).n_hidden if analysis.reveal.chain_for_column(col) else min_rev
             oid = f"expose_c{col + 1}_d{min_rev}_{target_card}"
             raw.append(
                 StrategicObjective(
@@ -356,11 +346,12 @@ def generate_objective_portfolio(
                         f"Expose prefix on col {col + 1} depth {min_rev}: "
                         + " -> ".join(str(c) for c in p.cards_unlocked)
                     ),
-                    target_key="expose_card",
+                    target_key="column_face_down_le",
                     target_params={
                         "column": col,
-                        "suit": target_card.suit,
-                        "rank": target_card.rank,
+                        "max_face_down": start_fd - min_rev,
+                        "start_face_down": start_fd,
+                        "required_reveals": min_rev,
                     },
                     hard_preconditions=(f"col {col + 1} has face-down chain",),
                     hard_evidence=(
@@ -402,11 +393,12 @@ def generate_objective_portfolio(
                         kind=ObjectiveKind.EXPOSE_REVEAL_PREFIX,
                         objective_id=f"expose_c{col + 1}_d1_{c0}",
                         description=f"Expose next hidden card on col {col + 1}: {c0}",
-                        target_key="expose_card",
+                        target_key="column_face_down_le",
                         target_params={
                             "column": col,
-                            "suit": c0.suit,
-                            "rank": c0.rank,
+                            "max_face_down": start_fd - 1,
+                            "start_face_down": start_fd,
+                            "required_reveals": 1,
                         },
                         hard_preconditions=(f"col {col + 1} face-down frontier",),
                         hard_evidence=(f"fact: frontier={c0}",),
