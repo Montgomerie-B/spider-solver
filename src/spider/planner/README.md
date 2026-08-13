@@ -30,7 +30,7 @@ The immediate implementation sequence is:
 
 1. ~~foundation-removal feasibility and build/removal readiness~~ (**Sprint 1A done** — `foundation_feasibility.py`);
 2. ~~reveal/dependency downstream-value analysis~~ (**Sprint 1B done** — `reveal_graph.py`);
-3. empty-column lifecycle and recoverability;
+3. ~~empty-column lifecycle and recoverability~~ (**Sprint 1C done** — `space_lifecycle.py`, `strategic_analysis.py`);
 4. exact known-stock reception analysis;
 5. admissible lower-bound API;
 6. strategic objective generation;
