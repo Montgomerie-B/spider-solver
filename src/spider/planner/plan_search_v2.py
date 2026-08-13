@@ -197,6 +197,9 @@ class PlanSearchStats:
     access_cache_hits: int = 0
     access_paid: int = 0
     access_fd_reduced: int = 0
+    access_applied_by_epoch: Dict[int, int] = field(default_factory=dict)
+    access_paid_by_epoch: Dict[int, int] = field(default_factory=dict)
+    access_fd_by_epoch: Dict[int, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -666,6 +669,16 @@ def search_to_stock_epoch(
                     stats.access_macros_applied += 1
                     stats.access_paid += acc.paid_cost
                     stats.access_fd_reduced += acc.fd_reduction
+                    ep = node.deals_done
+                    stats.access_applied_by_epoch[ep] = (
+                        stats.access_applied_by_epoch.get(ep, 0) + 1
+                    )
+                    stats.access_paid_by_epoch[ep] = (
+                        stats.access_paid_by_epoch.get(ep, 0) + acc.paid_cost
+                    )
+                    stats.access_fd_by_epoch[ep] = (
+                        stats.access_fd_by_epoch.get(ep, 0) + acc.fd_reduction
+                    )
                     stats.families_tried[ACCESS_KIND] = (
                         stats.families_tried.get(ACCESS_KIND, 0) + 1
                     )

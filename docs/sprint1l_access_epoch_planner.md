@@ -7,7 +7,7 @@
 
 Does the proven 1K ACCESS campaign help as a *single* plan-search macro-edge from opening through Deal 3, compared with the same search without it?
 
-Only ACCESS is integrated. WORKSPACE_EXPLOIT / FOUNDATION_BUILD / STOCK_PREP are not plan edges.
+Only ACCESS is integrated. WORKSPACE_EXPLOIT / FOUNDATION_BUILD / STOCK_PREP are not plan edges. No suit is forced.
 
 ## API
 
@@ -32,29 +32,46 @@ Investment paid / fd reduced is recorded on the node as a **diagnostic**, not a 
 
 `REMOVE_FOUNDATION` is expandable whenever the 1E generator emits it (after Deal 2 for this benchmark, generically when theoretically available).
 
+## Independent foundation rank (not forced)
+
+At canonical post-D2 the 1A rank is **S#1 then H#1** (theo, rem 59.5 / 21.5). That is diagnostic only. 1L plan edges never include `FOUNDATION_BUILD`. Machine terminals show higher S readiness because that is what the analysis reports, not because an S campaign was selected.
+
 ## Tests
 
-`tests/test_access_epoch_planner.py` plus existing 1G–1K planner tests.
+`tests/test_access_epoch_planner.py`: macro edge + replay cost, A/B off = atomic search, zero-progress not branched, cache hit on second probe, epoch reset, Deal 3 / no Deal 4, investment survives cheap deal, synthetic ACCESS-before-deal, no other campaign kinds.
 
 ## Diagnostic A/B (deal 4925153, reference only)
 
-Runtime **51.2s**. Two identical Deal-3 searches, 32 plan nodes, 40s cap each.
+Runtime **124.6s**. Tiny / medium / larger × OFF/ON. Human: D1 g=51 fd=12; D2 g=89 fd=8; D3 g=101 fd=7 found=1.
 
-Human: pre-D3 g=100 fd=7 found=1 (S#1 already gone); post-D3 g=101 fd=7.
+Least face-down:
 
-| mode | cheapest g | least fd | ACCESS terminals | foundations |
-|---|---|---|---|---|
-| off | 3 (deal×3) | **38** | 0/8 | 0 |
-| on | 3 (deal×3) | **34** | 2/4 | 0 |
+| config | D1 off/on | D2 off/on | D3 off/on |
+|---|---|---|---|
+| tiny | 42 / **35** | 42 / **35** | 42 / **38** |
+| medium | 37 / **30** | 37 / **28** | 37 / **31** |
+| larger | 35 / **28** | 36 / **28** | 37 / **30** |
 
-ACCESS contribution: 15 macros applied, 98 paid, 65 fd reduced during expansion. Best on-path: `ACCESS(+10, fdΔ10) → Deal×3` ends fd=34, investment 1.0 paid/fd.
+Sprint 1H D2 machine terminals were fd 35–44. ACCESS-ON larger D2 is **fd 28**.
 
-No Deal 4. No other campaign kinds as edges. `REMOVE_FOUNDATION` was generated after D2 (8/4 attempts) but never realised on these cheap terminals.
+ACCESS efficiency by epoch (larger ON): epoch0 4 macros / +38 / fdΔ38; epoch1 15 / +57 / fdΔ31; epoch2 5 / +28 / fdΔ10.
 
-Unrelated synthetic: 3 deals, ACCESS used internally (7 applied), terminal was still deal-first.
+No machine terminal removed a foundation. No Deal 4.
+
+## Key questions
+
+**A.** Yes. ACCESS before Deal 1 produces better Deal 2 states than Sprint 1H (fd 28 vs 35–44).
+
+**B.** Yes at Deal 2: the fd≈33 wall is avoided (28) because more excavation happened before and just after Deal 1. The best D2 line is not always kept to D3 (beam), so D3 least-fd is 30–31 — still below 33, but slightly worse than the D2 peak.
+
+**C.** Yes, ACCESS is applied between Deal 2 and Deal 3 (larger: 5 macros). Surviving D3 terminals more often end `… DEAL DEAL` than a late ACCESS.
+
+**D.** No. Zero machine-path foundation removals. Human has removed S#1 by pre-D3.
+
+**E.** Not really. Strongest D3 is g=16–20 (vs human 101) but fd=30, empty=0, ssL=5–7, found=0 versus human fd=7 / ssL=10 / found=1. Cheaper, not structurally credible as a substitute.
 
 ## Recommendation
 
-ACCESS as a plan edge **does** improve the Deal-3 excavation frontier versus the same search without it (fd 38→34) while preserving the cheap deal-first stratum. It is worth keeping **on** for Deal 1–3 planning.
+Keep ACCESS **on** for Deal 1–3 planning.
 
-It does **not** yet approach the human D3 position (fd 7, one foundation). Workspace still fails; foundations are not removed on machine terminals. Do not turn the rest of the campaign mix into plan edges until those operators work.
+**Strengthen the tactical workspace / search layer next** — do not attempt a bounded whole-game solve yet. The remaining gap is empty-column creation and post-D2 foundation realisation, plus beam loss of the best D2 investment line.

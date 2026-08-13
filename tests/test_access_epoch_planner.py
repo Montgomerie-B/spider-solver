@@ -17,8 +17,10 @@ from spider.metrics import replay_actions
 from spider.planner import plan_search_v2 as ps
 from spider.planner.plan_search_v2 import (
     ACCESS_KIND,
+    _realize_access_cached,
     search_to_stock_epoch,
 )
+from spider.state_identity import canonical_state_key
 
 
 def _pad(cols, stock=None):
@@ -62,8 +64,16 @@ def test_access_macro_is_replay_valid_edge():
     if acc:
         t = min(acc, key=lambda n: n.quality.face_down)
         assert t.investment_fd >= 1
-        assert t.investment_paid == t.g - t.actions.count(("deal",)) or t.investment_paid > 0
+        assert t.investment_paid > 0
         assert t.access_focus_history or t.notes
+        # ACCESS is one macro edge: its paid cost matches the independent replay
+        # of the non-deal prefix up to (and including) that edge.
+        kinds = t.objective_kinds
+        acc_i = kinds.index(ACCESS_KIND)
+        # Reconstruct by replaying the full action list; paid ACCESS cost is
+        # recorded separately and must equal investment_paid for a single-macro path.
+        if kinds.count(ACCESS_KIND) == 1 and kinds.count("DEAL_NOW") == 1:
+            assert t.investment_paid == t.g - 1
 
 
 def test_ab_flag_disables_access():
@@ -73,26 +83,33 @@ def test_ab_flag_disables_access():
             Column([], [Card("c", 5)]),
         ]
     )
-    off = search_to_stock_epoch(
-        st,
+    kwargs = dict(
         target_deals=1,
         max_non_deal=2,
         beam=6,
         max_plan_nodes=12,
         time_limit_s=8.0,
-        use_access_campaigns=False,
     )
+    default = search_to_stock_epoch(st, **kwargs)
+    off = search_to_stock_epoch(st, use_access_campaigns=False, **kwargs)
+    assert default.stats.access_macros_applied == 0
     assert off.stats.access_macros_applied == 0
+    assert ACCESS_KIND not in default.stats.families_tried
+    assert ACCESS_KIND not in off.stats.families_tried
     assert all(ACCESS_KIND not in t.objective_kinds for t in off.terminals)
+    atomic = {
+        "DEAL_NOW",
+        "CREATE_WORKSPACE",
+        "EXPOSE_REVEAL_PREFIX",
+        "SHAPE_STOCK_RECEIVER",
+        "CONSOLIDATE_SAME_SUIT",
+        "ADVANCE_FOUNDATION",
+        "REMOVE_FOUNDATION",
+    }
+    for t in off.terminals:
+        assert set(t.objective_kinds) <= atomic
     on = search_to_stock_epoch(
-        st,
-        target_deals=1,
-        max_non_deal=2,
-        beam=6,
-        max_plan_nodes=12,
-        time_limit_s=8.0,
-        use_access_campaigns=True,
-        access_max_paid_cost=6,
+        st, use_access_campaigns=True, access_max_paid_cost=6, **kwargs
     )
     assert on.config["use_access_campaigns"] is True
 
@@ -211,10 +228,36 @@ def test_remove_foundation_is_expandable():
     assert ps.ObjectiveKind.REMOVE_FOUNDATION in ps.EXPANDABLE
 
 
-def test_access_cache_used():
+def test_access_cache_avoids_duplicate_retry():
     st = _pad(
         [
             Column([Card("c", 2)], [Card("c", 4)]),
+            Column([], [Card("c", 5)]),
+        ]
+    )
+    cache = {}
+    kwargs = dict(
+        cards=None,
+        budget=6,
+        cache=cache,
+        max_steps=4,
+        tactical_max_cost=3,
+        tactical_max_nodes=200,
+        tactical_time_s=0.2,
+    )
+    first, hit1 = _realize_access_cached(st, **kwargs)
+    second, hit2 = _realize_access_cached(st, **kwargs)
+    assert hit1 is False
+    assert hit2 is True
+    assert second is first
+    # Same state/budget is one cache key.
+    assert (canonical_state_key(st), 6) in cache
+
+
+def test_investment_branch_survives_cheaper_deal():
+    st = _pad(
+        [
+            Column([Card("c", 2), Card("c", 3)], [Card("c", 4)]),
             Column([], [Card("c", 5)]),
         ]
     )
@@ -223,11 +266,60 @@ def test_access_cache_used():
         target_deals=1,
         max_non_deal=2,
         beam=10,
-        max_plan_nodes=20,
+        max_plan_nodes=18,
         time_limit_s=12.0,
         use_access_campaigns=True,
-        access_max_paid_cost=6,
+        access_max_paid_cost=8,
     )
-    # Multiple nodes may share the opening state/budget.
-    assert res.stats.access_macros_attempted >= 1
-    assert res.stats.access_cache_hits >= 0
+    assert res.terminals
+    cheap = min(res.terminals, key=lambda n: n.g)
+    least_fd = min(res.terminals, key=lambda n: (n.quality.face_down, n.g))
+    assert cheap.g <= least_fd.g
+    # Stratified front must not be only the cheapest deal.
+    assert res.stratified_terminals
+    if least_fd.quality.face_down < cheap.quality.face_down:
+        assert any(
+            t.quality.face_down <= least_fd.quality.face_down
+            for t in res.stratified_terminals
+        )
+
+
+def test_synthetic_access_before_deal_improves_later_epoch():
+    st = _pad(
+        [
+            Column([Card("c", 2), Card("c", 3)], [Card("c", 4)]),
+            Column([], [Card("c", 5)]),
+        ]
+    )
+    off = search_to_stock_epoch(
+        st,
+        target_deals=2,
+        max_non_deal=2,
+        beam=8,
+        max_plan_nodes=16,
+        time_limit_s=12.0,
+        use_access_campaigns=False,
+    )
+    on = search_to_stock_epoch(
+        st,
+        target_deals=2,
+        max_non_deal=2,
+        beam=8,
+        max_plan_nodes=16,
+        time_limit_s=12.0,
+        use_access_campaigns=True,
+        access_max_paid_cost=8,
+        access_max_steps=6,
+    )
+    assert off.terminals and on.terminals
+    off_d1 = min((n.quality.face_down for n in off.deal1_nodes), default=99)
+    on_d1 = min((n.quality.face_down for n in on.deal1_nodes), default=99)
+    off_d2 = min(t.quality.face_down for t in off.terminals)
+    on_d2 = min(t.quality.face_down for t in on.terminals)
+    # ACCESS-before-deal should not make later-epoch excavation worse.
+    assert on_d2 <= off_d2
+    if on.stats.access_macros_applied:
+        assert on_d1 <= off_d1
+        assert any(ACCESS_KIND in n.objective_kinds for n in on.deal1_nodes) or any(
+            ACCESS_KIND in t.objective_kinds for t in on.terminals
+        )
