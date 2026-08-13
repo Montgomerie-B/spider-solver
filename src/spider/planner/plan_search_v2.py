@@ -1,7 +1,8 @@
-"""Plan-level objective search (Sprints 1G–1H).
+"""Plan-level objective search (Sprints 1G–1L).
 
 1G: opening → Deal 1
 1H: opening → Deal 1 → inter-deal planning → Deal 2
+1L: ACCESS campaign as a cached macro-edge through Deal 3 (A/B).
 
 Diagnostic search over strategic objectives, not a whole-game solver.
 Heuristic quality is for beam/Pareto only. Admissible h is used solely when
@@ -11,7 +12,7 @@ an explicit incumbent/target is supplied (never face_down+deals).
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from spider.cards import Card
@@ -37,6 +38,10 @@ from spider.planner.strategic_objectives import (
     StrategicObjective,
     generate_objective_portfolio,
 )
+from spider.planner.strategic_campaigns import (
+    CampaignKind,
+    generate_campaigns,
+)
 
 EXPANDABLE = {
     ObjectiveKind.CREATE_WORKSPACE,
@@ -44,8 +49,11 @@ EXPANDABLE = {
     ObjectiveKind.SHAPE_STOCK_RECEIVER,
     ObjectiveKind.CONSOLIDATE_SAME_SUIT,
     ObjectiveKind.ADVANCE_FOUNDATION,
+    ObjectiveKind.REMOVE_FOUNDATION,
     ObjectiveKind.DEAL_NOW,
 }
+
+ACCESS_KIND = "ACCESS_CAMPAIGN"
 
 EXPANDABLE_MATURE = EXPANDABLE - {ObjectiveKind.DEAL_NOW} | {
     ObjectiveKind.REMOVE_FOUNDATION,
@@ -72,6 +80,14 @@ class QualityVector:
     s1_build: float = 0.0
     h1_removal: float = 0.0
     s1_removal: float = 0.0
+    # Diagnostic only — never used for proof pruning or dominance.
+    investment_paid: int = 0
+    investment_fd: int = 0
+
+    def investment_per_fd(self) -> Optional[float]:
+        if self.investment_fd <= 0:
+            return None
+        return self.investment_paid / self.investment_fd
 
     def dominates(self, other: "QualityVector") -> bool:
         le = (
@@ -138,10 +154,23 @@ class PlanNode:
     quality: QualityVector
     notes: Tuple[str, ...] = ()
     added_cost: int = 0  # paid cost since a maturation seed (0 outside 1I)
+    access_macros_this_epoch: int = 0
+    last_access_empty: int = 0
+    last_access_foundations: int = 0
+    access_focus_history: Tuple[int, ...] = ()
+    access_fallbacks: int = 0
+    investment_paid: int = 0
+    investment_fd: int = 0
 
     @property
     def dealt(self) -> bool:
         return self.deals_done >= 1
+
+    @property
+    def investment_per_fd(self) -> Optional[float]:
+        if self.investment_fd <= 0:
+            return None
+        return self.investment_paid / self.investment_fd
 
     @property
     def objective_depth(self) -> int:
@@ -160,7 +189,14 @@ class PlanSearchStats:
     elapsed_seconds: float = 0.0
     families_tried: Dict[str, int] = field(default_factory=dict)
     deal1_frontier: int = 0
+    deal2_frontier: int = 0
     workspace_then_expose: int = 0
+    access_macros_attempted: int = 0
+    access_macros_applied: int = 0
+    access_macros_zero: int = 0
+    access_cache_hits: int = 0
+    access_paid: int = 0
+    access_fd_reduced: int = 0
 
 
 @dataclass
@@ -171,6 +207,7 @@ class PlanSearchResult:
     stats: PlanSearchStats
     config: Dict
     deal1_nodes: Tuple[PlanNode, ...] = ()
+    deal2_nodes: Tuple[PlanNode, ...] = ()
 
 
 def _longest_and_mass(state: SpiderState) -> Tuple[int, int]:
@@ -283,6 +320,7 @@ def _select_objectives(
     if deal is not None:
         chosen.append(deal)
     order = [
+        ObjectiveKind.REMOVE_FOUNDATION.value,
         ObjectiveKind.CREATE_WORKSPACE.value,
         ObjectiveKind.SHAPE_STOCK_RECEIVER.value,
         ObjectiveKind.EXPOSE_REVEAL_PREFIX.value,
@@ -365,6 +403,62 @@ def stratify_nodes(nodes: Sequence[PlanNode], *, limit: int) -> Tuple[PlanNode, 
     return tuple(picks[:limit])
 
 
+def _access_allowed(node: PlanNode) -> bool:
+    """At most one ACCESS per epoch unless workspace/foundation changed."""
+    if node.access_macros_this_epoch <= 0:
+        return True
+    if node.quality.empty_count > node.last_access_empty:
+        return True
+    if node.quality.foundations_removed > node.last_access_foundations:
+        return True
+    return False
+
+
+def _realize_access_cached(
+    state: SpiderState,
+    *,
+    cards,
+    budget: int,
+    cache: Dict[Tuple[CanonicalStateKey, int], Optional[object]],
+    max_steps: int,
+    tactical_max_cost: int,
+    tactical_max_nodes: int,
+    tactical_time_s: float,
+):
+    """Return (result or None, cache_hit). Zero-progress is cached as None."""
+    from spider.planner.campaign_realizer import realize_campaign
+
+    key = (canonical_state_key(state), budget)
+    if key in cache:
+        return cache[key], True
+    camps = generate_campaigns(state, cards=cards, max_campaigns=4)
+    access = next((c for c in camps if c.kind == CampaignKind.ACCESS), None)
+    if access is None:
+        cache[key] = None
+        return None, False
+    result = realize_campaign(
+        state,
+        access,
+        cards=cards,
+        max_paid_cost=budget,
+        max_steps=max_steps,
+        tactical_max_cost=tactical_max_cost,
+        tactical_max_nodes=tactical_max_nodes,
+        tactical_time_s=tactical_time_s,
+    )
+    if (
+        result.zero_progress
+        or result.fd_reduction <= 0
+        or not result.actions
+        or not result.replay_verified
+        or any(a == ("deal",) for a in result.actions)
+    ):
+        cache[key] = None
+        return None, False
+    cache[key] = result
+    return result, False
+
+
 def search_to_stock_epoch(
     start: SpiderState,
     *,
@@ -383,8 +477,17 @@ def search_to_stock_epoch(
     cheap_reveal_max: int = 2,
     incumbent: Optional[int] = None,
     target: Optional[int] = None,
+    use_access_campaigns: bool = False,
+    access_max_paid_cost: int = 10,
+    access_max_steps: int = 8,
+    access_tactical_time_s: float = 0.2,
 ) -> PlanSearchResult:
-    """Beam search over objectives until ``target_deals`` stock deals are applied."""
+    """Beam search over objectives until ``target_deals`` stock deals are applied.
+
+    ``use_access_campaigns`` (Sprint 1L A/B): when True, a productive ACCESS
+    campaign may become one plan edge per epoch (rerun only after workspace
+    or foundation change). Other campaign kinds are not plan edges.
+    """
     t0 = time.time()
     stats = PlanSearchStats()
     analysis0 = analyze_strategic(start, cards=cards, run_shaping_probe=False)
@@ -404,7 +507,9 @@ def search_to_stock_epoch(
     live: List[PlanNode] = [root]
     terminals: List[PlanNode] = []
     deal1_seen: List[PlanNode] = []
+    deal2_seen: List[PlanNode] = []
     tt: Dict[Tuple[int, CanonicalStateKey], int] = {(0, root.key): 0}
+    access_cache: Dict[Tuple[CanonicalStateKey, int], Optional[object]] = {}
 
     while live:
         if time.time() - t0 > time_limit_s or stats.plan_nodes >= max_plan_nodes:
@@ -418,6 +523,8 @@ def search_to_stock_epoch(
             stats.plan_nodes += 1
             if node.deals_done == 1:
                 stats.deal1_frontier += 1
+            if node.deals_done == 2:
+                stats.deal2_frontier += 1
             analysis = analyze_strategic(node.state, cards=cards, run_shaping_probe=False)
             portfolio = generate_objective_portfolio(
                 node.state, analysis=analysis, cards=cards
@@ -435,6 +542,148 @@ def search_to_stock_epoch(
                         if o.kind == ObjectiveKind.DEAL_NOW:
                             selected = [o] + selected
                             break
+
+            def _emit_child(
+                *,
+                child_state: SpiderState,
+                new_g: int,
+                extra_actions: Tuple[Action, ...],
+                extra_id: str,
+                extra_kind: str,
+                is_deal: bool,
+                extra_notes: Tuple[str, ...] = (),
+                access_result=None,
+            ) -> None:
+                child_key = canonical_state_key(child_state)
+                new_deals = node.deals_done + (1 if is_deal else 0)
+                tt_key = (new_deals, child_key)
+                prev_g = tt.get(tt_key)
+                if prev_g is not None and prev_g <= new_g:
+                    stats.tt_hits += 1
+                    return
+                tt[tt_key] = new_g
+                if incumbent is not None or target is not None:
+                    h = compute_solution_lower_bound(child_state).h_admissible
+                    bd = budget_diagnostic(
+                        g=new_g, h=h, incumbent=incumbent, target=target
+                    )
+                    if incumbent is not None and bd.prune_vs_incumbent:
+                        return
+                    if target is not None and bd.prune_vs_target:
+                        return
+                pre_ss = pre_outs = pre_nc = 0
+                if is_deal and analysis.stock_reception.can_deal:
+                    s = analysis.stock_reception.row_summary
+                    pre_ss = s.n_same_suit_landings
+                    pre_outs = s.n_with_immediate_out
+                    pre_nc = s.n_non_connecting
+                child_analysis = analyze_strategic(
+                    child_state, cards=cards, run_shaping_probe=False
+                )
+                inv_paid = node.investment_paid
+                inv_fd = node.investment_fd
+                acc_n = 0 if is_deal else node.access_macros_this_epoch
+                last_e = node.last_access_empty
+                last_f = node.last_access_foundations
+                focus_hist = node.access_focus_history
+                fb = node.access_fallbacks
+                if access_result is not None:
+                    inv_paid += access_result.paid_cost
+                    inv_fd += access_result.fd_reduction
+                    acc_n += 1
+                    last_e = empty_count(child_state)
+                    last_f = sum(1 for s in child_state.foundations if len(s) == 13)
+                    focus_hist = focus_hist + access_result.focus_history
+                    fb += access_result.fallbacks_tried
+                q = replace(
+                    compute_quality(
+                        child_state,
+                        new_g,
+                        cards=cards,
+                        analysis=child_analysis,
+                        predeal_ss=pre_ss,
+                        predeal_outs=pre_outs,
+                        predeal_nc=pre_nc,
+                    ),
+                    investment_paid=inv_paid,
+                    investment_fd=inv_fd,
+                )
+                kinds = node.objective_kinds + (extra_kind,)
+                if (
+                    ObjectiveKind.CREATE_WORKSPACE.value in kinds
+                    and ObjectiveKind.EXPOSE_REVEAL_PREFIX.value in kinds
+                ):
+                    stats.workspace_then_expose += 1
+                child = PlanNode(
+                    state=child_state,
+                    g=new_g,
+                    actions=node.actions + extra_actions,
+                    objective_ids=node.objective_ids + (extra_id,),
+                    objective_kinds=kinds,
+                    key=child_key,
+                    deals_done=new_deals,
+                    epoch_depth=0 if is_deal else node.epoch_depth + 1,
+                    quality=q,
+                    notes=extra_notes + q.deferred_notes(),
+                    access_macros_this_epoch=acc_n,
+                    last_access_empty=last_e,
+                    last_access_foundations=last_f,
+                    access_focus_history=focus_hist,
+                    access_fallbacks=fb,
+                    investment_paid=inv_paid,
+                    investment_fd=inv_fd,
+                )
+                if new_deals >= target_deals:
+                    terminals.append(child)
+                else:
+                    nxt.append(child)
+                    if new_deals == 1:
+                        deal1_seen.append(child)
+                    if new_deals == 2:
+                        deal2_seen.append(child)
+
+            if (
+                use_access_campaigns
+                and node.epoch_depth < max_non_deal
+                and _access_allowed(node)
+            ):
+                stats.access_macros_attempted += 1
+                acc, hit = _realize_access_cached(
+                    node.state,
+                    cards=cards,
+                    budget=min(access_max_paid_cost, 15),
+                    cache=access_cache,
+                    max_steps=access_max_steps,
+                    tactical_max_cost=max(tactical_max_cost, 3),
+                    tactical_max_nodes=tactical_max_nodes,
+                    tactical_time_s=access_tactical_time_s,
+                )
+                if hit:
+                    stats.access_cache_hits += 1
+                if acc is None:
+                    stats.access_macros_zero += 1
+                else:
+                    stats.access_macros_applied += 1
+                    stats.access_paid += acc.paid_cost
+                    stats.access_fd_reduced += acc.fd_reduction
+                    stats.families_tried[ACCESS_KIND] = (
+                        stats.families_tried.get(ACCESS_KIND, 0) + 1
+                    )
+                    child_state = node.state.clone()
+                    replay_actions(child_state, list(acc.actions))
+                    _emit_child(
+                        child_state=child_state,
+                        new_g=node.g + acc.paid_cost,
+                        extra_actions=tuple(acc.actions),
+                        extra_id=acc.campaign.campaign_id,
+                        extra_kind=ACCESS_KIND,
+                        is_deal=False,
+                        extra_notes=(
+                            f"ACCESS cost={acc.paid_cost} fdΔ={acc.fd_reduction} "
+                            f"fb={acc.fallbacks_tried} focus={list(acc.focus_history)}",
+                        ),
+                        access_result=acc,
+                    )
 
             ws_left = workspace_attempts_per_node
             for obj in selected:
@@ -479,71 +728,18 @@ def search_to_stock_epoch(
                 new_g = node.g + int(res.corrected_mw_cost or 0)
                 child_state = node.state.clone()
                 replay_actions(child_state, list(res.actions))
-                child_key = canonical_state_key(child_state)
-                new_deals = node.deals_done + (1 if is_deal else 0)
-                tt_key = (new_deals, child_key)
-                prev_g = tt.get(tt_key)
-                if prev_g is not None and prev_g <= new_g:
-                    stats.tt_hits += 1
-                    continue
-                tt[tt_key] = new_g
-
-                if incumbent is not None or target is not None:
-                    h = compute_solution_lower_bound(child_state).h_admissible
-                    bd = budget_diagnostic(
-                        g=new_g, h=h, incumbent=incumbent, target=target
-                    )
-                    if incumbent is not None and bd.prune_vs_incumbent:
-                        continue
-                    if target is not None and bd.prune_vs_target:
-                        continue
-
-                pre_ss = pre_outs = pre_nc = 0
-                if is_deal and analysis.stock_reception.can_deal:
-                    s = analysis.stock_reception.row_summary
-                    pre_ss = s.n_same_suit_landings
-                    pre_outs = s.n_with_immediate_out
-                    pre_nc = s.n_non_connecting
-                child_analysis = analyze_strategic(
-                    child_state, cards=cards, run_shaping_probe=False
-                )
-                q = compute_quality(
-                    child_state,
-                    new_g,
-                    cards=cards,
-                    analysis=child_analysis,
-                    predeal_ss=pre_ss,
-                    predeal_outs=pre_outs,
-                    predeal_nc=pre_nc,
-                )
-                kinds = node.objective_kinds + (obj.kind.value,)
-                if (
-                    ObjectiveKind.CREATE_WORKSPACE.value in kinds
-                    and ObjectiveKind.EXPOSE_REVEAL_PREFIX.value in kinds
-                ):
-                    stats.workspace_then_expose += 1
-                child = PlanNode(
-                    state=child_state,
-                    g=new_g,
-                    actions=node.actions + tuple(res.actions),
-                    objective_ids=node.objective_ids + (obj.objective_id,),
-                    objective_kinds=kinds,
-                    key=child_key,
-                    deals_done=new_deals,
-                    epoch_depth=0 if is_deal else node.epoch_depth + 1,
-                    quality=q,
-                    notes=(
+                _emit_child(
+                    child_state=child_state,
+                    new_g=new_g,
+                    extra_actions=tuple(res.actions),
+                    extra_id=obj.objective_id,
+                    extra_kind=obj.kind.value,
+                    is_deal=is_deal,
+                    extra_notes=(
                         f"realized {obj.kind.value} cost={res.corrected_mw_cost} "
-                        f"epoch={new_deals}",
-                    )
-                    + q.deferred_notes(),
+                        f"epoch={node.deals_done + (1 if is_deal else 0)}",
+                    ),
                 )
-                if new_deals >= target_deals:
-                    terminals.append(child)
-                else:
-                    nxt.append(child)
-                    if new_deals == 1:
-                        deal1_seen.append(child)
 
         # Stratify live frontier by epoch so cheap deals don't starve investment
         by_epoch: Dict[int, List[PlanNode]] = {}
@@ -585,8 +781,11 @@ def search_to_stock_epoch(
             "workspace_max_cost": workspace_max_cost,
             "max_plan_nodes": max_plan_nodes,
             "time_limit_s": time_limit_s,
+            "use_access_campaigns": use_access_campaigns,
+            "access_max_paid_cost": access_max_paid_cost,
         },
         deal1_nodes=tuple(deal1_seen),
+        deal2_nodes=tuple(deal2_seen),
     )
 
 
