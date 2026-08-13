@@ -34,7 +34,7 @@ The immediate implementation sequence is:
 4. ~~exact known-stock reception analysis~~ (**Sprint 1D done** — `stock_reception.py`; `strategic_analysis.py` aggregates 1A–1D);
 5. ~~admissible lower-bound API / strategic objective generation~~ (**Sprint 1E done** — `lower_bounds.py`, `strategic_objectives.py`);
 6. ~~tactical realisation of objectives~~ (**Sprint 1F done** — `objective_realizer.py`);
-7. first limited plan-level objective search (not full anytime controller);
+7. ~~first limited plan-level objective search~~ (**Sprint 1G done** — `plan_search_v2.py`, opening→Deal 1);
 8. anytime first-solution search;
 9. incumbent-guided improvement and eventual proof.
 
