@@ -269,6 +269,7 @@ def campaign_subobjectives(
     analysis: Optional[StrategicAnalysis] = None,
     cards=None,
     max_access_candidates: int = 5,
+    prefer_open_completion: bool = False,
 ) -> Tuple[StrategicObjective, ...]:
     """Filter/order the current portfolio for this campaign."""
     port = generate_objective_portfolio(
@@ -291,13 +292,18 @@ def campaign_subobjectives(
             if o.kind == ObjectiveKind.EXPOSE_REVEAL_PREFIX
             and int(o.target_params.get("required_reveals", 99)) <= 2
         ]
-        exposes.sort(
-            key=lambda o: (
-                -_column_interest(analysis, int(o.target_params.get("column", -1))),
-                int(o.target_params.get("required_reveals", 99)),
-                int(o.target_params.get("column", 99)),
-            )
-        )
+        def _access_key(o: StrategicObjective):
+            col = int(o.target_params.get("column", -1))
+            interest = _column_interest(analysis, col)
+            req = int(o.target_params.get("required_reveals", 99))
+            # Secondary heuristic only: among comparable interest, prefer
+            # a column closer to becoming fully open. Never overrides interest.
+            remain_fd = 99
+            if prefer_open_completion and 0 <= col < len(state.columns):
+                remain_fd = len(state.columns[col].face_down)
+            return (-interest, req, remain_fd if prefer_open_completion else 0, col)
+
+        exposes.sort(key=_access_key)
         # Keep a small ranked set; several columns, shallow first within a col
         seen_cols = []
         for o in exposes:

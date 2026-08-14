@@ -250,8 +250,8 @@ def test_access_cache_avoids_duplicate_retry():
     assert hit1 is False
     assert hit2 is True
     assert second is first
-    # Same state/budget is one cache key.
-    assert (canonical_state_key(st), 6) in cache
+    # Same state/budget/completion-flag is one cache key.
+    assert (canonical_state_key(st), 6, False) in cache
 
 
 def test_investment_branch_survives_cheaper_deal():

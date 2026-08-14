@@ -218,6 +218,7 @@ def realize_campaign(
     tactical_time_s: float = 0.3,
     workspace_max_cost: int = 6,
     max_access_candidates: int = 5,
+    prefer_open_completion: bool = False,
 ) -> CampaignResult:
     """Repeatedly pick a related sub-objective and realise it cheaply.
 
@@ -265,6 +266,7 @@ def realize_campaign(
             analysis=analysis,
             cards=cards,
             max_access_candidates=max_access_candidates,
+            prefer_open_completion=prefer_open_completion,
         )
         if not subs:
             stop = "no_relevant_subobjective"

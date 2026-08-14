@@ -1,8 +1,10 @@
-"""Plan-level objective search (Sprints 1G–1L).
+"""Plan-level objective search (Sprints 1G–1L, open-column A/B).
 
 1G: opening → Deal 1
 1H: opening → Deal 1 → inter-deal planning → Deal 2
 1L: ACCESS campaign as a cached macro-edge through Deal 3 (A/B).
+Open-column geometry: heuristic quality facts + one latent-workspace
+beam slot + ACCESS completion tie-break. Not a new strategic layer.
 
 Diagnostic search over strategic objectives, not a whole-game solver.
 Heuristic quality is for beam/Pareto only. Admissible h is used solely when
@@ -83,6 +85,10 @@ class QualityVector:
     # Diagnostic only — never used for proof pruning or dominance.
     investment_paid: int = 0
     investment_fd: int = 0
+    fully_open_columns: int = 0
+    fully_open_nonking_columns: int = 0
+    min_column_fd: int = 0
+    workspace_potential: float = 0.0
 
     def investment_per_fd(self) -> Optional[float]:
         if self.investment_fd <= 0:
@@ -273,6 +279,10 @@ def compute_quality(
         analysis = analyze_strategic(state, cards=cards, run_shaping_probe=False)
     longest, mass = _longest_and_mass(state)
     bmax, nfound, h1t, s1t, h1b, s1b, h1r, s1r = _foundation_bits(analysis)
+    from spider.planner.workspace_obstruction import open_column_facts, workspace_potential
+
+    n_open, n_nonking, min_fd = open_column_facts(state)
+    wp = workspace_potential(state)
     return QualityVector(
         g=g,
         face_down=count_face_down(state),
@@ -290,6 +300,10 @@ def compute_quality(
         s1_build=s1b,
         h1_removal=h1r,
         s1_removal=s1r,
+        fully_open_columns=n_open,
+        fully_open_nonking_columns=n_nonking,
+        min_column_fd=min_fd,
+        workspace_potential=float(wp["score"]),
     )
 
 
@@ -352,11 +366,17 @@ def _tactical_limits(
     default_nodes: int,
     default_time: float,
     workspace_cost: int,
+    workspace_nodes: Optional[int] = None,
+    workspace_time_s: Optional[float] = None,
 ) -> Tuple[int, int, float]:
     if obj.kind == ObjectiveKind.DEAL_NOW:
         return 1, 8, 0.05
     if obj.kind == ObjectiveKind.CREATE_WORKSPACE:
-        return workspace_cost, max(default_nodes, 600), max(default_time, 0.35)
+        # Default stays the 1L/1M-legacy cap. Raised 800/0.7s only when
+        # the caller opts into the improved workspace backend.
+        nodes = workspace_nodes if workspace_nodes is not None else max(default_nodes, 600)
+        tlim = workspace_time_s if workspace_time_s is not None else max(default_time, 0.35)
+        return workspace_cost, nodes, tlim
     return default_cost, default_nodes, default_time
 
 
@@ -374,7 +394,12 @@ def pareto_front(nodes: Sequence[PlanNode]) -> Tuple[PlanNode, ...]:
     return tuple(sorted(best.values(), key=lambda x: x.quality.heuristic_order_key()))
 
 
-def stratify_nodes(nodes: Sequence[PlanNode], *, limit: int) -> Tuple[PlanNode, ...]:
+def stratify_nodes(
+    nodes: Sequence[PlanNode],
+    *,
+    limit: int,
+    use_open_column_geometry: bool = False,
+) -> Tuple[PlanNode, ...]:
     """Keep structurally diverse representatives; g=1 is one stratum only."""
     if not nodes:
         return ()
@@ -395,6 +420,18 @@ def stratify_nodes(nodes: Sequence[PlanNode], *, limit: int) -> Tuple[PlanNode, 
     add(max(nodes, key=lambda n: (n.quality.longest_same_suit, n.quality.same_suit_run_mass, -n.g)))
     add(max(nodes, key=lambda n: (n.quality.foundation_build_max, -n.g)))
     add(max(nodes, key=lambda n: (n.quality.predeal_same_suit_landings, n.quality.predeal_immediate_outs, -n.g)))
+    if use_open_column_geometry:
+        add(
+            max(
+                nodes,
+                key=lambda n: (
+                    n.quality.fully_open_nonking_columns,
+                    -n.quality.min_column_fd,
+                    n.quality.workspace_potential,
+                    -n.g,
+                ),
+            )
+        )
     add(min(nodes, key=lambda n: n.quality.heuristic_order_key()))
     # fill remaining by structure-first key
     rest = sorted(nodes, key=lambda n: n.quality.heuristic_order_key())
@@ -427,11 +464,12 @@ def _realize_access_cached(
     tactical_max_cost: int,
     tactical_max_nodes: int,
     tactical_time_s: float,
+    prefer_open_completion: bool = False,
 ):
     """Return (result or None, cache_hit). Zero-progress is cached as None."""
     from spider.planner.campaign_realizer import realize_campaign
 
-    key = (canonical_state_key(state), budget)
+    key = (canonical_state_key(state), budget, prefer_open_completion)
     if key in cache:
         return cache[key], True
     camps = generate_campaigns(state, cards=cards, max_campaigns=4)
@@ -448,6 +486,7 @@ def _realize_access_cached(
         tactical_max_cost=tactical_max_cost,
         tactical_max_nodes=tactical_max_nodes,
         tactical_time_s=tactical_time_s,
+        prefer_open_completion=prefer_open_completion,
     )
     if (
         result.zero_progress
@@ -484,6 +523,10 @@ def search_to_stock_epoch(
     access_max_paid_cost: int = 10,
     access_max_steps: int = 8,
     access_tactical_time_s: float = 0.2,
+    use_open_column_geometry: bool = False,
+    use_improved_workspace: bool = False,
+    workspace_max_nodes: int = 800,
+    workspace_time_s: float = 0.7,
 ) -> PlanSearchResult:
     """Beam search over objectives until ``target_deals`` stock deals are applied.
 
@@ -512,7 +555,7 @@ def search_to_stock_epoch(
     deal1_seen: List[PlanNode] = []
     deal2_seen: List[PlanNode] = []
     tt: Dict[Tuple[int, CanonicalStateKey], int] = {(0, root.key): 0}
-    access_cache: Dict[Tuple[CanonicalStateKey, int], Optional[object]] = {}
+    access_cache: Dict[tuple, Optional[object]] = {}
 
     while live:
         if time.time() - t0 > time_limit_s or stats.plan_nodes >= max_plan_nodes:
@@ -660,6 +703,7 @@ def search_to_stock_epoch(
                     tactical_max_cost=max(tactical_max_cost, 3),
                     tactical_max_nodes=tactical_max_nodes,
                     tactical_time_s=access_tactical_time_s,
+                    prefer_open_completion=use_open_column_geometry,
                 )
                 if hit:
                     stats.access_cache_hits += 1
@@ -718,15 +762,34 @@ def search_to_stock_epoch(
                     default_nodes=tactical_max_nodes,
                     default_time=tactical_time_s,
                     workspace_cost=workspace_max_cost,
+                    workspace_nodes=workspace_max_nodes if use_improved_workspace else None,
+                    workspace_time_s=workspace_time_s if use_improved_workspace else None,
                 )
-                res = realize_objective(
-                    node.state,
-                    obj,
-                    mode=RealizationMode.EXACT_BOUNDED,
-                    max_cost=mc,
-                    max_nodes=mn,
-                    time_limit_s=mt,
-                )
+                if (
+                    use_improved_workspace
+                    and obj.kind == ObjectiveKind.CREATE_WORKSPACE
+                ):
+                    from spider.planner.workspace_tactics import (
+                        WorkspaceBackend,
+                        realize_workspace,
+                    )
+
+                    res = realize_workspace(
+                        node.state,
+                        backend=WorkspaceBackend.IMPROVED,
+                        max_cost=mc,
+                        max_nodes=mn,
+                        time_limit_s=mt,
+                    )
+                else:
+                    res = realize_objective(
+                        node.state,
+                        obj,
+                        mode=RealizationMode.EXACT_BOUNDED,
+                        max_cost=mc,
+                        max_nodes=mn,
+                        time_limit_s=mt,
+                    )
                 if res.status == RealizationStatus.ALREADY_SATISFIED:
                     stats.realizations_already += 1
                     continue
@@ -761,7 +824,13 @@ def search_to_stock_epoch(
         live = []
         slots = max(4, beam // max(1, len(by_epoch) or 1))
         for ep in sorted(by_epoch):
-            live.extend(stratify_nodes(by_epoch[ep], limit=slots))
+            live.extend(
+                stratify_nodes(
+                    by_epoch[ep],
+                    limit=slots,
+                    use_open_column_geometry=use_open_column_geometry,
+                )
+            )
         # fill to beam
         rest = [n for n in nxt if n.key not in {x.key for x in live}]
         rest.sort(key=lambda n: n.quality.heuristic_order_key())
@@ -780,7 +849,11 @@ def search_to_stock_epoch(
         if cost == t.g and t.deals_done >= target_deals:
             verified.append(t)
     pareto = pareto_front(verified)
-    stratified = stratify_nodes(verified, limit=max(8, beam // 4))
+    stratified = stratify_nodes(
+        verified,
+        limit=max(8, beam // 4),
+        use_open_column_geometry=use_open_column_geometry,
+    )
     return PlanSearchResult(
         terminals=tuple(sorted(verified, key=lambda n: n.g)),
         pareto_terminals=pareto,
@@ -796,6 +869,10 @@ def search_to_stock_epoch(
             "time_limit_s": time_limit_s,
             "use_access_campaigns": use_access_campaigns,
             "access_max_paid_cost": access_max_paid_cost,
+            "use_open_column_geometry": use_open_column_geometry,
+            "use_improved_workspace": use_improved_workspace,
+            "workspace_max_nodes": workspace_max_nodes,
+            "workspace_time_s": workspace_time_s,
         },
         deal1_nodes=tuple(deal1_seen),
         deal2_nodes=tuple(deal2_seen),

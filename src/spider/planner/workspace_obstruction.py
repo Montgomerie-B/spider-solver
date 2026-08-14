@@ -154,6 +154,29 @@ def profile_state(state: SpiderState) -> Tuple[ColumnProfile, ...]:
     return tuple(profile_column(state, i) for i in range(10))
 
 
+def open_column_facts(state: SpiderState) -> Tuple[int, int, int]:
+    """(fully_open, fully_open_nonking, min_fd_among_nonempty).
+
+    A column is fully open if it has face-up cards and no face-down.
+    Non-king: the landing card (face_up[0]) is not a King, so it can sit
+    on a rank+1 dest rather than only an empty.
+    """
+    fully_open = 0
+    fully_open_nonking = 0
+    min_fd = None
+    for col in state.columns:
+        if col.is_empty():
+            continue
+        fd = len(col.face_down)
+        if min_fd is None or fd < min_fd:
+            min_fd = fd
+        if fd == 0 and col.face_up:
+            fully_open += 1
+            if col.face_up[0].rank < 13:
+                fully_open_nonking += 1
+    return fully_open, fully_open_nonking, (min_fd if min_fd is not None else 0)
+
+
 def workspace_potential(state: SpiderState) -> Dict[str, float]:
     """Cheap diagnostic: is this tableau geometrically close to an empty?
 
