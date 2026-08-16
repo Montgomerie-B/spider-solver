@@ -42,6 +42,13 @@ class CampaignRemovalStatus(str, Enum):
     INVALID_CAMPAIGN = "invalid_campaign"
 
 
+class CampaignTableauTarget(str, Enum):
+    """Structural target for the shared bounded tableau beam."""
+
+    PREPARE_TARGET_ROW = "pre"
+    REMOVE_FOUNDATION = "post"
+
+
 class CampaignRemovalObligationKind(str, Enum):
     JOIN_RECEIVED_STOCK = "join_received_stock"
     ASSEMBLE_SAME_SUIT_BAND = "assemble_same_suit_band"
@@ -181,8 +188,15 @@ class CampaignRemovalResult:
     exact_row: Tuple[Card, ...]
 
 
-@dataclass
-class _SearchOutcome:
+@dataclass(frozen=True)
+class CampaignTableauSearchResult:
+    """Public result from the tactical beam reused by campaign transitions.
+
+    A miss is always relative to the supplied cost, node, time, and beam
+    bounds.  ``state`` and ``actions`` retain the best structural progress
+    observed even when ``found`` is false.
+    """
+
     found: bool
     actions: Tuple[Action, ...]
     cost: int
@@ -773,19 +787,21 @@ def _state_score(
     return score
 
 
-def _search_moves(
+def search_campaign_tableau(
     start: SpiderState,
     campaign: FoundationCampaign,
     *,
-    phase: str,
+    target: CampaignTableauTarget,
     max_cost: int,
     max_nodes: int,
     time_limit_s: float,
     beam_width: int,
     foundation_suit_before: int,
-) -> _SearchOutcome:
+) -> CampaignTableauSearchResult:
+    """Run the existing bounded tactical beam without applying a stock row."""
     started = time.perf_counter()
-    target = (
+    phase = target.value
+    target_holds = (
         (lambda state: _predeal_ready(state, campaign))
         if phase == "pre"
         else (
@@ -794,8 +810,8 @@ def _search_moves(
             )
         )
     )
-    if target(start):
-        return _SearchOutcome(
+    if target_holds(start):
+        return CampaignTableauSearchResult(
             True, (), 0, start.clone(), 0, 0.0, False, "target already satisfied"
         )
 
@@ -820,7 +836,7 @@ def _search_moves(
         next_frontier: List[Tuple[SpiderState, Tuple[Action, ...], int, float]] = []
         for state, path, cost, _score in frontier:
             if time.perf_counter() - started >= time_limit_s:
-                return _SearchOutcome(
+                return CampaignTableauSearchResult(
                     False,
                     best_path,
                     best_cost,
@@ -831,7 +847,7 @@ def _search_moves(
                     "time limit; bounded miss is not impossibility",
                 )
             if nodes >= max_nodes:
-                return _SearchOutcome(
+                return CampaignTableauSearchResult(
                     False,
                     best_path,
                     best_cost,
@@ -865,8 +881,8 @@ def _search_moves(
                     phase=phase,
                     foundation_suit_before=foundation_suit_before,
                 )
-                if target(child):
-                    return _SearchOutcome(
+                if target_holds(child):
+                    return CampaignTableauSearchResult(
                         True,
                         new_path,
                         new_cost,
@@ -892,7 +908,7 @@ def _search_moves(
             key=lambda item: (-item[3], item[2], len(item[1]), item[1])
         )
         frontier = next_frontier[:beam_width]
-    return _SearchOutcome(
+    return CampaignTableauSearchResult(
         False,
         best_path,
         best_cost,
@@ -1077,10 +1093,10 @@ def realize_campaign_to_removal_epoch(
     add_progress("initial", start_state, 0, 0, "fixed identity and obligations frozen")
     reserve_deal = 1
     pre_budget = max(0, max_added_cost - reserve_deal)
-    pre = _search_moves(
+    pre = search_campaign_tableau(
         start_state,
         campaign,
-        phase="pre",
+        target=CampaignTableauTarget.PREPARE_TARGET_ROW,
         max_cost=pre_budget,
         max_nodes=max_nodes,
         time_limit_s=time_limit_s,
@@ -1134,7 +1150,7 @@ def realize_campaign_to_removal_epoch(
             pre_campaign = None
             stop_reason = f"fixed campaign failed pre-deal reanalysis: {exc}"
         if pre_campaign is None:
-            pre = _SearchOutcome(
+            pre = CampaignTableauSearchResult(
                 False,
                 pre.actions,
                 pre.cost,
@@ -1189,7 +1205,7 @@ def realize_campaign_to_removal_epoch(
                     0.01, time_limit_s - (time.perf_counter() - started)
                 )
                 if post_campaign is None:
-                    post = _SearchOutcome(
+                    post = CampaignTableauSearchResult(
                         False,
                         (),
                         0,
@@ -1200,10 +1216,10 @@ def realize_campaign_to_removal_epoch(
                         stop_reason,
                     )
                 else:
-                    post = _search_moves(
+                    post = search_campaign_tableau(
                         state,
                         campaign,
-                        phase="post",
+                        target=CampaignTableauTarget.REMOVE_FOUNDATION,
                         max_cost=remaining_cost,
                         max_nodes=remaining_nodes,
                         time_limit_s=remaining_time,
