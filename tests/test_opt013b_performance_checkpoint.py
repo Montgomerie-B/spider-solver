@@ -47,10 +47,10 @@ def test_engine_clone_is_structural_not_deepcopy():
     assert "list(c.face_up)" in body
 
 
-def test_algebraic_c6_exhausts_121_under_budget():
+def test_algebraic_c6_exhausts_corrected_467_under_budget():
     r = search_quotient(ceiling=6, expand_mode="algebraic")
     assert r.termination == "exhausted"
-    assert r.tt_entries == 121
+    assert r.tt_entries == 467
     assert r.runtime_seconds <= 120.0
     assert r.improvements == [] or r.segment_mw is None or r.segment_mw >= 8
 
@@ -58,15 +58,25 @@ def test_algebraic_c6_exhausts_121_under_budget():
 def test_bruteforce_and_algebraic_c6_same_node_count():
     ra = search_quotient(ceiling=6, expand_mode="algebraic")
     rb = search_quotient(ceiling=6, expand_mode="bruteforce")
-    assert ra.tt_entries == rb.tt_entries == 121
+    assert ra.tt_entries == rb.tt_entries == 467
     assert ra.termination == rb.termination == "exhausted"
     assert ra.prune_stats["accepted"] == rb.prune_stats["accepted"]
 
 
 def test_differential_corpus_c6_still_exact():
     r = differential_corpus_through_ceiling(6)
-    assert r["n_components"] == 121
+    assert r["n_components"] == 467
     assert r["ok"] is True, r["mismatches"]
+
+
+def test_corrected_cost7_exhaustion_agrees_across_backends():
+    algebraic = search_quotient(ceiling=7, expand_mode="algebraic")
+    brute = search_quotient(ceiling=7, expand_mode="bruteforce")
+    assert algebraic.termination == brute.termination == "exhausted"
+    assert algebraic.status == brute.status == "exhaustive_failure"
+    assert algebraic.tt_entries == brute.tt_entries == 3_677
+    assert algebraic.generated_raw == brute.generated_raw == 44_118
+    assert algebraic.improvements == brute.improvements == []
 
 
 def test_n_empty_zero_singleton_still_holds():
@@ -94,7 +104,7 @@ def test_checkpoint_audit_algebraic(tmp_path):
     assert a["checkpoint_bytes"] > 0
     assert a["tmp_left"] is False
     assert a["tt_match"] is True
-    assert a["n_nodes"] == a["n_nodes_restored"] == 121
+    assert a["n_nodes"] == a["n_nodes_restored"] == 467
     assert a["second_complete_graph"] is False
     assert a["cross_backend_resume_refused"] is True
     # bounded: write should not roughly double RSS into multi-GiB

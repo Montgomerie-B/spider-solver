@@ -34,6 +34,10 @@ from spider.state_identity import states_structurally_equal
 
 @pytest.fixture(scope="module")
 def benchmark():
+    pytest.xfail(
+        "historical 49-cost source-project benchmark descends from an illegal "
+        "mixed-suit block; see docs/same_suit_block_legality_audit.md"
+    )
     cards = tuple(load_deal(ROOT / "deals" / "4925153.txt"))
     reconstructed = reconstruct_cost47(cards)
     plan = build_campaign_source_project_plan(

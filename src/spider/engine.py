@@ -75,11 +75,16 @@ class SpiderState:
     def is_same_suit(cards: List[Card]) -> bool:
         return all(c.suit == cards[0].suit for c in cards) if cards else True
 
+    @classmethod
+    def is_movable_run(cls, cards: List[Card]) -> bool:
+        """Whether cards form one legally movable Spider tableau block."""
+        return cls.is_desc_run(cards) and cls.is_same_suit(cards)
+
     def can_move(self, src: int, dst: int, k: int) -> bool:
         if src == dst or k <= 0 or k > len(self.columns[src].face_up):
             return False
         run = self.columns[src].face_up[-k:]
-        if not self.is_desc_run(run):
+        if not self.is_movable_run(run):
             return False
         top = self.columns[dst].top()
         return top is None or top.rank - 1 == run[0].rank
@@ -117,7 +122,7 @@ class SpiderState:
         col = self.columns[col_idx]
         if len(col.face_up) >= 13 and col.face_up[-13].rank == 13:
             tail = col.face_up[-13:]
-            if self.is_desc_run(tail) and self.is_same_suit(tail):
+            if self.is_movable_run(tail):
                 col.face_up = col.face_up[:-13]
                 self.foundations.append(tail)
                 col.maybe_flip()
@@ -147,7 +152,7 @@ class SpiderState:
             up = self.columns[src].face_up
             for k in range(1, len(up) + 1):
                 run = up[-k:]
-                if not self.is_desc_run(run):
+                if not self.is_movable_run(run):
                     continue
                 for dst in range(10):
                     if src == dst:

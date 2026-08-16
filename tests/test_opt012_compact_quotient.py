@@ -128,13 +128,14 @@ def test_free_moves_reversible(endpoints):
     assert ok, msg
 
 
-def test_free_closure_720_is_one_component(endpoints):
+def test_free_closure_six_is_one_corrected_component(endpoints):
     st = endpoints["start_state"]
     members = free_closure(st)
-    assert len(members) == 720
+    assert len(members) == 6
     analysis = free_slot_analysis(st)
-    assert analysis["factorial_slots"] == 720
-    assert analysis["n_slots"] == 6
+    assert analysis["factorial_slots"] == 6
+    assert analysis["n_slots"] == 3
+    assert analysis["n_piles"] == 2
     keys = {component_key_from_state(s).to_bytes() for s in members.values()}
     assert len(keys) == 1
 
@@ -154,8 +155,8 @@ def test_paid_expansion_covers_raw_successors(endpoints):
     st = endpoints["start_state"]
     members = free_closure(st)
     outs = expand_component_paid(st, members=members)
-    # 30240 raw unique states collapse to 42 components
-    assert len(outs) == 42
+    # Corrected legality: only two same-suit piles are free entities.
+    assert len(outs) == 150
 
 
 def test_reconstruct_free_path_identity(endpoints):
@@ -167,7 +168,7 @@ def test_reconstruct_free_path_identity(endpoints):
 def test_ceiling_0_and_1_exhaust(endpoints):
     r0 = search_quotient(ceiling=0)
     assert r0.termination == "exhausted"
-    assert r0.raw_free_members_start == 720
+    assert r0.raw_free_members_start == 6
     assert r0.quotient_components_seen == 1
     r1 = search_quotient(ceiling=1)
     assert r1.termination == "exhausted"

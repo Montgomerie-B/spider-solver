@@ -30,8 +30,8 @@ from spider.planner.diagnostics.opt012_free_quotient import (
 from spider.rules import mobilityware_move_cost
 from spider.state_identity import CanonicalStateKey, card_tuple, canonical_state_key
 
-BACKEND_ID = "opt013_algebraic_v1"
-ORACLE_BACKEND_ID = "opt012_bruteforce_v1"
+BACKEND_ID = "opt013_algebraic_same_suit_v2"
+ORACLE_BACKEND_ID = "opt012_bruteforce_same_suit_v2"
 
 CardT = Tuple[str, int]
 PileT = Tuple[CardT, ...]
@@ -353,7 +353,7 @@ def _paid_successors(st: SpiderState) -> List[Tuple[Action, int, SpiderState]]:
 
 
 def _legal_suffix_lengths(cards: Sequence[CardT]) -> List[int]:
-    """Heights k such that the top-k cards form a legal desc run (engine rule)."""
+    """Heights k whose top cards form a same-suit descending block."""
     if not cards:
         return []
     # cards are bottom-to-top; top is last
@@ -361,7 +361,11 @@ def _legal_suffix_lengths(cards: Sequence[CardT]) -> List[int]:
     ok = [1]
     for k in range(2, n + 1):
         run = cards[n - k :]
-        good = all(run[j][1] - 1 == run[j + 1][1] for j in range(len(run) - 1))
+        good = all(
+            run[j][0] == run[j + 1][0]
+            and run[j][1] - 1 == run[j + 1][1]
+            for j in range(len(run) - 1)
+        )
         if good:
             ok.append(k)
         else:
@@ -555,7 +559,15 @@ def differential_expand(representative: SpiderState) -> Dict[str, Any]:
 
 def prove_all_arrangements_reachable(start: SpiderState) -> Dict[str, Any]:
     """Prove algebraic free planner reaches every free-closure member from start."""
+    import math
+
     members = free_closure(start)
+    analysis = free_slot_analysis(start)
+    multiplicities = Counter(analysis["free_piles"])
+    denominator = math.factorial(int(analysis["n_empty"]))
+    for count in multiplicities.values():
+        denominator *= math.factorial(count)
+    expected = math.factorial(int(analysis["n_slots"])) // denominator
     arr0 = arrangement_from_state(start)
     fails = 0
     for st in members.values():
@@ -565,8 +577,9 @@ def prove_all_arrangements_reachable(start: SpiderState) -> Dict[str, Any]:
             fails += 1
     return {
         "n_members": len(members),
+        "expected_members": expected,
         "fails": fails,
-        "ok": fails == 0 and len(members) == 720,
+        "ok": fails == 0 and len(members) == expected,
     }
 
 

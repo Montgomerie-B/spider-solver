@@ -324,7 +324,10 @@ def _face_up_peels_above(cards: Sequence[Card]) -> int:
         return 0
     groups = 1
     for i in range(len(cards) - 1):
-        if cards[i].rank - 1 != cards[i + 1].rank:
+        if (
+            cards[i].suit != cards[i + 1].suit
+            or cards[i].rank - 1 != cards[i + 1].rank
+        ):
             groups += 1
     return groups
 

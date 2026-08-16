@@ -40,6 +40,10 @@ from spider.state_identity import states_structurally_equal
 
 @pytest.fixture(scope="module")
 def benchmark():
+    pytest.xfail(
+        "historical 47-cost residual benchmark descends from an illegal "
+        "mixed-suit block; see docs/same_suit_block_legality_audit.md"
+    )
     cards = tuple(load_deal(ROOT / "deals" / "4925153.txt"))
     reconstructed = reconstruct_cost47(cards)
     result = realize_residual_campaign_transition(

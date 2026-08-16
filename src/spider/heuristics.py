@@ -603,7 +603,7 @@ def detect_foundation_completing_merge(
             up = state.columns[src].face_up
             for k in range(1, len(up) + 1):
                 run = up[-k:]
-                if not state.is_desc_run(run):
+                if not state.is_movable_run(run):
                     continue
                 for dst in range(10):
                     if src == dst:

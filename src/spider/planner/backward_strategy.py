@@ -390,9 +390,14 @@ def analyze_excavation_projects(
         if col.is_empty() or not col.face_down:
             # Fully open: still a latent-workspace project if non-king.
             if col.face_up and not col.face_down:
+                whole_movable = state.is_movable_run(col.face_up)
                 nk = col.face_up[0].rank < 13
                 reasons = []
-                if nk:
+                if not whole_movable:
+                    reasons.append(
+                        "fully open but not one same-suit movable block"
+                    )
+                elif nk:
                     reasons.append("already fully-open non-king (latent workspace)")
                 else:
                     reasons.append("already fully-open king (needs empty to park)")
@@ -406,10 +411,11 @@ def analyze_excavation_projects(
                         approx_advance_cost=0,
                         approx_open_cost=0,
                         important=(),
-                        unlock_value=12.0 if nk else 2.0,
-                        latent_workspace=nk,
-                        can_start_now=bool(p.dests),
-                        rank_score=(18.0 if nk else 2.0) + (6.0 if p.one_move_creates else 0.0),
+                        unlock_value=12.0 if nk and whole_movable else 2.0,
+                        latent_workspace=nk and whole_movable,
+                        can_start_now=whole_movable and bool(p.dests),
+                        rank_score=(18.0 if nk and whole_movable else 2.0)
+                        + (6.0 if p.one_move_creates else 0.0),
                         reasons=tuple(reasons),
                     )
                 )
@@ -534,7 +540,7 @@ def _option_uses(
             continue
         k = 0
         for t in range(1, len(col.face_up) + 1):
-            if state.is_desc_run(col.face_up[-t:]):
+            if state.is_movable_run(col.face_up[-t:]):
                 k = t
             else:
                 break

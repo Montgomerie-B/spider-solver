@@ -28,12 +28,13 @@ FreePile = Tuple[Tuple[Tuple[str, int], ...], ...]  # just the face_up cards as 
 
 
 def is_free_relocation(st: SpiderState, a: Action) -> bool:
-    """True iff tableau move is corrected cost 0 under MW rules."""
+    """True iff a legal tableau move has corrected cost 0 under MW rules."""
     if a == ("deal",):
         return False
     s, d, k = a  # type: ignore
     return (
-        mobilityware_move_cost(
+        st.can_move(s, d, k)
+        and mobilityware_move_cost(
             cards_moved=k,
             source_face_up_count=len(st.columns[s].face_up),
             dest_was_empty=st.columns[d].is_empty(),
@@ -79,17 +80,24 @@ def free_slot_analysis(st: SpiderState) -> Dict[str, Any]:
     """Classify columns into fixed vs freely permutable slots."""
     free_indices: List[int] = []
     free_piles: List[Tuple[Tuple[str, int], ...]] = []
-    empty_indices: List[int] = []
+    empty_indices = [
+        i for i, column in enumerate(st.columns) if column.is_empty()
+    ]
+    has_free_buffer = bool(empty_indices)
     fixed: List[int] = []
     for i, col in enumerate(st.columns):
         if col.is_empty():
-            empty_indices.append(i)
             free_indices.append(i)
-        elif len(col.face_down) == 0 and len(col.face_up) > 0:
-            # entire open column is free-relocatable iff free move exists to some empty
-            # Characterisation: no face-down + can move full face_up as unit (desc run)
+        elif (
+            has_free_buffer
+            and len(col.face_down) == 0
+            and len(col.face_up) > 0
+        ):
+            # A whole open column is a free entity only when it is one legal
+            # same-suit descending movable block. Whether an empty currently
+            # exists is represented separately by n_empty.
             fu = col.face_up
-            is_run = all(fu[j].rank - 1 == fu[j + 1].rank for j in range(len(fu) - 1))
+            is_run = st.is_movable_run(fu)
             if is_run:
                 free_indices.append(i)
                 free_piles.append(tuple((c.suit, c.rank) for c in fu))
@@ -130,7 +138,7 @@ class ComponentKey:
     def to_bytes(self) -> bytes:
         # Versioned compact key for dict / checkpoint
         parts = [
-            b"CQ01",
+            b"CQ02",
             bytes([len(self.free_slot_indices), self.n_empty]),
             bytes(self.free_slot_indices),
             struct_pack_u32(len(self.free_pile_multiset)),

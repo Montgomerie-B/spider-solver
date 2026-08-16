@@ -48,6 +48,9 @@ Deal `4925153` remains the primary benchmark, but no generic planner logic may d
 
 ## Correctness invariants
 
+- Multi-card tableau moves must be descending same-suit blocks. See the
+  authoritative [same-suit block legality audit](../../../docs/same_suit_block_legality_audit.md)
+  before reusing historical campaign or quotient results.
 - Optimisation metric is corrected `mobilityware_moves` only.
 - `legacy_mw` is forensic only.
 - Heuristic scores may order search but may not prune proof search unless admissibility is proved.

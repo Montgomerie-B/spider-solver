@@ -93,13 +93,17 @@ def workspace_quotient_key(state: SpiderState) -> Tuple:
     """
     free_piles: List[Tuple] = []
     fixed: List[Tuple] = []
-    n_empty = 0
+    n_empty = sum(column.is_empty() for column in state.columns)
+    has_free_buffer = n_empty > 0
     for i, col in enumerate(state.columns):
         if col.is_empty():
-            n_empty += 1
             continue
         fu = tuple((c.suit, c.rank) for c in col.face_up)
-        if not col.face_down:
+        if (
+            has_free_buffer
+            and not col.face_down
+            and state.is_movable_run(col.face_up)
+        ):
             free_piles.append(fu)
         else:
             fd = tuple((c.suit, c.rank) for c in col.face_down)

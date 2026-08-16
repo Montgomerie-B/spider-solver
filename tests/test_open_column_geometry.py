@@ -135,6 +135,13 @@ def test_fully_open_and_nonking_metrics():
     assert qb.fully_open_nonking_columns == 0
     assert qb.min_column_fd == 1
 
+    mixed = _buried_pad(
+        [Column([], [Card("s", 12), Card("h", 11), Card("h", 10)])]
+    )
+    mo, mn, _ = open_column_facts(mixed)
+    assert mo == 1
+    assert mn == 0
+
 
 def test_open_facts_are_heuristic_not_dominance():
     a = _qv(fully_open_nonking_columns=0, min_column_fd=4, workspace_potential=0.0)

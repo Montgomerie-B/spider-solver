@@ -36,7 +36,7 @@ def cmd42():
 def test_bruteforce_oracle_named(cmd42):
     m = free_closure(cmd42)
     b = expand_component_bruteforce(cmd42, members=m)
-    assert len(b) == 42
+    assert len(b) == 150
 
 
 def test_plan_free_identity(cmd42):
@@ -44,9 +44,9 @@ def test_plan_free_identity(cmd42):
     assert plan_free_rearrangement(arr, arr) == []
 
 
-def test_plan_free_all_720_from_start(cmd42):
+def test_plan_free_all_six_from_start(cmd42):
     r = prove_all_arrangements_reachable(cmd42)
-    assert r["n_members"] == 720
+    assert r["n_members"] == r["expected_members"] == 6
     assert r["fails"] == 0
     assert r["ok"] is True
 
@@ -58,7 +58,7 @@ def test_plan_free_sample_pairs_replay(cmd42):
         is_free_relocation,
     )
 
-    for i, j in [(0, 1), (0, 100), (50, 400), (10, 719)]:
+    for i, j in [(0, 1), (0, 5), (2, 4), (1, 3)]:
         path = plan_free_rearrangement(
             arrangement_from_state(members[i]),
             arrangement_from_state(members[j]),
@@ -74,7 +74,7 @@ def test_plan_free_sample_pairs_replay(cmd42):
 def test_algebraic_equals_bruteforce_cmd42(cmd42):
     d = differential_expand(cmd42)
     assert d["equal"] is True, d
-    assert d["brute_n"] == d["alg_n"] == 42
+    assert d["brute_n"] == d["alg_n"] == 150
 
 
 def _synthetic_state(
@@ -231,18 +231,18 @@ def test_differential_through_ceiling_5():
     )
 
     reps = collect_components_through_ceiling(ceiling=5, expand_mode="algebraic")
-    assert len(reps) == 5
+    assert len(reps) == 25
     for rep in reps:
         d = differential_expand(rep)
         assert d["equal"] is True, d
 
 
 def test_differential_through_ceiling_6():
-    """Full Opt012 ceiling-6 corpus: 121 components, exact set agreement."""
+    """Corrected ceiling-6 corpus: 467 components, exact set agreement."""
     from spider.planner.diagnostics.opt013_algebraic_expansion import (
         differential_corpus_through_ceiling,
     )
 
     r = differential_corpus_through_ceiling(6)
-    assert r["n_components"] == 121, r
+    assert r["n_components"] == 467, r
     assert r["ok"] is True, r["mismatches"]

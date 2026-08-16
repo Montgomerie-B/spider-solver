@@ -62,6 +62,10 @@ SIX_MOVE_FIXTURE = (
 
 @pytest.fixture(scope="module")
 def benchmark():
+    pytest.xfail(
+        "historical Deal-2 S-removal benchmark is invalid under same-suit "
+        "multi-card legality; see docs/same_suit_block_legality_audit.md"
+    )
     cards = tuple(load_deal(ROOT / "deals" / "4925153.txt"))
     opening = SpiderState.from_cards(list(cards))
     six = opening.clone()
@@ -153,6 +157,15 @@ def _next_epoch_removal_state():
         Card("d", 5),
     ]
     return SpiderState(columns, later + row, [_foundation("s")]), tuple(row)
+
+
+@pytest.fixture(scope="module")
+def synthetic_context():
+    cards = tuple(load_deal(ROOT / "deals" / "4925153.txt"))
+    state = _current_epoch_removal_state()
+    campaign = analyze_foundation_campaigns(state, cards=cards).primary
+    assert campaign.suit == "h"
+    return {"cards": cards, "state": state, "campaign": campaign}
 
 
 def test_post_s1_residual_is_reconstructed_through_public_apis(benchmark):
@@ -256,15 +269,15 @@ def test_deal4_is_never_reached(benchmark):
     assert len(result.resulting_state.stock) >= 20
 
 
-def test_current_epoch_synthetic_campaign_removes_without_deal(benchmark, monkeypatch):
-    campaign = benchmark["primary"]
+def test_current_epoch_synthetic_campaign_removes_without_deal(synthetic_context, monkeypatch):
+    campaign = synthetic_context["campaign"]
     state = _current_epoch_removal_state()
     portfolio = _single_campaign_portfolio(campaign, 2)
     monkeypatch.setattr(fct, "analyze_foundation_campaigns", lambda *_a, **_k: portfolio)
     result = realize_residual_campaign_transition(
         state,
         campaign,
-        benchmark["cards"],
+        synthetic_context["cards"],
         max_added_cost=2,
         max_nodes=100,
         time_limit_s=2,
@@ -278,8 +291,8 @@ def test_current_epoch_synthetic_campaign_removes_without_deal(benchmark, monkey
     assert result.independent_replay_verified
 
 
-def test_next_epoch_synthetic_campaign_removes_after_one_deal(benchmark, monkeypatch):
-    base = benchmark["primary"]
+def test_next_epoch_synthetic_campaign_removes_after_one_deal(synthetic_context, monkeypatch):
+    base = synthetic_context["campaign"]
     state, row = _next_epoch_removal_state()
     incoming = CampaignIncomingCard(
         Card("h", 13),
@@ -311,7 +324,7 @@ def test_next_epoch_synthetic_campaign_removes_after_one_deal(benchmark, monkeyp
     result = realize_residual_campaign_transition(
         state,
         campaign,
-        benchmark["cards"],
+        synthetic_context["cards"],
         max_added_cost=4,
         max_nodes=2_000,
         time_limit_s=5,
@@ -324,9 +337,9 @@ def test_next_epoch_synthetic_campaign_removes_after_one_deal(benchmark, monkeyp
     assert current_stock_epoch(result.resulting_state, 5) == 3
 
 
-def test_later_epoch_synthetic_campaign_advances_once_and_stops(benchmark, monkeypatch):
+def test_later_epoch_synthetic_campaign_advances_once_and_stops(synthetic_context, monkeypatch):
     state, row = _next_epoch_removal_state()
-    base = benchmark["primary"]
+    base = synthetic_context["campaign"]
     no_space = replace(
         base.space_plan,
         policy=SpacePolicy.NONE,
@@ -350,7 +363,7 @@ def test_later_epoch_synthetic_campaign_advances_once_and_stops(benchmark, monke
     result = realize_residual_campaign_transition(
         state,
         campaign,
-        benchmark["cards"],
+        synthetic_context["cards"],
         max_added_cost=2,
         max_nodes=100,
         time_limit_s=2,
@@ -363,11 +376,11 @@ def test_later_epoch_synthetic_campaign_advances_once_and_stops(benchmark, monke
     assert current_stock_epoch(result.resulting_state, 5) == 3
 
 
-def test_foundation_count_and_suit_are_verified_by_engine(benchmark):
+def test_foundation_count_and_suit_are_verified_by_engine(synthetic_context):
     state = _current_epoch_removal_state()
     result = search_campaign_tableau(
         state,
-        benchmark["primary"],
+        synthetic_context["campaign"],
         target=CampaignTableauTarget.REMOVE_FOUNDATION,
         max_cost=2,
         max_nodes=100,
@@ -377,7 +390,7 @@ def test_foundation_count_and_suit_are_verified_by_engine(benchmark):
     )
     assert result.found
     assert len(result.state.foundations) == 2
-    assert result.state.foundations[-1][0].suit == benchmark["primary"].suit
+    assert result.state.foundations[-1][0].suit == synthetic_context["campaign"].suit
 
 
 def test_complete_route_replays_at_equal_corrected_cost(benchmark):
@@ -393,9 +406,9 @@ def test_complete_route_replays_at_equal_corrected_cost(benchmark):
     assert states_structurally_equal(replayed, transition.resulting_state)
 
 
-def test_bounded_resource_failure_is_not_impossibility(benchmark, monkeypatch):
-    state = benchmark["residual"]
-    campaign = benchmark["primary"]
+def test_bounded_resource_failure_is_not_impossibility(synthetic_context, monkeypatch):
+    state = synthetic_context["state"]
+    campaign = synthetic_context["campaign"]
     portfolio = _single_campaign_portfolio(campaign, 2)
     monkeypatch.setattr(fct, "analyze_foundation_campaigns", lambda *_a, **_k: portfolio)
     monkeypatch.setattr(fct, "_fixed_reanalysis", lambda *_a, **_k: campaign)
@@ -414,7 +427,7 @@ def test_bounded_resource_failure_is_not_impossibility(benchmark, monkeypatch):
         ),
     )
     result = realize_residual_campaign_transition(
-        state, campaign, benchmark["cards"], max_added_cost=1, max_nodes=1
+        state, campaign, synthetic_context["cards"], max_added_cost=1, max_nodes=1
     )
     assert result.status == CampaignTransitionStatus.RESOURCE_LIMIT
     assert "not impossibility" in result.stop_reason

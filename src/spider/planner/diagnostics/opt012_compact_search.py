@@ -53,13 +53,13 @@ DEAL = ROOT / "deals" / "4925153.txt"
 CANONICAL = ROOT / "solutions" / "4925153_canonical.moves"
 ARTIFACTS = ROOT / "artifacts" / "opt012"
 
-ALGORITHM_ID = "opt013_algebraic_quotient"
-ALGORITHM_VERSION = "1"
-COMPONENT_KEY_VERSION = "CQ01"
+ALGORITHM_ID = "opt013_same_suit_algebraic_quotient"
+ALGORITHM_VERSION = "2"
+COMPONENT_KEY_VERSION = "CQ02"
 PRUNE_RULE_VERSION = "target_monotonic_v1"
 # Production expansion backend (bruteforce retained as oracle only)
 PRODUCTION_EXPAND = "algebraic"
-CHECKPOINT_SCHEMA = "opt013_quotient_ckpt_v1"
+CHECKPOINT_SCHEMA = "opt013_quotient_ckpt_v2"
 ARTIFACTS_OPT013 = ROOT / "artifacts" / "opt013"
 
 
