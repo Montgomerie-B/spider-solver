@@ -32,6 +32,7 @@ from spider.heuristics import (
     next_foundation_completion_potential,
 )
 from spider.metrics import replay_actions
+from spider.move_lifecycle import assess_tableau_move
 from spider.planner.diagnostics.canonical_second_foundation_teacher_trace import (
     parse_canonical_trace,
 )
@@ -115,6 +116,16 @@ class MoveScoreRecord:
     greedy_risk_notes: Optional[str] = None
     is_teacher: bool = False
     is_exact_foundation: bool = False
+    placement_class: Optional[str] = None
+    same_suit_joins_created: Tuple[str, ...] = ()
+    same_suit_joins_broken: Tuple[str, ...] = ()
+    mixed_suit_boundaries_created: Tuple[str, ...] = ()
+    mixed_suit_boundaries_removed: Tuple[str, ...] = ()
+    future_exit_route: Optional[str] = None
+    estimated_rehandling_cost: float = 0.0
+    permanent_join_override_reason: Optional[str] = None
+    lifecycle_order_key: Tuple = (99, 99, 99, 99)
+    lifecycle_proof_pruning_allowed: bool = False
     explanation: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -166,6 +177,29 @@ def parse_move_spec(move: MoveSpec) -> MoveSpec:
             return ("deal",)
         return (int(p[1]) - 1, int(p[2]) - 1, int(p[3]))
     return move
+
+
+def _lifecycle_record_fields(state: SpiderState, move: MoveSpec) -> Dict[str, Any]:
+    if move == ("deal",) or move == "deal":
+        return {}
+    assessment = assess_tableau_move(state, move)  # type: ignore[arg-type]
+    benefit = assessment.compensating_benefit
+    return {
+        "placement_class": assessment.placement_class.value,
+        "same_suit_joins_created": assessment.same_suit_joins_created,
+        "same_suit_joins_broken": assessment.same_suit_joins_broken,
+        "mixed_suit_boundaries_created": assessment.mixed_suit_boundaries_created,
+        "mixed_suit_boundaries_removed": assessment.mixed_suit_boundaries_removed,
+        "future_exit_route": assessment.future_exit_route,
+        "estimated_rehandling_cost": assessment.estimated_rehandling_cost,
+        "permanent_join_override_reason": (
+            benefit.override_reason
+            if benefit is not None and assessment.can_override_permanent_join
+            else None
+        ),
+        "lifecycle_order_key": assessment.ordering_key(),
+        "lifecycle_proof_pruning_allowed": assessment.proof_pruning_allowed,
+    }
 
 
 def sw_of(st: SpiderState) -> int:
@@ -1015,6 +1049,7 @@ def _score_one_move_full(
         greedy_risk_notes=None,
         is_teacher=is_teacher,
         is_exact_foundation=is_exact,
+        **_lifecycle_record_fields(state, mv),
         explanation=expl,
     )
 
@@ -1268,6 +1303,7 @@ def rank_moves_for_stage(
                     stage_before=str(before.get("stage") or macro),
                     is_teacher=teacher is not None and mv == teacher,
                     is_exact_foundation=bool(move0 and move0 in exact_set),
+                    **_lifecycle_record_fields(state, mv),
                     explanation="",
                 )
             )
@@ -1295,11 +1331,11 @@ def rank_moves_for_stage(
     # Sort: higher score first; teacher tiny epsilon only as final tie-break
     records.sort(
         key=lambda r: (
-            r.score,
-            1 if r.is_teacher else 0,
-            -(r.move_0based[2] if r.move_0based else 0),
-        ),
-        reverse=True,
+            -r.score,
+            r.lifecycle_order_key,
+            -(1 if r.is_teacher else 0),
+            r.move_0based[2] if r.move_0based else 0,
+        )
     )
     for i, r in enumerate(records):
         r.rank = i + 1

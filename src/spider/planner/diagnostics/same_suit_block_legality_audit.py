@@ -12,6 +12,11 @@ from spider.cards import Card
 from spider.deal import load_deal
 from spider.engine import SpiderState
 from spider.metrics import Action, format_action, replay_actions
+from spider.move_lifecycle import (
+    MoveLifecycleAssessment,
+    PlacementClass,
+    assess_tableau_move,
+)
 from spider.planner.diagnostics.experiment_4925153_opt011_cmd43_51_corridor import (
     build_corridor_endpoints,
 )
@@ -110,9 +115,18 @@ class PrefixAudit:
 class QueenAudit:
     label: str
     legal: bool
-    added_cost: int
+    immediate_added_cost: int
+    projected_lifecycle_cost: float
     empty_columns: Tuple[int, ...]
     spade_bands: Tuple[str, ...]
+    placement_records: Tuple[str, ...]
+    same_suit_joins_created: Tuple[str, ...]
+    same_suit_joins_broken: Tuple[str, ...]
+    mixed_suit_boundaries_created: Tuple[str, ...]
+    mixed_suit_boundaries_removed: Tuple[str, ...]
+    park_exit_routes: Tuple[str, ...]
+    estimated_rehandling_cost: float
+    override_reasons: Tuple[str, ...]
     s1_target_epoch: Optional[int]
     s1_readiness: str
     s1_must: Tuple[str, ...]
@@ -122,6 +136,11 @@ class QueenAudit:
     realizer_nodes: int
     realizer_replay_verified: bool
     realizer_actions: Tuple[Action, ...]
+
+    @property
+    def added_cost(self) -> int:
+        """Backward-compatible name; this is immediate cost only."""
+        return self.immediate_added_cost
 
 
 def audit_prefix(
@@ -173,11 +192,41 @@ def audit_queen_variant(
     state = SpiderState.from_cards(list(cards))
     replay_actions(state, list(PUBLISHED_MACHINE_ROUTE[:3]))
     legal = True
-    try:
-        added = replay_actions(state, list(actions))
-    except ValueError:
-        legal = False
-        added = 0
+    added = 0
+    placements: list[MoveLifecycleAssessment] = []
+    for action in actions:
+        if action == ("deal",):
+            raise ValueError("Queen diagnostic accepts tableau moves only")
+        src, dst, k = action
+        moved = state.columns[src].face_up[-k]
+        dest = state.columns[dst].top()
+        exit_route = None
+        exit_bounded = None
+        if dest is not None and dest.suit != moved.suit:
+            if str(moved) == "Qs":
+                exit_route = (
+                    "move the Qs campaign band onto the exact incoming Deal-2 "
+                    "Ks on c1"
+                )
+                exit_bounded = True
+            elif str(moved) == "Qc":
+                exit_route = (
+                    "after Qs exits Kc for the incoming Deal-2 Ks, move Qc "
+                    "onto the exposed Kc"
+                )
+                exit_bounded = True
+        try:
+            assessment = assess_tableau_move(
+                state,
+                action,
+                future_exit_route=exit_route,
+                exit_route_bounded=exit_bounded,
+            )
+            placements.append(assessment)
+            added += replay_actions(state, [action])
+        except ValueError:
+            legal = False
+            break
     portfolio = analyze_foundation_campaigns(state, cards=cards)
     campaign = portfolio.campaign_for("s", 1)
     epoch1 = next(plan for plan in campaign.stock_plan if plan.epoch == 1)
@@ -189,16 +238,58 @@ def audit_queen_variant(
         max_nodes=50_000,
         time_limit_s=20,
     )
+    debt = sum(item.estimated_rehandling_cost for item in placements)
+    realized_cost = float(realized.corrected_added_cost or 0)
+    records = tuple(
+        f"{format_action(item.action)}={item.placement_class.value} "
+        f"immediate={item.immediate_cost} debt~{item.estimated_rehandling_cost:g}"
+        for item in placements
+    )
     return QueenAudit(
         label,
         legal,
         added,
+        float(added) + realized_cost + debt,
         tuple(
             index + 1
             for index, column in enumerate(state.columns)
             if column.is_empty()
         ),
         _spade_structure(state),
+        records,
+        tuple(
+            event
+            for item in placements
+            for event in item.same_suit_joins_created
+        ),
+        tuple(
+            event
+            for item in placements
+            for event in item.same_suit_joins_broken
+        ),
+        tuple(
+            event
+            for item in placements
+            for event in item.mixed_suit_boundaries_created
+        ),
+        tuple(
+            event
+            for item in placements
+            for event in item.mixed_suit_boundaries_removed
+        ),
+        tuple(
+            f"{item.placement_class.value}: {item.future_exit_route}"
+            for item in placements
+            if item.placement_class
+            in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK)
+        ),
+        debt,
+        tuple(
+            item.compensating_benefit.override_reason
+            for item in placements
+            if item.compensating_benefit is not None
+            and item.can_override_permanent_join
+        ),
         campaign.target_removal_epoch,
         campaign.readiness.value,
         tuple(str(source.card) for source in campaign.tableau_critical_cards),
@@ -265,9 +356,21 @@ def main() -> int:
     print("QUEEN-PLACEMENT A/B")
     for result in audit_queen_variants(cards):
         print(
-            f"{result.label}: legal={result.legal} added={result.added_cost} "
+            f"{result.label}: legal={result.legal} "
+            f"immediate_added={result.immediate_added_cost} "
+            f"projected_lifecycle={result.projected_lifecycle_cost:g} "
+            f"rehandling_debt~{result.estimated_rehandling_cost:g} "
             f"empties={result.empty_columns} spade_bands={result.spade_bands}"
         )
+        print(f"  placements={result.placement_records}")
+        print(
+            f"  joins+={result.same_suit_joins_created} "
+            f"joins-={result.same_suit_joins_broken} "
+            f"mixed+={result.mixed_suit_boundaries_created} "
+            f"mixed-={result.mixed_suit_boundaries_removed}"
+        )
+        print(f"  park exits={result.park_exit_routes}")
+        print(f"  permanent-join overrides={result.override_reasons or ('none',)}")
         print(
             f"  S1 target=D{result.s1_target_epoch} "
             f"readiness={result.s1_readiness} MUST={result.s1_must}"

@@ -13,11 +13,16 @@ from .engine import SpiderState
 from .hash import TranspositionTable, zobrist
 from .heuristics import (
     card_exposure_value,
-    count_valuable_pre_deal_moves,
     finisher_heuristic,
     lower_bound_mw,
 )
 from .metrics import Action
+from .move_lifecycle import (
+    BoundedCompensatingBenefit,
+    PlacementClass,
+    assess_tableau_move,
+    with_bounded_compensation,
+)
 from .rules import deal_cost, mw_move_cost
 
 Move = Tuple[int, int, int]
@@ -74,23 +79,24 @@ def order_moves(
     pre-deal beam "plan towards exposing the right cards" per the upfront human-style
     reverse-engineering of the full stock.
 
-    Additionally, we now score the *future/unlock value* of moves (especially temporary
-    "park" / off-suit attachments): light-simulate the move and measure the immediate
-    increase in count_valuable_pre_deal_moves (same-suit + to-empty/0-cost). Positive
-    delta means this move unlocks high-value work (exactly the "X factor" parks in the
-    human solution per analyzer on canonical.moves: many cause +30..+41 delta_valuable
-    by enabling the cascades and 0-cost space creations). Such moves get an enable_bonus
-    so the beam explores the "park then valuable follow-up" sequences instead of
-    deprioritizing all off-suit as low-value shuffles.
+    Permanent-move lifecycle is an ordering-only tie-break. A mixed-suit park
+    receives an override bonus only when a one-ply bounded simulation finds
+    more newly available zero-cost exits than its estimated rehandling debt and
+    the park itself has a concrete exit route. This never prunes proof search.
     """
     killers = _killer_moves.get(depth, [])
     killer_set = set(killers)
-    current_valuable = count_valuable_pre_deal_moves(state)
+    current_free = sum(
+        step_cost(state, move) == 0 for move in state.enumerate_moves()
+    )
     scored = []
     for src, dst, k in moves:
         src_col = state.columns[src]
         dst_col = state.columns[dst]
         run = src_col.face_up[-k:]
+        lifecycle = assess_tableau_move(
+            state, (src, dst, k), discover_exit=False
+        )
         score = 0.0
         if (src, dst, k) in killer_set:
             score -= 5
@@ -111,23 +117,38 @@ def order_moves(
                 revealed = src_col.face_down[-1]
                 reveal_bonus += card_exposure_value(revealed, plan, round_index)
             score -= reveal_bonus
-        # Enable/unlock bonus *specifically for parks* (off-suit non-to-empty moves) that
-        # immediately increase the number of high-value legal moves. This is the deep
-        # scoring for what temporary "park" placements "might unlock" (the X factor from
-        # analyzer on canonical: many such parks cause +30..+41 delta_valuable by enabling
-        # the 0-cost to-empties and cascades the human relies on). Only simulate for parks
-        # to keep overhead low.
+        # Bounded compensation for a mixed park. Count only newly available
+        # zero-cost exits and subtract explicit rehandling debt.
         enable_bonus = 0.0
-        is_empty = top is None
-        is_same = bool(top and top.suit == run[0].suit)
-        if not is_same and not is_empty:
+        if lifecycle.placement_class == PlacementClass.MIXED_SUIT_PARK:
             try:
+                lifecycle = assess_tableau_move(state, (src, dst, k))
                 st = state.clone()
                 st.move(src, dst, k)
-                new_val = count_valuable_pre_deal_moves(st)
-                delta = new_val - current_valuable
-                if delta > 0:
-                    enable_bonus = min(delta, 10) * 1.0  # bumped weight (was 0.7) to more aggressively promote parks that unlock valuable work (per analyzer data on human parks)
+                new_free = sum(
+                    step_cost(st, move) == 0 for move in st.enumerate_moves()
+                )
+                expected_saving = float(max(0, new_free - current_free))
+                if expected_saving > lifecycle.estimated_rehandling_cost:
+                    lifecycle = with_bounded_compensation(
+                        lifecycle,
+                        BoundedCompensatingBenefit(
+                            expected_saving=expected_saving,
+                            evidence=(
+                                "one-ply simulation creates "
+                                f"{int(expected_saving)} additional zero-cost exits"
+                            ),
+                            override_reason=(
+                                "bounded zero-cost exit saving exceeds park "
+                                "rehandling debt"
+                            ),
+                        ),
+                    )
+                    if lifecycle.can_override_permanent_join:
+                        enable_bonus = (
+                            expected_saving
+                            - lifecycle.estimated_rehandling_cost
+                        )
             except Exception:
                 pass
         score -= enable_bonus
@@ -154,9 +175,9 @@ def order_moves(
         score -= _history.get((src, dst, k), 0)
         if jitter > 0:
             score -= random.random() * jitter
-        scored.append((score, src, dst, k))
+        scored.append((score, lifecycle.ordering_key(), src, dst, k))
     scored.sort()
-    return [(s, d, k) for _, s, d, k in scored]
+    return [(s, d, k) for _, _lifecycle, s, d, k in scored]
 
 
 def note_progress(depth: int, move: Move) -> None:

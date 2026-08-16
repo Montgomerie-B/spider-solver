@@ -213,8 +213,21 @@ def test_published_machine_prefixes_fail_at_derived_suit_break():
 
 def test_queen_placement_variants_are_legal_and_deal1_replayable():
     cards = tuple(load_deal(ROOT / "deals" / "4925153.txt"))
-    variants = audit_queen_variants(cards)
+    a, b = audit_queen_variants(cards)
+    variants = (a, b)
     assert all(result.legal for result in variants)
+    assert a.immediate_added_cost == b.immediate_added_cost == 3
+    assert a.projected_lifecycle_cost == 10
+    assert b.projected_lifecycle_cost == 9
+    assert a.estimated_rehandling_cost == 2
+    assert b.estimated_rehandling_cost == 1
+    assert len(a.same_suit_joins_created) == 1
+    assert len(b.same_suit_joins_created) == 2
+    assert len(a.mixed_suit_boundaries_created) == 2
+    assert len(b.mixed_suit_boundaries_created) == 1
+    assert len(a.park_exit_routes) == 2
+    assert len(b.park_exit_routes) == 1
+    assert a.override_reasons == b.override_reasons == ()
     assert all(result.empty_columns == (6,) for result in variants)
     assert all(result.s1_target_epoch == 2 for result in variants)
     assert all(result.s1_must == ("10s",) for result in variants)

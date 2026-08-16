@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from spider.engine import SpiderState
 from spider.metrics import replay_actions
+from spider.move_lifecycle import assess_tableau_move
 from spider.rules import MW_RULES
 from spider.state_identity import canonical_state_key
 from spider.planner.space_lifecycle import empty_count
@@ -275,7 +276,8 @@ def _heuristic_move_rank(
     top = st.columns[dst].top()
     if top is not None and run and top.suit == run[0].suit:
         score -= 7
-    return (score, cost, src, dst, k)
+    lifecycle = assess_tableau_move(st, (src, dst, k), discover_exit=False)
+    return (score, cost, lifecycle.ordering_key(), src, dst, k)
 
 
 def _expand(

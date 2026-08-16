@@ -26,6 +26,27 @@ Examples:
 - `7d-6d` may move together.
 - `7d-6c` may not move together, including to an empty column.
 
+## Permanent-move dominance
+
+Equal immediate MobilityWare cost does not make placements strategically
+equivalent. Legal tableau moves now have an ordering-only lifecycle assessment:
+
+- `STABLE_SAME_SUIT_JOIN` — creates a permanent descending same-suit link;
+- `PROVISIONAL_SAME_SUIT_JOIN` — creates a legal same-suit link on a receiver
+  known to require later relocation;
+- `MIXED_SUIT_PARK` — creates a cross-suit boundary that must normally be
+  separated before foundation completion;
+- `WORKSPACE_PARK` — uses an empty column for staging or relocation.
+
+The assessment records same-suit joins created/broken, mixed-suit boundaries
+created/removed, a future exit route, and estimated rehandling cost. Among moves
+with equal immediate cost and otherwise comparable reveal, workspace,
+stock-reception, and campaign effects, the stable join orders first. A mixed
+park may override it only when bounded forward evidence provides a concrete
+exit and an expected saving strictly greater than its debt; the reason is stored
+with the move. Rehandling debt is heuristic and explicitly ineligible for
+admissible proof pruning.
+
 ## Move-generation audit
 
 | Area | Result |
@@ -132,14 +153,23 @@ are diagnostic, bounded, and replay verified; they are not optimality claims.
 
 | Fact | A: `Qc->Kd`, `Qs->Kc` | B: `Qc->Kc`, `Qs->Kd` |
 |---|---|---|
-| Legality / added cost | legal / 3 | legal / 3 |
+| Legality | legal | legal |
+| Immediate added cost | 3 | 3 |
+| Projected lifecycle cost through bounded Deal-1 continuation plus outstanding park debt | 10 | 9 |
+| Estimated rehandling debt | 2 | 1 |
+| Placements | 2 mixed parks; 1 stable same-suit join | 1 mixed park; 2 stable same-suit joins |
+| Joins / boundaries created | `5s-4s`; mixed `Kd-Qc`, `Kc-Qs` | `Kc-Qc`, `5s-4s`; mixed `Kd-Qs` |
+| Park exits | Qs to exact incoming Deal-2 Ks; then Qc to exposed Kc | Qs to exact incoming Deal-2 Ks |
+| Permanent-join override | none | none |
 | Empty columns | column 6 | column 6 |
 | Same-suit structure | `6s-2s` c8; Qs c3/c5; 2s c1 | `6s-2s` c8; Qs c2/c3; 2s c1; Qc sits on Kc |
 | S1 campaign | target Deal 2; excavation-led; only hard MUST is buried `10s` c7 depth 1 | same |
 | Deal-1 receivers | keep/shape Qs at c1 for incoming Js; keep/shape 10s at c7 for incoming 9s; reserve post-deal 8s c9 onto that 9s | identical |
 | Existing bounded Deal-1 realizer | found +5, 36 nodes, independent replay true | found +5, 37 nodes, independent replay true |
 
-Both found the same continuation:
+Both have immediate cost 3, but they are not lifecycle-equivalent: B carries
+one less mixed boundary and one less estimated paid rehandling move. Both found
+the same bounded continuation:
 `7->9 k1`, `7->6 k1`, `10->9 k1`, `6->10 k1`, `deal`.
 
 ## Tests and invalidated fixtures
@@ -160,8 +190,8 @@ legality.
 
 Verification in the development worktree:
 
-- focused rule/replay/accounting/workspace/quotient gate: **129 passed**;
-- complete suite: **434 passed, 37 expected-invalid historical benchmark
+- focused rule/replay/accounting/workspace/quotient/lifecycle gate: **136 passed**;
+- complete suite: **441 passed, 37 expected-invalid historical benchmark
   tests, 1 pre-existing return-value warning**; exit code 0.
 
 The clean-worktree reproduction result is recorded in the branch handoff after

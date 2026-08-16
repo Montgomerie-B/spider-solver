@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from spider.engine import SpiderState
 from spider.metrics import replay_actions
+from spider.move_lifecycle import assess_tableau_move
 from spider.planner.excavation_closure import (
     DestAvailability,
     ProjectClosure,
@@ -370,14 +371,17 @@ def search_empty_column(
         scored: List[Tuple] = []
         for src, dst, k in st.enumerate_moves():
             pri = light_causal_priority(st, src, dst, k, target)
-            scored.append((pri, src, dst, k))
+            lifecycle = assess_tableau_move(
+                st, (src, dst, k), discover_exit=False
+            )
+            scored.append((pri, lifecycle.ordering_key(), src, dst, k))
         scored.sort()
         causal = [m for m in scored if m[0] <= 5]
         fallback = [m for m in scored if m[0] > 5]
         picked = causal[: max(8, branch_cap - 4)] + fallback[:4]
         if len(picked) < len(scored):
             truncated = True
-        for pri, src, dst, k in picked:
+        for pri, _lifecycle, src, dst, k in picked:
             st2 = st.clone()
             try:
                 c = st2.move(src, dst, k, rules=MW_RULES)

@@ -14,6 +14,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from spider.engine import SpiderState
 from spider.metrics import replay_actions
+from spider.move_lifecycle import assess_tableau_move
 from spider.rules import MW_RULES
 from spider.state_identity import canonical_state_key
 from spider.planner.space_lifecycle import (
@@ -155,7 +156,16 @@ def _ws_move_rank(
         score -= 7
     if remain == 1 and src_open:
         score -= 5
-    return (score, cost, len(src_col.face_up), src, dst, k)
+    lifecycle = assess_tableau_move(st, (src, dst, k), discover_exit=False)
+    return (
+        score,
+        cost,
+        lifecycle.ordering_key(),
+        len(src_col.face_up),
+        src,
+        dst,
+        k,
+    )
 
 
 def _expand_ws(st: SpiderState) -> List[Tuple[Action, int, SpiderState]]:
