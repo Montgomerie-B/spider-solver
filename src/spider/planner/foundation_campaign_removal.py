@@ -20,6 +20,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from spider.cards import Card
 from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
+from spider.move_lifecycle import assess_tableau_move
 from spider.planner.foundation_campaign import (
     CampaignEpochPlan,
     FoundationCampaign,
@@ -821,8 +822,10 @@ def search_campaign_tableau(
         phase=phase,
         foundation_suit_before=foundation_suit_before,
     )
-    frontier: List[Tuple[SpiderState, Tuple[Action, ...], int, float]] = [
-        (start.clone(), (), 0, start_score)
+    frontier: List[
+        Tuple[SpiderState, Tuple[Action, ...], int, float, Tuple[float, int, int, int]]
+    ] = [
+        (start.clone(), (), 0, start_score, (0.0, 0, 0, 0))
     ]
     best_cost_by_key = {canonical_state_key(start): 0}
     best_state = start.clone()
@@ -833,8 +836,16 @@ def search_campaign_tableau(
     max_depth = max_cost + 6
 
     for _depth in range(max_depth + 1):
-        next_frontier: List[Tuple[SpiderState, Tuple[Action, ...], int, float]] = []
-        for state, path, cost, _score in frontier:
+        next_frontier: List[
+            Tuple[
+                SpiderState,
+                Tuple[Action, ...],
+                int,
+                float,
+                Tuple[float, int, int, int],
+            ]
+        ] = []
+        for state, path, cost, _score, _lifecycle_key in frontier:
             if time.perf_counter() - started >= time_limit_s:
                 return CampaignTableauSearchResult(
                     False,
@@ -860,6 +871,12 @@ def search_campaign_tableau(
             nodes += 1
             moves = state.enumerate_moves()
             for src, dst, k in moves:
+                # Lifecycle debt is deliberately a local ordering-only
+                # tie-break.  It never rejects a successor and never enters
+                # the transposition-table cost used for bounded correctness.
+                lifecycle_key = assess_tableau_move(
+                    state, (src, dst, k), discover_exit=False
+                ).ordering_key()
                 child = state.clone()
                 try:
                     paid = child.move(src, dst, k, rules=MW_RULES)
@@ -901,11 +918,19 @@ def search_campaign_tableau(
                     best_state = child.clone()
                     best_path = new_path
                     best_cost = new_cost
-                next_frontier.append((child, new_path, new_cost, score))
+                next_frontier.append(
+                    (child, new_path, new_cost, score, lifecycle_key)
+                )
         if not next_frontier:
             break
         next_frontier.sort(
-            key=lambda item: (-item[3], item[2], len(item[1]), item[1])
+            key=lambda item: (
+                -item[3],
+                item[2],
+                len(item[1]),
+                item[4],
+                item[1],
+            )
         )
         frontier = next_frontier[:beam_width]
     return CampaignTableauSearchResult(
