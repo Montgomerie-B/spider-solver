@@ -659,6 +659,9 @@ def simulate_deal_counterfactual(
     spent_cost: int,
     incumbent_cost: Optional[int],
     preparation: Optional[DealPreparationCandidate] = None,
+    pre_deal_analysis: Optional[EconomicAnalysisResult] = None,
+    pre_deal_measurement: Optional[StructuralMeasurement] = None,
+    campaign_source_combination_limit: Optional[int] = None,
 ) -> DealCounterfactual:
     """Clone, optionally prepare, apply exactly one deal, and reanalyse."""
     if len(original_state.stock) < 10:
@@ -715,13 +718,25 @@ def simulate_deal_counterfactual(
             None,
             ("active rules profile rejects this deal state",),
         )
-    before = analyze_economic_projects(prepared, cards=cards)
-    pre_deal_measurement = measure_structural_state(
+    if preparation is not None and (
+        pre_deal_analysis is not None or pre_deal_measurement is not None
+    ):
+        raise ValueError("precomputed pre-deal facts apply only to DEAL NOW")
+    before = pre_deal_analysis or analyze_economic_projects(
+        prepared,
+        cards=cards,
+        campaign_source_combination_limit=campaign_source_combination_limit,
+    )
+    measured_before = pre_deal_measurement or measure_structural_state(
         prepared, cards=cards, analysis=before
     )
     post = prepared.clone()
     deal_paid = post.deal(MW_RULES)
-    after = analyze_economic_projects(post, cards=cards)
+    after = analyze_economic_projects(
+        post,
+        cards=cards,
+        campaign_source_combination_limit=campaign_source_combination_limit,
+    )
     measurement = measure_structural_state(post, cards=cards, analysis=after)
     transition = actionability_transition(prepared, post, before, after)
     impacts = analyze_exact_incoming_row(prepared, post, before, after)
@@ -754,7 +769,7 @@ def simulate_deal_counterfactual(
         result_key_hex=_state_key_hex(post),
         independent_replay_verified=verified,
         incoming_impacts=impacts,
-        pre_deal_measurement=pre_deal_measurement,
+        pre_deal_measurement=measured_before,
         measurement=measurement,
         economic_analysis=after,
         economic_frontier=tuple(
@@ -1081,6 +1096,9 @@ def assess_deal_timing(
     config: DealTimingConfig = DealTimingConfig(),
     preparations: Optional[Sequence[DealPreparationCandidate]] = None,
     downstream_objective: Optional[StrategicObjective] = None,
+    pre_deal_analysis: Optional[EconomicAnalysisResult] = None,
+    pre_deal_measurement: Optional[StructuralMeasurement] = None,
+    campaign_source_combination_limit: Optional[int] = None,
 ) -> DealTimingAssessment:
     """Freeze one H0/H1/H2 deal-timing assessment from independent clones."""
     incoming = tuple(next_stock_row(state) or ())
@@ -1089,6 +1107,9 @@ def assess_deal_timing(
         cards,
         spent_cost=spent_cost,
         incumbent_cost=incumbent_cost,
+        pre_deal_analysis=pre_deal_analysis,
+        pre_deal_measurement=pre_deal_measurement,
+        campaign_source_combination_limit=campaign_source_combination_limit,
     )
     if deal_now.post_deal_state is None:
         decision = choose_deal_timing(
@@ -1112,6 +1133,7 @@ def assess_deal_timing(
             spent_cost=spent_cost,
             incumbent_cost=incumbent_cost,
             preparation=candidate,
+            campaign_source_combination_limit=campaign_source_combination_limit,
         )
         if prepared.post_deal_state is None:
             continue

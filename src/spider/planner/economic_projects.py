@@ -1138,6 +1138,7 @@ def analyze_economic_projects(
     *,
     cards: Sequence[Card],
     campaign_portfolio: Optional[FoundationCampaignPortfolio] = None,
+    campaign_source_combination_limit: Optional[int] = None,
 ) -> EconomicAnalysisResult:
     """Build a static/bounded whole-tableau economic portfolio.
 
@@ -1148,7 +1149,11 @@ def analyze_economic_projects(
     before_stock = tuple(state.stock)
     before_foundations = tuple(tuple(sequence) for sequence in state.foundations)
     epoch = current_stock_epoch(state, 5)
-    portfolio = campaign_portfolio or analyze_foundation_campaigns(state, cards=cards)
+    portfolio = campaign_portfolio or analyze_foundation_campaigns(
+        state,
+        cards=cards,
+        max_source_combinations=campaign_source_combination_limit,
+    )
     locations = locate_all_cards(state)
     buried = analyze_buried_cards(state, cards=cards, locs=locations)
     reveal_values = analyze_reveal_values(

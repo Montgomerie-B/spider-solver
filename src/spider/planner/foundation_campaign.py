@@ -874,6 +874,7 @@ def _select_sources(
     *,
     closures: Dict[int, ProjectClosure],
     deadline_epoch: int,
+    max_combinations: Optional[int] = None,
 ) -> Tuple[
     Tuple[CampaignRankNeed, ...],
     Tuple[CampaignExcavationProject, ...],
@@ -931,13 +932,41 @@ def _select_sources(
         return tuple(partial_needs), projects, tasks, saving, aggregate
 
     # At most two physical copies per rank in standard Spider: <= 8192 plans.
+    # The exhaustive default is retained for diagnostics.  An anytime caller
+    # may request a deterministic bounded beam of physical-copy combinations;
+    # that is ordering coverage only and carries no proof authority.
+    if max_combinations is not None and max_combinations <= 0:
+        raise ValueError("max_combinations must be positive when supplied")
+    if max_combinations is None:
+        combinations: Iterable[Tuple[RankSource, ...]] = product(*alternatives)
+    else:
+        partials: List[Tuple[RankSource, ...]] = [()]
+        for usable in alternatives:
+            expanded = [prefix + (source,) for prefix in partials for source in usable]
+            expanded.sort(
+                key=lambda combo: (
+                    round(sum(source.estimated_cost for source in combo), 4),
+                    sum(source.kind == RankSourceKind.DEEP_TABLEAU for source in combo),
+                    len(
+                        {
+                            ("tableau", source.column)
+                            if source.column is not None
+                            else ("stock", source.stock_epoch, source.stock_column)
+                            for source in combo
+                        }
+                    ),
+                    tuple(source.source_key for source in combo),
+                )
+            )
+            partials = expanded[:max_combinations]
+        combinations = partials
     best_combo: Optional[Tuple[RankSource, ...]] = None
     best_projects: Tuple[CampaignExcavationProject, ...] = ()
     best_tasks: Tuple[Tuple[int, int], ...] = ()
     best_saving = 0
     best_aggregate = 0
     best_key: Optional[Tuple] = None
-    for combo in product(*alternatives):
+    for combo in combinations:
         projects, tasks, saving, excavation_cost = _merge_excavation_projects(
             combo, closures=closures, deadline_epoch=deadline_epoch
         )
@@ -1592,12 +1621,16 @@ def _evaluate_epoch(
     suit: str,
     copy_index: int,
     target_epoch: int,
+    max_source_combinations: Optional[int] = None,
 ) -> FoundationCampaign:
     candidate = _candidate_for(ctx.foundation, suit, copy_index)
     availability = ctx.foundation.availability_for(suit, copy_index)
     catalogs = _enumerate_sources(ctx, suit=suit, target_epoch=target_epoch)
     needs, projects, shared_tasks, saving, excavation_cost = _select_sources(
-        catalogs, closures=ctx.closures, deadline_epoch=target_epoch
+        catalogs,
+        closures=ctx.closures,
+        deadline_epoch=target_epoch,
+        max_combinations=max_source_combinations,
     )
     blockers: List[str] = []
     if availability.earliest_epoch is None:
@@ -1863,6 +1896,7 @@ def analyze_foundation_campaign(
     copy_index: Optional[int] = None,
     target_epoch: Optional[int] = None,
     foundation_analysis: Optional[FoundationFeasibilityAnalysis] = None,
+    max_source_combinations: Optional[int] = None,
 ) -> FoundationCampaign:
     """Analyse one suit's next outstanding foundation campaign.
 
@@ -1895,11 +1929,21 @@ def analyze_foundation_campaign(
         if target_epoch < ctx.current_epoch or target_epoch > ctx.stock_deals_total:
             raise ValueError("target epoch outside current deal horizon")
         campaign = _evaluate_epoch(
-            ctx, suit=suit, copy_index=requested, target_epoch=target_epoch
+            ctx,
+            suit=suit,
+            copy_index=requested,
+            target_epoch=target_epoch,
+            max_source_combinations=max_source_combinations,
         )
     else:
         schedules = [
-            _evaluate_epoch(ctx, suit=suit, copy_index=requested, target_epoch=epoch)
+            _evaluate_epoch(
+                ctx,
+                suit=suit,
+                copy_index=requested,
+                target_epoch=epoch,
+                max_source_combinations=max_source_combinations,
+            )
             for epoch in range(first, ctx.stock_deals_total + 1)
         ]
         campaign = _choose_schedule(schedules)
@@ -1918,6 +1962,7 @@ def analyze_foundation_campaigns(
     *,
     cards: Sequence[Card],
     foundation_analysis: Optional[FoundationFeasibilityAnalysis] = None,
+    max_source_combinations: Optional[int] = None,
 ) -> FoundationCampaignPortfolio:
     """Rank each suit's next outstanding foundation as a campaign portfolio."""
     ctx = _build_context(
@@ -1936,7 +1981,13 @@ def analyze_foundation_campaigns(
             else ctx.stock_deals_total,
         )
         schedules = [
-            _evaluate_epoch(ctx, suit=suit, copy_index=copy_index, target_epoch=epoch)
+            _evaluate_epoch(
+                ctx,
+                suit=suit,
+                copy_index=copy_index,
+                target_epoch=epoch,
+                max_source_combinations=max_source_combinations,
+            )
             for epoch in range(first, ctx.stock_deals_total + 1)
         ]
         chosen = _choose_schedule(schedules)

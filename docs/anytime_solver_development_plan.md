@@ -1,6 +1,6 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan  
+**Status:** Forward implementation plan; Phase 4 v0.1 controller implemented but its prospective gate failed
 **Date:** 2026-08-13  
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
@@ -401,6 +401,17 @@ These are benchmark milestones only, not generic thresholds.
 
 The solver can solve previously unseen deals from scratch and return the first incumbent without waiting for optimality.
 
+**Verified v0.1 status (2026-08-26): gate not met.** A separate generic
+strategic controller now provides replay-verified multi-action edges, first-class
+deal timing, full post-edge reanalysis, credits 0–4, diverse successor retention,
+exact lower-`g` transposition dominance, proof-safe incumbent budgeting and
+bounded telemetry. The active benchmark profile explicitly has Unrestricted Deal
+ON. In bounded prospective runs the controller reached every stock epoch but no
+foundation, exhausted 80,000 tactical nodes after 55–56 strategic expansions and
+found no complete solution. The immediate blocker is unbounded-per-expansion
+actionability probing plus stock-heavy priority, not a rules discrepancy. See
+`docs/anytime_whole_game_controller_v0_1.md`. Phase 4 remains in progress.
+
 ### Phase 5 - Incumbent-guided improvement
 
 Once any solution exists, turn the entire run into optimisation rather than launching a disconnected optimiser.
@@ -498,6 +509,16 @@ Only after strategic quality is demonstrated:
 Do not use low-level optimisation to compensate for a poor strategic model.
 
 ## 7. Immediate development sprint
+
+The original Phase 1A work below has been completed by the subsequent strategic
+analysis sprints. The next verified sprint is controller v0.2: cap actionability
+probes independently of successful tactical realisations, reuse post-deal
+analysis safely, and prevent stock consumption alone from dominating the
+transparent strategic priority. Do not change benchmark economic weights or
+start a longer search until short generic smokes demonstrate materially better
+foundation/reveal progress per tactical node.
+
+### Historical Phase 1A plan
 
 Begin with **Phase 1A: foundation-removal feasibility** because it supplies a high-level goal structure for the rest of the analyser and is largely deterministic.
 
