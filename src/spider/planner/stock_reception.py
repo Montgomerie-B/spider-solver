@@ -317,6 +317,7 @@ def analyze_stock_reception(
     """Analyse next-stock reception and optional bounded pre-deal shaping."""
     stock_rem = len(state.stock)
     row = next_stock_row(state)
+    deal_legal = state.can_deal(MW_RULES)
 
     fa = foundation_analysis
     if fa is None and cards is not None:
@@ -367,9 +368,9 @@ def analyze_stock_reception(
         for i in range(10)
     )
 
-    # Simulate deal once
+    # Simulate the exact incoming row once under the active rules profile.
     st_post = state.clone()
-    dcost = st_post.deal()
+    dcost = st_post.deal(MW_RULES)
     assert dcost == deal_cost()
 
     col_facts: List[ColumnReceptionFact] = []
@@ -532,11 +533,11 @@ def analyze_stock_reception(
         pre_empties=empty_columns(state),
         post_empties=empty_columns(st_post),
         deal_cost=dcost,
-        post_state_available=True,
+        post_state_available=deal_legal,
     )
 
     return StockReceptionAnalysis(
-        can_deal=True,
+        can_deal=deal_legal,
         stock_remaining=stock_rem,
         current_epoch=epoch_before,
         epoch_after_deal=epoch_after,
@@ -797,7 +798,7 @@ def apply_deal_and_compare(state: SpiderState) -> Tuple[SpiderState, PrePostDeal
     """Clone, deal, return post state and comparison."""
     pre_e = empty_columns(state)
     st = state.clone()
-    if len(st.stock) < 10:
+    if not st.can_deal(MW_RULES):
         return st, PrePostDealComparison(
             pre_empty_count=len(pre_e),
             post_empty_count=len(pre_e),

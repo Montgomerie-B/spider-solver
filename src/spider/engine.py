@@ -132,6 +132,11 @@ class SpiderState:
     def deal(self, rules: MobilityWareRules = MW_RULES) -> int:
         if len(self.stock) < 10:
             raise ValueError("cannot deal: stock has fewer than 10 cards")
+        if not rules.can_deal_into_empty:
+            empty = [index + 1 for index, column in enumerate(self.columns) if column.is_empty()]
+            if empty:
+                rendered = ", ".join(str(index) for index in empty)
+                raise ValueError(f"cannot deal: empty tableau column(s): {rendered}")
         # MobilityWare deal files list stock bottom-to-top; the next deal is the
         # topmost 10 cards, written left-to-right onto columns 1..10.
         chunk = self.stock[-10:]
@@ -145,6 +150,18 @@ class SpiderState:
         self._undo.append(("d", dealt))
         self.last_move = ("deal",)
         return deal_cost()
+
+    def can_deal(self, rules: MobilityWareRules = MW_RULES) -> bool:
+        """Whether one stock row may legally be dealt under ``rules``.
+
+        A fully open non-empty column remains a populated column and therefore
+        does not block a standard deal.  Only a structurally empty column does.
+        """
+        if len(self.stock) < 10:
+            return False
+        return rules.can_deal_into_empty or all(
+            not column.is_empty() for column in self.columns
+        )
 
     def enumerate_moves(self) -> List[Tuple[int, int, int]]:
         moves: List[Tuple[int, int, int]] = []

@@ -43,8 +43,9 @@ The immediate implementation sequence is:
 13. ~~tactical workspace breakthrough~~ (**Sprint 1M done** — `workspace_tactics.py`);
 14. ~~economic project / reveal-value / incumbent-budget analysis~~ (**ordering-only shared layer done** — `economic_projects.py`, `incumbent_budget.py`);
 15. ~~economic project realization/calibration~~ (**PASS: Tier-1/Tier-4 discrimination; no actionable Tier-2 before Deal 3** — `economic_project_realizer.py`);
-16. anytime first-solution search;
-17. incumbent-guided improvement and eventual proof.
+16. ~~strategic deal timing / epoch-transition counterfactuals~~ (**PASS: unrestricted-deal legality, DEAL-NOW with moves remaining, and bounded valuable preparation** — `deal_timing.py`);
+17. anytime first-solution search;
+18. incumbent-guided improvement and eventual proof.
 
 Deal `4925153` remains the primary benchmark, but no generic planner logic may depend on its deal number, specific columns, move numbers, suit order or leaderboard scores.
 
@@ -56,6 +57,9 @@ Deal `4925153` remains the primary benchmark, but no generic planner logic may d
 - Immediate move cost is not strategic equivalence: permanent same-suit joins
   dominate otherwise-comparable temporary parks. Rehandling debt is an
   ordering heuristic only and must never prune admissible proof search.
+- The active benchmark profile uses MobilityWare Unrestricted Deal, so a
+  genuinely empty tableau column does not block stock. Deal timing is a
+  first-class strategic comparison and never waits for tableau exhaustion.
 - Optimisation metric is corrected `mobilityware_moves` only.
 - `legacy_mw` is forensic only.
 - Heuristic scores may order search but may not prune proof search unless admissibility is proved.

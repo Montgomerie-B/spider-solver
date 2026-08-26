@@ -10,6 +10,8 @@ Move accounting (forensic audit 4925153, 2026):
 Corrected MobilityWare rule (reproduces user-observed 172 on deal 4925153):
 
 * Every stock deal costs 1.
+* This project's benchmark uses MobilityWare's **Unrestricted Deal** setting,
+  so stock may be dealt while one or more tableau columns are empty.
 * Every tableau move costs 1, **except** relocating an **entire column**
   (no face-down cards remain under the moved run) onto an empty column,
   which costs 0.
@@ -24,6 +26,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class MobilityWareRules:
+    # The benchmark/user profile has MobilityWare's optional Unrestricted Deal
+    # setting enabled.  A restricted profile can still set this to False.
     can_deal_into_empty: bool = True
     # Corrected: free only when the move empties the source column.
     zero_cost_move_to_empty: bool = True

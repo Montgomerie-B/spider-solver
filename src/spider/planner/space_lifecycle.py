@@ -347,6 +347,20 @@ def analyze_next_stock_recovery(state: SpiderState) -> SpaceRecoveryForecast:
             simultaneous_recovery_note="fact: no stock deal remaining",
         )
 
+    if not state.can_deal():
+        return SpaceRecoveryForecast(
+            stock_remaining_before=stock_rem,
+            can_deal=False,
+            pre_deal_empties=pre_empties,
+            post_deal_tops_on_pre_empties=(),
+            per_column=(),
+            simultaneous_recovery_status="blocked_by_empty_column",
+            simultaneous_recovery_note=(
+                "fact: standard MobilityWare deal is illegal until every empty "
+                "tableau column is filled"
+            ),
+        )
+
     # If no empties, still report empty structure
     st_post = state.clone()
     deal_c = st_post.deal()
