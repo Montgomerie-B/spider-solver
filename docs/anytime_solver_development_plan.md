@@ -1,6 +1,6 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; Phase 4 v0.1 controller implemented but its prospective gate failed
+**Status:** Forward implementation plan; Phase 4 v0.3 first-foundation gate passed, whole-game gate remains open
 **Date:** 2026-08-13  
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
@@ -435,6 +435,36 @@ non-interruptible full economic/deal-timing analysis, not probe exhaustion or a
 rule discrepancy. See `docs/anytime_whole_game_controller_v0_2.md`. Phase 4
 remains in progress; do not start score tuning until a true-opening foundation
 and first complete solution are reliable.
+
+**Verified v0.3 status (2026-08-27): true-opening foundation gate passed;
+whole-game gate not met.** A generic two-epoch campaign corridor now preserves
+live campaign identity across Deal, revalidates the whole portfolio after each
+step, permits interchangeable physical-source substitution, and gives one
+credible lane protected opportunity before generic stock/raw branches. From
+the untouched benchmark with `incumbent=None`, no route/suit seed and
+Unrestricted Deal ON, it deterministically removed the first Spade foundation
+at corrected cost 21 in 21 actions, two Deals, two strategic expansions and
+1,875 tactical nodes. Independent replay, repeatability, path hash and endpoint
+hash all passed. This prospective result was frozen before comparison with the
+separate legal cost-23 checkpoint.
+
+Controller analysis is now staged: every generated child receives exact cheap
+Stage-0 facts, fresh bounded strategic-core facts are computed before
+expansion, and full Deal timing/corridor/probe work is optional Stage 2. Exact
+analysis reuse requires canonical state plus analysis/rule fingerprint, while
+incumbent budgets remain fresh. A cooperative monotonic deadline and inner
+campaign-beam checks reduced observed bounded-run overruns to 0.862 seconds on
+a 15-second continuation and 0.124 seconds on the single 120-second production
+attempt, versus v0.2's 9.05/19.42-second overruns.
+
+The machine-generated post-foundation continuation retained stock 30 while
+reducing face-down cards 33 to 27 and total campaign MUST burden 26 to 21, but
+did not remove a second foundation. The single authorized whole-game attempt
+stopped at 120.124 seconds with one foundation, 24 face-down cards, empty
+stock, and no solution. Phase 4 therefore remains in progress. The next gate
+is generic current-epoch residual-campaign conversion to a second foundation;
+score tuning remains premature. See
+`docs/anytime_whole_game_controller_v0_3.md`.
 
 ### Phase 5 - Incumbent-guided improvement
 

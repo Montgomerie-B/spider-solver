@@ -870,7 +870,23 @@ def search_campaign_tableau(
                 )
             nodes += 1
             moves = state.enumerate_moves()
-            for src, dst, k in moves:
+            for move_index, (src, dst, k) in enumerate(moves):
+                # A single beam state may have many legal children and the
+                # target-relative score can itself inspect receiver geometry.
+                # Checking only once per parent allowed a nominal slice to
+                # overrun by several seconds.  This cooperative inner check
+                # bounds the overshoot to at most one child evaluation.
+                if move_index % 4 == 0 and time.perf_counter() - started >= time_limit_s:
+                    return CampaignTableauSearchResult(
+                        False,
+                        best_path,
+                        best_cost,
+                        best_state,
+                        nodes,
+                        time.perf_counter() - started,
+                        True,
+                        "time limit; bounded miss is not impossibility",
+                    )
                 # Lifecycle debt is deliberately a local ordering-only
                 # tie-break.  It never rejects a successor and never enters
                 # the transposition-table cost used for bounded correctness.
@@ -892,6 +908,17 @@ def search_campaign_tableau(
                 best_cost_by_key[key] = new_cost
                 action: Action = (src, dst, k)
                 new_path = path + (action,)
+                if time.perf_counter() - started >= time_limit_s:
+                    return CampaignTableauSearchResult(
+                        False,
+                        best_path,
+                        best_cost,
+                        best_state,
+                        nodes,
+                        time.perf_counter() - started,
+                        True,
+                        "time limit; bounded miss is not impossibility",
+                    )
                 score = _state_score(
                     child,
                     campaign,

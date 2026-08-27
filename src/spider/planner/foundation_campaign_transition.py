@@ -304,6 +304,8 @@ def _fixed_reanalysis(
     state: SpiderState,
     identity: CampaignIdentity,
     cards: Sequence[Card],
+    *,
+    max_source_combinations: Optional[int] = None,
 ) -> Optional[FoundationCampaign]:
     if _foundation_count_for_suit(state, identity.suit) >= identity.copy_index:
         return None
@@ -314,6 +316,7 @@ def _fixed_reanalysis(
             suit=identity.suit,
             copy_index=identity.copy_index,
             target_epoch=identity.target_epoch,
+            max_source_combinations=max_source_combinations,
         )
     except ValueError:
         return None
@@ -680,6 +683,7 @@ def realize_residual_campaign_transition(
     max_nodes: int = 120_000,
     time_limit_s: float = 60.0,
     beam_width: int = 512,
+    max_source_combinations: Optional[int] = None,
 ) -> CampaignTransitionResult:
     """Realize one fixed campaign transition, with at most one stock deal."""
     started = time.perf_counter()
@@ -708,7 +712,11 @@ def realize_residual_campaign_transition(
             "campaign identity/epoch or resource bounds are invalid",
         )
 
-    portfolio_before = analyze_foundation_campaigns(start_state, cards=cards)
+    portfolio_before = analyze_foundation_campaigns(
+        start_state,
+        cards=cards,
+        max_source_combinations=max_source_combinations,
+    )
     matching = next(
         (
             item
@@ -827,9 +835,32 @@ def realize_residual_campaign_transition(
     except ValueError:
         replayed_cost = None
 
-    campaign_after = _fixed_reanalysis(state, identity, cards)
-    portfolio_after = analyze_foundation_campaigns(state, cards=cards)
-    must_after = _must_keys(campaign_after)
+    # A bounded miss is not a state the caller may continue from.  Avoid
+    # launching two complete source-enumeration analyses after the tactical
+    # slice has already expired; doing so was the principal controller
+    # deadline overrun.  Successful/non-expired transitions still receive the
+    # full fresh reanalysis invariant below.
+    analysis_time_exhausted = time.perf_counter() - started >= time_limit_s
+    if resource_limited and analysis_time_exhausted:
+        campaign_after = None
+        portfolio_after = portfolio_before
+        must_after = must_before
+        stop_reason = (
+            f"{stop_reason}; post-bound campaign reanalysis skipped at deadline"
+        )
+    else:
+        campaign_after = _fixed_reanalysis(
+            state,
+            identity,
+            cards,
+            max_source_combinations=max_source_combinations,
+        )
+        portfolio_after = analyze_foundation_campaigns(
+            state,
+            cards=cards,
+            max_source_combinations=max_source_combinations,
+        )
+        must_after = _must_keys(campaign_after)
     deals_applied = sum(1 for action in actions if action == ("deal",))
     suits_after = _foundation_suits(state)
     foundation_added = suits_after[len(suits_before):]
