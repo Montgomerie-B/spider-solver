@@ -82,6 +82,18 @@ from spider.planner.foundation_campaign_removal import (
     realize_campaign_to_removal_epoch,
 )
 from spider.planner.incumbent_budget import IncumbentBudget, build_incumbent_budget
+from spider.planner.residual_campaign import (
+    DealPurpose,
+    FoundationCheckpointPortfolio,
+    FoundationCheckpointProfile,
+    ResidualCampaignAssessment,
+    StockOpportunityAssessment,
+    analyze_residual_campaign,
+    assess_stock_opportunity,
+    build_foundation_checkpoint_profile,
+    residual_investment_accounting,
+    retain_foundation_checkpoint_portfolio,
+)
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.state_identity import (
     CanonicalStateKey,
@@ -186,6 +198,10 @@ class AnytimeControllerConfig:
     full_analysis_minimum_start_s: float = 0.10
     optional_analysis_minimum_start_s: float = 4.0
     stop_after_first_foundation: bool = False
+    target_foundation_count: Optional[int] = None
+    enable_residual_conversion: bool = True
+    max_foundation_checkpoints: int = 6
+    residual_lanes_by_credit: Tuple[int, ...] = (3, 3, 4, 4, 5)
     deal_preparation_arms: int = 1
     deal_pair_arms: int = 0
     deal_timing_config: DealTimingConfig = field(
@@ -240,6 +256,14 @@ class AnytimeControllerConfig:
             raise ValueError("corridor lane schedule must widen monotonically")
         if self.full_analysis_minimum_start_s <= 0 or self.optional_analysis_minimum_start_s <= 0:
             raise ValueError("analysis minimum start thresholds must be positive")
+        if self.target_foundation_count is not None and not 1 <= self.target_foundation_count <= 8:
+            raise ValueError("target foundation count must be in 1..8")
+        if self.max_foundation_checkpoints <= 0:
+            raise ValueError("foundation checkpoint limit must be positive")
+        if len(self.residual_lanes_by_credit) != 5:
+            raise ValueError("residual lane schedule must contain five credit levels")
+        if tuple(sorted(self.residual_lanes_by_credit)) != self.residual_lanes_by_credit:
+            raise ValueError("residual lane schedule must widen monotonically")
 
 
 @dataclass(frozen=True)
@@ -276,6 +300,9 @@ class StrategicProgressComponents:
     foundation_count: int
     removal_ready_campaigns: int
     credible_current_campaigns: int
+    near_removal_campaigns: int
+    best_campaign_readiness_rank: int
+    minimum_campaign_must_burden: int
     total_campaign_must_burden: int
     minimum_campaign_remaining_estimate: float
     critical_dependencies_pending: int
@@ -302,6 +329,9 @@ class StrategicProgressComponents:
             -self.realized_or_ready_foundations,
             -self.removal_ready_campaigns,
             -self.foundation_count,
+            -self.near_removal_campaigns,
+            self.best_campaign_readiness_rank,
+            self.minimum_campaign_must_burden,
             -self.credible_current_campaigns,
             self.total_campaign_must_burden,
             self.minimum_campaign_remaining_estimate,
@@ -420,6 +450,7 @@ class StrategicAnalysisSnapshot:
     campaign_summary: Tuple[Tuple[str, str, float], ...]
     project_frontier_summary: Tuple[Tuple[str, int, float], ...]
     progress: StrategicProgressComponents
+    residual: ResidualCampaignAssessment
     stage: AnalysisStage = AnalysisStage.STRATEGIC_CORE
 
 
@@ -450,6 +481,7 @@ class StrategicSuccessor:
     corridor_id: Optional[str] = None
     corridor_status: Optional[str] = None
     corridor_result: Optional[CampaignCorridorResult] = None
+    stock_opportunity: Optional[StockOpportunityAssessment] = None
 
 
 @dataclass(frozen=True)
@@ -464,6 +496,7 @@ class StrategicSearchNode:
     credit_level: StrategicCreditLevel
     analysis: Optional[StrategicAnalysisSnapshot]
     stage0: Optional[Stage0AnalysisSnapshot] = None
+    foundation_checkpoint: Optional[FoundationCheckpointProfile] = None
 
 
 @dataclass(frozen=True)
@@ -585,11 +618,30 @@ class ControllerTelemetry:
     decision_trace: List[DecisionTraceEntry] = field(default_factory=list)
     deal_timeline: List[Tuple[int, int, int, str]] = field(default_factory=list)
     foundation_timeline: List[Tuple[int, int, int, Tuple[str, ...]]] = field(default_factory=list)
+    foundation_resource_timeline: List[
+        Tuple[int, int, float, int, int, str]
+    ] = field(default_factory=list)
     rework_timeline: List[Tuple[int, float, int, int, str]] = field(default_factory=list)
     deal_delta_timeline: List[Tuple[int, str, StructuralProgressDelta]] = field(default_factory=list)
     best_foundations: int = 0
     best_stock_epoch: int = 0
     lowest_face_down: int = 10**9
+    foundation_checkpoints_generated: int = 0
+    distinct_foundation_checkpoints_retained: int = 0
+    checkpoint_diversity_suppressions: int = 0
+    residual_lanes_generated: int = 0
+    residual_lanes_realized: int = 0
+    residual_conversion_failures: int = 0
+    next_foundation_readiness_changes: int = 0
+    deal_strategic_unlock_count: int = 0
+    deal_escape_only_count: int = 0
+    current_epoch_opportunities_lost_to_deal: int = 0
+    stock_rows_consumed_between_foundations: int = 0
+    paid_cost_between_foundations: int = 0
+    must_burden_delta_between_foundations: int = 0
+    face_down_delta_between_foundations: int = 0
+    debt_delta_between_foundations: float = 0.0
+    foundation_checkpoint_parents: List[Tuple[int, int, str]] = field(default_factory=list)
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -615,6 +667,7 @@ class AnytimeSearchResult:
     tactical_nodes: int
     frontier_remaining: int
     maximum_credit_reached: int
+    foundation_checkpoint_portfolio: FoundationCheckpointPortfolio
     telemetry: ControllerTelemetry
     stop_reason: str
 
@@ -986,6 +1039,9 @@ def analysis_config_fingerprint(
         config.campaign_source_combination_limit,
         config.corridor_config.max_source_combinations,
         config.corridor_config.max_epoch_transitions,
+        int(config.enable_residual_conversion),
+        config.max_foundation_checkpoints,
+        *config.residual_lanes_by_credit,
         int(MW_RULES.can_deal_into_empty),
         int(MW_RULES.zero_cost_move_to_empty),
         int(MW_RULES.zero_cost_requires_emptying_column),
@@ -1020,6 +1076,33 @@ def _strategic_progress(
         for campaign in campaigns
     )
     estimates = [campaign.estimated_campaign_cost for campaign in campaigns]
+    must_by_campaign = [
+        sum(need.must_excavate for need in campaign.rank_needs)
+        for campaign in campaigns
+    ]
+    readiness_order = {
+        CampaignReadiness.READY_NOW: 0,
+        CampaignReadiness.ASSEMBLY_LED: 1,
+        CampaignReadiness.EXCAVATION_LED: 2,
+        CampaignReadiness.STOCK_GATED: 3,
+        CampaignReadiness.DEFERRED: 4,
+        CampaignReadiness.BLOCKED: 5,
+    }
+    near_removal = sum(
+        campaign.target_removal_epoch is not None
+        and campaign.target_removal_epoch <= campaign.current_epoch + 1
+        and not campaign.blockers
+        and (
+            campaign.readiness == CampaignReadiness.READY_NOW
+            or sum(need.must_excavate for need in campaign.rank_needs) <= 2
+            or max(
+                (fragment.length for fragment in campaign.current_same_suit_fragments),
+                default=0,
+            )
+            >= 10
+        )
+        for campaign in campaigns
+    )
     critical_classes = {
         RevealValueClass.CRITICAL_NOW,
         RevealValueClass.REQUIRED_BEFORE_NEXT_DEAL,
@@ -1034,6 +1117,12 @@ def _strategic_progress(
         foundation_count=measurement.foundation_count,
         removal_ready_campaigns=removal_ready,
         credible_current_campaigns=credible_current,
+        near_removal_campaigns=near_removal,
+        best_campaign_readiness_rank=min(
+            (readiness_order[campaign.readiness] for campaign in campaigns),
+            default=99,
+        ),
+        minimum_campaign_must_burden=min(must_by_campaign, default=0),
         total_campaign_must_burden=_campaign_must_total(measurement),
         minimum_campaign_remaining_estimate=(min(estimates) if estimates else 0.0),
         critical_dependencies_pending=measurement.critical_dependencies_pending,
@@ -1200,6 +1289,15 @@ def analyze_strategic_state(
                         pre_deal_measurement=measurement,
                         campaign_source_combination_limit=config.campaign_source_combination_limit,
                     )
+    residual = analyze_residual_campaign(
+        state,
+        cards,
+        g=spent_cost,
+        analysis=economic,
+        measurement=measurement,
+        corridor_config=config.corridor_config,
+        maximum_lanes=config.residual_lanes_by_credit[-1],
+    )
     return StrategicAnalysisSnapshot(
         state_hash=_state_hash(state),
         economic=economic,
@@ -1217,6 +1315,7 @@ def analyze_strategic_state(
             facts.actionable_projects,
             spent_cost=spent_cost,
         ),
+        residual=residual,
         stage=(
             AnalysisStage.EXPENSIVE_OPTIONAL
             if timing is not None
@@ -1393,6 +1492,29 @@ def _successor_from_deal_arm(
             timing_priority = -2 if arm.label == decision.selected_candidate_id else 0
         elif decision.kind == DealTimingDecisionKind.COMPARISON_INCONCLUSIVE:
             timing_priority = -1
+    before_profile = node.analysis.residual.checkpoint
+    after_profile = build_foundation_checkpoint_profile(
+        arm.post_deal_state,
+        g=node.g + arm.total_added_cost,
+        analysis=arm.economic_analysis,
+        measurement=arm.measurement,
+    )
+    opportunity = assess_stock_opportunity(
+        before_profile,
+        after_profile,
+        impacts=arm.incoming_impacts,
+        preparation_paid_cost=arm.preparation_cost,
+        preparation_repaid=bool(
+            arm.preparation is not None
+            and timing is not None
+            and timing.decision.kind == DealTimingDecisionKind.PREPARATION_PREFERRED
+            and timing.decision.selected_candidate_id == arm.label
+        ),
+    )
+    if opportunity.purpose == DealPurpose.STRATEGIC_UNLOCK:
+        timing_priority = min(timing_priority, -2)
+    elif opportunity.purpose == DealPurpose.ESCAPE_ONLY:
+        timing_priority = max(timing_priority, 2)
     return StrategicSuccessor(
         kind=kind,
         category="deal_timing",
@@ -1411,6 +1533,8 @@ def _successor_from_deal_arm(
             "deal-timing recommendation controls ordering, not branch deletion",
             f"deal_structural_delta={delta}",
             "stock epoch is excluded from strategic progress priority",
+            f"deal_purpose={opportunity.purpose.value}",
+            f"deal_gain={opportunity.rationale}",
         ),
         source_project_id=(arm.preparation.candidate_id if arm.preparation else None),
         progress_delta=delta,
@@ -1420,6 +1544,7 @@ def _successor_from_deal_arm(
         precomputed_config_fingerprint=analysis_config_fingerprint(config),
         deal_timing_priority=timing_priority,
         deal_timing_decision=timing_decision,
+        stock_opportunity=opportunity,
     )
 
 
@@ -1540,10 +1665,12 @@ def retain_diverse_portfolio(
     if len(successors) <= maximum:
         return tuple(successors)
     categories = (
-        "deal_timing",
+        "residual_conversion",
+        "campaign_corridor",
         "permanent_structure",
         "campaign",
         "workspace_excavation",
+        "deal_timing",
         "rework",
         "other",
         "raw_fallback",
@@ -1824,6 +1951,14 @@ def _campaign_corridor_successors(
         return []
     assert node.analysis is not None
     lane_limit = config.corridor_lanes_by_credit[int(node.credit_level)]
+    is_residual = bool(
+        config.enable_residual_conversion and len(node.state.foundations) > 0
+    )
+    if is_residual:
+        lane_limit = max(
+            lane_limit,
+            config.residual_lanes_by_credit[int(node.credit_level)],
+        )
     if lane_limit <= 0:
         return []
     remaining_nodes = config.max_tactical_nodes - telemetry.tactical_nodes
@@ -1845,6 +1980,8 @@ def _campaign_corridor_successors(
         portfolio=node.analysis.economic.campaign_portfolio,
     )
     telemetry.corridors_generated += len(lanes)
+    if is_residual:
+        telemetry.residual_lanes_generated += len(lanes)
     successors: List[StrategicSuccessor] = []
     for lane in lanes[:lane_limit]:
         if (
@@ -1895,6 +2032,8 @@ def _campaign_corridor_successors(
             CampaignCorridorStatus.SWITCH_SOURCE_COPY,
             CampaignCorridorStatus.BLOCKED_WITHIN_BOUND,
         ):
+            if is_residual:
+                telemetry.residual_conversion_failures += 1
             telemetry.corridor_failures[result.status.value] = (
                 telemetry.corridor_failures.get(result.status.value, 0) + 1
             )
@@ -1925,8 +2064,12 @@ def _campaign_corridor_successors(
         successors.append(
             StrategicSuccessor(
                 StrategicActionKind.CAMPAIGN_CORRIDOR,
-                "campaign_corridor",
-                f"multi-epoch corridor {label}",
+                "residual_conversion" if is_residual else "campaign_corridor",
+                (
+                    f"residual next-foundation corridor {label}"
+                    if is_residual
+                    else f"multi-epoch corridor {label}"
+                ),
                 result.actions,
                 result.corrected_added_cost,
                 result.end_state.clone(),
@@ -1941,6 +2084,7 @@ def _campaign_corridor_successors(
                     "campaign identity derived from the current portfolio",
                     "whole campaign portfolio revalidated after every corridor step",
                     "corridor failure has no proof authority",
+                    f"target_foundations={len(node.state.foundations) + 1}",
                 )
                 + lifecycle_rationale,
                 source_project_id=label,
@@ -1950,6 +2094,8 @@ def _campaign_corridor_successors(
             )
         )
         telemetry.corridor_lanes_retained += 1
+        if is_residual:
+            telemetry.residual_lanes_realized += 1
         # A completed protected lane already establishes the dominant bounded
         # milestone; retain other strategic families instead of spending the
         # entire expansion on additional campaign suits.
@@ -2425,6 +2571,39 @@ def _append_bounded(items: List, value, maximum: int) -> None:
         items.append(value)
 
 
+def _trim_frontier_with_checkpoint_diversity(
+    frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
+    *,
+    maximum: int,
+    portfolio: FoundationCheckpointPortfolio,
+) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
+    """Protect one best descendant of each retained checkpoint lineage."""
+    ordered = sorted(frontier)
+    protected = {profile.state_key for profile in portfolio.profiles}
+    kept = []
+    kept_ids = set()
+    represented = set()
+    for item in ordered:
+        node = item[2]
+        checkpoint = node.foundation_checkpoint
+        if checkpoint is None or checkpoint.state_key not in protected:
+            continue
+        if checkpoint.state_key in represented:
+            continue
+        kept.append(item)
+        kept_ids.add(item[1])
+        represented.add(checkpoint.state_key)
+        if len(kept) >= maximum:
+            return kept
+    for item in ordered:
+        if item[1] in kept_ids:
+            continue
+        kept.append(item)
+        if len(kept) >= maximum:
+            break
+    return kept
+
+
 def _trace_expansion(
     node: StrategicSearchNode,
     successors: Sequence[StrategicSuccessor],
@@ -2491,6 +2670,8 @@ def _record_transition(
     child: StrategicSearchNode,
     telemetry: ControllerTelemetry,
     config: AnytimeControllerConfig,
+    *,
+    elapsed_seconds: float,
 ) -> None:
     if parent.analysis is None:
         raise ValueError("expanded parent lacks Stage-1 analysis")
@@ -2515,6 +2696,15 @@ def _record_transition(
                 (child.g, successor.label, successor.progress_delta),
                 config.max_timeline_entries,
             )
+        opportunity = successor.stock_opportunity
+        if opportunity is not None:
+            if opportunity.purpose == DealPurpose.STRATEGIC_UNLOCK:
+                telemetry.deal_strategic_unlock_count += 1
+            elif opportunity.purpose == DealPurpose.ESCAPE_ONLY:
+                telemetry.deal_escape_only_count += 1
+            telemetry.current_epoch_opportunities_lost_to_deal += len(
+                opportunity.current_epoch_projects_blocked
+            )
     if cm0.foundation_count > pm.foundation_count:
         _append_bounded(
             telemetry.foundation_timeline,
@@ -2523,6 +2713,18 @@ def _record_transition(
                 cm0.foundation_count,
                 5 - cm0.stock_count // 10,
                 _foundation_suits(child.state),
+            ),
+            config.max_timeline_entries,
+        )
+        _append_bounded(
+            telemetry.foundation_resource_timeline,
+            (
+                child.g,
+                cm0.foundation_count,
+                elapsed_seconds,
+                telemetry.expanded,
+                telemetry.tactical_nodes,
+                successor.label,
             ),
             config.max_timeline_entries,
         )
@@ -2575,6 +2777,10 @@ def solve_anytime(
     )
     supplied_record = incumbent if isinstance(incumbent, IncumbentRecord) else None
     telemetry = ControllerTelemetry()
+    checkpoint_profiles: List[FoundationCheckpointProfile] = []
+    checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
+        (), maximum=config.max_foundation_checkpoints
+    )
 
     # Build one minimal snapshot for a failed preflight result without starting
     # strategic expansion.  The caller receives the exact failure record.
@@ -2587,6 +2793,15 @@ def solve_anytime(
             incumbent_cost=initial_incumbent_cost,
             heuristic_remaining_work=economic.estimated_remaining_work,
         )
+        residual = analyze_residual_campaign(
+            initial_state,
+            cards,
+            g=0,
+            analysis=economic,
+            measurement=measurement,
+            corridor_config=config.corridor_config,
+            maximum_lanes=config.residual_lanes_by_credit[-1],
+        )
         root_analysis = StrategicAnalysisSnapshot(
             _state_hash(initial_state),
             economic,
@@ -2598,6 +2813,7 @@ def solve_anytime(
             (),
             (),
             _strategic_progress(initial_state, economic, measurement, (), spent_cost=0),
+            residual,
         )
         root = StrategicSearchNode(
             0,
@@ -2614,7 +2830,13 @@ def solve_anytime(
                 spent_cost=0,
                 incumbent_cost=initial_incumbent_cost,
             ),
+            residual.checkpoint if initial_state.foundations else None,
         )
+        if initial_state.foundations:
+            checkpoint_profiles.append(residual.checkpoint)
+            checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
+                checkpoint_profiles, maximum=config.max_foundation_checkpoints
+            )
         return AnytimeSearchResult(
             status=AnytimeControllerStatus.PREFLIGHT_FAILED,
             preflight=preflight,
@@ -2634,6 +2856,7 @@ def solve_anytime(
             tactical_nodes=0,
             frontier_remaining=0,
             maximum_credit_reached=0,
+            foundation_checkpoint_portfolio=checkpoint_portfolio,
             telemetry=telemetry,
             stop_reason="; ".join(preflight.failures),
         )
@@ -2675,7 +2898,17 @@ def solve_anytime(
         StrategicCreditLevel.CLEAN,
         root_analysis,
         root_stage0,
+        root_analysis.residual.checkpoint if initial_state.foundations else None,
     )
+    if initial_state.foundations:
+        checkpoint_profiles.append(root_analysis.residual.checkpoint)
+        checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
+            checkpoint_profiles, maximum=config.max_foundation_checkpoints
+        )
+        telemetry.foundation_checkpoints_generated = 1
+        telemetry.distinct_foundation_checkpoints_retained = len(
+            checkpoint_portfolio.profiles
+        )
     best_node = root
     best_progress_node = root
     lowest_g_node = root
@@ -2813,6 +3046,66 @@ def solve_anytime(
             telemetry.credit_expansions.get(int(node.credit_level), 0) + 1
         )
         m = node.analysis.measurement
+        current_profile = node.analysis.residual.checkpoint
+        previous_checkpoint = node.foundation_checkpoint
+        if (
+            m.foundation_count > 0
+            and (
+                previous_checkpoint is None
+                or m.foundation_count > previous_checkpoint.foundations
+            )
+        ):
+            checkpoint_profiles.append(current_profile)
+            telemetry.foundation_checkpoints_generated += 1
+            checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
+                checkpoint_profiles,
+                maximum=config.max_foundation_checkpoints,
+            )
+            telemetry.distinct_foundation_checkpoints_retained = len(
+                checkpoint_portfolio.profiles
+            )
+            telemetry.checkpoint_diversity_suppressions = (
+                checkpoint_portfolio.diversity_suppressions
+            )
+            if previous_checkpoint is not None:
+                investment = residual_investment_accounting(
+                    previous_checkpoint, current_profile
+                )
+                telemetry.stock_rows_consumed_between_foundations += (
+                    investment.stock_rows_consumed
+                )
+                telemetry.paid_cost_between_foundations += investment.paid_cost
+                telemetry.must_burden_delta_between_foundations += (
+                    investment.must_burden_removed
+                )
+                telemetry.face_down_delta_between_foundations += investment.reveals
+                telemetry.debt_delta_between_foundations += (
+                    investment.rehandling_debt_delta
+                )
+                before_ready = previous_checkpoint.best_readiness
+                after_ready = current_profile.best_readiness
+                if (
+                    after_ready is not None
+                    and (
+                        before_ready is None
+                        or after_ready.ordering_key() < before_ready.ordering_key()
+                    )
+                ):
+                    telemetry.next_foundation_readiness_changes += 1
+            _append_bounded(
+                telemetry.foundation_checkpoint_parents,
+                (
+                    current_profile.foundations,
+                    current_profile.g,
+                    (
+                        node.incoming_edge.label
+                        if node.incoming_edge is not None
+                        else "initial checkpoint"
+                    ),
+                ),
+                config.max_timeline_entries,
+            )
+            node = replace(node, foundation_checkpoint=current_profile)
         stock_epoch = 5 - m.stock_count // 10
         telemetry.expansions_by_foundation_count[m.foundation_count] = (
             telemetry.expansions_by_foundation_count.get(m.foundation_count, 0) + 1
@@ -2869,6 +3162,13 @@ def solve_anytime(
             strategic_progress_order_key(lowest_dependency_node),
         ):
             lowest_dependency_node = node
+
+        if (
+            config.target_foundation_count is not None
+            and m.foundation_count >= config.target_foundation_count
+        ):
+            stop_reason = "target-foundation milestone"
+            break
 
         if (
             config.stop_after_first_foundation
@@ -2928,6 +3228,7 @@ def solve_anytime(
                 node.credit_level,
                 None,
                 child_stage0,
+                node.foundation_checkpoint,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -2946,7 +3247,14 @@ def solve_anytime(
                 StrategicActionKind.RAW_DEAL,
             ):
                 telemetry.stock_successors_admitted += 1
-            _record_transition(node, child_successor, child, telemetry, config)
+            _record_transition(
+                node,
+                child_successor,
+                child,
+                telemetry,
+                config,
+                elapsed_seconds=time.perf_counter() - started,
+            )
 
         # Revisit the same exact state at a broader credit.  This bypasses TT
         # admission deliberately: TT dominates state arrival, not expansion
@@ -2960,7 +3268,11 @@ def solve_anytime(
                 heapq.heappush(frontier, (_node_priority(widened), uid, widened))
 
         if len(frontier) > config.max_frontier_size:
-            frontier = heapq.nsmallest(config.max_frontier_size, frontier)
+            frontier = _trim_frontier_with_checkpoint_diversity(
+                frontier,
+                maximum=config.max_frontier_size,
+                portfolio=checkpoint_portfolio,
+            )
             heapq.heapify(frontier)
             telemetry.frontier_trimmed += 1
             telemetry.heuristic_pruned += 1
@@ -2998,6 +3310,7 @@ def solve_anytime(
         tactical_nodes=telemetry.tactical_nodes,
         frontier_remaining=len(frontier),
         maximum_credit_reached=maximum_credit_reached,
+        foundation_checkpoint_portfolio=checkpoint_portfolio,
         telemetry=telemetry,
         stop_reason=stop_reason,
     )

@@ -1,6 +1,6 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; Phase 4 v0.3 first-foundation gate passed, whole-game gate remains open
+**Status:** Forward implementation plan; Phase 4 v0.4 residual-conversion gate is partial, whole-game gate remains open
 **Date:** 2026-08-13  
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
@@ -466,6 +466,38 @@ is generic current-epoch residual-campaign conversion to a second foundation;
 score tuning remains premature. See
 `docs/anytime_whole_game_controller_v0_3.md`.
 
+**Verified v0.4 status (2026-08-27): residual-conversion gate partial; two-
+foundation and whole-game gates not met.** A new generic residual-campaign
+layer now represents next-foundation readiness, exact next-row opportunity,
+foundation checkpoint profiles, bounded checkpoint diversity, Deal purpose
+and investment between consecutive removals. Distinct checkpoint states are
+retained by transparent dimensions rather than immediate `g` alone; exact
+structural-state/lower-`g` TT dominance and the established admissible proof
+bound remain unchanged.
+
+Under one frozen 90-second configuration, the cost-21 checkpoint improved
+face-down cards `33 -> 27` and MUST burden `26 -> 21` without consuming stock,
+whereas the cost-23 checkpoint improved face-down cards `32 -> 27` but consumed
+one row and increased MUST burden to 30. Neither removed foundation #2. The
+unseeded untouched-opening 180-second gate independently rediscovered the
+cost-21 Spade foundation, then reached `g=72`, face-down 25, same-suit mass 42
+and stock empty without another removal. Independent replay passed; wall
+overrun was 0.591 seconds. The run generated 22 residual lanes, realised 11,
+and recorded 20 bounded conversion failures. Only one distinct first-
+foundation checkpoint was discovered and retained.
+
+Per the hard gate, repeatability, third-foundation continuation and a new
+whole-game run were not started. Phase 4 remains in progress. The verified
+blocker is terminal conversion: bounded residual lanes improve structure but
+do not expose and assemble the remaining campaign sources into foundation #2
+before stock-advance branches take over. The next task should propagate
+transparent stock-purpose evidence to all Deal successors, protect a
+current-epoch lane until a removal-relevant milestone is reached or
+invalidated, and diversify pre-foundation search enough to discover distinct
+checkpoint geometries. It should remain bounded and generic; no longer search
+or benchmark weight tuning is justified. See
+`docs/anytime_whole_game_controller_v0_4.md`.
+
 ### Phase 5 - Incumbent-guided improvement
 
 Once any solution exists, turn the entire run into optimisation rather than launching a disconnected optimiser.
@@ -565,12 +597,13 @@ Do not use low-level optimisation to compensate for a poor strategic model.
 ## 7. Immediate development sprint
 
 The original Phase 1A work below has been completed by the subsequent strategic
-analysis sprints. The next verified sprint is controller v0.2: cap actionability
-probes independently of successful tactical realisations, reuse post-deal
-analysis safely, and prevent stock consumption alone from dominating the
-transparent strategic priority. Do not change benchmark economic weights or
-start a longer search until short generic smokes demonstrate materially better
-foundation/reveal progress per tactical node.
+analysis sprints. The next verified need after controller v0.4 is bounded
+terminal residual conversion: ensure every Deal branch carries transparent
+purpose evidence, protect a current-epoch removal-relevant lane until success
+or explicit invalidation, and preserve enough pre-foundation diversity to
+discover genuinely different checkpoint geometries. Do not change benchmark
+economic weights or start a longer search until short generic fixtures
+demonstrate conversion to a next foundation.
 
 ### Historical Phase 1A plan
 
