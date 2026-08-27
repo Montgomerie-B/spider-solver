@@ -412,6 +412,30 @@ found no complete solution. The immediate blocker is unbounded-per-expansion
 actionability probing plus stock-heavy priority, not a rules discrepancy. See
 `docs/anytime_whole_game_controller_v0_1.md`. Phase 4 remains in progress.
 
+**Verified v0.2 status (2026-08-27): controller-resource gate passed; whole-game
+gate not met.** Actionability now has fixed normalized shallow/modest/broad
+tiers, an independent per-expansion node/time/count allowance and exact
+state/project/predicate/tier cache semantics. Direct work, protected credible
+foundation macros and Deal are admitted before uncertain probes. Exact
+post-Deal economic/measurement facts are reused only under matching structural
+identity and analysis fingerprint; incumbent budgets remain fresh. Transparent
+strategic progress excludes stock count/epoch, and the result reports best
+progress, lowest cost and deepest stock separately.
+
+Gate A generically removed the first Spade foundation from the legal cost-11
+state at added cost 12. Gate B reduced campaign MUST burden and rehandling debt
+from the legal cost-23 state without consuming stock. A true-opening gate used
+1,431 tactical plus 2,924 separately accounted probe nodes in 12 expansions,
+versus v0.1's 20,008 charged tactical nodes in 19 smoke expansions, and no
+longer selected the stock-empty disaster as best. Bounded production/research
+runs still found no foundation or solution from the true opening. Their best
+state had stock 30 and 39 face-down cards; their deepest-stock state was
+reported separately. The remaining blocker is generic campaign continuity plus
+non-interruptible full economic/deal-timing analysis, not probe exhaustion or a
+rule discrepancy. See `docs/anytime_whole_game_controller_v0_2.md`. Phase 4
+remains in progress; do not start score tuning until a true-opening foundation
+and first complete solution are reliable.
+
 ### Phase 5 - Incumbent-guided improvement
 
 Once any solution exists, turn the entire run into optimisation rather than launching a disconnected optimiser.

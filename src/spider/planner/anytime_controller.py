@@ -28,7 +28,11 @@ from spider.cards import Card
 from spider.engine import Column, SpiderState
 from spider.hash import zobrist
 from spider.metrics import Action, replay_actions
-from spider.move_lifecycle import MoveLifecycleAssessment, PlacementClass, assess_tableau_move
+from spider.move_lifecycle import (
+    MoveLifecycleAssessment,
+    PlacementClass,
+    assess_tableau_move,
+)
 from spider.planner.deal_timing import (
     DealCounterfactual,
     DealPreparationCandidate,
@@ -53,9 +57,10 @@ from spider.planner.economic_projects import (
     EconomicFrontierTier,
     EconomicProject,
     EconomicProjectKind,
+    RevealValueClass,
     analyze_economic_projects,
 )
-from spider.planner.foundation_campaign import FoundationCampaign
+from spider.planner.foundation_campaign import CampaignReadiness, FoundationCampaign
 from spider.planner.foundation_campaign_realizer import (
     CampaignRealizationStatus,
     realize_campaign_to_next_epoch,
@@ -98,6 +103,24 @@ class StrategicCreditLevel(IntEnum):
     RAW_LEGAL_FALLBACK = 4
 
 
+class ActionabilityTier(IntEnum):
+    SHALLOW = 0
+    MODEST = 1
+    BROAD = 2
+
+
+@dataclass(frozen=True)
+class ActionabilityTierSpec:
+    tier: ActionabilityTier
+    max_added_cost: int
+    max_nodes: int
+    time_limit_s: float
+
+    def __post_init__(self) -> None:
+        if self.max_added_cost < 0 or self.max_nodes <= 0 or self.time_limit_s <= 0:
+            raise ValueError("actionability tier resources must be positive")
+
+
 @dataclass(frozen=True)
 class AnytimeControllerConfig:
     wall_clock_limit_s: float = 60.0
@@ -111,6 +134,18 @@ class AnytimeControllerConfig:
     campaign_source_combination_limit: int = 64
     max_direct_projects_per_tier: int = 2
     max_bounded_projects_per_expansion: int = 1
+    max_actionability_probes_per_expansion: int = 6
+    max_actionability_nodes_per_expansion: int = 3_000
+    max_actionability_time_s_per_expansion: float = 1.0
+    max_total_actionability_nodes: int = 100_000
+    max_actionability_probes_per_tier: Tuple[int, ...] = (4, 4, 4)
+    actionability_tiers: Tuple[ActionabilityTierSpec, ...] = field(
+        default_factory=lambda: (
+            ActionabilityTierSpec(ActionabilityTier.SHALLOW, 2, 256, 0.08),
+            ActionabilityTierSpec(ActionabilityTier.MODEST, 4, 750, 0.20),
+            ActionabilityTierSpec(ActionabilityTier.BROAD, 6, 1_500, 0.40),
+        )
+    )
     tactical_max_cost_by_credit: Tuple[int, ...] = (1, 4, 6, 8, 10)
     tactical_nodes_per_project: int = 2_000
     tactical_time_limit_s_per_project: float = 0.5
@@ -156,6 +191,21 @@ class AnytimeControllerConfig:
             raise ValueError("tactical cost schedule must widen monotonically")
         if self.max_trace_entries < 0 or self.max_timeline_entries < 0:
             raise ValueError("telemetry bounds must be non-negative")
+        if (
+            self.max_actionability_probes_per_expansion <= 0
+            or self.max_actionability_nodes_per_expansion <= 0
+            or self.max_actionability_time_s_per_expansion <= 0
+            or self.max_total_actionability_nodes <= 0
+        ):
+            raise ValueError("actionability probe limits must be positive")
+        if len(self.actionability_tiers) != 3:
+            raise ValueError("three normalized actionability tiers are required")
+        if tuple(spec.tier for spec in self.actionability_tiers) != tuple(ActionabilityTier):
+            raise ValueError("actionability tiers must be ordered SHALLOW, MODEST, BROAD")
+        if len(self.max_actionability_probes_per_tier) != len(self.actionability_tiers):
+            raise ValueError("per-tier probe quotas must match normalized tiers")
+        if min(self.max_actionability_probes_per_tier) <= 0:
+            raise ValueError("per-tier probe quotas must be positive")
 
 
 @dataclass(frozen=True)
@@ -187,6 +237,108 @@ class ControllerPreflight:
 
 
 @dataclass(frozen=True)
+class StrategicProgressComponents:
+    solved: bool
+    foundation_count: int
+    removal_ready_campaigns: int
+    credible_current_campaigns: int
+    total_campaign_must_burden: int
+    minimum_campaign_remaining_estimate: float
+    critical_dependencies_pending: int
+    critical_next_epoch_projects: int
+    actionable_high_value_projects: int
+    face_down_count: int
+    longest_same_suit_run: int
+    same_suit_run_mass: int
+    stable_same_suit_joins: int
+    empty_columns: int
+    legal_mobility: int
+    mixed_suit_boundaries: int
+    rehandling_debt: float
+    paid_cost: int
+
+    @property
+    def realized_or_ready_foundations(self) -> int:
+        return self.foundation_count + self.removal_ready_campaigns
+
+    def ordering_key(self) -> Tuple:
+        """Transparent heuristic ordering; stock count is intentionally absent."""
+        return (
+            0 if self.solved else 1,
+            -self.realized_or_ready_foundations,
+            -self.removal_ready_campaigns,
+            -self.foundation_count,
+            -self.credible_current_campaigns,
+            self.total_campaign_must_burden,
+            self.minimum_campaign_remaining_estimate,
+            self.critical_dependencies_pending,
+            -self.critical_next_epoch_projects,
+            -self.actionable_high_value_projects,
+            self.face_down_count,
+            -self.longest_same_suit_run,
+            -self.same_suit_run_mass,
+            -self.stable_same_suit_joins,
+            -self.empty_columns,
+            -self.legal_mobility,
+            self.mixed_suit_boundaries,
+            self.rehandling_debt,
+            self.paid_cost,
+        )
+
+
+@dataclass(frozen=True)
+class StructuralProgressDelta:
+    foundation_delta: int
+    critical_dependencies_removed: int
+    actionable_high_value_delta: int
+    campaign_must_burden_reduction: int
+    same_suit_mass_delta: int
+    stable_join_delta: int
+    mixed_boundary_reduction: int
+    rehandling_debt_reduction: float
+    workspace_delta: int
+    mobility_delta: int
+    exact_receiver_successes: int = 0
+
+    def deal_ordering_key(self) -> Tuple:
+        return (
+            -self.foundation_delta,
+            -self.critical_dependencies_removed,
+            -self.actionable_high_value_delta,
+            -self.campaign_must_burden_reduction,
+            -self.exact_receiver_successes,
+            -self.same_suit_mass_delta,
+            -self.stable_join_delta,
+            -self.mixed_boundary_reduction,
+            -self.rehandling_debt_reduction,
+            -self.workspace_delta,
+            -self.mobility_delta,
+        )
+
+
+AnalysisConfigFingerprint = Tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class StrategicAnalysisFacts:
+    state_key: CanonicalStateKey
+    config_fingerprint: AnalysisConfigFingerprint
+    economic: EconomicAnalysisResult
+    measurement: StructuralMeasurement
+    actionable_projects: Tuple[str, ...]
+    blocked_high_value_projects: Tuple[str, ...]
+    campaign_summary: Tuple[Tuple[str, str, float], ...]
+    project_frontier_summary: Tuple[Tuple[str, int, float], ...]
+
+
+@dataclass(frozen=True)
+class ActionabilityCacheKey:
+    state_key: CanonicalStateKey
+    project_identity: Tuple
+    tier: ActionabilityTier
+
+
+@dataclass(frozen=True)
 class StrategicAnalysisSnapshot:
     state_hash: str
     economic: EconomicAnalysisResult
@@ -197,6 +349,7 @@ class StrategicAnalysisSnapshot:
     deal_timing: Optional[DealTimingAssessment]
     campaign_summary: Tuple[Tuple[str, str, float], ...]
     project_frontier_summary: Tuple[Tuple[str, int, float], ...]
+    progress: StrategicProgressComponents
 
 
 @dataclass(frozen=True)
@@ -216,6 +369,13 @@ class StrategicSuccessor:
     rationale: Tuple[str, ...]
     source_project_id: Optional[str] = None
     analysis: Optional[StrategicAnalysisSnapshot] = None
+    progress_delta: Optional[StructuralProgressDelta] = None
+    precomputed_economic: Optional[EconomicAnalysisResult] = None
+    precomputed_measurement: Optional[StructuralMeasurement] = None
+    precomputed_state_key: Optional[CanonicalStateKey] = None
+    precomputed_config_fingerprint: Optional[AnalysisConfigFingerprint] = None
+    deal_timing_priority: int = 0
+    deal_timing_decision: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -273,6 +433,8 @@ class DecisionTraceEntry:
     h_admissible: int
     incumbent: Optional[int]
     hard_headroom: Optional[int]
+    priority_components: Tuple
+    incoming_progress_delta: Optional[StructuralProgressDelta]
     reason: str
 
 
@@ -292,6 +454,26 @@ class ControllerTelemetry:
     actionability_cache_hits: int = 0
     actionability_cache_misses: int = 0
     inaccessible_retry_suppressed: int = 0
+    actionability_probes_attempted: int = 0
+    actionability_probe_nodes: int = 0
+    actionability_probe_seconds: float = 0.0
+    actionability_probe_budget_exhausted: int = 0
+    actionability_probes_skipped_due_quota: int = 0
+    actionability_tier_escalations: int = 0
+    actionability_retry_suppressions: int = 0
+    direct_actionability_detections: int = 0
+    cheap_actionability_rejections: int = 0
+    project_realizations_attempted: int = 0
+    project_realizations_succeeded: int = 0
+    foundation_macro_attempts: int = 0
+    foundation_macro_successes: int = 0
+    post_deal_analysis_reused: int = 0
+    precomputed_analysis_mismatches: int = 0
+    analysis_cache_hits: int = 0
+    analysis_cache_misses: int = 0
+    avoided_full_analyses: int = 0
+    stock_successors_admitted: int = 0
+    stock_successors_expanded: int = 0
     proof_pruned: int = 0
     heuristic_pruned: int = 0
     frontier_trimmed: int = 0
@@ -301,11 +483,16 @@ class ControllerTelemetry:
     deal_preparations_retained: int = 0
     credit_expansions: Dict[int, int] = field(default_factory=dict)
     successor_kinds: Dict[str, int] = field(default_factory=dict)
+    actionability_probes_by_tier: Dict[int, int] = field(default_factory=dict)
+    realizations_by_tier: Dict[int, int] = field(default_factory=dict)
+    expansions_by_foundation_count: Dict[int, int] = field(default_factory=dict)
+    expansions_by_stock_epoch: Dict[int, int] = field(default_factory=dict)
     suppression_reasons: Dict[str, int] = field(default_factory=dict)
     decision_trace: List[DecisionTraceEntry] = field(default_factory=list)
     deal_timeline: List[Tuple[int, int, int, str]] = field(default_factory=list)
     foundation_timeline: List[Tuple[int, int, int, Tuple[str, ...]]] = field(default_factory=list)
     rework_timeline: List[Tuple[int, float, int, int, str]] = field(default_factory=list)
+    deal_delta_timeline: List[Tuple[int, str, StructuralProgressDelta]] = field(default_factory=list)
     best_foundations: int = 0
     best_stock_epoch: int = 0
     lowest_face_down: int = 10**9
@@ -324,6 +511,11 @@ class AnytimeSearchResult:
     incumbent_cost: Optional[int]
     incumbent_progression: Tuple[int, ...]
     best_node: StrategicSearchNode
+    best_progress_node: StrategicSearchNode
+    lowest_g_node: StrategicSearchNode
+    deepest_stock_node: StrategicSearchNode
+    most_foundations_node: StrategicSearchNode
+    lowest_dependency_node: StrategicSearchNode
     elapsed_seconds: float
     strategic_expansions: int
     tactical_nodes: int
@@ -635,43 +827,79 @@ def _actionability_partition(
     return tuple(actionable), tuple(blocked)
 
 
-def analyze_strategic_state(
+def analysis_config_fingerprint(
+    config: AnytimeControllerConfig,
+) -> AnalysisConfigFingerprint:
+    """Fingerprint only incumbent-independent full-analysis inputs."""
+    return (config.campaign_source_combination_limit,)
+
+
+def _campaign_must_total(measurement: StructuralMeasurement) -> int:
+    return sum(value for _label, value in measurement.campaign_must_burden)
+
+
+def _strategic_progress(
     state: SpiderState,
-    cards: Sequence[Card],
+    economic: EconomicAnalysisResult,
+    measurement: StructuralMeasurement,
+    actionable: Sequence[str],
     *,
     spent_cost: int,
-    incumbent_cost: Optional[int],
-    config: AnytimeControllerConfig,
-    include_deal_timing: bool = True,
-) -> StrategicAnalysisSnapshot:
-    """Recompute all current-state strategic layers from the actual state."""
-    economic = analyze_economic_projects(
-        state,
-        cards=cards,
-        campaign_source_combination_limit=config.campaign_source_combination_limit,
+) -> StrategicProgressComponents:
+    campaigns = economic.campaign_portfolio.campaigns
+    removal_ready = sum(
+        campaign.readiness == CampaignReadiness.READY_NOW for campaign in campaigns
     )
-    measurement = measure_structural_state(state, cards=cards, analysis=economic)
-    budget = build_incumbent_budget(
-        state,
-        spent_cost=spent_cost,
-        incumbent_cost=incumbent_cost,
-        heuristic_remaining_work=economic.estimated_remaining_work,
-    )
-    actionable, blocked = _actionability_partition(state, economic)
-    timing: Optional[DealTimingAssessment] = None
-    if include_deal_timing and state.can_deal(MW_RULES):
-        preparations = _direct_preparation_candidates(state, economic, config)
-        timing = assess_deal_timing(
-            state,
-            cards,
-            spent_cost=spent_cost,
-            incumbent_cost=incumbent_cost,
-            config=config.deal_timing_config,
-            preparations=preparations,
-            pre_deal_analysis=economic,
-            pre_deal_measurement=measurement,
-            campaign_source_combination_limit=config.campaign_source_combination_limit,
+    credible_current = sum(
+        campaign.target_removal_epoch == campaign.current_epoch
+        and campaign.readiness
+        in (
+            CampaignReadiness.READY_NOW,
+            CampaignReadiness.EXCAVATION_LED,
+            CampaignReadiness.ASSEMBLY_LED,
         )
+        and not campaign.blockers
+        for campaign in campaigns
+    )
+    estimates = [campaign.estimated_campaign_cost for campaign in campaigns]
+    critical_classes = {
+        RevealValueClass.CRITICAL_NOW,
+        RevealValueClass.REQUIRED_BEFORE_NEXT_DEAL,
+        RevealValueClass.HIGH_VALUE_CURRENT_EPOCH,
+    }
+    critical_projects = sum(
+        any(value.classification in critical_classes for value in project.reveal_values)
+        for project in economic.frontier.ordered_projects
+    )
+    return StrategicProgressComponents(
+        solved=state.is_solved(),
+        foundation_count=measurement.foundation_count,
+        removal_ready_campaigns=removal_ready,
+        credible_current_campaigns=credible_current,
+        total_campaign_must_burden=_campaign_must_total(measurement),
+        minimum_campaign_remaining_estimate=(min(estimates) if estimates else 0.0),
+        critical_dependencies_pending=measurement.critical_dependencies_pending,
+        critical_next_epoch_projects=critical_projects,
+        actionable_high_value_projects=len(actionable),
+        face_down_count=measurement.face_down_count,
+        longest_same_suit_run=measurement.longest_same_suit_run,
+        same_suit_run_mass=measurement.same_suit_run_mass,
+        stable_same_suit_joins=measurement.stable_same_suit_joins,
+        empty_columns=len(measurement.empty_columns),
+        legal_mobility=measurement.legal_move_count,
+        mixed_suit_boundaries=measurement.mixed_suit_boundaries,
+        rehandling_debt=measurement.rehandling_debt,
+        paid_cost=spent_cost,
+    )
+
+
+def _build_analysis_facts(
+    state: SpiderState,
+    economic: EconomicAnalysisResult,
+    measurement: StructuralMeasurement,
+    fingerprint: AnalysisConfigFingerprint,
+) -> StrategicAnalysisFacts:
+    actionable, blocked = _actionability_partition(state, economic)
     campaigns = tuple(
         (
             campaign.label,
@@ -688,16 +916,114 @@ def analyze_strategic_state(
         )
         for project in economic.frontier.ordered_projects[:8]
     )
+    return StrategicAnalysisFacts(
+        state_key=canonical_state_key(state),
+        config_fingerprint=fingerprint,
+        economic=economic,
+        measurement=measurement,
+        actionable_projects=actionable,
+        blocked_high_value_projects=blocked,
+        campaign_summary=campaigns,
+        project_frontier_summary=frontier,
+    )
+
+
+def analyze_strategic_state(
+    state: SpiderState,
+    cards: Sequence[Card],
+    *,
+    spent_cost: int,
+    incumbent_cost: Optional[int],
+    config: AnytimeControllerConfig,
+    include_deal_timing: bool = True,
+    analysis_cache: Optional[
+        Dict[Tuple[CanonicalStateKey, AnalysisConfigFingerprint], StrategicAnalysisFacts]
+    ] = None,
+    telemetry: Optional[ControllerTelemetry] = None,
+    precomputed_economic: Optional[EconomicAnalysisResult] = None,
+    precomputed_measurement: Optional[StructuralMeasurement] = None,
+    precomputed_state_key: Optional[CanonicalStateKey] = None,
+    precomputed_config_fingerprint: Optional[AnalysisConfigFingerprint] = None,
+) -> StrategicAnalysisSnapshot:
+    """Recompute all current-state strategic layers from the actual state."""
+    state_key = canonical_state_key(state)
+    fingerprint = analysis_config_fingerprint(config)
+    cache_key = (state_key, fingerprint)
+    facts = analysis_cache.get(cache_key) if analysis_cache is not None else None
+    if facts is not None:
+        if telemetry is not None:
+            telemetry.analysis_cache_hits += 1
+            telemetry.avoided_full_analyses += 1
+    else:
+        if telemetry is not None:
+            telemetry.analysis_cache_misses += 1
+        seed_matches = bool(
+            precomputed_economic is not None
+            and precomputed_measurement is not None
+            and precomputed_state_key == state_key
+            and precomputed_config_fingerprint == fingerprint
+        )
+        if seed_matches:
+            economic = precomputed_economic
+            measurement = precomputed_measurement
+            assert economic is not None and measurement is not None
+            if telemetry is not None:
+                telemetry.post_deal_analysis_reused += 1
+                telemetry.avoided_full_analyses += 1
+        else:
+            if (
+                telemetry is not None
+                and (precomputed_economic is not None or precomputed_measurement is not None)
+            ):
+                telemetry.precomputed_analysis_mismatches += 1
+            economic = analyze_economic_projects(
+                state,
+                cards=cards,
+                campaign_source_combination_limit=config.campaign_source_combination_limit,
+            )
+            measurement = measure_structural_state(state, cards=cards, analysis=economic)
+        facts = _build_analysis_facts(state, economic, measurement, fingerprint)
+        if analysis_cache is not None:
+            analysis_cache[cache_key] = facts
+    economic = facts.economic
+    measurement = facts.measurement
+    budget = build_incumbent_budget(
+        state,
+        spent_cost=spent_cost,
+        incumbent_cost=incumbent_cost,
+        heuristic_remaining_work=economic.estimated_remaining_work,
+    )
+    timing: Optional[DealTimingAssessment] = None
+    if include_deal_timing and state.can_deal(MW_RULES):
+        preparations = _direct_preparation_candidates(state, economic, config)
+        timing = assess_deal_timing(
+            state,
+            cards,
+            spent_cost=spent_cost,
+            incumbent_cost=incumbent_cost,
+            config=config.deal_timing_config,
+            preparations=preparations,
+            pre_deal_analysis=economic,
+            pre_deal_measurement=measurement,
+            campaign_source_combination_limit=config.campaign_source_combination_limit,
+        )
     return StrategicAnalysisSnapshot(
         state_hash=_state_hash(state),
         economic=economic,
         measurement=measurement,
         budget=budget,
-        actionable_projects=actionable,
-        blocked_high_value_projects=blocked,
+        actionable_projects=facts.actionable_projects,
+        blocked_high_value_projects=facts.blocked_high_value_projects,
         deal_timing=timing,
-        campaign_summary=campaigns,
-        project_frontier_summary=frontier,
+        campaign_summary=facts.campaign_summary,
+        project_frontier_summary=facts.project_frontier_summary,
+        progress=_strategic_progress(
+            state,
+            economic,
+            measurement,
+            facts.actionable_projects,
+            spent_cost=spent_cost,
+        ),
     )
 
 
@@ -794,17 +1120,81 @@ def _lifecycle_rationale(lifecycle: MoveLifecycleAssessment) -> Tuple[str, ...]:
     )
 
 
+def structural_progress_delta(
+    before: StructuralMeasurement,
+    after: StructuralMeasurement,
+    *,
+    actionable_before: int,
+    actionable_after: int,
+    exact_receiver_successes: int = 0,
+) -> StructuralProgressDelta:
+    """Describe consequences without treating stock consumption as progress."""
+    return StructuralProgressDelta(
+        foundation_delta=after.foundation_count - before.foundation_count,
+        critical_dependencies_removed=(
+            before.critical_dependencies_pending - after.critical_dependencies_pending
+        ),
+        actionable_high_value_delta=actionable_after - actionable_before,
+        campaign_must_burden_reduction=(
+            _campaign_must_total(before) - _campaign_must_total(after)
+        ),
+        same_suit_mass_delta=after.same_suit_run_mass - before.same_suit_run_mass,
+        stable_join_delta=(
+            after.stable_same_suit_joins - before.stable_same_suit_joins
+        ),
+        mixed_boundary_reduction=(
+            before.mixed_suit_boundaries - after.mixed_suit_boundaries
+        ),
+        rehandling_debt_reduction=before.rehandling_debt - after.rehandling_debt,
+        workspace_delta=len(after.empty_columns) - len(before.empty_columns),
+        mobility_delta=after.legal_move_count - before.legal_move_count,
+        exact_receiver_successes=exact_receiver_successes,
+    )
 def _successor_from_deal_arm(
     node: StrategicSearchNode,
     arm: DealCounterfactual,
+    config: AnytimeControllerConfig,
 ) -> Optional[StrategicSuccessor]:
-    if arm.post_deal_state is None or not arm.independent_replay_verified:
+    if (
+        arm.post_deal_state is None
+        or arm.measurement is None
+        or arm.economic_analysis is None
+        or not arm.independent_replay_verified
+    ):
         return None
     kind = (
         StrategicActionKind.DEAL_NOW
         if arm.preparation is None
         else StrategicActionKind.PREPARE_THEN_DEAL
     )
+    actionability_after = (
+        len(arm.actionability.high_value_actionable_after)
+        if arm.actionability is not None
+        else 0
+    )
+    delta = structural_progress_delta(
+        node.analysis.measurement,
+        arm.measurement,
+        actionable_before=len(node.analysis.actionable_projects),
+        actionable_after=actionability_after,
+        exact_receiver_successes=sum(
+            impact.exact_receiver_success for impact in arm.incoming_impacts
+        ),
+    )
+    timing = node.analysis.deal_timing
+    timing_priority = 0
+    timing_decision: Optional[str] = None
+    if timing is not None:
+        decision = timing.decision
+        timing_decision = decision.kind.value
+        if decision.kind == DealTimingDecisionKind.DEAL_REQUIRED_FOR_ACTIONABILITY:
+            timing_priority = -3 if arm.preparation is None else -2
+        elif decision.kind == DealTimingDecisionKind.DEAL_NOW_PREFERRED:
+            timing_priority = -2 if arm.preparation is None else 0
+        elif decision.kind == DealTimingDecisionKind.PREPARATION_PREFERRED:
+            timing_priority = -2 if arm.label == decision.selected_candidate_id else 0
+        elif decision.kind == DealTimingDecisionKind.COMPARISON_INCONCLUSIVE:
+            timing_priority = -1
     return StrategicSuccessor(
         kind=kind,
         category="deal_timing",
@@ -821,8 +1211,17 @@ def _successor_from_deal_arm(
         rationale=(
             "exact next stock row is a first-class successor",
             "deal-timing recommendation controls ordering, not branch deletion",
+            f"deal_structural_delta={delta}",
+            "stock epoch is excluded from strategic progress priority",
         ),
         source_project_id=(arm.preparation.candidate_id if arm.preparation else None),
+        progress_delta=delta,
+        precomputed_economic=arm.economic_analysis,
+        precomputed_measurement=arm.measurement,
+        precomputed_state_key=canonical_state_key(arm.post_deal_state),
+        precomputed_config_fingerprint=analysis_config_fingerprint(config),
+        deal_timing_priority=timing_priority,
+        deal_timing_decision=timing_decision,
     )
 
 
@@ -974,6 +1373,246 @@ def _remaining_controller_time(started: float, config: AnytimeControllerConfig) 
     return max(0.0, config.wall_clock_limit_s - (time.perf_counter() - started))
 
 
+def actionability_tier_for_credit(
+    credit: StrategicCreditLevel,
+) -> Optional[ActionabilityTier]:
+    if credit == StrategicCreditLevel.CLEAN:
+        return None
+    if credit == StrategicCreditLevel.POSITIVE_INVESTMENT:
+        return ActionabilityTier.SHALLOW
+    if credit == StrategicCreditLevel.SPECULATIVE:
+        return ActionabilityTier.MODEST
+    return ActionabilityTier.BROAD
+
+
+def normalized_actionability_resource(
+    config: AnytimeControllerConfig,
+    tier: ActionabilityTier,
+) -> EconomicProjectResourceConfig:
+    spec = config.actionability_tiers[int(tier)]
+    return EconomicProjectResourceConfig(
+        added_cost_bounds=(spec.max_added_cost,),
+        max_nodes_per_bound=spec.max_nodes,
+        time_limit_s_per_bound=spec.time_limit_s,
+        allow_foundation_increase=True,
+    )
+
+
+def _project_probe_identity(project: EconomicProject, predicate) -> Tuple:
+    return (
+        project.project_id,
+        predicate.kind.value,
+        predicate.target_column,
+        predicate.max_face_down,
+        predicate.min_empty_count,
+        predicate.suit,
+        predicate.high_rank,
+        predicate.low_rank,
+        predicate.expected_placement.value if predicate.expected_placement else None,
+        predicate.structural_return_required,
+    )
+
+
+def _project_probe_schedule_key(
+    project: EconomicProject,
+    *,
+    current_epoch: int,
+) -> Tuple:
+    critical_classes = {
+        RevealValueClass.CRITICAL_NOW,
+        RevealValueClass.REQUIRED_BEFORE_NEXT_DEAL,
+        RevealValueClass.HIGH_VALUE_CURRENT_EPOCH,
+    }
+    critical = sum(
+        value.classification in critical_classes for value in project.reveal_values
+    )
+    shallowest = min(
+        (value.reveal_depth for value in project.reveal_values),
+        default=10**6,
+    )
+    substitutable = sum(
+        value.substitute_available or bool(value.stock_copy_epochs)
+        for value in project.reveal_values
+    )
+    campaign_relevant = project.kind in (
+        EconomicProjectKind.FOUNDATION_CAMPAIGN_STEP,
+        EconomicProjectKind.EXCAVATE_CARD,
+        EconomicProjectKind.EXCAVATE_COLUMN_PREFIX,
+        EconomicProjectKind.PREPARE_STOCK_RECEIVER,
+        EconomicProjectKind.CREATE_WORKSPACE,
+        EconomicProjectKind.RECOVER_WORKSPACE,
+    )
+    return (
+        project.earliest_useful_epoch > current_epoch,
+        -critical,
+        shallowest,
+        not project.debt.exit_route_bounded,
+        not campaign_relevant,
+        substitutable,
+        int(project.assessment.frontier_tier),
+        -project.assessment.net_economic_value,
+        project.project_id,
+    )
+
+
+def _foundation_successors(
+    node: StrategicSearchNode,
+    cards: Sequence[Card],
+    *,
+    config: AnytimeControllerConfig,
+    telemetry: ControllerTelemetry,
+    started: float,
+) -> List[StrategicSuccessor]:
+    if not config.enable_campaign_edges:
+        return []
+    configured_campaign_limit = _campaign_limit(node.credit_level, config)
+    campaign_limit = configured_campaign_limit
+    if node.credit_level >= StrategicCreditLevel.POSITIVE_INVESTMENT:
+        campaign_limit = max(1, campaign_limit)
+    protected_removals = tuple(
+        campaign
+        for campaign in node.analysis.economic.campaign_portfolio.campaigns
+        if (
+            config.enable_removal_edges
+            and campaign.target_removal_epoch is not None
+            and campaign.target_removal_epoch <= campaign.current_epoch + 1
+            and campaign.readiness != CampaignReadiness.BLOCKED
+            and not campaign.blockers
+        )
+    )
+    if protected_removals:
+        campaign_limit = max(1, campaign_limit)
+    if campaign_limit <= 0:
+        return []
+    campaigns = (
+        protected_removals[:1]
+        if configured_campaign_limit == 0
+        and node.credit_level == StrategicCreditLevel.CLEAN
+        else node.analysis.economic.campaign_portfolio.campaigns[:campaign_limit]
+    )
+    successors: List[StrategicSuccessor] = []
+    for campaign in campaigns:
+        if (
+            telemetry.tactical_nodes >= config.max_tactical_nodes
+            or _remaining_controller_time(started, config) <= 0
+        ):
+            break
+        remaining_nodes = max(1, config.max_tactical_nodes - telemetry.tactical_nodes)
+        removal_eligible = bool(
+            config.enable_removal_edges
+            and campaign.target_removal_epoch is not None
+            and campaign.target_removal_epoch <= campaign.current_epoch + 1
+            and campaign.readiness != CampaignReadiness.BLOCKED
+            and not campaign.blockers
+        )
+        added = False
+        if removal_eligible:
+            telemetry.foundation_macro_attempts += 1
+            removal = realize_campaign_to_removal_epoch(
+                node.state,
+                campaign,
+                cards,
+                max_added_cost=config.campaign_max_added_cost,
+                max_nodes=min(config.campaign_max_nodes, remaining_nodes),
+                time_limit_s=min(
+                    config.campaign_time_limit_s,
+                    max(0.01, _remaining_controller_time(started, config)),
+                ),
+                beam_width=config.campaign_beam_width,
+            )
+            telemetry.tactical_nodes += removal.nodes_expanded
+            if (
+                removal.status
+                in (
+                    CampaignRemovalStatus.FOUNDATION_REMOVED,
+                    CampaignRemovalStatus.BAND_COMPLETE,
+                    CampaignRemovalStatus.PARTIAL,
+                )
+                and removal.independent_replay_verified
+                and removal.actions
+                and removal.corrected_added_cost is not None
+            ):
+                if removal.status == CampaignRemovalStatus.FOUNDATION_REMOVED:
+                    telemetry.foundation_macro_successes += 1
+                successors.append(
+                    StrategicSuccessor(
+                        StrategicActionKind.FOUNDATION_REMOVAL,
+                        "campaign",
+                        f"removal campaign {campaign.label}",
+                        removal.actions,
+                        removal.corrected_added_cost,
+                        removal.end_state.clone(),
+                        node.credit_level,
+                        int(round(campaign.estimated_campaign_cost)),
+                        removal.corrected_added_cost,
+                        removal.nodes_expanded,
+                        True,
+                        False,
+                        (
+                            removal.stop_reason,
+                            "protected generic foundation macro opportunity",
+                            "bounded removal miss is not impossibility",
+                        ),
+                        campaign.label,
+                    )
+                )
+                added = True
+        if (
+            added
+            or telemetry.tactical_nodes >= config.max_tactical_nodes
+            or (
+                node.credit_level == StrategicCreditLevel.CLEAN
+                and configured_campaign_limit == 0
+            )
+        ):
+            continue
+        telemetry.foundation_macro_attempts += 1
+        result = realize_campaign_to_next_epoch(
+            node.state,
+            campaign,
+            cards,
+            max_added_cost=config.campaign_max_added_cost,
+            max_nodes=min(
+                config.campaign_max_nodes,
+                max(1, config.max_tactical_nodes - telemetry.tactical_nodes),
+            ),
+            time_limit_s=min(
+                config.campaign_time_limit_s,
+                max(0.01, _remaining_controller_time(started, config)),
+            ),
+        )
+        telemetry.tactical_nodes += result.nodes_expanded
+        if (
+            result.status in (CampaignRealizationStatus.FOUND, CampaignRealizationStatus.PARTIAL)
+            and result.independent_replay_verified
+            and result.actions
+            and result.corrected_added_cost is not None
+        ):
+            successors.append(
+                StrategicSuccessor(
+                    StrategicActionKind.FOUNDATION_CAMPAIGN,
+                    "campaign",
+                    f"campaign {campaign.label} through next epoch",
+                    result.actions,
+                    result.corrected_added_cost,
+                    result.resulting_state.clone(),
+                    node.credit_level,
+                    int(round(campaign.estimated_campaign_cost)),
+                    result.corrected_added_cost,
+                    result.nodes_expanded,
+                    True,
+                    False,
+                    (
+                        result.stop_reason,
+                        "protected generic campaign opportunity",
+                        "campaign is reanalysed after this bounded edge",
+                    ),
+                    campaign.label,
+                )
+            )
+    return successors
+
+
 def generate_strategic_successors(
     node: StrategicSearchNode,
     cards: Sequence[Card],
@@ -981,90 +1620,221 @@ def generate_strategic_successors(
     incumbent_cost: Optional[int],
     config: AnytimeControllerConfig,
     telemetry: ControllerTelemetry,
-    actionability_cache: Dict[Tuple, ProjectActionability],
+    actionability_cache: Dict[ActionabilityCacheKey, ProjectActionability],
     started: float,
 ) -> Tuple[StrategicSuccessor, ...]:
-    """Generate a small diverse, replay-verified strategic portfolio."""
+    """Generate a replay-verified portfolio in an explicit resource order.
+
+    Direct work, protected foundation work, and Deal admission happen before
+    any uncertain-project probe.  Probe resources are fixed by normalized
+    tier and are accounted separately from tactical realization resources.
+    """
     raw: List[StrategicSuccessor] = []
     analysis = node.analysis
-
-    if analysis.deal_timing is not None:
-        for arm in order_deal_timing_arms(analysis.deal_timing):
-            successor = _successor_from_deal_arm(node, arm)
-            if successor is not None:
-                raw.append(successor)
-                telemetry.deal_successors_generated += 1
-                if successor.kind == StrategicActionKind.PREPARE_THEN_DEAL:
-                    telemetry.deal_preparations_retained += 1
-
     allowed = set(allowed_frontier_tiers(node.credit_level))
+
+    # 1. Obvious legal economic work never pays for an actionability search.
     direct_per_tier: Dict[EconomicFrontierTier, int] = {}
-    bounded_used = 0
+    uncertain: List[Tuple[Tuple, EconomicProject, object]] = []
+    current_epoch = 5 - analysis.measurement.stock_count // 10
     for project in analysis.economic.frontier.ordered_projects:
-        tier = project.assessment.frontier_tier
-        if tier not in allowed:
+        frontier_tier = project.assessment.frontier_tier
+        if frontier_tier not in allowed:
             continue
-        if project.action is not None:
-            if direct_per_tier.get(tier, 0) >= config.max_direct_projects_per_tier:
+        if project.action is not None and node.state.can_move(*project.action):
+            telemetry.direct_actionability_detections += 1
+            if direct_per_tier.get(frontier_tier, 0) >= config.max_direct_projects_per_tier:
                 continue
             successor = _apply_direct_project(node, project)
             if successor is not None:
                 raw.append(successor)
-                direct_per_tier[tier] = direct_per_tier.get(tier, 0) + 1
+                direct_per_tier[frontier_tier] = direct_per_tier.get(frontier_tier, 0) + 1
             continue
         if node.credit_level < StrategicCreditLevel.POSITIVE_INVESTMENT:
             continue
-        if bounded_used >= config.max_bounded_projects_per_expansion:
+        predicate, _reason = project_predicate(node.state, project)
+        if predicate is None:
+            telemetry.cheap_actionability_rejections += 1
             continue
-        if _remaining_controller_time(started, config) <= 0:
+        if predicate.is_satisfied(node.state):
+            # The economic fact is already true; it informs analysis but does
+            # not create a zero-action strategic edge.
+            telemetry.direct_actionability_detections += 1
+            continue
+        uncertain.append(
+            (
+                _project_probe_schedule_key(project, current_epoch=current_epoch),
+                project,
+                predicate,
+            )
+        )
+
+    # 2. Foundation-oriented work receives a protected bounded opportunity.
+    raw.extend(
+        _foundation_successors(
+            node,
+            cards,
+            config=config,
+            telemetry=telemetry,
+            started=started,
+        )
+    )
+
+    # 3. Deal is admitted as a first-class legal successor before probes.  Its
+    # eventual queue position is based on exact post-deal consequences.
+    deal_added = False
+    if analysis.deal_timing is not None:
+        for arm in order_deal_timing_arms(analysis.deal_timing):
+            successor = _successor_from_deal_arm(node, arm, config)
+            if successor is None:
+                continue
+            raw.append(successor)
+            deal_added = True
+            telemetry.deal_successors_generated += 1
+            if successor.kind == StrategicActionKind.PREPARE_THEN_DEAL:
+                telemetry.deal_preparations_retained += 1
+    if node.state.can_deal(MW_RULES) and not deal_added:
+        end = node.state.clone()
+        cost = end.deal(MW_RULES)
+        actions: Tuple[Action, ...] = (("deal",),)
+        raw.append(
+            StrategicSuccessor(
+                StrategicActionKind.RAW_DEAL,
+                "deal_timing",
+                "exact legal Deal fallback",
+                actions,
+                cost,
+                end,
+                node.credit_level,
+                cost,
+                cost,
+                0,
+                _replay_edge(node.state, actions, end, cost),
+                False,
+                (
+                    "unrestricted legal Deal remains first-class",
+                    "child structural delta controls priority; epoch does not",
+                ),
+            )
+        )
+        telemetry.deal_successors_generated += 1
+
+    # 4. Probe only the best scheduled uncertain work, with a separate fixed
+    # normalized budget.  A miss is cached only for this exact tier.
+    confirmed: List[Tuple[EconomicProject, ActionabilityTier]] = []
+    probe_tier = actionability_tier_for_credit(node.credit_level)
+    probe_count = 0
+    probe_nodes = 0
+    per_tier_count = 0
+    probe_started = time.perf_counter()
+    budget_exhaustion_recorded = False
+    uncertain.sort(key=lambda item: item[0])
+    for _schedule, project, predicate in uncertain:
+        if probe_tier is None:
             break
-        resource = EconomicProjectResourceConfig(
-            added_cost_bounds=(
-                config.tactical_max_cost_by_credit[int(node.credit_level)],
-            ),
-            max_nodes_per_bound=min(
+        identity = _project_probe_identity(project, predicate)
+        key = ActionabilityCacheKey(
+            canonical_state_key(node.state), identity, probe_tier
+        )
+        cached = actionability_cache.get(key)
+        if cached is not None:
+            telemetry.actionability_cache_hits += 1
+            if cached.actionable_current_epoch:
+                confirmed.append((project, probe_tier))
+            else:
+                telemetry.inaccessible_retry_suppressed += 1
+                telemetry.actionability_retry_suppressions += 1
+            continue
+
+        tier_limit = config.max_actionability_probes_per_tier[int(probe_tier)]
+        tier_spec = config.actionability_tiers[int(probe_tier)]
+        elapsed_probe = time.perf_counter() - probe_started
+        exhausted = bool(
+            probe_count >= config.max_actionability_probes_per_expansion
+            or per_tier_count >= tier_limit
+            or probe_nodes + tier_spec.max_nodes
+            > config.max_actionability_nodes_per_expansion
+            or elapsed_probe + tier_spec.time_limit_s
+            > config.max_actionability_time_s_per_expansion
+            or telemetry.actionability_probe_nodes + tier_spec.max_nodes
+            > config.max_total_actionability_nodes
+        )
+        if exhausted:
+            telemetry.actionability_probes_skipped_due_quota += 1
+            if not budget_exhaustion_recorded:
+                telemetry.actionability_probe_budget_exhausted += 1
+                budget_exhaustion_recorded = True
+            continue
+
+        narrower_miss = False
+        for narrower in ActionabilityTier:
+            if int(narrower) >= int(probe_tier):
+                break
+            narrower_result = actionability_cache.get(
+                ActionabilityCacheKey(
+                    canonical_state_key(node.state), identity, narrower
+                )
+            )
+            if narrower_result is not None and not narrower_result.actionable_current_epoch:
+                narrower_miss = True
+                break
+        if narrower_miss:
+            telemetry.actionability_tier_escalations += 1
+
+        resource = normalized_actionability_resource(config, probe_tier)
+        telemetry.actionability_cache_misses += 1
+        telemetry.actionability_probes_attempted += 1
+        telemetry.actionability_probes_by_tier[int(probe_tier)] = (
+            telemetry.actionability_probes_by_tier.get(int(probe_tier), 0) + 1
+        )
+        call_started = time.perf_counter()
+        actionability = probe_project_actionability(
+            node.state,
+            project,
+            config=resource,
+        )
+        call_elapsed = time.perf_counter() - call_started
+        actionability_cache[key] = actionability
+        probe_count += 1
+        per_tier_count += 1
+        probe_nodes += actionability.nodes_expanded
+        telemetry.actionability_probe_nodes += actionability.nodes_expanded
+        telemetry.actionability_probe_seconds += call_elapsed
+        if actionability.actionable_current_epoch:
+            confirmed.append((project, probe_tier))
+
+    # 5. Realization is separately bounded and attempted only for confirmed
+    # actionable work.  An attempt consumes a realization slot even on miss.
+    bounded_used = 0
+    for project, confirmed_tier in confirmed:
+        if bounded_used >= config.max_bounded_projects_per_expansion:
+            break
+        if (
+            telemetry.tactical_nodes >= config.max_tactical_nodes
+            or _remaining_controller_time(started, config) <= 0
+        ):
+            break
+        bounded_used += 1
+        telemetry.project_realizations_attempted += 1
+        telemetry.realizations_by_tier[int(confirmed_tier)] = (
+            telemetry.realizations_by_tier.get(int(confirmed_tier), 0) + 1
+        )
+        result = realize_economic_project(
+            node.state,
+            project,
+            cards,
+            max_added_cost=config.tactical_max_cost_by_credit[int(node.credit_level)],
+            max_nodes=min(
                 config.tactical_nodes_per_project,
                 max(1, config.max_tactical_nodes - telemetry.tactical_nodes),
             ),
-            time_limit_s_per_bound=min(
+            time_limit_s=min(
                 config.tactical_time_limit_s_per_project,
                 max(0.01, _remaining_controller_time(started, config)),
             ),
             allow_foundation_increase=True,
         )
-        cache_key = (
-            canonical_state_key(node.state),
-            project.project_id,
-            int(node.credit_level),
-            resource.added_cost_bounds,
-            resource.max_nodes_per_bound,
-        )
-        actionability = actionability_cache.get(cache_key)
-        if actionability is None:
-            telemetry.actionability_cache_misses += 1
-            actionability = probe_project_actionability(
-                node.state,
-                project,
-                config=resource,
-            )
-            actionability_cache[cache_key] = actionability
-            telemetry.tactical_nodes += actionability.nodes_expanded
-        else:
-            telemetry.actionability_cache_hits += 1
-        if not actionability.actionable_current_epoch:
-            telemetry.inaccessible_retry_suppressed += 1
-            continue
-        result = realize_economic_project(
-            node.state,
-            project,
-            cards,
-            max_added_cost=resource.added_cost_bounds[-1],
-            max_nodes=resource.max_nodes_per_bound,
-            time_limit_s=resource.time_limit_s_per_bound,
-            allow_foundation_increase=True,
-        )
         telemetry.tactical_nodes += result.nodes_expanded
-        bounded_used += 1
         if (
             result.status
             not in (
@@ -1080,6 +1850,7 @@ def generate_strategic_successors(
         replay_cost = replay_actions(end, list(result.actions))
         if replay_cost != result.actual_corrected_cost:
             continue
+        telemetry.project_realizations_succeeded += 1
         raw.append(
             StrategicSuccessor(
                 StrategicActionKind.ECONOMIC_PROJECT,
@@ -1094,136 +1865,18 @@ def generate_strategic_successors(
                 result.nodes_expanded,
                 True,
                 False,
-                tuple(result.notes),
+                tuple(result.notes)
+                + (
+                    f"actionability_tier={confirmed_tier.name}",
+                    "value, actionability, and realization were evaluated separately",
+                ),
                 project.project_id,
             )
         )
 
-    campaign_limit = _campaign_limit(node.credit_level, config)
-    if (
-        config.enable_campaign_edges
-        and campaign_limit > 0
-        and telemetry.tactical_nodes < config.max_tactical_nodes
-        and _remaining_controller_time(started, config) > 0
-    ):
-        campaigns = analysis.economic.campaign_portfolio.campaigns[:campaign_limit]
-        for campaign in campaigns:
-            if _remaining_controller_time(started, config) <= 0:
-                break
-            remaining_nodes = max(1, config.max_tactical_nodes - telemetry.tactical_nodes)
-            result = realize_campaign_to_next_epoch(
-                node.state,
-                campaign,
-                cards,
-                max_added_cost=config.campaign_max_added_cost,
-                max_nodes=min(config.campaign_max_nodes, remaining_nodes),
-                time_limit_s=min(
-                    config.campaign_time_limit_s,
-                    max(0.01, _remaining_controller_time(started, config)),
-                ),
-            )
-            telemetry.tactical_nodes += result.nodes_expanded
-            if (
-                result.status
-                in (CampaignRealizationStatus.FOUND, CampaignRealizationStatus.PARTIAL)
-                and result.independent_replay_verified
-                and result.actions
-                and result.corrected_added_cost is not None
-            ):
-                raw.append(
-                    StrategicSuccessor(
-                        StrategicActionKind.FOUNDATION_CAMPAIGN,
-                        "campaign",
-                        f"campaign {campaign.label} through next epoch",
-                        result.actions,
-                        result.corrected_added_cost,
-                        result.resulting_state.clone(),
-                        node.credit_level,
-                        int(round(campaign.estimated_campaign_cost)),
-                        result.corrected_added_cost,
-                        result.nodes_expanded,
-                        True,
-                        False,
-                        (result.stop_reason, "campaign is reanalysed after this bounded edge"),
-                        campaign.label,
-                    )
-                )
-
-            if (
-                config.enable_removal_edges
-                and node.credit_level >= StrategicCreditLevel.SPECULATIVE
-                and campaign.target_removal_epoch == campaign.current_epoch + 1
-                and _remaining_controller_time(started, config) > 0
-                and telemetry.tactical_nodes < config.max_tactical_nodes
-            ):
-                removal = realize_campaign_to_removal_epoch(
-                    node.state,
-                    campaign,
-                    cards,
-                    max_added_cost=config.campaign_max_added_cost,
-                    max_nodes=min(
-                        config.campaign_max_nodes,
-                        max(1, config.max_tactical_nodes - telemetry.tactical_nodes),
-                    ),
-                    time_limit_s=min(
-                        config.campaign_time_limit_s,
-                        max(0.01, _remaining_controller_time(started, config)),
-                    ),
-                    beam_width=config.campaign_beam_width,
-                )
-                telemetry.tactical_nodes += removal.nodes_expanded
-                if (
-                    removal.status
-                    in (
-                        CampaignRemovalStatus.FOUNDATION_REMOVED,
-                        CampaignRemovalStatus.BAND_COMPLETE,
-                        CampaignRemovalStatus.PARTIAL,
-                    )
-                    and removal.independent_replay_verified
-                    and removal.actions
-                    and removal.corrected_added_cost is not None
-                ):
-                    raw.append(
-                        StrategicSuccessor(
-                            StrategicActionKind.FOUNDATION_REMOVAL,
-                            "campaign",
-                            f"removal campaign {campaign.label}",
-                            removal.actions,
-                            removal.corrected_added_cost,
-                            removal.end_state.clone(),
-                            node.credit_level,
-                            int(round(campaign.estimated_campaign_cost)),
-                            removal.corrected_added_cost,
-                            removal.nodes_expanded,
-                            True,
-                            False,
-                            (removal.stop_reason, "bounded removal miss is not impossibility"),
-                            campaign.label,
-                        )
-                    )
-
+    # 6/7. Broader legal tableau fallback appears only at credit level four.
     if raw_fallback_enabled(node.credit_level):
         raw.extend(_raw_move_successors(node))
-        if node.state.can_deal(MW_RULES) and analysis.deal_timing is None:
-            end = node.state.clone()
-            cost = end.deal(MW_RULES)
-            raw.append(
-                StrategicSuccessor(
-                    StrategicActionKind.RAW_DEAL,
-                    "deal_timing",
-                    "raw legal deal fallback",
-                    (("deal",),),
-                    cost,
-                    end,
-                    node.credit_level,
-                    1,
-                    cost,
-                    1,
-                    _replay_edge(node.state, (("deal",),), end, cost),
-                    False,
-                    ("engine-legal deal remains present at raw fallback",),
-                )
-            )
 
     deduplicated = deduplicate_strategic_successors(raw)
     return retain_diverse_portfolio(
@@ -1232,18 +1885,48 @@ def generate_strategic_successors(
     )
 
 
-def _node_priority(node: StrategicSearchNode) -> Tuple:
-    measurement = node.analysis.measurement
+def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
+    """Return the inspectable heuristic order; stock epoch is absent."""
+    progress_key = node.analysis.progress.ordering_key()
+    delta = node.incoming_edge.progress_delta if node.incoming_edge is not None else None
+    deal_kinds = {
+        StrategicActionKind.DEAL_NOW,
+        StrategicActionKind.PREPARE_THEN_DEAL,
+        StrategicActionKind.RAW_DEAL,
+    }
+    deal_delta_key = (
+        delta.deal_ordering_key()
+        if delta is not None
+        and node.incoming_edge is not None
+        and node.incoming_edge.kind in deal_kinds
+        else (0,) * 11
+    )
+    timing_priority = (
+        node.incoming_edge.deal_timing_priority
+        if node.incoming_edge is not None
+        else 0
+    )
+    deal_required_rank = (
+        timing_priority
+        if node.incoming_edge is not None
+        and node.incoming_edge.deal_timing_decision
+        == DealTimingDecisionKind.DEAL_REQUIRED_FOR_ACTIONABILITY.value
+        else 0
+    )
+    # Only an explicit actionability requirement may interrupt the intrinsic
+    # structural order. Other bounded timing preferences break structural
+    # ties after exact consequence deltas; neither rank contains an epoch.
     return (
-        0 if node.state.is_solved() else 1,
-        -measurement.foundation_count,
-        measurement.face_down_count,
-        measurement.stock_count // 10,
-        node.analysis.budget.hard_min_total,
-        node.g,
-        measurement.rehandling_debt,
-        -measurement.same_suit_run_mass,
-        -len(measurement.empty_columns),
+        progress_key[:5]
+        + (deal_required_rank,)
+        + progress_key[5:]
+        + deal_delta_key
+        + (timing_priority,)
+    )
+
+
+def _node_priority(node: StrategicSearchNode) -> Tuple:
+    return strategic_progress_order_key(node) + (
         int(node.credit_level),
         node.depth,
         node.node_id,
@@ -1251,23 +1934,7 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
 
 
 def _better_progress(candidate: StrategicSearchNode, incumbent: StrategicSearchNode) -> bool:
-    cm = candidate.analysis.measurement
-    im = incumbent.analysis.measurement
-    return (
-        cm.foundation_count,
-        -cm.face_down_count,
-        -(cm.stock_count // 10),
-        -candidate.g,
-        cm.same_suit_run_mass,
-        -cm.rehandling_debt,
-    ) > (
-        im.foundation_count,
-        -im.face_down_count,
-        -(im.stock_count // 10),
-        -incumbent.g,
-        im.same_suit_run_mass,
-        -im.rehandling_debt,
-    )
+    return candidate.analysis.progress.ordering_key() < incumbent.analysis.progress.ordering_key()
 
 
 def verify_complete_candidate(
@@ -1365,7 +2032,16 @@ def _trace_expansion(
             h_admissible=node.analysis.budget.admissible_remaining_lower_bound,
             incumbent=incumbent_cost,
             hard_headroom=node.analysis.budget.hard_headroom,
-            reason="expanded with diverse strategic portfolio",
+            priority_components=strategic_progress_order_key(node),
+            incoming_progress_delta=(
+                node.incoming_edge.progress_delta
+                if node.incoming_edge is not None
+                else None
+            ),
+            reason=(
+                "expanded with transparent structural progress order; "
+                "stock epoch excluded"
+            ),
         ),
         config.max_trace_entries,
     )
@@ -1386,6 +2062,12 @@ def _record_transition(
             (child.g, 5 - cm.stock_count // 10, cm.foundation_count, successor.label),
             config.max_timeline_entries,
         )
+        if successor.progress_delta is not None:
+            _append_bounded(
+                telemetry.deal_delta_timeline,
+                (child.g, successor.label, successor.progress_delta),
+                config.max_timeline_entries,
+            )
     if cm.foundation_count > pm.foundation_count:
         _append_bounded(
             telemetry.foundation_timeline,
@@ -1443,7 +2125,16 @@ def solve_anytime(
             heuristic_remaining_work=economic.estimated_remaining_work,
         )
         root_analysis = StrategicAnalysisSnapshot(
-            _state_hash(initial_state), economic, measurement, budget, (), (), None, (), ()
+            _state_hash(initial_state),
+            economic,
+            measurement,
+            budget,
+            (),
+            (),
+            None,
+            (),
+            (),
+            _strategic_progress(initial_state, economic, measurement, (), spent_cost=0),
         )
         root = StrategicSearchNode(
             0,
@@ -1457,33 +2148,43 @@ def solve_anytime(
             root_analysis,
         )
         return AnytimeSearchResult(
-            AnytimeControllerStatus.PREFLIGHT_FAILED,
-            preflight,
-            initial_incumbent_cost,
-            None,
-            supplied_record,
-            initial_incumbent_cost,
-            (),
-            root,
-            time.perf_counter() - started,
-            0,
-            0,
-            0,
-            0,
-            telemetry,
-            "; ".join(preflight.failures),
+            status=AnytimeControllerStatus.PREFLIGHT_FAILED,
+            preflight=preflight,
+            initial_incumbent_cost=initial_incumbent_cost,
+            first_solution=None,
+            incumbent=supplied_record,
+            incumbent_cost=initial_incumbent_cost,
+            incumbent_progression=(),
+            best_node=root,
+            best_progress_node=root,
+            lowest_g_node=root,
+            deepest_stock_node=root,
+            most_foundations_node=root,
+            lowest_dependency_node=root,
+            elapsed_seconds=time.perf_counter() - started,
+            strategic_expansions=0,
+            tactical_nodes=0,
+            frontier_remaining=0,
+            maximum_credit_reached=0,
+            telemetry=telemetry,
+            stop_reason="; ".join(preflight.failures),
         )
 
     current_incumbent_cost = initial_incumbent_cost
     current_incumbent = supplied_record
     first_solution: Optional[IncumbentRecord] = None
     progression: List[int] = []
+    analysis_cache: Dict[
+        Tuple[CanonicalStateKey, AnalysisConfigFingerprint], StrategicAnalysisFacts
+    ] = {}
     root_analysis = analyze_strategic_state(
         initial_state,
         cards,
         spent_cost=0,
         incumbent_cost=current_incumbent_cost,
         config=config,
+        analysis_cache=analysis_cache,
+        telemetry=telemetry,
     )
     telemetry.reanalyses += 1
     root = StrategicSearchNode(
@@ -1498,13 +2199,18 @@ def solve_anytime(
         root_analysis,
     )
     best_node = root
+    best_progress_node = root
+    lowest_g_node = root
+    deepest_stock_node = root
+    most_foundations_node = root
+    lowest_dependency_node = root
     tt = StrategicTranspositionTable()
     tt.admit(root.state, 0)
     frontier: List[Tuple[Tuple, int, StrategicSearchNode]] = []
     uid = 0
     heapq.heappush(frontier, (_node_priority(root), uid, root))
     expansion_credits: set[Tuple[CanonicalStateKey, int]] = set()
-    actionability_cache: Dict[Tuple, ProjectActionability] = {}
+    actionability_cache: Dict[ActionabilityCacheKey, ProjectActionability] = {}
     maximum_credit_reached = 0
     stop_reason = "frontier exhausted"
 
@@ -1574,11 +2280,62 @@ def solve_anytime(
             telemetry.credit_expansions.get(int(node.credit_level), 0) + 1
         )
         m = node.analysis.measurement
+        stock_epoch = 5 - m.stock_count // 10
+        telemetry.expansions_by_foundation_count[m.foundation_count] = (
+            telemetry.expansions_by_foundation_count.get(m.foundation_count, 0) + 1
+        )
+        telemetry.expansions_by_stock_epoch[stock_epoch] = (
+            telemetry.expansions_by_stock_epoch.get(stock_epoch, 0) + 1
+        )
+        if (
+            node.incoming_edge is not None
+            and node.incoming_edge.kind
+            in (
+                StrategicActionKind.DEAL_NOW,
+                StrategicActionKind.PREPARE_THEN_DEAL,
+                StrategicActionKind.RAW_DEAL,
+            )
+        ):
+            telemetry.stock_successors_expanded += 1
         telemetry.best_foundations = max(telemetry.best_foundations, m.foundation_count)
-        telemetry.best_stock_epoch = max(telemetry.best_stock_epoch, 5 - m.stock_count // 10)
+        telemetry.best_stock_epoch = max(telemetry.best_stock_epoch, stock_epoch)
         telemetry.lowest_face_down = min(telemetry.lowest_face_down, m.face_down_count)
-        if _better_progress(node, best_node):
+        if _better_progress(node, best_progress_node):
+            best_progress_node = node
             best_node = node
+        if (node.g, strategic_progress_order_key(node)) < (
+            lowest_g_node.g,
+            strategic_progress_order_key(lowest_g_node),
+        ):
+            lowest_g_node = node
+        if (
+            len(node.state.stock),
+            node.g,
+            node.node_id,
+        ) < (
+            len(deepest_stock_node.state.stock),
+            deepest_stock_node.g,
+            deepest_stock_node.node_id,
+        ):
+            deepest_stock_node = node
+        if (
+            -m.foundation_count,
+            strategic_progress_order_key(node),
+        ) < (
+            -most_foundations_node.analysis.measurement.foundation_count,
+            strategic_progress_order_key(most_foundations_node),
+        ):
+            most_foundations_node = node
+        if (
+            m.critical_dependencies_pending,
+            m.face_down_count,
+            strategic_progress_order_key(node),
+        ) < (
+            lowest_dependency_node.analysis.measurement.critical_dependencies_pending,
+            lowest_dependency_node.analysis.measurement.face_down_count,
+            strategic_progress_order_key(lowest_dependency_node),
+        ):
+            lowest_dependency_node = node
 
         successors = generate_strategic_successors(
             node,
@@ -1608,6 +2365,14 @@ def solve_anytime(
                     spent_cost=ng,
                     incumbent_cost=current_incumbent_cost,
                     config=config,
+                    analysis_cache=analysis_cache,
+                    telemetry=telemetry,
+                    precomputed_economic=successor.precomputed_economic,
+                    precomputed_measurement=successor.precomputed_measurement,
+                    precomputed_state_key=successor.precomputed_state_key,
+                    precomputed_config_fingerprint=(
+                        successor.precomputed_config_fingerprint
+                    ),
                 )
             except (ValueError, AssertionError):
                 telemetry.count_suppression("full reanalysis rejected successor")
@@ -1617,7 +2382,19 @@ def solve_anytime(
                 telemetry.full_reanalyses_after_foundation += 1
             if len(successor.end_state.stock) < len(node.state.stock):
                 telemetry.full_reanalyses_after_deal += 1
-            child_successor = replace(successor, analysis=child_analysis)
+            delta = successor.progress_delta
+            if delta is None:
+                delta = structural_progress_delta(
+                    node.analysis.measurement,
+                    child_analysis.measurement,
+                    actionable_before=len(node.analysis.actionable_projects),
+                    actionable_after=len(child_analysis.actionable_projects),
+                )
+            child_successor = replace(
+                successor,
+                analysis=child_analysis,
+                progress_delta=delta,
+            )
             uid += 1
             child = StrategicSearchNode(
                 uid,
@@ -1630,16 +2407,56 @@ def solve_anytime(
                 node.credit_level,
                 child_analysis,
             )
+            child_measurement = child.analysis.measurement
+            if _better_progress(child, best_progress_node):
+                best_progress_node = child
+                best_node = child
+            if (child.g, child.node_id) < (lowest_g_node.g, lowest_g_node.node_id):
+                lowest_g_node = child
+            if (
+                len(child.state.stock),
+                child.g,
+                child.node_id,
+            ) < (
+                len(deepest_stock_node.state.stock),
+                deepest_stock_node.g,
+                deepest_stock_node.node_id,
+            ):
+                deepest_stock_node = child
+            if (
+                -child_measurement.foundation_count,
+                strategic_progress_order_key(child),
+            ) < (
+                -most_foundations_node.analysis.measurement.foundation_count,
+                strategic_progress_order_key(most_foundations_node),
+            ):
+                most_foundations_node = child
+            if (
+                child_measurement.critical_dependencies_pending,
+                child_measurement.face_down_count,
+                strategic_progress_order_key(child),
+            ) < (
+                lowest_dependency_node.analysis.measurement.critical_dependencies_pending,
+                lowest_dependency_node.analysis.measurement.face_down_count,
+                strategic_progress_order_key(lowest_dependency_node),
+            ):
+                lowest_dependency_node = child
             if child.analysis.budget.proof_prunable:
                 telemetry.proof_pruned += 1
                 telemetry.count_suppression("admissible incumbent bound")
                 continue
             heapq.heappush(frontier, (_node_priority(child), uid, child))
             telemetry.retained += 1
-            telemetry.successor_kinds[successor.kind.value] = (
-                telemetry.successor_kinds.get(successor.kind.value, 0) + 1
+            telemetry.successor_kinds[child_successor.kind.value] = (
+                telemetry.successor_kinds.get(child_successor.kind.value, 0) + 1
             )
-            _record_transition(node, successor, child, telemetry, config)
+            if child_successor.kind in (
+                StrategicActionKind.DEAL_NOW,
+                StrategicActionKind.PREPARE_THEN_DEAL,
+                StrategicActionKind.RAW_DEAL,
+            ):
+                telemetry.stock_successors_admitted += 1
+            _record_transition(node, child_successor, child, telemetry, config)
 
         # Revisit the same exact state at a broader credit.  This bypasses TT
         # admission deliberately: TT dominates state arrival, not expansion
@@ -1680,6 +2497,11 @@ def solve_anytime(
         incumbent_cost=current_incumbent_cost,
         incumbent_progression=tuple(progression),
         best_node=best_node,
+        best_progress_node=best_progress_node,
+        lowest_g_node=lowest_g_node,
+        deepest_stock_node=deepest_stock_node,
+        most_foundations_node=most_foundations_node,
+        lowest_dependency_node=lowest_dependency_node,
         elapsed_seconds=elapsed,
         strategic_expansions=telemetry.expanded,
         tactical_nodes=telemetry.tactical_nodes,
