@@ -1,6 +1,6 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; Phase 4 v0.6 supply consumption and named dependency closure are verified but the two-foundation gate remains partial
+**Status:** Forward implementation plan; Phase 4 v0.7 continuity, coherent supply scope and first construction economics are verified, but the two-foundation gate remains partial
 **Date:** 2026-08-28
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
@@ -595,6 +595,37 @@ Only after strategic quality is demonstrated:
 Do not use low-level optimisation to compensate for a poor strategic model.
 
 ## 7. Immediate development sprint
+
+Controller v0.7 now preserves objective-specific structural investment across
+fresh state analysis. Successful dependency closure can issue bounded
+same-campaign continuation credit, and the strategic portfolio explicitly
+retains an alternate campaign, durable run construction, Deal,
+workspace/reveal work and broad raw play. Supply contracts are scoped to their
+smallest coherent critical subset; supporting and optional assets no longer
+block fulfilment. Campaign closure exposes a downstream-unlock critical path.
+The first whole-deal construction view records durable joins, independent build
+and removal horizons, exact future free-join deferral, receiver/workspace
+conflict and a structural balance sheet. All of these additions are ordering
+and coverage evidence only.
+
+The v0.7 capability gates are verified. In the natural cost-21 Gate E, a
+selected Hearts closure closed ordering/receiver dependencies and was followed
+by a permanent Hearts join; Diamond #1 reached a two-source critical path and
+coherent supply contracts fulfilled. This authorized one untouched 180-second
+run. That Gate F remained replay-valid but ended at corrected `g=53`, one
+foundation, stock 20 and 27 face-down cards after only nine strategic
+expansions. Foundation #2 was not removed, so repeatability and later optional
+gates were not run.
+
+The next sprint should address bounded tactical resource allocation after a
+harvested continuation. Current-epoch/removal realisers should not repeatedly
+consume most of the deadline while fresh analysis still identifies a concrete
+receiver, interval or overlay bottleneck. Allocate the existing fixed budget
+to the selected high-downstream-unlock closure or construction step, without
+adding a new search engine, increasing benchmark limits, or changing proof
+semantics. See `docs/anytime_whole_game_controller_v0_7.md`.
+
+### Historical v0.6 status
 
 The original Phase 1A work below has been completed by the subsequent strategic
 analysis sprints. Controller v0.6 now distinguishes delivered stock supply from

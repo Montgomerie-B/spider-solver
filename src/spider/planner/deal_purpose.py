@@ -391,7 +391,7 @@ def validate_deal_purpose_contract(
         is_supply
         and supply_consumption is not None
         and supply_consumption.fully_consumed
-        and any(item.direct_campaign_advance for item in supply_consumption.evidence)
+        and supply_consumption.critical_direct_campaign_advance
     )
     if is_supply and supply_fulfilled:
         status = DealPurposeStatus.FULFILLED

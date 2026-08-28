@@ -132,6 +132,39 @@ class CampaignDependencyGraph:
 
 
 @dataclass(frozen=True)
+class CampaignCriticalPathEntry:
+    dependency_id: str
+    kind: CampaignDependencyType
+    prerequisites: Tuple[str, ...]
+    downstream_dependencies_unlocked: int
+    source_depth: int
+    supplied_asset_waiting: bool
+    receiver_or_workspace_bottleneck: bool
+    criticality_rank: int
+    rationale: str
+    proof_pruning_allowed: bool = False
+
+    def ordering_key(self) -> Tuple:
+        return (
+            self.criticality_rank,
+            -self.downstream_dependencies_unlocked,
+            -int(self.supplied_asset_waiting),
+            -int(self.receiver_or_workspace_bottleneck),
+            self.source_depth,
+            self.dependency_id,
+        )
+
+
+@dataclass(frozen=True)
+class CampaignCriticalPathSummary:
+    campaign_id: str
+    entries: Tuple[CampaignCriticalPathEntry, ...]
+    total_weighted_burden: int
+    bottleneck_dependency_id: Optional[str]
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
 class DependencyClosureStep:
     action: Action
     paid_cost: int
@@ -154,6 +187,7 @@ class DependencyClosureAssessment:
     supplied_not_consumed: int
     near_terminal: bool
     proof_pruning_allowed: bool = False
+    critical_path: Optional[CampaignCriticalPathSummary] = None
 
 
 @dataclass(frozen=True)
@@ -255,6 +289,8 @@ def _supply_unconsumed(
         if result.campaign_id != campaign_id:
             continue
         for obligation, evidence in zip(result.obligations, result.evidence):
+            if not obligation.is_critical:
+                continue
             if evidence.stage not in (
                 SupplyConsumptionStage.CONSUMED,
                 SupplyConsumptionStage.INTEGRATED,
@@ -387,22 +423,25 @@ def build_campaign_dependency_graph(
     movable_bands = tuple(band for band in bands if band.movable)
     joinable = any(bands_can_join(upper, lower) for upper in movable_bands for lower in movable_bands)
     if len(movable_bands) > 1 and not joinable:
+        receiver_id = f"receiver:{campaign.suit}"
         dependencies.append(
             CampaignDependency(
                 f"ordering:{campaign.suit}",
                 CampaignDependencyType.FRAGMENT_ORDERING,
                 campaign_id,
                 "same-suit fragments exist but are not currently joinable in legal order",
+                prerequisites=(receiver_id,),
             )
         )
         dependencies.append(
             CampaignDependency(
-                f"receiver:{campaign.suit}",
+                receiver_id,
                 CampaignDependencyType.RECEIVER_MISSING,
                 campaign_id,
                 "campaign fragments lack a direct or bounded current receiver",
             )
         )
+        edges.append((receiver_id, f"ordering:{campaign.suit}"))
 
     empty_count = sum(column.is_empty() for column in state.columns)
     if campaign.space_requirement > empty_count:
@@ -430,6 +469,13 @@ def build_campaign_dependency_graph(
                 evidence.active_source_key,
             )
         )
+        for interval in dependencies:
+            if (
+                interval.kind == CampaignDependencyType.MISSING_SAME_SUIT_INTERVAL
+                and interval.rank_interval is not None
+                and interval.rank_interval[0] >= obligation.card.rank >= interval.rank_interval[1]
+            ):
+                edges.append((dependency_id, interval.dependency_id))
 
     terminal_id = f"terminal:{campaign_id}"
     blockers = tuple(item.dependency_id for item in dependencies)
@@ -461,6 +507,80 @@ def build_campaign_dependency_graph(
         tuple(sorted(overlays, key=lambda item: item.blocker_id)),
         terminal_id,
         hashlib.sha256(payload).hexdigest()[:16],
+    )
+
+
+def _transitive_downstream_count(
+    graph: CampaignDependencyGraph, dependency_id: str
+) -> int:
+    outgoing: Dict[str, set[str]] = {}
+    for source, destination in graph.edges:
+        outgoing.setdefault(source, set()).add(destination)
+    seen: set[str] = set()
+    pending = list(outgoing.get(dependency_id, ()))
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        pending.extend(outgoing.get(current, ()))
+    return len(seen)
+
+
+def _criticality_rank(dependency: CampaignDependency) -> int:
+    """Transparent bottleneck class, independent of campaign suit."""
+    return {
+        CampaignDependencyType.SUPPLIED_NOT_CONSUMED: 0,
+        CampaignDependencyType.RECEIVER_MISSING: 1,
+        CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED: 1,
+        CampaignDependencyType.SOURCE_BURIED: 2,
+        CampaignDependencyType.MIXED_OVERLAY: 2,
+        CampaignDependencyType.MISSING_SAME_SUIT_INTERVAL: 3,
+        CampaignDependencyType.FRAGMENT_ORDERING: 3,
+        CampaignDependencyType.WORKSPACE_REQUIRED: 4,
+        CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE: 99,
+    }[dependency.kind]
+
+
+def build_campaign_critical_path(
+    graph: CampaignDependencyGraph,
+) -> CampaignCriticalPathSummary:
+    """Return a small dependency bottleneck view for ordering and telemetry."""
+    entries = []
+    for dependency in graph.dependencies:
+        if dependency.kind == CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE:
+            continue
+        downstream = _transitive_downstream_count(graph, dependency.dependency_id)
+        waiting = dependency.kind == CampaignDependencyType.SUPPLIED_NOT_CONSUMED
+        receiver = dependency.kind in (
+            CampaignDependencyType.RECEIVER_MISSING,
+            CampaignDependencyType.WORKSPACE_REQUIRED,
+            CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED,
+        )
+        entries.append(
+            CampaignCriticalPathEntry(
+                dependency.dependency_id,
+                dependency.kind,
+                dependency.prerequisites,
+                downstream,
+                dependency.depth,
+                waiting,
+                receiver,
+                _criticality_rank(dependency),
+                (
+                    f"unlocks {downstream} downstream dependency node(s); "
+                    f"source_depth={dependency.depth}; waiting_supply={waiting}; "
+                    f"receiver_or_workspace={receiver}"
+                ),
+            )
+        )
+    entries.sort(key=lambda item: item.ordering_key())
+    burden = sum(1 + item.downstream_dependencies_unlocked for item in entries)
+    return CampaignCriticalPathSummary(
+        graph.campaign_id,
+        tuple(entries),
+        burden,
+        entries[0].dependency_id if entries else None,
     )
 
 
@@ -505,6 +625,8 @@ def assess_campaign_dependency_closure(
         coverage,
         supply,
         len(removal_blockers) <= 2 and coverage >= 8,
+        False,
+        build_campaign_critical_path(graph),
     )
 
 
@@ -533,12 +655,14 @@ def _priority(
     actions: int,
 ) -> Tuple:
     graph = assessment.graph
+    critical_path = assessment.critical_path or build_campaign_critical_path(graph)
     unresolved = tuple(
         item for item in graph.dependencies
         if item.kind != CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE
     )
     return (
         0 if len(state.foundations) > start_foundations else 1,
+        critical_path.total_weighted_burden,
         len(unresolved),
         graph.count(CampaignDependencyType.SUPPLIED_NOT_CONSUMED),
         sum(
@@ -594,7 +718,10 @@ def _action_targets(
                 CampaignDependencyType.MISSING_SAME_SUIT_INTERVAL,
             )
         )
-    return tuple(dict.fromkeys(ids))
+    unique = tuple(dict.fromkeys(ids))
+    path = build_campaign_critical_path(graph)
+    ranks = {item.dependency_id: item.ordering_key() for item in path.entries}
+    return tuple(sorted(unique, key=lambda item: ranks.get(item, (100, 0, 0, 0, 0, item))))
 
 
 def _failure_status(graph: CampaignDependencyGraph) -> DependencyClosureStatus:

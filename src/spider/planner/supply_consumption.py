@@ -33,6 +33,14 @@ class SupplyConsumptionStage(str, Enum):
     EXPIRED = "EXPIRED"
 
 
+class SupplyObligationRole(str, Enum):
+    """Role of an incoming asset in the purpose-bearing milestone."""
+
+    CRITICAL = "CRITICAL"
+    SUPPORTING = "SUPPORTING"
+    OPTIONAL = "OPTIONAL"
+
+
 @dataclass(frozen=True)
 class CampaignSupplyObligation:
     obligation_id: str
@@ -47,6 +55,13 @@ class CampaignSupplyObligation:
     receiver_supply: bool = False
     interchangeable_copy_allowed: bool = True
     proof_pruning_allowed: bool = False
+    role: SupplyObligationRole = SupplyObligationRole.CRITICAL
+    coherent_milestone_id: Optional[str] = None
+    scope_reason: str = "required by the named campaign milestone"
+
+    @property
+    def is_critical(self) -> bool:
+        return self.role == SupplyObligationRole.CRITICAL
 
 
 @dataclass(frozen=True)
@@ -128,7 +143,46 @@ class SupplyConsumptionResult:
 
     @property
     def fully_consumed(self) -> bool:
-        return bool(self.obligations) and self.consumed_count == len(self.obligations)
+        """Whether the smallest coherent critical subset was consumed.
+
+        Supporting and optional assets improve economics but never make an
+        otherwise fulfilled purpose-bearing contract impossible to fulfil.
+        """
+        critical = self.critical_obligations
+        return bool(critical) and self.critical_consumed_count == len(critical)
+
+    @property
+    def critical_obligations(self) -> Tuple[CampaignSupplyObligation, ...]:
+        return tuple(item for item in self.obligations if item.is_critical)
+
+    @property
+    def supporting_obligations(self) -> Tuple[CampaignSupplyObligation, ...]:
+        return tuple(
+            item for item in self.obligations if item.role == SupplyObligationRole.SUPPORTING
+        )
+
+    @property
+    def optional_obligations(self) -> Tuple[CampaignSupplyObligation, ...]:
+        return tuple(
+            item for item in self.obligations if item.role == SupplyObligationRole.OPTIONAL
+        )
+
+    @property
+    def critical_consumed_count(self) -> int:
+        critical_ids = {item.obligation_id for item in self.critical_obligations}
+        return sum(
+            item.obligation_id in critical_ids
+            and item.stage in (SupplyConsumptionStage.CONSUMED, SupplyConsumptionStage.INTEGRATED)
+            for item in self.evidence
+        )
+
+    @property
+    def critical_direct_campaign_advance(self) -> bool:
+        critical_ids = {item.obligation_id for item in self.critical_obligations}
+        return any(
+            item.obligation_id in critical_ids and item.direct_campaign_advance
+            for item in self.evidence
+        )
 
     @property
     def integrated_count(self) -> int:
@@ -158,6 +212,84 @@ def _selected_next_row_sources(
     )
 
 
+def _coherent_critical_ranks(
+    campaign: Optional[FoundationCampaign],
+    candidate_ranks: Sequence[int],
+) -> Tuple[int, ...]:
+    """Choose the smallest explicit critical-path milestone in this row."""
+    available = set(candidate_ranks)
+    if not available:
+        return ()
+    if campaign is not None:
+        for step in campaign.critical_path:
+            ranks = tuple(rank for rank in step.ranks if rank in available)
+            if ranks:
+                # All row assets cited by this one step form a genuinely
+                # multi-asset milestone; later steps are merely supporting.
+                return tuple(dict.fromkeys(ranks))
+        must = tuple(
+            need.rank
+            for need in campaign.rank_needs
+            if need.must_excavate and need.rank in available
+        )
+        if must:
+            return (must[0],)
+    # A campaign label without a full plan may justify one exact incoming
+    # source, never every nominally useful same-suit card in the row.
+    return (next(iter(candidate_ranks)),)
+
+
+def scope_campaign_supply_obligations(
+    obligations: Sequence[CampaignSupplyObligation],
+    *,
+    critical_dependency_keys: Sequence[str],
+    supporting_dependency_keys: Sequence[str] = (),
+    coherent_milestone_id: Optional[str] = None,
+) -> Tuple[CampaignSupplyObligation, ...]:
+    """Apply an objective-specific coherent scope to already bound assets.
+
+    This public helper supports contract producers and capability fixtures
+    whose milestone legitimately requires several incoming assets.
+    """
+    critical = set(critical_dependency_keys)
+    supporting = set(supporting_dependency_keys)
+    claimed_critical: set[str] = set()
+    out = []
+    for item in obligations:
+        is_critical = (
+            item.dependency_key in critical
+            and item.dependency_key not in claimed_critical
+        )
+        if is_critical:
+            claimed_critical.add(item.dependency_key)
+        role = (
+            SupplyObligationRole.CRITICAL
+            if is_critical
+            else (
+                SupplyObligationRole.SUPPORTING
+                if item.dependency_key in supporting
+                else SupplyObligationRole.OPTIONAL
+            )
+        )
+        out.append(
+            replace(
+                item,
+                role=role,
+                coherent_milestone_id=coherent_milestone_id,
+                scope_reason=(
+                    "required by the immediate coherent campaign milestone"
+                    if is_critical
+                    else (
+                        "useful support but not required for contract fulfilment"
+                        if role == SupplyObligationRole.SUPPORTING
+                        else "optional or substitutable asset outside the critical subset"
+                    )
+                ),
+            )
+        )
+    return tuple(out)
+
+
 def derive_campaign_supply_obligations(
     state_before: SpiderState,
     exact_row: Sequence[Card],
@@ -181,18 +313,55 @@ def derive_campaign_supply_obligations(
         if source.stock_column is not None
     }
     suit = campaign.suit if campaign is not None else campaign_id.split("#", 1)[0].lower()
-    out = []
+    candidates = []
     for column, card in enumerate(exact_row):
         source = selected_by_column.get(column)
-        if source is None:
-            if card.suit != suit:
-                continue
-            source_key = f"stock:{epoch}:{column}"
-        else:
+        selected_source = source is not None
+        if selected_source:
             if source.card != card:
                 continue
             source_key = source.source_key
+        else:
+            if card.suit != suit:
+                continue
+            source_key = f"stock:{epoch}:{column}"
+        candidates.append((column, card, source_key, selected_source))
+    selected_ranks = tuple(
+        card.rank for _column, card, _source_key, selected_source in candidates if selected_source
+    )
+    critical_ranks = _coherent_critical_ranks(
+        campaign,
+        selected_ranks or tuple(card.rank for _column, card, _source, _selected in candidates),
+    )
+    milestone_id = (
+        f"{campaign_id}:epoch-{epoch}:ranks-{'-'.join(map(str, critical_ranks))}"
+        if critical_ranks
+        else f"{campaign_id}:epoch-{epoch}:no-coherent-supply"
+    )
+    critical_columns = set()
+    for rank in critical_ranks:
+        match = next(
+            (
+                column
+                for column, card, _source, selected_source in candidates
+                if card.rank == rank and (selected_source or not selected_ranks)
+            ),
+            None,
+        )
+        if match is not None:
+            critical_columns.add(match)
+    out = []
+    for column, card, source_key, selected_source in candidates:
         receiver_rank = card.rank + 1 if card.rank < 13 else None
+        role = (
+            SupplyObligationRole.CRITICAL
+            if column in critical_columns
+            else (
+                SupplyObligationRole.SUPPORTING
+                if selected_source
+                else SupplyObligationRole.OPTIONAL
+            )
+        )
         out.append(
             CampaignSupplyObligation(
                 obligation_id=_obligation_id(campaign_id, source_key, card),
@@ -204,6 +373,17 @@ def derive_campaign_supply_obligations(
                 dependency_key=f"rank:{card.rank}:{suit}",
                 dependency_interval=(card.rank, card.rank),
                 expected_receiver_rank=receiver_rank,
+                role=role,
+                coherent_milestone_id=milestone_id,
+                scope_reason=(
+                    "required by the earliest actionable campaign critical-path milestone"
+                    if role == SupplyObligationRole.CRITICAL
+                    else (
+                        "selected campaign supply supporting a later milestone"
+                        if role == SupplyObligationRole.SUPPORTING
+                        else "same-suit row asset not required by the promised milestone"
+                    )
+                ),
             )
         )
     return tuple(out)

@@ -51,6 +51,7 @@ from spider.planner.campaign_dependency_closure import (
     DependencyClosureResult,
     DependencyClosureStatus,
     build_campaign_dependency_graph,
+    build_campaign_critical_path,
     realize_campaign_dependency_closure,
 )
 from spider.planner.deal_timing import (
@@ -132,11 +133,30 @@ from spider.planner.residual_campaign import (
     retain_foundation_checkpoint_portfolio,
 )
 from spider.planner.supply_consumption import (
+    SupplyObligationRole,
     SupplyConsumptionResult,
     SupplyConsumptionStage,
     advance_supply_consumption_results,
     invalidate_supply_result,
     supply_result_for_contract,
+)
+from spider.planner.structural_construction import (
+    ConstructionDisposition,
+    SameSuitConstructionOpportunity,
+    StructuralConstructionAnalysis,
+    analyze_same_suit_construction,
+)
+from spider.planner.structural_investment import (
+    SameCampaignContinuationCredit,
+    SameCampaignContinuationStatus,
+    StructuralInvestment,
+    StructuralInvestmentLedger,
+    StructuralInvestmentStatus,
+    continuation_from_investment,
+    investment_from_construction,
+    investment_from_dependency_closure,
+    refresh_continuation_credit,
+    successor_matches_continuation,
 )
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.state_identity import (
@@ -159,6 +179,7 @@ class StrategicActionKind(str, Enum):
     FOUNDATION_REMOVAL = "FOUNDATION_REMOVAL"
     CAMPAIGN_CORRIDOR = "CAMPAIGN_CORRIDOR"
     CAMPAIGN_DEPENDENCY_CLOSURE = "CAMPAIGN_DEPENDENCY_CLOSURE"
+    SAME_SUIT_CONSTRUCTION = "SAME_SUIT_CONSTRUCTION"
     DEAL_NOW = "DEAL_NOW"
     PREPARE_THEN_DEAL = "PREPARE_THEN_DEAL"
     RAW_TABLEAU_MOVE = "RAW_TABLEAU_MOVE"
@@ -265,6 +286,13 @@ class AnytimeControllerConfig:
     )
     enable_pre_foundation_diversity: bool = True
     max_pre_foundation_geometries: int = 6
+    enable_structural_investment: bool = True
+    enable_same_campaign_continuity: bool = True
+    continuation_max_further_cost: int = 14
+    continuation_max_descendant_expansions: int = 2
+    continuation_max_elapsed_seconds: float = 30.0
+    enable_same_suit_construction: bool = True
+    max_construction_successors_per_expansion: int = 2
     deal_timing_config: DealTimingConfig = field(
         default_factory=lambda: DealTimingConfig(
             max_preparation_projects=2,
@@ -329,6 +357,14 @@ class AnytimeControllerConfig:
             raise ValueError("Deal contract horizon must be positive")
         if not 3 <= self.max_pre_foundation_geometries <= 6:
             raise ValueError("pre-foundation geometry limit must be in 3..6")
+        if (
+            self.continuation_max_further_cost <= 0
+            or self.continuation_max_descendant_expansions <= 0
+            or self.continuation_max_elapsed_seconds <= 0
+        ):
+            raise ValueError("same-campaign continuation limits must be positive")
+        if self.max_construction_successors_per_expansion <= 0:
+            raise ValueError("construction successor limit must be positive")
 
 
 @dataclass(frozen=True)
@@ -517,6 +553,7 @@ class StrategicAnalysisSnapshot:
     progress: StrategicProgressComponents
     residual: ResidualCampaignAssessment
     stage: AnalysisStage = AnalysisStage.STRATEGIC_CORE
+    construction: Optional[StructuralConstructionAnalysis] = None
 
 
 @dataclass(frozen=True)
@@ -553,6 +590,9 @@ class StrategicSuccessor:
     closure_attempted_before_deal: bool = False
     closure_result_before_deal: Optional[str] = None
     successive_deal_reason: Optional[str] = None
+    structural_investment: Optional[StructuralInvestment] = None
+    continuation_credit: Optional[SameCampaignContinuationCredit] = None
+    construction_opportunity: Optional[SameSuitConstructionOpportunity] = None
 
 
 @dataclass(frozen=True)
@@ -577,6 +617,10 @@ class StrategicSearchNode:
     supply_consumption_results: Tuple[SupplyConsumptionResult, ...] = ()
     dependency_closure_history: Tuple[DependencyClosureResult, ...] = ()
     successive_deal_audit_history: Tuple[SuccessiveDealAuditEntry, ...] = ()
+    structural_investment_ledger: StructuralInvestmentLedger = field(
+        default_factory=StructuralInvestmentLedger
+    )
+    continuation_credit: Optional[SameCampaignContinuationCredit] = None
 
 
 @dataclass(frozen=True)
@@ -773,6 +817,48 @@ class ControllerTelemetry:
     dependency_closure_timeline: List[
         Tuple[int, str, str, int, int, Tuple[str, ...], Tuple[str, ...]]
     ] = field(default_factory=list)
+    investments_created_by_kind: Dict[str, int] = field(default_factory=dict)
+    structural_investment_paid_cost: int = 0
+    structural_expected_harvest: int = 0
+    structural_actual_harvest: int = 0
+    unharvested_investments: int = 0
+    abandoned_or_superseded_investments: int = 0
+    continuation_credits_created: int = 0
+    continuation_descendants_admitted: int = 0
+    continuation_descendants_retained: int = 0
+    continuation_credits_replanned: int = 0
+    continuation_credits_harvested: int = 0
+    continuation_credits_invalidated: int = 0
+    continuation_credits_expired: int = 0
+    continuation_credits_superseded: int = 0
+    critical_supply_obligations: int = 0
+    supporting_supply_obligations: int = 0
+    optional_supply_assets: int = 0
+    critical_supply_consumed: int = 0
+    critical_supply_integrated: int = 0
+    coherent_full_supply_fulfilments: int = 0
+    critical_paths_built: int = 0
+    high_unlock_dependencies_chosen: int = 0
+    receivers_created_by_closure: int = 0
+    closure_successors_admitted: int = 0
+    same_suit_construction_opportunities: int = 0
+    two_card_construction_joins: int = 0
+    larger_construction_merges: int = 0
+    late_removal_construction_opportunities: int = 0
+    free_future_join_deferrals: int = 0
+    workspace_conflict_deferrals: int = 0
+    structural_investment_timeline: List[Tuple[int, str, str, int, int]] = field(
+        default_factory=list
+    )
+    continuation_timeline: List[Tuple[int, str, str, str]] = field(
+        default_factory=list
+    )
+    supply_scope_timeline: List[Tuple[int, str, int, int, int]] = field(
+        default_factory=list
+    )
+    construction_timeline: List[Tuple[int, str, str, int, Optional[int]]] = field(
+        default_factory=list
+    )
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -1431,6 +1517,20 @@ def analyze_strategic_state(
         corridor_config=config.corridor_config,
         maximum_lanes=config.residual_lanes_by_credit[-1],
     )
+    campaigns = economic.campaign_portfolio.campaigns
+    # Campaign critical-path columns identify sources as well as receivers;
+    # they must not all be treated as uniquely reserved receiver geometry.
+    # Explicit receiver reservations can be supplied by focused callers.
+    receiver_columns: Tuple[int, ...] = ()
+    construction = (
+        analyze_same_suit_construction(
+            state,
+            campaigns=campaigns,
+            critical_receiver_columns=receiver_columns,
+        )
+        if config.enable_same_suit_construction
+        else None
+    )
     return StrategicAnalysisSnapshot(
         state_hash=_state_hash(state),
         economic=economic,
@@ -1454,6 +1554,7 @@ def analyze_strategic_state(
             if timing is not None
             else AnalysisStage.STRATEGIC_CORE
         ),
+        construction=construction,
     )
 
 
@@ -2000,9 +2101,32 @@ def deduplicate_strategic_successors(
         if previous is None:
             by_key[key] = successor
             order.append(key)
-        elif (successor.corrected_cost, len(successor.actions), successor.label) < (
+        elif (
+            previous.kind == StrategicActionKind.SAME_SUIT_CONSTRUCTION
+            and successor.kind == StrategicActionKind.ECONOMIC_PROJECT
+            and successor.corrected_cost == previous.corrected_cost
+        ):
+            # The mature economic-project edge remains the public action kind
+            # for backwards compatibility, while the exact construction view
+            # enriches it with objective identity, harvest, and its dedicated
+            # portfolio category.  Only one exact-state edge is retained.
+            by_key[key] = replace(
+                successor,
+                category="run_construction",
+                source_project_id=previous.source_project_id,
+                rationale=previous.rationale + successor.rationale,
+                structural_investment=previous.structural_investment,
+                construction_opportunity=previous.construction_opportunity,
+            )
+        elif (
+            successor.corrected_cost,
+            len(successor.actions),
+            0 if successor.structural_investment is not None else 1,
+            successor.label,
+        ) < (
             previous.corrected_cost,
             len(previous.actions),
+            0 if previous.structural_investment is not None else 1,
             previous.label,
         ):
             by_key[key] = successor
@@ -2022,6 +2146,7 @@ def retain_diverse_portfolio(
         "residual_conversion",
         "campaign_corridor",
         "permanent_structure",
+        "run_construction",
         "campaign",
         "workspace_excavation",
         "deal_timing",
@@ -2069,6 +2194,32 @@ def retain_obligation_successors(
         protected_candidates.append(
             next(
                 (item for item in candidates if successor_pursues_pending_contract(node, item)),
+                None,
+            )
+        )
+    credit = node.continuation_credit
+    if credit is not None and credit.is_live:
+        protected_candidates.append(
+            next(
+                (item for item in candidates if successor_matches_continuation(item, credit)),
+                None,
+            )
+        )
+        protected_candidates.append(
+            next(
+                (
+                    item
+                    for item in candidates
+                    if item.category
+                    in (
+                        "dependency_closure",
+                        "residual_conversion",
+                        "campaign_corridor",
+                        "campaign",
+                    )
+                    and item.source_project_id is not None
+                    and item.source_project_id != credit.objective_id
+                ),
                 None,
             )
         )
@@ -2217,6 +2368,7 @@ def _dependency_closure_successors(
     config: AnytimeControllerConfig,
     telemetry: ControllerTelemetry,
     deadline: SearchDeadline,
+    started: float,
     cache: Optional[DependencyClosureCache] = None,
 ) -> Tuple[List[StrategicSuccessor], Optional[DependencyClosureResult]]:
     """Offer one bounded same-epoch closure before considering another Deal."""
@@ -2267,12 +2419,31 @@ def _dependency_closure_successors(
     telemetry.dependency_closure_nodes += result.nodes_expanded
     telemetry.tactical_nodes += result.nodes_expanded
     telemetry.dependency_graphs_built += 2
+    critical_path = build_campaign_critical_path(result.graph_before)
+    telemetry.critical_paths_built += 1
     for dependency in result.graph_before.dependencies:
         telemetry.dependencies_by_type[dependency.kind.value] = (
             telemetry.dependencies_by_type.get(dependency.kind.value, 0) + 1
         )
     telemetry.dependencies_closed += len(result.dependencies_closed)
     telemetry.overlays_cleared += len(result.overlays_cleared)
+    telemetry.receivers_created_by_closure += sum(
+        dependency_id.startswith("receiver:")
+        for dependency_id in result.dependencies_closed
+    )
+    if critical_path.entries:
+        maximum_unlock = max(
+            item.downstream_dependencies_unlocked for item in critical_path.entries
+        )
+        high_unlock = {
+            item.dependency_id
+            for item in critical_path.entries
+            if item.downstream_dependencies_unlocked == maximum_unlock
+        }
+        telemetry.high_unlock_dependencies_chosen += sum(
+            bool(set(step.targeted_dependencies) & high_unlock)
+            for step in result.steps
+        )
     if (
         not campaign_is_near_removal(
             node.state,
@@ -2327,6 +2498,45 @@ def _dependency_closure_successors(
         )
         return [], result
     telemetry.dependency_closure_successes += 1
+    investment = None
+    continuation = None
+    if config.enable_structural_investment:
+        prior_supply_stage = {
+            evidence.obligation_id: evidence.stage
+            for supply in node.supply_consumption_results
+            for evidence in supply.evidence
+        }
+        newly_consumed_supply = tuple(
+            evidence.obligation_id
+            for supply in result.supply_consumptions
+            for evidence in supply.evidence
+            if evidence.direct_campaign_advance
+            and evidence.stage
+            in (SupplyConsumptionStage.CONSUMED, SupplyConsumptionStage.INTEGRATED)
+            and prior_supply_stage.get(evidence.obligation_id)
+            not in (SupplyConsumptionStage.CONSUMED, SupplyConsumptionStage.INTEGRATED)
+        )
+        investment = investment_from_dependency_closure(
+            canonical_state_key(node.state),
+            result,
+            created_depth=node.depth,
+            created_elapsed_seconds=time.perf_counter() - started,
+            maximum_further_cost=config.continuation_max_further_cost,
+            maximum_descendant_expansions=config.continuation_max_descendant_expansions,
+            maximum_elapsed_seconds=config.continuation_max_elapsed_seconds,
+            baseline_total_g=node.g + int(result.corrected_added_cost or 0),
+            supply_consumed_obligation_ids=newly_consumed_supply,
+        )
+        outstanding = tuple(
+            item.dependency_id
+            for item in result.graph_after.dependencies
+            if item.dependency_id != result.graph_after.terminal_dependency_id
+        )
+        if config.enable_same_campaign_continuity:
+            continuation = continuation_from_investment(
+                investment,
+                outstanding_dependencies=outstanding,
+            )
     rationale = (
         result.reason,
         f"named_campaign={campaign.label}",
@@ -2364,8 +2574,123 @@ def _dependency_closure_successors(
             rationale,
             source_project_id=campaign.label,
             dependency_closure_result=result,
+            structural_investment=investment,
+            continuation_credit=continuation,
         )
     ], result
+
+
+def _construction_successors(
+    node: StrategicSearchNode,
+    *,
+    config: AnytimeControllerConfig,
+    telemetry: ControllerTelemetry,
+    started: float,
+) -> List[StrategicSuccessor]:
+    """Retain durable construction independently of removal proximity."""
+    if (
+        not config.enable_same_suit_construction
+        or node.analysis is None
+        or node.analysis.construction is None
+    ):
+        return []
+    construction = node.analysis.construction
+    opportunities = construction.opportunities
+    telemetry.same_suit_construction_opportunities += len(opportunities)
+    telemetry.two_card_construction_joins += sum(
+        item.run_length_after == 2 for item in opportunities
+    )
+    telemetry.larger_construction_merges += sum(
+        item.run_length_after > 2 for item in opportunities
+    )
+    telemetry.late_removal_construction_opportunities += sum(
+        item.removal_horizon is not None
+        and item.removal_horizon > item.construction_horizon
+        for item in opportunities
+    )
+    telemetry.free_future_join_deferrals += sum(
+        item.disposition == ConstructionDisposition.DEFER_FOR_FREE_FUTURE_JOIN
+        for item in opportunities
+    )
+    telemetry.workspace_conflict_deferrals += sum(
+        item.disposition == ConstructionDisposition.DOWNORDER_WORKSPACE_CONFLICT
+        for item in opportunities
+    )
+    make_now = [
+        item for item in opportunities if item.disposition == ConstructionDisposition.MAKE_NOW
+    ]
+    selected = make_now[:1]
+    late = next(
+        (
+            item
+            for item in make_now
+            if item.removal_horizon is not None
+            and item.removal_horizon > item.construction_horizon
+            and item not in selected
+        ),
+        None,
+    )
+    if late is not None:
+        selected.append(late)
+    selected = selected[: config.max_construction_successors_per_expansion]
+    campaigns = node.analysis.economic.campaign_portfolio.campaigns
+    successors = []
+    for opportunity in selected:
+        action = opportunity.action
+        if not node.state.can_move(*action):
+            continue
+        end = node.state.clone()
+        cost = end.move(*action, rules=MW_RULES)
+        campaign = next(
+            (item for item in campaigns if item.suit == opportunity.suit),
+            None,
+        )
+        objective_id = (
+            campaign.label if campaign is not None else f"construction:{opportunity.suit}"
+        )
+        investment = investment_from_construction(
+            canonical_state_key(node.state),
+            opportunity,
+            objective_id=objective_id,
+            created_depth=node.depth,
+            created_elapsed_seconds=time.perf_counter() - started,
+            baseline_total_g=node.g + cost,
+        )
+        _append_bounded(
+            telemetry.construction_timeline,
+            (
+                node.g,
+                objective_id,
+                opportunity.disposition.value,
+                opportunity.run_length_after,
+                opportunity.removal_horizon,
+            ),
+            config.max_timeline_entries,
+        )
+        successors.append(
+            StrategicSuccessor(
+                StrategicActionKind.SAME_SUIT_CONSTRUCTION,
+                "run_construction",
+                (
+                    f"construct {opportunity.run_length_after}-card "
+                    f"{opportunity.suit.upper()} same-suit run"
+                ),
+                (action,),
+                cost,
+                end,
+                node.credit_level,
+                cost,
+                cost,
+                1,
+                _replay_edge(node.state, (action,), end, cost),
+                False,
+                opportunity.rationale,
+                source_project_id=objective_id,
+                structural_investment=investment,
+                construction_opportunity=opportunity,
+            )
+        )
+    return successors
 
 
 def _foundation_successors(
@@ -2779,6 +3104,17 @@ def generate_strategic_successors(
     )
     allowed = set(allowed_frontier_tiers(node.credit_level))
 
+    # Whole-deal construction is a first-class strategic family.  Its best
+    # late-removal opportunity is retained alongside nearer removal work.
+    raw.extend(
+        _construction_successors(
+            node,
+            config=config,
+            telemetry=telemetry,
+            started=started,
+        )
+    )
+
     # 1. Obvious legal economic work never pays for an actionability search.
     direct_per_tier: Dict[EconomicFrontierTier, int] = {}
     uncertain: List[Tuple[Tuple, EconomicProject, object]] = []
@@ -2822,6 +3158,7 @@ def generate_strategic_successors(
         config=config,
         telemetry=telemetry,
         deadline=shared_deadline,
+        started=started,
         cache=dependency_closure_cache,
     )
     raw.extend(closure_successors)
@@ -3137,12 +3474,22 @@ def generate_strategic_successors(
         deduplicated,
         maximum=config.max_successors_per_expansion,
     )
-    return retain_obligation_successors(
+    final = retain_obligation_successors(
         node,
         deduplicated,
         retained,
         maximum=config.max_successors_per_expansion,
     )
+    telemetry.closure_successors_admitted += sum(
+        item.kind == StrategicActionKind.CAMPAIGN_DEPENDENCY_CLOSURE
+        for item in final
+    )
+    if node.continuation_credit is not None and node.continuation_credit.is_live:
+        telemetry.continuation_descendants_retained += sum(
+            successor_matches_continuation(item, node.continuation_credit)
+            for item in final
+        )
+    return final
 
 
 def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
@@ -3192,7 +3539,18 @@ def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
 
 
 def _node_priority(node: StrategicSearchNode) -> Tuple:
-    return strategic_progress_order_key(node) + (
+    base = strategic_progress_order_key(node)
+    credit = node.continuation_credit
+    continuity = (
+        0 if credit is not None and credit.is_live else 1,
+        credit.ordering_key() if credit is not None else (1, 0, 0, 0, ""),
+    )
+    # Preserve solved/foundation precedence, then give a freshly harvested
+    # child its promised bounded next-step opportunity.  Lazy Stage-0 nodes
+    # expose foundation count as their first component; full analyses expose
+    # solved/realized/removal/foundation as their first four.
+    continuity_index = 1 if node.analysis is None else 4
+    return base[:continuity_index] + continuity + base[continuity_index:] + (
         int(node.credit_level),
         node.depth,
         node.node_id,
@@ -3268,6 +3626,22 @@ def _trim_frontier_with_checkpoint_diversity(
     kept = []
     kept_ids = set()
     represented = set()
+    # Protect only the strongest live same-campaign continuation globally;
+    # continuity is bounded and cannot monopolise the frontier.
+    continuity_item = next(
+        (
+            item
+            for item in ordered
+            if item[2].continuation_credit is not None
+            and item[2].continuation_credit.is_live
+        ),
+        None,
+    )
+    if continuity_item is not None:
+        kept.append(continuity_item)
+        kept_ids.add(continuity_item[1])
+        if len(kept) >= maximum:
+            return kept
     if pre_foundation_portfolio is not None:
         pre_keys = {
             profile.geometry_key() for profile in pre_foundation_portfolio.geometries
@@ -3324,6 +3698,7 @@ def _record_contract_outcome(
         telemetry.fulfilled_contracts += 1
         if contract.purpose == DealPurposeKind.CAMPAIGN_SUPPLY:
             telemetry.full_supply_fulfilments += 1
+            telemetry.coherent_full_supply_fulfilments += 1
     elif outcome.status == DealPurposeStatus.PARTIALLY_FULFILLED:
         telemetry.partially_fulfilled_contracts += 1
     elif outcome.status == DealPurposeStatus.FAILED:
@@ -3511,6 +3886,117 @@ def _refresh_protected_conversion_lane(
                 config.max_timeline_entries,
             )
     return replace(node, protected_conversion_lane=lane)
+
+
+def _refresh_same_campaign_continuation(
+    node: StrategicSearchNode,
+    telemetry: ControllerTelemetry,
+    config: AnytimeControllerConfig,
+    seen: set[Tuple[str, str, CanonicalStateKey]],
+    *,
+    elapsed_seconds: float,
+) -> StrategicSearchNode:
+    """Replan continuity from fresh campaign facts without changing identity."""
+    credit = node.continuation_credit
+    if (
+        not config.enable_same_campaign_continuity
+        or credit is None
+        or node.analysis is None
+        or not credit.is_live
+    ):
+        return node
+    campaign = next(
+        (
+            item
+            for item in node.analysis.economic.campaign_portfolio.campaigns
+            if item.label == credit.objective_id
+        ),
+        None,
+    )
+    outstanding: Optional[Tuple[str, ...]] = None
+    if campaign is not None:
+        graph = build_campaign_dependency_graph(
+            node.state,
+            campaign,
+            supply_consumptions=node.supply_consumption_results,
+        )
+        telemetry.dependency_graphs_built += 1
+        telemetry.critical_paths_built += 1
+        outstanding = tuple(
+            item.dependency_id
+            for item in graph.dependencies
+            if item.dependency_id != graph.terminal_dependency_id
+        )
+    refreshed = refresh_continuation_credit(
+        credit,
+        current_depth=node.depth,
+        current_elapsed_seconds=elapsed_seconds,
+        objective_still_credible=campaign is not None,
+        fully_harvested=bool(campaign is not None and not outstanding),
+        outstanding_dependencies=outstanding,
+        current_g=node.g,
+    )
+    event = (
+        refreshed.credit_id,
+        refreshed.status.value,
+        canonical_state_key(node.state),
+    )
+    if event not in seen and refreshed.status != credit.status:
+        seen.add(event)
+        if refreshed.status == SameCampaignContinuationStatus.REPLANNED:
+            telemetry.continuation_credits_replanned += 1
+        elif refreshed.status == SameCampaignContinuationStatus.HARVESTED:
+            telemetry.continuation_credits_harvested += 1
+        elif refreshed.status == SameCampaignContinuationStatus.INVALIDATED:
+            telemetry.continuation_credits_invalidated += 1
+        elif refreshed.status == SameCampaignContinuationStatus.EXPIRED:
+            telemetry.continuation_credits_expired += 1
+        elif refreshed.status == SameCampaignContinuationStatus.SUPERSEDED:
+            telemetry.continuation_credits_superseded += 1
+        _append_bounded(
+            telemetry.continuation_timeline,
+            (node.g, refreshed.objective_id, refreshed.credit_id, refreshed.status.value),
+            config.max_timeline_entries,
+        )
+    ledger = node.structural_investment_ledger
+    if refreshed.status in (
+        SameCampaignContinuationStatus.HARVESTED,
+        SameCampaignContinuationStatus.INVALIDATED,
+        SameCampaignContinuationStatus.EXPIRED,
+        SameCampaignContinuationStatus.SUPERSEDED,
+    ):
+        active = next(
+            (
+                item
+                for item in ledger.investments
+                if item.investment_id == refreshed.investment_id
+            ),
+            None,
+        )
+        if active is not None:
+            status = {
+                SameCampaignContinuationStatus.HARVESTED: StructuralInvestmentStatus.HARVESTED,
+                SameCampaignContinuationStatus.INVALIDATED: StructuralInvestmentStatus.INVALIDATED,
+                SameCampaignContinuationStatus.EXPIRED: StructuralInvestmentStatus.EXPIRED,
+                SameCampaignContinuationStatus.SUPERSEDED: StructuralInvestmentStatus.SUPERSEDED,
+            }[refreshed.status]
+            ledger = ledger.replace(
+                replace(active, status=status, expiry_reason=refreshed.expiry_reason)
+            )
+            if active.status in (
+                StructuralInvestmentStatus.ACTIVE,
+                StructuralInvestmentStatus.PARTIALLY_HARVESTED,
+            ):
+                telemetry.unharvested_investments = max(
+                    0, telemetry.unharvested_investments - 1
+                )
+                if status != StructuralInvestmentStatus.HARVESTED:
+                    telemetry.abandoned_or_superseded_investments += 1
+    return replace(
+        node,
+        continuation_credit=refreshed,
+        structural_investment_ledger=ledger,
+    )
 
 
 def _trace_expansion(
@@ -3871,6 +4357,7 @@ def solve_anytime(
     contract_events_seen: set[Tuple[str, str, CanonicalStateKey]] = set()
     contract_creations_seen: set[str] = set()
     lane_events_seen: set[Tuple[str, str, CanonicalStateKey]] = set()
+    continuation_events_seen: set[Tuple[str, str, CanonicalStateKey]] = set()
     maximum_credit_reached = 0
     stop_reason = "frontier exhausted"
 
@@ -3970,6 +4457,13 @@ def solve_anytime(
             telemetry,
             config,
             lane_events_seen,
+            elapsed_seconds=elapsed,
+        )
+        node = _refresh_same_campaign_continuation(
+            node,
+            telemetry,
+            config,
+            continuation_events_seen,
             elapsed_seconds=elapsed,
         )
         expansion_key = (canonical_state_key(node.state), int(node.credit_level))
@@ -4317,6 +4811,26 @@ def solve_anytime(
                         telemetry.supply_assets_promised += len(
                             contract.supply_obligations
                         )
+                        critical = sum(
+                            item.role == SupplyObligationRole.CRITICAL
+                            for item in contract.supply_obligations
+                        )
+                        supporting = sum(
+                            item.role == SupplyObligationRole.SUPPORTING
+                            for item in contract.supply_obligations
+                        )
+                        optional = sum(
+                            item.role == SupplyObligationRole.OPTIONAL
+                            for item in contract.supply_obligations
+                        )
+                        telemetry.critical_supply_obligations += critical
+                        telemetry.supporting_supply_obligations += supporting
+                        telemetry.optional_supply_assets += optional
+                        _append_bounded(
+                            telemetry.supply_scope_timeline,
+                            (node.g, contract.contract_id, critical, supporting, optional),
+                            config.max_timeline_entries,
+                        )
             uid += 1
             active_contracts = tuple(
                 dict.fromkeys(
@@ -4363,7 +4877,7 @@ def solve_anytime(
                 for evidence in item.evidence
             }
             for result in child_supply_results:
-                for evidence in result.evidence:
+                for obligation, evidence in zip(result.obligations, result.evidence):
                     old = prior_supply.get((result.contract_id, evidence.obligation_id))
                     if old == evidence.stage:
                         continue
@@ -4380,6 +4894,8 @@ def solve_anytime(
                         telemetry.supply_assets_available += 1
                     elif evidence.stage == SupplyConsumptionStage.CONSUMED:
                         telemetry.supply_assets_consumed += 1
+                        if obligation.role == SupplyObligationRole.CRITICAL:
+                            telemetry.critical_supply_consumed += 1
                     elif evidence.stage == SupplyConsumptionStage.INTEGRATED:
                         telemetry.supply_assets_consumed += int(
                             old not in (
@@ -4388,6 +4904,14 @@ def solve_anytime(
                             )
                         )
                         telemetry.supply_assets_integrated += 1
+                        if obligation.role == SupplyObligationRole.CRITICAL:
+                            telemetry.critical_supply_consumed += int(
+                                old not in (
+                                    SupplyConsumptionStage.CONSUMED,
+                                    SupplyConsumptionStage.INTEGRATED,
+                                )
+                            )
+                            telemetry.critical_supply_integrated += 1
                     elif evidence.stage == SupplyConsumptionStage.INVALIDATED:
                         telemetry.supply_assets_invalidated += 1
             closure_history = node.dependency_closure_history
@@ -4395,6 +4919,52 @@ def solve_anytime(
                 closure_history = closure_history + (
                     successor.dependency_closure_result,
                 )
+            ledger = node.structural_investment_ledger
+            if successor.structural_investment is not None:
+                investment = successor.structural_investment
+                ledger = ledger.add(investment)
+                kind = investment.kind.value
+                telemetry.investments_created_by_kind[kind] = (
+                    telemetry.investments_created_by_kind.get(kind, 0) + 1
+                )
+                telemetry.structural_investment_paid_cost += investment.paid_cost_invested
+                telemetry.structural_expected_harvest += len(investment.expected_harvest)
+                telemetry.structural_actual_harvest += len(investment.actual_harvest)
+                telemetry.unharvested_investments += int(
+                    investment.status
+                    in (
+                        StructuralInvestmentStatus.ACTIVE,
+                        StructuralInvestmentStatus.PARTIALLY_HARVESTED,
+                    )
+                )
+                _append_bounded(
+                    telemetry.structural_investment_timeline,
+                    (
+                        ng,
+                        investment.objective_id,
+                        investment.kind.value,
+                        investment.paid_cost_invested,
+                        len(investment.actual_harvest),
+                    ),
+                    config.max_timeline_entries,
+                )
+            child_continuation = successor.continuation_credit
+            if child_continuation is not None:
+                telemetry.continuation_credits_created += 1
+                _append_bounded(
+                    telemetry.continuation_timeline,
+                    (
+                        ng,
+                        child_continuation.objective_id,
+                        child_continuation.credit_id,
+                        "CREATED",
+                    ),
+                    config.max_timeline_entries,
+                )
+            elif successor_matches_continuation(successor, node.continuation_credit):
+                child_continuation = node.continuation_credit
+            if child_continuation is not None and child_continuation.is_live:
+                telemetry.continuation_descendants_admitted += 1
             child = StrategicSearchNode(
                 uid,
                 successor.end_state.clone(),
@@ -4420,6 +4990,8 @@ def solve_anytime(
                 child_supply_results,
                 closure_history,
                 child_audit_history,
+                ledger,
+                child_continuation,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
