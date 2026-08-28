@@ -54,6 +54,18 @@ from spider.planner.deal_timing import (
     assess_deal_timing,
     build_preparation_candidate,
 )
+from spider.planner.deal_purpose import (
+    DealObjectiveType,
+    DealPurposeContract,
+    DealPurposeKind,
+    DealPurposeOutcome,
+    DealPurposeStatus,
+    SuccessiveDealAuditEntry,
+    audit_successive_deal,
+    contract_requires_descendant,
+    create_deal_purpose_contract,
+    validate_deal_purpose_contract,
+)
 from spider.planner.economic_project_realizer import (
     EconomicProjectRealizationStatus,
     EconomicProjectResourceConfig,
@@ -82,6 +94,23 @@ from spider.planner.foundation_campaign_removal import (
     realize_campaign_to_removal_epoch,
 )
 from spider.planner.incumbent_budget import IncumbentBudget, build_incumbent_budget
+from spider.planner.pre_foundation_diversity import (
+    PreFoundationGeometry,
+    PreFoundationPortfolio,
+    build_pre_foundation_geometry,
+    retain_pre_foundation_portfolio,
+)
+from spider.planner.protected_conversion import (
+    ProtectedConversionBudget,
+    ProtectedConversionLane,
+    ProtectedConversionStatus,
+    TerminalAssemblyConfig,
+    TerminalAssemblyStatus,
+    create_protected_conversion_lane,
+    evaluate_protected_conversion_lane,
+    campaign_is_near_removal,
+    realize_terminal_campaign_assembly,
+)
 from spider.planner.residual_campaign import (
     DealPurpose,
     FoundationCheckpointPortfolio,
@@ -204,6 +233,18 @@ class AnytimeControllerConfig:
     residual_lanes_by_credit: Tuple[int, ...] = (3, 3, 4, 4, 5)
     deal_preparation_arms: int = 1
     deal_pair_arms: int = 0
+    enable_deal_purpose_contracts: bool = True
+    deal_contract_horizon_expansions: int = 2
+    enable_protected_conversion_lanes: bool = True
+    protected_conversion_budget: ProtectedConversionBudget = field(
+        default_factory=ProtectedConversionBudget
+    )
+    enable_terminal_assembly: bool = True
+    terminal_assembly_config: TerminalAssemblyConfig = field(
+        default_factory=TerminalAssemblyConfig
+    )
+    enable_pre_foundation_diversity: bool = True
+    max_pre_foundation_geometries: int = 6
     deal_timing_config: DealTimingConfig = field(
         default_factory=lambda: DealTimingConfig(
             max_preparation_projects=2,
@@ -264,6 +305,10 @@ class AnytimeControllerConfig:
             raise ValueError("residual lane schedule must contain five credit levels")
         if tuple(sorted(self.residual_lanes_by_credit)) != self.residual_lanes_by_credit:
             raise ValueError("residual lane schedule must widen monotonically")
+        if self.deal_contract_horizon_expansions <= 0:
+            raise ValueError("Deal contract horizon must be positive")
+        if not 3 <= self.max_pre_foundation_geometries <= 6:
+            raise ValueError("pre-foundation geometry limit must be in 3..6")
 
 
 @dataclass(frozen=True)
@@ -482,6 +527,8 @@ class StrategicSuccessor:
     corridor_status: Optional[str] = None
     corridor_result: Optional[CampaignCorridorResult] = None
     stock_opportunity: Optional[StockOpportunityAssessment] = None
+    deal_contracts: Tuple[DealPurposeContract, ...] = ()
+    purpose_debt_penalty: int = 0
 
 
 @dataclass(frozen=True)
@@ -497,6 +544,12 @@ class StrategicSearchNode:
     analysis: Optional[StrategicAnalysisSnapshot]
     stage0: Optional[Stage0AnalysisSnapshot] = None
     foundation_checkpoint: Optional[FoundationCheckpointProfile] = None
+    active_deal_contracts: Tuple[DealPurposeContract, ...] = ()
+    deal_contract_outcomes: Tuple[DealPurposeOutcome, ...] = ()
+    protected_conversion_lane: Optional[ProtectedConversionLane] = None
+    pre_foundation_geometry: Optional[PreFoundationGeometry] = None
+    deal_contract_history: Tuple[DealPurposeContract, ...] = ()
+    deal_outcome_history: Tuple[DealPurposeOutcome, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -642,6 +695,30 @@ class ControllerTelemetry:
     face_down_delta_between_foundations: int = 0
     debt_delta_between_foundations: float = 0.0
     foundation_checkpoint_parents: List[Tuple[int, int, str]] = field(default_factory=list)
+    deal_contracts_created: int = 0
+    contracts_by_purpose: Dict[str, int] = field(default_factory=dict)
+    fulfilled_contracts: int = 0
+    partially_fulfilled_contracts: int = 0
+    failed_contracts: int = 0
+    invalidated_contracts: int = 0
+    escape_reclassifications: int = 0
+    pending_contract_deals: int = 0
+    consecutive_deals_with_unresolved_contracts: int = 0
+    protected_lanes_created: int = 0
+    protected_lanes_continued: int = 0
+    protected_lanes_completed: int = 0
+    protected_lanes_invalidated: int = 0
+    protected_lanes_expired: int = 0
+    removal_relevant_milestones_reached: int = 0
+    near_removal_campaigns_detected: int = 0
+    terminal_realizer_attempts: int = 0
+    terminal_realizer_successes: int = 0
+    distinct_pre_foundation_geometries: int = 0
+    first_foundation_checkpoints_discovered: int = 0
+    foundation_two_checkpoint_parent: Optional[Tuple[int, int, str]] = None
+    contract_timeline: List[Tuple[int, str, str, str]] = field(default_factory=list)
+    protected_lane_timeline: List[Tuple[int, str, str, str]] = field(default_factory=list)
+    successive_deal_audit: List[SuccessiveDealAuditEntry] = field(default_factory=list)
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -670,6 +747,8 @@ class AnytimeSearchResult:
     foundation_checkpoint_portfolio: FoundationCheckpointPortfolio
     telemetry: ControllerTelemetry
     stop_reason: str
+    pre_foundation_portfolio: Optional[PreFoundationPortfolio] = None
+    successive_deal_audit: Tuple[SuccessiveDealAuditEntry, ...] = ()
 
 
 class StrategicTranspositionTable:
@@ -1447,6 +1526,172 @@ def structural_progress_delta(
         mobility_delta=after.legal_move_count - before.legal_move_count,
         exact_receiver_successes=exact_receiver_successes,
     )
+
+
+_DEAL_ACTION_KINDS = {
+    StrategicActionKind.DEAL_NOW,
+    StrategicActionKind.PREPARE_THEN_DEAL,
+    StrategicActionKind.RAW_DEAL,
+}
+
+
+def _strong_deal_purpose(purpose: DealPurposeKind) -> bool:
+    return purpose in (
+        DealPurposeKind.STRATEGIC_UNLOCK,
+        DealPurposeKind.CAMPAIGN_SUPPLY,
+        DealPurposeKind.RECEIVER_GEOMETRY,
+        DealPurposeKind.PREPARATION_PAYOFF,
+    )
+
+
+def _purpose_debt_penalty(
+    node: StrategicSearchNode,
+    contracts: Sequence[DealPurposeContract],
+) -> int:
+    if not node.active_deal_contracts:
+        return 0
+    return 0 if any(_strong_deal_purpose(item.purpose) for item in contracts) else 2
+
+
+def _deal_target_campaign(
+    before: FoundationCheckpointProfile,
+    opportunity: StockOpportunityAssessment,
+) -> Optional[str]:
+    if opportunity.readiness_improvements:
+        return opportunity.readiness_improvements[0]
+    if opportunity.dependencies_supplied or opportunity.exact_receivers_satisfied:
+        readiness = before.best_readiness
+        return readiness.campaign_label if readiness is not None else None
+    return None
+
+
+def _ensure_deal_contracts(
+    node: StrategicSearchNode,
+    successor: StrategicSuccessor,
+    config: AnytimeControllerConfig,
+) -> StrategicSuccessor:
+    """Attach a contract to every Deal, including composite bounded edges."""
+    deal_count = sum(action == ("deal",) for action in successor.actions)
+    if not config.enable_deal_purpose_contracts or deal_count == 0:
+        return successor
+    if len(successor.deal_contracts) == deal_count:
+        return successor
+    campaign_id = None
+    if successor.category in ("campaign", "campaign_corridor", "residual_conversion"):
+        campaign_id = successor.source_project_id
+    replay = node.state.clone()
+    contracts = list(successor.deal_contracts)
+    for action in successor.actions:
+        if action == ("deal",):
+            if len(contracts) < deal_count:
+                explicit = (
+                    DealPurposeKind.CAMPAIGN_SUPPLY
+                    if campaign_id is not None
+                    else DealPurposeKind.INCONCLUSIVE
+                )
+                contracts.append(
+                    create_deal_purpose_contract(
+                        replay,
+                        node.analysis.residual.checkpoint,
+                        campaign_id=campaign_id,
+                        objective_type=(
+                            DealObjectiveType.CAMPAIGN
+                            if campaign_id is not None
+                            else DealObjectiveType.UNRESOLVED
+                        ),
+                        target_objective=(
+                            f"campaign {campaign_id} corridor milestone"
+                            if campaign_id is not None
+                            else "fresh post-Deal next-removal analysis"
+                        ),
+                        explicit_purpose=explicit,
+                        predicted_milestone=(
+                            "named campaign dependency or corridor milestone"
+                            if campaign_id is not None
+                            else "fresh analysis identifies a removal-relevant consequence"
+                        ),
+                        bounded_expected_cost=float(successor.corrected_cost),
+                        created_depth=node.depth + 1,
+                        horizon_expansions=config.deal_contract_horizon_expansions,
+                    )
+                )
+            replay.deal(MW_RULES)
+        else:
+            replay.move(*action, rules=MW_RULES)
+    return replace(
+        successor,
+        deal_contracts=tuple(contracts[:deal_count]),
+        purpose_debt_penalty=_purpose_debt_penalty(node, contracts),
+    )
+
+
+def successor_pursues_protected_conversion(
+    node: StrategicSearchNode,
+    successor: StrategicSuccessor,
+) -> bool:
+    lane = node.protected_conversion_lane
+    if lane is None:
+        return False
+    target = lane.target_campaign
+    if successor.source_project_id == target:
+        return True
+    if successor.corridor_id is not None and target in successor.corridor_id:
+        return True
+    delta = successor.progress_delta
+    if delta is not None and (
+        delta.foundation_delta > 0
+        or delta.campaign_must_burden_reduction > 0
+        or delta.exact_receiver_successes > 0
+    ):
+        return True
+    if successor.source_project_id is not None and node.analysis is not None:
+        project = next(
+            (
+                item
+                for item in node.analysis.economic.projects
+                if item.project_id == successor.source_project_id
+            ),
+            None,
+        )
+        if project is not None and target in project.campaign_dependencies:
+            return True
+    return False
+
+
+def successor_pursues_pending_contract(
+    node: StrategicSearchNode,
+    successor: StrategicSuccessor,
+) -> bool:
+    objectives = {
+        value
+        for contract in node.active_deal_contracts
+        for value in (contract.campaign_id, contract.project_id, contract.target_objective)
+        if value
+    }
+    if not objectives:
+        return False
+    labels = " ".join(
+        value
+        for value in (
+            successor.label,
+            successor.source_project_id,
+            successor.corridor_id,
+        )
+        if value
+    )
+    if any(value in labels for value in objectives):
+        return True
+    delta = successor.progress_delta
+    return bool(
+        delta is not None
+        and (
+            delta.foundation_delta > 0
+            or delta.campaign_must_burden_reduction > 0
+            or delta.exact_receiver_successes > 0
+        )
+    )
+
+
 def _successor_from_deal_arm(
     node: StrategicSearchNode,
     arm: DealCounterfactual,
@@ -1510,11 +1755,39 @@ def _successor_from_deal_arm(
             and timing.decision.kind == DealTimingDecisionKind.PREPARATION_PREFERRED
             and timing.decision.selected_candidate_id == arm.label
         ),
+        strict_removal_relevance=True,
     )
     if opportunity.purpose == DealPurpose.STRATEGIC_UNLOCK:
         timing_priority = min(timing_priority, -2)
     elif opportunity.purpose == DealPurpose.ESCAPE_ONLY:
         timing_priority = max(timing_priority, 2)
+    campaign_id = _deal_target_campaign(before_profile, opportunity)
+    contract = create_deal_purpose_contract(
+        node.state,
+        before_profile,
+        after_profile=after_profile,
+        stock_opportunity=opportunity,
+        campaign_id=campaign_id,
+        project_id=(arm.preparation.candidate_id if arm.preparation else None),
+        target_objective=(
+            campaign_id
+            or (arm.preparation.candidate_id if arm.preparation else None)
+            or "fresh post-Deal next-removal analysis"
+        ),
+        preparation_repaid=bool(
+            arm.preparation is not None
+            and timing is not None
+            and timing.decision.kind == DealTimingDecisionKind.PREPARATION_PREFERRED
+            and timing.decision.selected_candidate_id == arm.label
+        ),
+        current_epoch_exhausted=bool(
+            not before_profile.current_epoch_actionable_high_value_projects
+            and not before_profile.near_removal_campaigns
+        ),
+        bounded_expected_cost=float(arm.total_added_cost),
+        created_depth=node.depth + 1,
+        horizon_expansions=config.deal_contract_horizon_expansions,
+    )
     return StrategicSuccessor(
         kind=kind,
         category="deal_timing",
@@ -1545,6 +1818,8 @@ def _successor_from_deal_arm(
         deal_timing_priority=timing_priority,
         deal_timing_decision=timing_decision,
         stock_opportunity=opportunity,
+        deal_contracts=(contract,),
+        purpose_debt_penalty=_purpose_debt_penalty(node, (contract,)),
     )
 
 
@@ -1694,6 +1969,48 @@ def retain_diverse_portfolio(
     return tuple(retained)
 
 
+def retain_obligation_successors(
+    node: StrategicSearchNode,
+    candidates: Sequence[StrategicSuccessor],
+    retained: Sequence[StrategicSuccessor],
+    *,
+    maximum: int,
+) -> Tuple[StrategicSuccessor, ...]:
+    """Reserve at most one lane per ordering-only obligation."""
+    result = list(retained)
+    protected_candidates = []
+    if node.protected_conversion_lane is not None:
+        protected_candidates.append(
+            next(
+                (item for item in candidates if successor_pursues_protected_conversion(node, item)),
+                None,
+            )
+        )
+    if node.active_deal_contracts:
+        protected_candidates.append(
+            next(
+                (item for item in candidates if successor_pursues_pending_contract(node, item)),
+                None,
+            )
+        )
+    for candidate in protected_candidates:
+        if candidate is None or candidate in result:
+            continue
+        if len(result) < maximum:
+            result.append(candidate)
+        elif result:
+            replace_index = next(
+                (
+                    index
+                    for index in range(len(result) - 1, -1, -1)
+                    if result[index].category in ("raw_fallback", "other", "rework")
+                ),
+                len(result) - 1,
+            )
+            result[replace_index] = candidate
+    return tuple(result[:maximum])
+
+
 def _remaining_controller_time(started: float, config: AnytimeControllerConfig) -> float:
     return max(0.0, config.wall_clock_limit_s - (time.perf_counter() - started))
 
@@ -1787,6 +2104,7 @@ def _foundation_successors(
     config: AnytimeControllerConfig,
     telemetry: ControllerTelemetry,
     started: float,
+    deadline: Optional[SearchDeadline] = None,
 ) -> List[StrategicSuccessor]:
     if not config.enable_campaign_edges:
         return []
@@ -1831,7 +2149,63 @@ def _foundation_successors(
             and not campaign.blockers
         )
         added = False
-        if removal_eligible:
+        if (
+            config.enable_terminal_assembly
+            and campaign_is_near_removal(
+                node.state,
+                campaign,
+                config=config.terminal_assembly_config.near_removal,
+            )
+        ):
+            telemetry.near_removal_campaigns_detected += 1
+            telemetry.terminal_realizer_attempts += 1
+            terminal_config = replace(
+                config.terminal_assembly_config,
+                max_nodes=min(config.terminal_assembly_config.max_nodes, remaining_nodes),
+                time_limit_s=min(
+                    config.terminal_assembly_config.time_limit_s,
+                    max(0.01, _remaining_controller_time(started, config)),
+                ),
+            )
+            terminal = realize_terminal_campaign_assembly(
+                node.state,
+                campaign,
+                config=terminal_config,
+                deadline=deadline,
+            )
+            telemetry.tactical_nodes += terminal.nodes_expanded
+            remaining_nodes = max(1, config.max_tactical_nodes - telemetry.tactical_nodes)
+            if (
+                terminal.status == TerminalAssemblyStatus.FOUNDATION_REMOVED
+                and terminal.independent_replay_verified
+                and terminal.actions
+                and terminal.corrected_added_cost is not None
+            ):
+                telemetry.terminal_realizer_successes += 1
+                successors.append(
+                    StrategicSuccessor(
+                        StrategicActionKind.FOUNDATION_REMOVAL,
+                        "campaign",
+                        f"terminal assembly {campaign.label}",
+                        terminal.actions,
+                        terminal.corrected_added_cost,
+                        terminal.end_state.clone(),
+                        node.credit_level,
+                        int(round(campaign.estimated_campaign_cost)),
+                        terminal.corrected_added_cost,
+                        terminal.nodes_expanded,
+                        True,
+                        False,
+                        (
+                            terminal.reason,
+                            "strict structural near-removal predicate qualified",
+                            "terminal result was independently replayed",
+                        ),
+                        campaign.label,
+                    )
+                )
+                added = True
+        if removal_eligible and not added:
             telemetry.foundation_macro_attempts += 1
             removal = realize_campaign_to_removal_epoch(
                 node.state,
@@ -2177,6 +2551,7 @@ def generate_strategic_successors(
             config=config,
             telemetry=telemetry,
             started=started,
+            deadline=shared_deadline,
         )
     )
 
@@ -2454,9 +2829,16 @@ def generate_strategic_successors(
     if raw_fallback_enabled(node.credit_level):
         raw.extend(_raw_move_successors(node))
 
-    deduplicated = deduplicate_strategic_successors(raw)
-    return retain_diverse_portfolio(
+    contracted = tuple(_ensure_deal_contracts(node, item, config) for item in raw)
+    deduplicated = deduplicate_strategic_successors(contracted)
+    retained = retain_diverse_portfolio(
         deduplicated,
+        maximum=config.max_successors_per_expansion,
+    )
+    return retain_obligation_successors(
+        node,
+        deduplicated,
+        retained,
         maximum=config.max_successors_per_expansion,
     )
 
@@ -2471,20 +2853,20 @@ def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
         return node.stage0.ordering_key()
     progress_key = node.analysis.progress.ordering_key()
     delta = node.incoming_edge.progress_delta if node.incoming_edge is not None else None
-    deal_kinds = {
-        StrategicActionKind.DEAL_NOW,
-        StrategicActionKind.PREPARE_THEN_DEAL,
-        StrategicActionKind.RAW_DEAL,
-    }
     deal_delta_key = (
         delta.deal_ordering_key()
         if delta is not None
         and node.incoming_edge is not None
-        and node.incoming_edge.kind in deal_kinds
+        and node.incoming_edge.kind in _DEAL_ACTION_KINDS
         else (0,) * 11
     )
     timing_priority = (
         node.incoming_edge.deal_timing_priority
+        if node.incoming_edge is not None
+        else 0
+    )
+    purpose_debt_penalty = (
+        node.incoming_edge.purpose_debt_penalty
         if node.incoming_edge is not None
         else 0
     )
@@ -2503,7 +2885,7 @@ def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
         + (deal_required_rank,)
         + progress_key[5:]
         + deal_delta_key
-        + (timing_priority,)
+        + (timing_priority, purpose_debt_penalty)
     )
 
 
@@ -2576,13 +2958,32 @@ def _trim_frontier_with_checkpoint_diversity(
     *,
     maximum: int,
     portfolio: FoundationCheckpointPortfolio,
+    pre_foundation_portfolio: Optional[PreFoundationPortfolio] = None,
 ) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
-    """Protect one best descendant of each retained checkpoint lineage."""
+    """Protect checkpoint and material pre-foundation geometries."""
     ordered = sorted(frontier)
     protected = {profile.state_key for profile in portfolio.profiles}
     kept = []
     kept_ids = set()
     represented = set()
+    if pre_foundation_portfolio is not None:
+        pre_keys = {
+            profile.geometry_key() for profile in pre_foundation_portfolio.geometries
+        }
+        represented_pre = set()
+        for item in ordered:
+            node = item[2]
+            geometry = node.pre_foundation_geometry
+            if geometry is None or geometry.geometry_key() not in pre_keys:
+                continue
+            key = geometry.geometry_key()
+            if key in represented_pre:
+                continue
+            kept.append(item)
+            kept_ids.add(item[1])
+            represented_pre.add(key)
+            if len(kept) >= maximum:
+                return kept
     for item in ordered:
         node = item[2]
         checkpoint = node.foundation_checkpoint
@@ -2602,6 +3003,159 @@ def _trim_frontier_with_checkpoint_diversity(
         if len(kept) >= maximum:
             break
     return kept
+
+
+def _record_contract_outcome(
+    outcome: DealPurposeOutcome,
+    contract: DealPurposeContract,
+    telemetry: ControllerTelemetry,
+    config: AnytimeControllerConfig,
+    seen: set[Tuple[str, str, CanonicalStateKey]],
+    *,
+    g: int,
+) -> None:
+    key = (outcome.contract_id, outcome.status.value, outcome.evaluated_state_key)
+    if key in seen:
+        return
+    seen.add(key)
+    if outcome.status == DealPurposeStatus.FULFILLED:
+        telemetry.fulfilled_contracts += 1
+    elif outcome.status == DealPurposeStatus.PARTIALLY_FULFILLED:
+        telemetry.partially_fulfilled_contracts += 1
+    elif outcome.status == DealPurposeStatus.FAILED:
+        telemetry.failed_contracts += 1
+    elif outcome.status == DealPurposeStatus.INVALIDATED:
+        telemetry.invalidated_contracts += 1
+    elif outcome.status == DealPurposeStatus.ESCAPE_RECLASSIFIED:
+        telemetry.escape_reclassifications += 1
+    _append_bounded(
+        telemetry.contract_timeline,
+        (g, contract.contract_id, contract.purpose.value, outcome.status.value),
+        config.max_timeline_entries,
+    )
+
+
+def _refresh_node_contracts(
+    node: StrategicSearchNode,
+    telemetry: ControllerTelemetry,
+    config: AnytimeControllerConfig,
+    seen: set[Tuple[str, str, CanonicalStateKey]],
+) -> StrategicSearchNode:
+    if node.analysis is None or not node.active_deal_contracts:
+        return node
+    labels = {
+        item.campaign_label
+        for item in node.analysis.residual.checkpoint.next_foundation_readiness
+    }
+    active = []
+    outcomes = []
+    for contract in node.active_deal_contracts:
+        credible = contract.campaign_id is None or contract.campaign_id in labels
+        outcome = validate_deal_purpose_contract(
+            contract,
+            node.analysis.residual.checkpoint,
+            current_depth=node.depth,
+            objective_still_credible=credible,
+        )
+        outcomes.append(outcome)
+        _record_contract_outcome(
+            outcome,
+            contract,
+            telemetry,
+            config,
+            seen,
+            g=node.g,
+        )
+        if contract_requires_descendant(outcome):
+            active.append(contract)
+    history_by_id = {
+        outcome.contract_id: outcome for outcome in node.deal_outcome_history
+    }
+    for outcome in outcomes:
+        history_by_id[outcome.contract_id] = outcome
+    return replace(
+        node,
+        active_deal_contracts=tuple(active),
+        deal_contract_outcomes=tuple(outcomes),
+        deal_outcome_history=tuple(history_by_id.values()),
+    )
+
+
+def _refresh_protected_conversion_lane(
+    node: StrategicSearchNode,
+    telemetry: ControllerTelemetry,
+    config: AnytimeControllerConfig,
+    seen: set[Tuple[str, str, CanonicalStateKey]],
+    *,
+    elapsed_seconds: float,
+) -> StrategicSearchNode:
+    if (
+        not config.enable_protected_conversion_lanes
+        or node.analysis is None
+        or not node.state.foundations
+    ):
+        return node
+    profile = node.analysis.residual.checkpoint
+    lane = node.protected_conversion_lane
+    if lane is not None:
+        assessment = evaluate_protected_conversion_lane(
+            lane,
+            profile,
+            current_expansion=telemetry.expanded,
+            current_elapsed_seconds=elapsed_seconds,
+        )
+        event = (lane.lane_id, assessment.status.value, profile.state_key)
+        if event not in seen:
+            seen.add(event)
+            if assessment.status == ProtectedConversionStatus.CONTINUE:
+                telemetry.protected_lanes_continued += 1
+            elif assessment.status == ProtectedConversionStatus.SUCCESS:
+                telemetry.protected_lanes_completed += 1
+            elif assessment.status in (
+                ProtectedConversionStatus.INVALIDATED,
+                ProtectedConversionStatus.DOMINATED_SAME_OBJECTIVE,
+            ):
+                telemetry.protected_lanes_invalidated += 1
+            elif assessment.status == ProtectedConversionStatus.EXPIRED:
+                telemetry.protected_lanes_expired += 1
+            elif assessment.status == ProtectedConversionStatus.MILESTONE_REACHED:
+                telemetry.removal_relevant_milestones_reached += len(
+                    assessment.milestones
+                )
+            _append_bounded(
+                telemetry.protected_lane_timeline,
+                (node.g, lane.lane_id, lane.target_campaign, assessment.status.value),
+                config.max_timeline_entries,
+            )
+        if assessment.status == ProtectedConversionStatus.CONTINUE:
+            return node
+        if assessment.status == ProtectedConversionStatus.MILESTONE_REACHED:
+            lane = create_protected_conversion_lane(
+                profile,
+                campaign_id=lane.target_campaign,
+                current_expansion=telemetry.expanded,
+                current_elapsed_seconds=elapsed_seconds,
+                budget=config.protected_conversion_budget,
+            )
+            if lane is not None:
+                telemetry.protected_lanes_created += 1
+                return replace(node, protected_conversion_lane=lane)
+        lane = None
+    if lane is None:
+        lane = create_protected_conversion_lane(
+            profile,
+            current_expansion=telemetry.expanded,
+            current_elapsed_seconds=elapsed_seconds,
+            budget=config.protected_conversion_budget,
+        )
+        if lane is not None:
+            telemetry.protected_lanes_created += 1
+            _append_bounded(
+                telemetry.protected_lane_timeline,
+                (node.g, lane.lane_id, lane.target_campaign, "CREATED"),
+                config.max_timeline_entries,
+            )
+    return replace(node, protected_conversion_lane=lane)
 
 
 def _trace_expansion(
@@ -2778,8 +3332,12 @@ def solve_anytime(
     supplied_record = incumbent if isinstance(incumbent, IncumbentRecord) else None
     telemetry = ControllerTelemetry()
     checkpoint_profiles: List[FoundationCheckpointProfile] = []
+    pre_foundation_profiles: List[PreFoundationGeometry] = []
     checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
         (), maximum=config.max_foundation_checkpoints
+    )
+    pre_foundation_portfolio = retain_pre_foundation_portfolio(
+        (), maximum=config.max_pre_foundation_geometries
     )
 
     # Build one minimal snapshot for a failed preflight result without starting
@@ -2832,6 +3390,19 @@ def solve_anytime(
             ),
             residual.checkpoint if initial_state.foundations else None,
         )
+        if not initial_state.foundations:
+            geometry = build_pre_foundation_geometry(
+                initial_state,
+                g=0,
+                analysis=economic,
+                measurement=measurement,
+            )
+            root = replace(root, pre_foundation_geometry=geometry)
+            pre_foundation_profiles.append(geometry)
+            pre_foundation_portfolio = retain_pre_foundation_portfolio(
+                pre_foundation_profiles,
+                maximum=config.max_pre_foundation_geometries,
+            )
         if initial_state.foundations:
             checkpoint_profiles.append(residual.checkpoint)
             checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
@@ -2859,6 +3430,8 @@ def solve_anytime(
             foundation_checkpoint_portfolio=checkpoint_portfolio,
             telemetry=telemetry,
             stop_reason="; ".join(preflight.failures),
+            pre_foundation_portfolio=pre_foundation_portfolio,
+            successive_deal_audit=tuple(telemetry.successive_deal_audit),
         )
 
     current_incumbent_cost = initial_incumbent_cost
@@ -2900,6 +3473,22 @@ def solve_anytime(
         root_stage0,
         root_analysis.residual.checkpoint if initial_state.foundations else None,
     )
+    if not initial_state.foundations:
+        root_geometry = build_pre_foundation_geometry(
+            initial_state,
+            g=0,
+            analysis=root_analysis.economic,
+            measurement=root_analysis.measurement,
+        )
+        root = replace(root, pre_foundation_geometry=root_geometry)
+        pre_foundation_profiles.append(root_geometry)
+        pre_foundation_portfolio = retain_pre_foundation_portfolio(
+            pre_foundation_profiles,
+            maximum=config.max_pre_foundation_geometries,
+        )
+        telemetry.distinct_pre_foundation_geometries = len(
+            pre_foundation_portfolio.geometries
+        )
     if initial_state.foundations:
         checkpoint_profiles.append(root_analysis.residual.checkpoint)
         checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
@@ -2922,6 +3511,9 @@ def solve_anytime(
     heapq.heappush(frontier, (_node_priority(root), uid, root))
     expansion_credits: set[Tuple[CanonicalStateKey, int]] = set()
     actionability_cache: Dict[ActionabilityCacheKey, ProjectActionability] = {}
+    contract_events_seen: set[Tuple[str, str, CanonicalStateKey]] = set()
+    contract_creations_seen: set[str] = set()
+    lane_events_seen: set[Tuple[str, str, CanonicalStateKey]] = set()
     maximum_credit_reached = 0
     stop_reason = "frontier exhausted"
 
@@ -2989,6 +3581,40 @@ def solve_anytime(
             telemetry.reanalyses += 1
             telemetry.stage1_analyses += 1
         assert node.analysis is not None
+        if not node.state.foundations and config.enable_pre_foundation_diversity:
+            refined_geometry = build_pre_foundation_geometry(
+                node.state,
+                g=node.g,
+                analysis=node.analysis.economic,
+                measurement=node.analysis.measurement,
+                campaign_hint=(
+                    node.pre_foundation_geometry.campaign_identity
+                    if node.pre_foundation_geometry is not None
+                    else None
+                ),
+            )
+            node = replace(node, pre_foundation_geometry=refined_geometry)
+            pre_foundation_profiles.append(refined_geometry)
+            pre_foundation_portfolio = retain_pre_foundation_portfolio(
+                pre_foundation_profiles,
+                maximum=config.max_pre_foundation_geometries,
+            )
+            telemetry.distinct_pre_foundation_geometries = len(
+                pre_foundation_portfolio.geometries
+            )
+        node = _refresh_node_contracts(
+            node,
+            telemetry,
+            config,
+            contract_events_seen,
+        )
+        node = _refresh_protected_conversion_lane(
+            node,
+            telemetry,
+            config,
+            lane_events_seen,
+            elapsed_seconds=elapsed,
+        )
         expansion_key = (canonical_state_key(node.state), int(node.credit_level))
         if expansion_key in expansion_credits:
             telemetry.exact_loop_suppressed += 1
@@ -3057,6 +3683,8 @@ def solve_anytime(
         ):
             checkpoint_profiles.append(current_profile)
             telemetry.foundation_checkpoints_generated += 1
+            if m.foundation_count == 1:
+                telemetry.first_foundation_checkpoints_discovered += 1
             checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
                 checkpoint_profiles,
                 maximum=config.max_foundation_checkpoints,
@@ -3105,6 +3733,16 @@ def solve_anytime(
                 ),
                 config.max_timeline_entries,
             )
+            if m.foundation_count >= 2 and telemetry.foundation_two_checkpoint_parent is None:
+                telemetry.foundation_two_checkpoint_parent = (
+                    current_profile.foundations,
+                    current_profile.g,
+                    (
+                        node.incoming_edge.label
+                        if node.incoming_edge is not None
+                        else "initial checkpoint"
+                    ),
+                )
             node = replace(node, foundation_checkpoint=current_profile)
         stock_epoch = 5 - m.stock_count // 10
         telemetry.expansions_by_foundation_count[m.foundation_count] = (
@@ -3191,6 +3829,30 @@ def solve_anytime(
         telemetry.generated += len(successors)
         _trace_expansion(node, successors, telemetry, config, current_incumbent_cost)
 
+        protected_successor = next(
+            (
+                item
+                for item in successors
+                if successor_pursues_protected_conversion(node, item)
+            ),
+            None,
+        )
+        if node.protected_conversion_lane is not None and protected_successor is None:
+            protected_successor = next(
+                (
+                    item
+                    for item in successors
+                    if item.category
+                    in (
+                        "residual_conversion",
+                        "campaign_corridor",
+                        "campaign",
+                        "permanent_structure",
+                        "workspace_excavation",
+                    )
+                ),
+                None,
+            )
         for successor in successors:
             if not successor.independent_replay_verified:
                 telemetry.count_suppression("edge replay failed")
@@ -3216,7 +3878,90 @@ def solve_anytime(
                 successor,
                 analysis=None,
             )
+            if successor.deal_contracts:
+                unresolved_before = tuple(node.active_deal_contracts)
+                if unresolved_before:
+                    telemetry.pending_contract_deals += 1
+                previous = (
+                    node.deal_contract_history[-1]
+                    if node.deal_contract_history
+                    else (unresolved_before[-1] if unresolved_before else None)
+                )
+                if previous is not None:
+                    outcome = next(
+                        (
+                            item
+                            for item in reversed(node.deal_outcome_history)
+                            if item.contract_id == previous.contract_id
+                        ),
+                        validate_deal_purpose_contract(
+                            previous,
+                            node.analysis.residual.checkpoint,
+                            current_depth=node.depth,
+                        ),
+                    )
+                    if (
+                        contract_requires_descendant(outcome)
+                        and previous.evidence_before.foundations
+                        == len(node.state.foundations)
+                    ):
+                        telemetry.consecutive_deals_with_unresolved_contracts += 1
+                    audit = audit_successive_deal(
+                        previous,
+                        outcome,
+                        deal_ordinal=sum(
+                            action == ("deal",)
+                            for action in node.actions + successor.actions
+                        ),
+                        previous_contract_resolution=outcome.reason,
+                    )
+                    _append_bounded(
+                        telemetry.successive_deal_audit,
+                        audit,
+                        config.max_timeline_entries,
+                    )
+                for contract in successor.deal_contracts:
+                    if contract.contract_id in contract_creations_seen:
+                        continue
+                    contract_creations_seen.add(contract.contract_id)
+                    telemetry.deal_contracts_created += 1
+                    telemetry.contracts_by_purpose[contract.purpose.value] = (
+                        telemetry.contracts_by_purpose.get(contract.purpose.value, 0) + 1
+                    )
             uid += 1
+            active_contracts = tuple(
+                dict.fromkeys(
+                    node.active_deal_contracts + successor.deal_contracts
+                )
+            )
+            pre_geometry = None
+            if not successor.end_state.foundations and config.enable_pre_foundation_diversity:
+                live_campaigns = {
+                    campaign.label
+                    for campaign in node.analysis.economic.campaign_portfolio.campaigns
+                }
+                hint = (
+                    successor.source_project_id
+                    if successor.source_project_id in live_campaigns
+                    else (
+                        node.analysis.economic.campaign_portfolio.primary.label
+                        if node.analysis.economic.campaign_portfolio.primary is not None
+                        else None
+                    )
+                )
+                pre_geometry = build_pre_foundation_geometry(
+                    successor.end_state,
+                    g=ng,
+                    campaign_hint=hint,
+                )
+                pre_foundation_profiles.append(pre_geometry)
+                pre_foundation_portfolio = retain_pre_foundation_portfolio(
+                    pre_foundation_profiles,
+                    maximum=config.max_pre_foundation_geometries,
+                )
+                telemetry.distinct_pre_foundation_geometries = len(
+                    pre_foundation_portfolio.geometries
+                )
             child = StrategicSearchNode(
                 uid,
                 successor.end_state.clone(),
@@ -3229,6 +3974,16 @@ def solve_anytime(
                 None,
                 child_stage0,
                 node.foundation_checkpoint,
+                active_contracts,
+                node.deal_contract_outcomes,
+                (
+                    node.protected_conversion_lane
+                    if successor is protected_successor
+                    else None
+                ),
+                pre_geometry,
+                node.deal_contract_history + successor.deal_contracts,
+                node.deal_outcome_history,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -3272,6 +4027,7 @@ def solve_anytime(
                 frontier,
                 maximum=config.max_frontier_size,
                 portfolio=checkpoint_portfolio,
+                pre_foundation_portfolio=pre_foundation_portfolio,
             )
             heapq.heapify(frontier)
             telemetry.frontier_trimmed += 1
@@ -3313,4 +4069,6 @@ def solve_anytime(
         foundation_checkpoint_portfolio=checkpoint_portfolio,
         telemetry=telemetry,
         stop_reason=stop_reason,
+        pre_foundation_portfolio=pre_foundation_portfolio,
+        successive_deal_audit=tuple(telemetry.successive_deal_audit),
     )

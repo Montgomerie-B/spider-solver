@@ -1,6 +1,6 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; Phase 4 v0.4 residual-conversion gate is partial, whole-game gate remains open
+**Status:** Forward implementation plan; Phase 4 v0.5 purpose/coverage controls are verified but the two-foundation gate remains partial
 **Date:** 2026-08-13  
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
@@ -597,13 +597,26 @@ Do not use low-level optimisation to compensate for a poor strategic model.
 ## 7. Immediate development sprint
 
 The original Phase 1A work below has been completed by the subsequent strategic
-analysis sprints. The next verified need after controller v0.4 is bounded
-terminal residual conversion: ensure every Deal branch carries transparent
-purpose evidence, protect a current-epoch removal-relevant lane until success
-or explicit invalidation, and preserve enough pre-foundation diversity to
-discover genuinely different checkpoint geometries. Do not change benchmark
-economic weights or start a longer search until short generic fixtures
-demonstrate conversion to a next foundation.
+analysis sprints. Controller v0.5 now attaches purpose contracts to every Deal,
+validates their lifecycle, protects one bounded next-foundation lane, diagnoses
+terminal campaign blockers, provides a strictly gated terminal assembler and
+retains material pre-foundation geometry diversity. These changes are
+ordering/coverage only and preserve exact TT and admissible-bound safety.
+
+The verified untouched gate remains partial: Spades was removed at corrected
+`g=21`, but the replay-valid selected prefix ended at `g=73` with one
+foundation, empty stock, 25 face-down cards and MUST burden 28. The leading
+Diamond campaign still had two compulsory sources, a missing rank-3 interval
+and mixed overlays. Individually fulfilled campaign-supply milestones still
+allowed all remaining rows to be consumed.
+
+The next authorized sprint should therefore be a bounded same-epoch
+dependency-closure/overlay-clearer for one named protected campaign. A supply
+contract should remain partial until its supplied source or receiver is
+actually consumed by that objective. Validate the capability first on generic
+synthetic and unseen-deal fixtures. Do not tune benchmark economic weights,
+increase wall time, or begin another prospective benchmark sprint without new
+capability evidence. See `docs/anytime_whole_game_controller_v0_5.md`.
 
 ### Historical Phase 1A plan
 

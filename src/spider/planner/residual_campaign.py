@@ -588,6 +588,7 @@ def assess_stock_opportunity(
     impacts: Sequence[IncomingRowImpact],
     preparation_paid_cost: int = 0,
     preparation_repaid: bool = False,
+    strict_removal_relevance: bool = False,
 ) -> StockOpportunityAssessment:
     before_current = set(before.current_epoch_actionable_high_value_projects)
     after_current = set(after.current_epoch_actionable_high_value_projects)
@@ -610,7 +611,14 @@ def assess_stock_opportunity(
     workspace_delta = len(after.empty_columns) - len(before.empty_columns)
     consumed = max(0, -workspace_delta)
     buried = sum(item.buries_permanent_structure for item in impacts)
-    concrete = bool(dependencies or receivers or unlocked or improvements or stable_gain or walkoffs)
+    # v0.5 controller callers enable strict semantics.  The default preserves
+    # the historical v0.4 analysis API for archived diagnostics.
+    concrete = bool(
+        dependencies
+        or receivers
+        or improvements
+        or (unlocked and not strict_removal_relevance)
+    )
     if preparation_paid_cost and preparation_repaid:
         purpose = DealPurpose.PREPARATION_PAYOFF
     elif concrete:
