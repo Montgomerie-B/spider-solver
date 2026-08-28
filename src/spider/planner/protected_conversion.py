@@ -85,6 +85,7 @@ class ProtectedConversionLane:
     baseline: NextFoundationReadiness
     budget: ProtectedConversionBudget
     objective_description: str
+    unresolved_dependencies: Tuple[str, ...] = ()
     proof_pruning_allowed: bool = False
 
 
@@ -212,6 +213,7 @@ def create_protected_conversion_lane(
     current_expansion: int = 0,
     current_elapsed_seconds: float = 0.0,
     budget: ProtectedConversionBudget = ProtectedConversionBudget(),
+    unresolved_dependencies: Sequence[str] = (),
 ) -> Optional[ProtectedConversionLane]:
     candidates = profile.next_foundation_readiness
     readiness = (
@@ -232,6 +234,7 @@ def create_protected_conversion_lane(
         baseline=readiness,
         budget=budget,
         objective_description=f"convert {readiness.campaign_label} into the next foundation",
+        unresolved_dependencies=tuple(unresolved_dependencies),
     )
 
 

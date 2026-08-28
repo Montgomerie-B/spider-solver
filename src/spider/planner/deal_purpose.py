@@ -14,10 +14,17 @@ from typing import Optional, Sequence, Tuple
 
 from spider.cards import Card
 from spider.engine import SpiderState
+from spider.planner.foundation_campaign import FoundationCampaign
 from spider.planner.residual_campaign import (
     FoundationCheckpointProfile,
     NextFoundationReadiness,
     StockOpportunityAssessment,
+)
+from spider.planner.supply_consumption import (
+    CampaignSupplyObligation,
+    SupplyConsumptionResult,
+    SupplyConsumptionStage,
+    derive_campaign_supply_obligations,
 )
 from spider.planner.stock_reception import next_stock_row
 from spider.state_identity import CanonicalStateKey, canonical_state_key
@@ -50,6 +57,7 @@ class DealPurposeStatus(str, Enum):
     INVALIDATED = "INVALIDATED"
     FAILED = "FAILED"
     ESCAPE_RECLASSIFIED = "ESCAPE_RECLASSIFIED"
+    DELIVERED_BUT_UNCONSUMED = "DELIVERED_BUT_UNCONSUMED"
 
 
 @dataclass(frozen=True)
@@ -89,6 +97,7 @@ class DealPurposeContract:
     expiry_conditions: Tuple[str, ...]
     created_depth: int
     horizon_expansions: int
+    supply_obligations: Tuple[CampaignSupplyObligation, ...] = ()
     proof_pruning_allowed: bool = False
 
 
@@ -101,6 +110,9 @@ class DealPurposeOutcome:
     observed_consequences: Tuple[str, ...]
     reason: str
     objective_still_credible: bool
+    supply_stage: Optional[SupplyConsumptionStage] = None
+    supplied_assets_delivered: int = 0
+    supplied_assets_consumed: int = 0
     proof_pruning_allowed: bool = False
 
 
@@ -121,6 +133,11 @@ class SuccessiveDealAuditEntry:
     surrendered_opportunities: Tuple[str, ...]
     status_before_next_deal: DealPurposeStatus
     previous_contract_resolution: Optional[str]
+    promised_dependencies: Tuple[str, ...] = ()
+    consumption_stage: Optional[SupplyConsumptionStage] = None
+    dependency_closure_attempted: bool = False
+    dependency_closure_result: Optional[str] = None
+    reason_another_deal_considered: Optional[str] = None
     proof_pruning_allowed: bool = False
 
 
@@ -244,6 +261,7 @@ def create_deal_purpose_contract(
     after_profile: Optional[FoundationCheckpointProfile] = None,
     stock_opportunity: Optional[StockOpportunityAssessment] = None,
     campaign_id: Optional[str] = None,
+    campaign: Optional[FoundationCampaign] = None,
     project_id: Optional[str] = None,
     objective_type: Optional[DealObjectiveType] = None,
     target_objective: Optional[str] = None,
@@ -313,6 +331,16 @@ def create_deal_purpose_contract(
         observed[0] if observed else "named objective advances within the bounded horizon"
     )
     parent = canonical_state_key(state_before)
+    supply_obligations = (
+        derive_campaign_supply_obligations(
+            state_before,
+            row,
+            campaign,
+            campaign_id=campaign_id,
+        )
+        if purpose == DealPurposeKind.CAMPAIGN_SUPPLY
+        else ()
+    )
     return DealPurposeContract(
         contract_id=_contract_id(parent, row, objective, created_depth),
         parent_state_key=parent,
@@ -338,6 +366,7 @@ def create_deal_purpose_contract(
         ),
         created_depth=created_depth,
         horizon_expansions=horizon_expansions,
+        supply_obligations=supply_obligations,
     )
 
 
@@ -347,11 +376,42 @@ def validate_deal_purpose_contract(
     *,
     current_depth: int,
     objective_still_credible: bool = True,
+    supply_consumption: Optional[SupplyConsumptionResult] = None,
 ) -> DealPurposeOutcome:
     elapsed = max(0, current_depth - contract.created_depth)
     current = evidence_from_profile(current_profile, campaign_id=contract.campaign_id)
     changes = removal_relevant_changes(contract.evidence_before, current)
-    if current.foundations > contract.evidence_before.foundations:
+    supply_stage = (
+        supply_consumption.highest_stage if supply_consumption is not None else None
+    )
+    supplied = supply_consumption.delivered_count if supply_consumption is not None else 0
+    consumed = supply_consumption.consumed_count if supply_consumption is not None else 0
+    is_supply = contract.purpose == DealPurposeKind.CAMPAIGN_SUPPLY
+    supply_fulfilled = bool(
+        is_supply
+        and supply_consumption is not None
+        and supply_consumption.fully_consumed
+        and any(item.direct_campaign_advance for item in supply_consumption.evidence)
+    )
+    if is_supply and supply_fulfilled:
+        status = DealPurposeStatus.FULFILLED
+        reason = "the supplied campaign dependency was actually consumed and integrated"
+    elif is_supply and not objective_still_credible:
+        status = DealPurposeStatus.INVALIDATED
+        reason = "fresh structural analysis invalidated the named supply objective"
+    elif is_supply and supplied and elapsed < contract.horizon_expansions:
+        status = DealPurposeStatus.PARTIALLY_FULFILLED
+        reason = "the promised asset arrived but has not yet been consumed by the campaign"
+    elif is_supply and supplied:
+        status = DealPurposeStatus.DELIVERED_BUT_UNCONSUMED
+        reason = "the contract horizon ended after delivery without campaign consumption"
+    elif is_supply and elapsed < contract.horizon_expansions:
+        status = DealPurposeStatus.PENDING
+        reason = "campaign supply remains promised inside its bounded validation horizon"
+    elif is_supply:
+        status = DealPurposeStatus.FAILED
+        reason = "campaign supply was not consumed within the contract envelope"
+    elif current.foundations > contract.evidence_before.foundations:
         status = DealPurposeStatus.FULFILLED
         reason = "foundation milestone fulfilled the Deal purpose"
     elif not objective_still_credible:
@@ -388,6 +448,9 @@ def validate_deal_purpose_contract(
         observed_consequences=changes,
         reason=reason,
         objective_still_credible=objective_still_credible,
+        supply_stage=supply_stage,
+        supplied_assets_delivered=supplied,
+        supplied_assets_consumed=consumed,
     )
 
 
@@ -404,6 +467,9 @@ def audit_successive_deal(
     *,
     deal_ordinal: int,
     previous_contract_resolution: Optional[str] = None,
+    dependency_closure_attempted: bool = False,
+    dependency_closure_result: Optional[str] = None,
+    reason_another_deal_considered: Optional[str] = None,
 ) -> SuccessiveDealAuditEntry:
     return SuccessiveDealAuditEntry(
         deal_ordinal=deal_ordinal,
@@ -414,4 +480,11 @@ def audit_successive_deal(
         surrendered_opportunities=contract.surrendered_current_opportunities,
         status_before_next_deal=outcome.status,
         previous_contract_resolution=previous_contract_resolution,
+        promised_dependencies=tuple(
+            item.dependency_key for item in contract.supply_obligations
+        ),
+        consumption_stage=outcome.supply_stage,
+        dependency_closure_attempted=dependency_closure_attempted,
+        dependency_closure_result=dependency_closure_result,
+        reason_another_deal_considered=reason_another_deal_considered,
     )

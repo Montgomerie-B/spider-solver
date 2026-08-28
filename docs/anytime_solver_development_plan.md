@@ -1,7 +1,7 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; Phase 4 v0.5 purpose/coverage controls are verified but the two-foundation gate remains partial
-**Date:** 2026-08-13  
+**Status:** Forward implementation plan; Phase 4 v0.6 supply consumption and named dependency closure are verified but the two-foundation gate remains partial
+**Date:** 2026-08-28
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
 
@@ -597,26 +597,36 @@ Do not use low-level optimisation to compensate for a poor strategic model.
 ## 7. Immediate development sprint
 
 The original Phase 1A work below has been completed by the subsequent strategic
-analysis sprints. Controller v0.5 now attaches purpose contracts to every Deal,
-validates their lifecycle, protects one bounded next-foundation lane, diagnoses
-terminal campaign blockers, provides a strictly gated terminal assembler and
-retains material pre-foundation geometry diversity. These changes are
-ordering/coverage only and preserve exact TT and admissible-bound safety.
+analysis sprints. Controller v0.6 now distinguishes delivered stock supply from
+campaign consumption, follows physical/substituted supply provenance, builds a
+deterministic dependency graph for one named campaign, and runs a bounded
+same-epoch dependency/overlay closure before another Deal where appropriate.
+It retains v0.5's purpose contracts, protected conversion, terminal predicate
+and pre-foundation diversity. These changes are ordering/coverage only and
+preserve exact TT and admissible-bound safety.
 
-The verified untouched gate remains partial: Spades was removed at corrected
-`g=21`, but the replay-valid selected prefix ended at `g=73` with one
-foundation, empty stock, 25 face-down cards and MUST burden 28. The leading
-Diamond campaign still had two compulsory sources, a missing rank-3 interval
-and mixed overlays. Individually fulfilled campaign-supply milestones still
-allowed all remaining rows to be consumed.
+The capability is verified. Generic fixtures held a delivered-only contract at
+partial, fulfilled it only after integration, and independently replayed a
+named overlay closure without a Deal. In the 90-second cost-21 diagnostic,
+closure consumed supplied assets, closed 18 dependencies and cleared five
+overlays. Two deterministic unseen deals passed unrestricted preflight and
+legal bounded smokes. This evidence authorized one untouched opening run under
+the unchanged v0.5 envelope.
 
-The next authorized sprint should therefore be a bounded same-epoch
-dependency-closure/overlay-clearer for one named protected campaign. A supply
-contract should remain partial until its supplied source or receiver is
-actually consumed by that objective. Validate the capability first on generic
-synthetic and unseen-deal fixtures. Do not tune benchmark economic weights,
-increase wall time, or begin another prospective benchmark sprint without new
-capability evidence. See `docs/anytime_whole_game_controller_v0_5.md`.
+The untouched result remains partial: Spades was removed at corrected `g=21`,
+but the replay-valid selected prefix ended at `g=72` with one foundation, empty
+stock, 25 face-down cards and MUST burden 28. The run took 180.570 seconds,
+performed nine strategic expansions and 59,705 tactical nodes, and did not
+remove foundation #2. Supply/closure successes occurred on alternative lanes
+without becoming a durable selected campaign; zero multi-asset supply contracts
+were fully fulfilled before later stock transitions.
+
+The next authorized sprint should improve strategic admission and continuity
+for successful same-campaign closure descendants, plus dependency
+source/receiver ordering and realistic multi-asset obligation scoping. It must
+retain the current benchmark weights, runtime, unrestricted rule profile and
+proof semantics. Do not begin that sprint without explicit authorization. See
+`docs/anytime_whole_game_controller_v0_6.md`.
 
 ### Historical Phase 1A plan
 

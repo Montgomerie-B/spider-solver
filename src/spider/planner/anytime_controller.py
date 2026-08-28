@@ -45,6 +45,14 @@ from spider.planner.campaign_corridor import (
     generate_campaign_corridor_lanes,
     realize_campaign_corridor,
 )
+from spider.planner.campaign_dependency_closure import (
+    DependencyClosureCache,
+    DependencyClosureConfig,
+    DependencyClosureResult,
+    DependencyClosureStatus,
+    build_campaign_dependency_graph,
+    realize_campaign_dependency_closure,
+)
 from spider.planner.deal_timing import (
     DealCounterfactual,
     DealPreparationCandidate,
@@ -123,6 +131,13 @@ from spider.planner.residual_campaign import (
     residual_investment_accounting,
     retain_foundation_checkpoint_portfolio,
 )
+from spider.planner.supply_consumption import (
+    SupplyConsumptionResult,
+    SupplyConsumptionStage,
+    advance_supply_consumption_results,
+    invalidate_supply_result,
+    supply_result_for_contract,
+)
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.state_identity import (
     CanonicalStateKey,
@@ -143,6 +158,7 @@ class StrategicActionKind(str, Enum):
     FOUNDATION_CAMPAIGN = "FOUNDATION_CAMPAIGN"
     FOUNDATION_REMOVAL = "FOUNDATION_REMOVAL"
     CAMPAIGN_CORRIDOR = "CAMPAIGN_CORRIDOR"
+    CAMPAIGN_DEPENDENCY_CLOSURE = "CAMPAIGN_DEPENDENCY_CLOSURE"
     DEAL_NOW = "DEAL_NOW"
     PREPARE_THEN_DEAL = "PREPARE_THEN_DEAL"
     RAW_TABLEAU_MOVE = "RAW_TABLEAU_MOVE"
@@ -242,6 +258,10 @@ class AnytimeControllerConfig:
     enable_terminal_assembly: bool = True
     terminal_assembly_config: TerminalAssemblyConfig = field(
         default_factory=TerminalAssemblyConfig
+    )
+    enable_dependency_closure: bool = True
+    dependency_closure_config: DependencyClosureConfig = field(
+        default_factory=DependencyClosureConfig
     )
     enable_pre_foundation_diversity: bool = True
     max_pre_foundation_geometries: int = 6
@@ -529,6 +549,10 @@ class StrategicSuccessor:
     stock_opportunity: Optional[StockOpportunityAssessment] = None
     deal_contracts: Tuple[DealPurposeContract, ...] = ()
     purpose_debt_penalty: int = 0
+    dependency_closure_result: Optional[DependencyClosureResult] = None
+    closure_attempted_before_deal: bool = False
+    closure_result_before_deal: Optional[str] = None
+    successive_deal_reason: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -550,6 +574,9 @@ class StrategicSearchNode:
     pre_foundation_geometry: Optional[PreFoundationGeometry] = None
     deal_contract_history: Tuple[DealPurposeContract, ...] = ()
     deal_outcome_history: Tuple[DealPurposeOutcome, ...] = ()
+    supply_consumption_results: Tuple[SupplyConsumptionResult, ...] = ()
+    dependency_closure_history: Tuple[DependencyClosureResult, ...] = ()
+    successive_deal_audit_history: Tuple[SuccessiveDealAuditEntry, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -719,6 +746,33 @@ class ControllerTelemetry:
     contract_timeline: List[Tuple[int, str, str, str]] = field(default_factory=list)
     protected_lane_timeline: List[Tuple[int, str, str, str]] = field(default_factory=list)
     successive_deal_audit: List[SuccessiveDealAuditEntry] = field(default_factory=list)
+    supply_contracts_created: int = 0
+    supply_assets_promised: int = 0
+    supply_assets_delivered: int = 0
+    supply_assets_available: int = 0
+    supply_assets_consumed: int = 0
+    supply_assets_integrated: int = 0
+    supply_assets_invalidated: int = 0
+    delivered_but_unconsumed_contracts: int = 0
+    full_supply_fulfilments: int = 0
+    dependency_graphs_built: int = 0
+    dependencies_by_type: Dict[str, int] = field(default_factory=dict)
+    dependency_closure_attempts: int = 0
+    dependency_closure_successes: int = 0
+    dependency_closure_nodes: int = 0
+    dependency_closure_seconds: float = 0.0
+    dependency_closure_max_seconds: float = 0.0
+    dependencies_closed: int = 0
+    overlays_cleared: int = 0
+    supplied_assets_consumed_by_closure: int = 0
+    dependency_closure_failures: Dict[str, int] = field(default_factory=dict)
+    closure_attempted_before_successive_deal: int = 0
+    deals_with_unresolved_supply_obligation: int = 0
+    protected_lane_replans_after_closure: int = 0
+    terminal_qualification_transitions: int = 0
+    dependency_closure_timeline: List[
+        Tuple[int, str, str, int, int, Tuple[str, ...], Tuple[str, ...]]
+    ] = field(default_factory=list)
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -1578,7 +1632,21 @@ def _ensure_deal_contracts(
         return successor
     campaign_id = None
     if successor.category in ("campaign", "campaign_corridor", "residual_conversion"):
-        campaign_id = successor.source_project_id
+        campaign_id = (
+            successor.source_project_id.split("@", 1)[0]
+            if successor.source_project_id is not None
+            else None
+        )
+    campaign = None
+    if campaign_id is not None and node.analysis is not None:
+        campaign = next(
+            (
+                item
+                for item in node.analysis.economic.campaign_portfolio.campaigns
+                if item.label == campaign_id
+            ),
+            None,
+        )
     replay = node.state.clone()
     contracts = list(successor.deal_contracts)
     for action in successor.actions:
@@ -1594,6 +1662,7 @@ def _ensure_deal_contracts(
                         replay,
                         node.analysis.residual.checkpoint,
                         campaign_id=campaign_id,
+                        campaign=campaign,
                         objective_type=(
                             DealObjectiveType.CAMPAIGN
                             if campaign_id is not None
@@ -1762,12 +1831,21 @@ def _successor_from_deal_arm(
     elif opportunity.purpose == DealPurpose.ESCAPE_ONLY:
         timing_priority = max(timing_priority, 2)
     campaign_id = _deal_target_campaign(before_profile, opportunity)
+    campaign = next(
+        (
+            item
+            for item in node.analysis.economic.campaign_portfolio.campaigns
+            if item.label == campaign_id
+        ),
+        None,
+    )
     contract = create_deal_purpose_contract(
         node.state,
         before_profile,
         after_profile=after_profile,
         stock_opportunity=opportunity,
         campaign_id=campaign_id,
+        campaign=campaign,
         project_id=(arm.preparation.candidate_id if arm.preparation else None),
         target_objective=(
             campaign_id
@@ -1940,6 +2018,7 @@ def retain_diverse_portfolio(
     if len(successors) <= maximum:
         return tuple(successors)
     categories = (
+        "dependency_closure",
         "residual_conversion",
         "campaign_corridor",
         "permanent_structure",
@@ -2095,6 +2174,198 @@ def _project_probe_schedule_key(
         -project.assessment.net_economic_value,
         project.project_id,
     )
+
+
+def _named_dependency_closure_campaign(
+    node: StrategicSearchNode,
+) -> Optional[FoundationCampaign]:
+    """Select one already-named protected/supply objective, never a suit constant."""
+    assert node.analysis is not None
+    labels = []
+    if node.protected_conversion_lane is not None:
+        labels.append(node.protected_conversion_lane.target_campaign)
+    for contract in node.active_deal_contracts:
+        result = supply_result_for_contract(
+            node.supply_consumption_results, contract.contract_id
+        )
+        if (
+            contract.purpose == DealPurposeKind.CAMPAIGN_SUPPLY
+            and contract.campaign_id is not None
+            and (
+                result is None
+                or not result.fully_consumed
+            )
+        ):
+            labels.append(contract.campaign_id)
+    for label in dict.fromkeys(labels):
+        campaign = next(
+            (
+                item
+                for item in node.analysis.economic.campaign_portfolio.campaigns
+                if item.label == label
+            ),
+            None,
+        )
+        if campaign is not None:
+            return campaign
+    return None
+
+
+def _dependency_closure_successors(
+    node: StrategicSearchNode,
+    *,
+    config: AnytimeControllerConfig,
+    telemetry: ControllerTelemetry,
+    deadline: SearchDeadline,
+    cache: Optional[DependencyClosureCache] = None,
+) -> Tuple[List[StrategicSuccessor], Optional[DependencyClosureResult]]:
+    """Offer one bounded same-epoch closure before considering another Deal."""
+    if (
+        not config.enable_dependency_closure
+        or not node.state.foundations
+        or node.analysis is None
+    ):
+        return [], None
+    campaign = _named_dependency_closure_campaign(node)
+    if campaign is None:
+        return [], None
+    remaining_nodes = max(0, config.max_tactical_nodes - telemetry.tactical_nodes)
+    if remaining_nodes <= 0 or not deadline.can_start(
+        "campaign_dependency_closure", minimum_seconds=0.01, minimum_nodes=1
+    ):
+        return [], None
+    closure_config = replace(
+        config.dependency_closure_config,
+        max_nodes=min(config.dependency_closure_config.max_nodes, remaining_nodes),
+        time_limit_s=max(
+            0.01,
+            min(
+                config.dependency_closure_config.time_limit_s,
+                deadline.time_slice(
+                    "campaign_dependency_closure",
+                    config.dependency_closure_config.time_limit_s,
+                ),
+            ),
+        ),
+    )
+    telemetry.dependency_closure_attempts += 1
+    call_started = time.perf_counter()
+    with deadline.measure("campaign_dependency_closure"):
+        result = realize_campaign_dependency_closure(
+            node.state,
+            campaign,
+            config=closure_config,
+            supply_consumptions=node.supply_consumption_results,
+            deadline=deadline,
+            cache=cache,
+        )
+    elapsed = time.perf_counter() - call_started
+    telemetry.dependency_closure_seconds += elapsed
+    telemetry.dependency_closure_max_seconds = max(
+        telemetry.dependency_closure_max_seconds, elapsed
+    )
+    telemetry.dependency_closure_nodes += result.nodes_expanded
+    telemetry.tactical_nodes += result.nodes_expanded
+    telemetry.dependency_graphs_built += 2
+    for dependency in result.graph_before.dependencies:
+        telemetry.dependencies_by_type[dependency.kind.value] = (
+            telemetry.dependencies_by_type.get(dependency.kind.value, 0) + 1
+        )
+    telemetry.dependencies_closed += len(result.dependencies_closed)
+    telemetry.overlays_cleared += len(result.overlays_cleared)
+    if (
+        not campaign_is_near_removal(
+            node.state,
+            campaign,
+            config=config.terminal_assembly_config.near_removal,
+        )
+        and campaign_is_near_removal(
+            result.end_state,
+            campaign,
+            config=config.terminal_assembly_config.near_removal,
+        )
+    ):
+        telemetry.terminal_qualification_transitions += 1
+    consumed_before = sum(
+        item.consumed_count for item in node.supply_consumption_results
+    )
+    consumed_after = sum(item.consumed_count for item in result.supply_consumptions)
+    telemetry.supplied_assets_consumed_by_closure += max(
+        0, consumed_after - consumed_before
+    )
+    _append_bounded(
+        telemetry.dependency_closure_timeline,
+        (
+            node.g,
+            campaign.label,
+            result.status.value,
+            len(result.graph_before.dependencies) - 1,
+            len(result.graph_after.dependencies) - 1,
+            result.dependencies_closed,
+            result.overlays_cleared,
+        ),
+        config.max_timeline_entries,
+    )
+    successful = result.status in (
+        DependencyClosureStatus.FOUNDATION_REMOVED,
+        DependencyClosureStatus.DEPENDENCY_CLOSED,
+        DependencyClosureStatus.SUPPLY_CONSUMED,
+        DependencyClosureStatus.MILESTONE_REACHED,
+    )
+    if not successful:
+        telemetry.dependency_closure_failures[result.status.value] = (
+            telemetry.dependency_closure_failures.get(result.status.value, 0) + 1
+        )
+        return [], result
+    if (
+        not result.actions
+        or result.corrected_added_cost is None
+        or not result.independent_replay_verified
+    ):
+        telemetry.dependency_closure_failures["INVALID_SUCCESS"] = (
+            telemetry.dependency_closure_failures.get("INVALID_SUCCESS", 0) + 1
+        )
+        return [], result
+    telemetry.dependency_closure_successes += 1
+    rationale = (
+        result.reason,
+        f"named_campaign={campaign.label}",
+        f"dependencies_closed={result.dependencies_closed}",
+        f"overlays_cleared={result.overlays_cleared}",
+        "same-epoch closure does not Deal unless explicitly configured",
+        "bounded miss has no proof authority",
+    ) + tuple(
+        (
+            f"target={step.targeted_dependencies}; placement="
+            f"{step.lifecycle.placement_class.value if step.lifecycle else 'DEAL'}; "
+            f"joins+={step.lifecycle.same_suit_joins_created if step.lifecycle else ()}; "
+            f"joins-={step.lifecycle.same_suit_joins_broken if step.lifecycle else ()}; "
+            f"mixed+={step.lifecycle.mixed_suit_boundaries_created if step.lifecycle else ()}; "
+            f"mixed-={step.lifecycle.mixed_suit_boundaries_removed if step.lifecycle else ()}; "
+            f"exit={step.lifecycle.future_exit_route if step.lifecycle else 'configured stock transition'}; "
+            f"rehandling={step.lifecycle.estimated_rehandling_cost if step.lifecycle else 0}"
+        )
+        for step in result.steps
+    )
+    return [
+        StrategicSuccessor(
+            StrategicActionKind.CAMPAIGN_DEPENDENCY_CLOSURE,
+            "dependency_closure",
+            f"close named dependencies for {campaign.label}",
+            result.actions,
+            result.corrected_added_cost,
+            result.end_state.clone(),
+            node.credit_level,
+            result.corrected_added_cost,
+            result.corrected_added_cost,
+            result.nodes_expanded,
+            True,
+            False,
+            rationale,
+            source_project_id=campaign.label,
+            dependency_closure_result=result,
+        )
+    ], result
 
 
 def _foundation_successors(
@@ -2491,6 +2762,7 @@ def generate_strategic_successors(
         Dict[Tuple[CanonicalStateKey, AnalysisConfigFingerprint], StrategicAnalysisFacts]
     ] = None,
     deadline: Optional[SearchDeadline] = None,
+    dependency_closure_cache: Optional[DependencyClosureCache] = None,
 ) -> Tuple[StrategicSuccessor, ...]:
     """Generate a replay-verified portfolio in an explicit resource order.
 
@@ -2543,7 +2815,18 @@ def generate_strategic_successors(
             )
         )
 
-    # 2. Foundation-oriented work receives a protected bounded opportunity.
+    # 2. A previously supplied/protected named objective receives one bounded
+    # same-epoch closure opportunity before any new stock row is considered.
+    closure_successors, closure_offer = _dependency_closure_successors(
+        node,
+        config=config,
+        telemetry=telemetry,
+        deadline=shared_deadline,
+        cache=dependency_closure_cache,
+    )
+    raw.extend(closure_successors)
+
+    # 3. Foundation-oriented work receives a protected bounded opportunity.
     raw.extend(
         _foundation_successors(
             node,
@@ -2555,7 +2838,7 @@ def generate_strategic_successors(
         )
     )
 
-    # 3. The multi-epoch hypothesis is protected before generic Deal/raw
+    # 4. The multi-epoch hypothesis is protected before generic Deal/raw
     # families.  The campaign suit/copy comes only from the live portfolio.
     corridor_successors = _campaign_corridor_successors(
         node,
@@ -2603,7 +2886,7 @@ def generate_strategic_successors(
     elif analysis.deal_timing is None and node.state.can_deal(MW_RULES):
         telemetry.optional_analyses_skipped += 1
 
-    # 4. Deal is admitted as a first-class legal successor before probes.  Its
+    # 5. Deal is admitted as a first-class legal successor before probes.  Its
     # eventual queue position is based on exact post-deal consequences.
     deal_added = False
     if analysis.deal_timing is not None:
@@ -2642,7 +2925,26 @@ def generate_strategic_successors(
         )
         telemetry.deal_successors_generated += 1
 
-    # 5. Probe only the best scheduled uncertain work, with a separate fixed
+    # Record that the closure capability was offered before every Deal.  This
+    # is path audit metadata and does not make the Deal illegal.
+    if closure_offer is not None:
+        closure_reason = closure_offer.reason
+        raw = [
+            replace(
+                item,
+                closure_attempted_before_deal=True,
+                closure_result_before_deal=closure_offer.status.value,
+                successive_deal_reason=(
+                    "bounded same-epoch closure did not remove the need for a stock transition; "
+                    + closure_reason
+                ),
+            )
+            if item.kind in _DEAL_ACTION_KINDS
+            else item
+            for item in raw
+        ]
+
+    # 6. Probe only the best scheduled uncertain work, with a separate fixed
     # normalized budget.  A miss is cached only for this exact tier.
     confirmed: List[Tuple[EconomicProject, ActionabilityTier]] = []
     probe_tier = actionability_tier_for_credit(node.credit_level)
@@ -2749,7 +3051,7 @@ def generate_strategic_successors(
         if actionability.actionable_current_epoch:
             confirmed.append((project, probe_tier))
 
-    # 6. Realization is separately bounded and attempted only for confirmed
+    # 7. Realization is separately bounded and attempted only for confirmed
     # actionable work.  An attempt consumes a realization slot even on miss.
     bounded_used = 0
     for project, confirmed_tier in confirmed:
@@ -2825,7 +3127,7 @@ def generate_strategic_successors(
             )
         )
 
-    # 7. Broader legal tableau fallback appears only at credit level four.
+    # 8. Broader legal tableau fallback appears only at credit level four.
     if raw_fallback_enabled(node.credit_level):
         raw.extend(_raw_move_successors(node))
 
@@ -3020,6 +3322,8 @@ def _record_contract_outcome(
     seen.add(key)
     if outcome.status == DealPurposeStatus.FULFILLED:
         telemetry.fulfilled_contracts += 1
+        if contract.purpose == DealPurposeKind.CAMPAIGN_SUPPLY:
+            telemetry.full_supply_fulfilments += 1
     elif outcome.status == DealPurposeStatus.PARTIALLY_FULFILLED:
         telemetry.partially_fulfilled_contracts += 1
     elif outcome.status == DealPurposeStatus.FAILED:
@@ -3028,6 +3332,8 @@ def _record_contract_outcome(
         telemetry.invalidated_contracts += 1
     elif outcome.status == DealPurposeStatus.ESCAPE_RECLASSIFIED:
         telemetry.escape_reclassifications += 1
+    elif outcome.status == DealPurposeStatus.DELIVERED_BUT_UNCONSUMED:
+        telemetry.delivered_but_unconsumed_contracts += 1
     _append_bounded(
         telemetry.contract_timeline,
         (g, contract.contract_id, contract.purpose.value, outcome.status.value),
@@ -3049,13 +3355,26 @@ def _refresh_node_contracts(
     }
     active = []
     outcomes = []
+    supply_results = list(node.supply_consumption_results)
     for contract in node.active_deal_contracts:
         credible = contract.campaign_id is None or contract.campaign_id in labels
+        supply = supply_result_for_contract(supply_results, contract.contract_id)
+        if supply is not None and not credible:
+            supply = invalidate_supply_result(
+                supply,
+                node.state,
+                reason="fresh campaign reanalysis invalidated the named supply obligation",
+            )
+            supply_results = [
+                supply if item.contract_id == contract.contract_id else item
+                for item in supply_results
+            ]
         outcome = validate_deal_purpose_contract(
             contract,
             node.analysis.residual.checkpoint,
             current_depth=node.depth,
             objective_still_credible=credible,
+            supply_consumption=supply,
         )
         outcomes.append(outcome)
         _record_contract_outcome(
@@ -3078,6 +3397,7 @@ def _refresh_node_contracts(
         active_deal_contracts=tuple(active),
         deal_contract_outcomes=tuple(outcomes),
         deal_outcome_history=tuple(history_by_id.values()),
+        supply_consumption_results=tuple(supply_results),
     )
 
 
@@ -3096,6 +3416,30 @@ def _refresh_protected_conversion_lane(
     ):
         return node
     profile = node.analysis.residual.checkpoint
+
+    def dependency_ids(campaign_id: str) -> Tuple[str, ...]:
+        campaign = next(
+            (
+                item
+                for item in node.analysis.economic.campaign_portfolio.campaigns
+                if item.label == campaign_id
+            ),
+            None,
+        )
+        if campaign is None:
+            return ()
+        graph = build_campaign_dependency_graph(
+            node.state,
+            campaign,
+            supply_consumptions=node.supply_consumption_results,
+        )
+        telemetry.dependency_graphs_built += 1
+        return tuple(
+            item.dependency_id
+            for item in graph.dependencies
+            if item.dependency_id != graph.terminal_dependency_id
+        )
+
     lane = node.protected_conversion_lane
     if lane is not None:
         assessment = evaluate_protected_conversion_lane(
@@ -3130,12 +3474,19 @@ def _refresh_protected_conversion_lane(
         if assessment.status == ProtectedConversionStatus.CONTINUE:
             return node
         if assessment.status == ProtectedConversionStatus.MILESTONE_REACHED:
+            if (
+                node.incoming_edge is not None
+                and node.incoming_edge.kind
+                == StrategicActionKind.CAMPAIGN_DEPENDENCY_CLOSURE
+            ):
+                telemetry.protected_lane_replans_after_closure += 1
             lane = create_protected_conversion_lane(
                 profile,
                 campaign_id=lane.target_campaign,
                 current_expansion=telemetry.expanded,
                 current_elapsed_seconds=elapsed_seconds,
                 budget=config.protected_conversion_budget,
+                unresolved_dependencies=dependency_ids(lane.target_campaign),
             )
             if lane is not None:
                 telemetry.protected_lanes_created += 1
@@ -3149,6 +3500,10 @@ def _refresh_protected_conversion_lane(
             budget=config.protected_conversion_budget,
         )
         if lane is not None:
+            lane = replace(
+                lane,
+                unresolved_dependencies=dependency_ids(lane.target_campaign),
+            )
             telemetry.protected_lanes_created += 1
             _append_bounded(
                 telemetry.protected_lane_timeline,
@@ -3323,6 +3678,7 @@ def solve_anytime(
                 spec.time_limit_s for spec in config.actionability_tiers
             ),
             "economic_project_realizer": config.tactical_time_limit_s_per_project,
+            "campaign_dependency_closure": config.dependency_closure_config.time_limit_s,
         },
     )
     preflight = freeze_active_rule_profile(initial_state, cards, rules=MW_RULES)
@@ -3511,6 +3867,7 @@ def solve_anytime(
     heapq.heappush(frontier, (_node_priority(root), uid, root))
     expansion_credits: set[Tuple[CanonicalStateKey, int]] = set()
     actionability_cache: Dict[ActionabilityCacheKey, ProjectActionability] = {}
+    dependency_closure_cache: Dict = {}
     contract_events_seen: set[Tuple[str, str, CanonicalStateKey]] = set()
     contract_creations_seen: set[str] = set()
     lane_events_seen: set[Tuple[str, str, CanonicalStateKey]] = set()
@@ -3825,6 +4182,7 @@ def solve_anytime(
             started=started,
             analysis_cache=analysis_cache,
             deadline=deadline,
+            dependency_closure_cache=dependency_closure_cache,
         )
         telemetry.generated += len(successors)
         _trace_expansion(node, successors, telemetry, config, current_incumbent_cost)
@@ -3844,6 +4202,7 @@ def solve_anytime(
                     for item in successors
                     if item.category
                     in (
+                        "dependency_closure",
                         "residual_conversion",
                         "campaign_corridor",
                         "campaign",
@@ -3878,6 +4237,7 @@ def solve_anytime(
                 successor,
                 analysis=None,
             )
+            child_audit_history = node.successive_deal_audit_history
             if successor.deal_contracts:
                 unresolved_before = tuple(node.active_deal_contracts)
                 if unresolved_before:
@@ -3898,6 +4258,10 @@ def solve_anytime(
                             previous,
                             node.analysis.residual.checkpoint,
                             current_depth=node.depth,
+                            supply_consumption=supply_result_for_contract(
+                                node.supply_consumption_results,
+                                previous.contract_id,
+                            ),
                         ),
                     )
                     if (
@@ -3914,12 +4278,32 @@ def solve_anytime(
                             for action in node.actions + successor.actions
                         ),
                         previous_contract_resolution=outcome.reason,
+                        dependency_closure_attempted=(
+                            successor.closure_attempted_before_deal
+                        ),
+                        dependency_closure_result=(
+                            successor.closure_result_before_deal
+                        ),
+                        reason_another_deal_considered=(
+                            successor.successive_deal_reason
+                        ),
                     )
+                    if successor.closure_attempted_before_deal:
+                        telemetry.closure_attempted_before_successive_deal += 1
+                    if previous.purpose == DealPurposeKind.CAMPAIGN_SUPPLY and (
+                        outcome.supply_stage
+                        not in (
+                            SupplyConsumptionStage.CONSUMED,
+                            SupplyConsumptionStage.INTEGRATED,
+                        )
+                    ):
+                        telemetry.deals_with_unresolved_supply_obligation += 1
                     _append_bounded(
                         telemetry.successive_deal_audit,
                         audit,
                         config.max_timeline_entries,
                     )
+                    child_audit_history = child_audit_history + (audit,)
                 for contract in successor.deal_contracts:
                     if contract.contract_id in contract_creations_seen:
                         continue
@@ -3928,6 +4312,11 @@ def solve_anytime(
                     telemetry.contracts_by_purpose[contract.purpose.value] = (
                         telemetry.contracts_by_purpose.get(contract.purpose.value, 0) + 1
                     )
+                    if contract.purpose == DealPurposeKind.CAMPAIGN_SUPPLY:
+                        telemetry.supply_contracts_created += 1
+                        telemetry.supply_assets_promised += len(
+                            contract.supply_obligations
+                        )
             uid += 1
             active_contracts = tuple(
                 dict.fromkeys(
@@ -3962,6 +4351,50 @@ def solve_anytime(
                 telemetry.distinct_pre_foundation_geometries = len(
                     pre_foundation_portfolio.geometries
                 )
+            child_supply_results = advance_supply_consumption_results(
+                node.state,
+                successor.actions,
+                existing=node.supply_consumption_results,
+                new_contracts=successor.deal_contracts,
+            )
+            prior_supply = {
+                (item.contract_id, evidence.obligation_id): evidence.stage
+                for item in node.supply_consumption_results
+                for evidence in item.evidence
+            }
+            for result in child_supply_results:
+                for evidence in result.evidence:
+                    old = prior_supply.get((result.contract_id, evidence.obligation_id))
+                    if old == evidence.stage:
+                        continue
+                    if old is None and evidence.stage in (
+                        SupplyConsumptionStage.DELIVERED,
+                        SupplyConsumptionStage.AVAILABLE,
+                        SupplyConsumptionStage.CONSUMED,
+                        SupplyConsumptionStage.INTEGRATED,
+                    ):
+                        telemetry.supply_assets_delivered += 1
+                    if evidence.stage == SupplyConsumptionStage.DELIVERED:
+                        pass
+                    elif evidence.stage == SupplyConsumptionStage.AVAILABLE:
+                        telemetry.supply_assets_available += 1
+                    elif evidence.stage == SupplyConsumptionStage.CONSUMED:
+                        telemetry.supply_assets_consumed += 1
+                    elif evidence.stage == SupplyConsumptionStage.INTEGRATED:
+                        telemetry.supply_assets_consumed += int(
+                            old not in (
+                                SupplyConsumptionStage.CONSUMED,
+                                SupplyConsumptionStage.INTEGRATED,
+                            )
+                        )
+                        telemetry.supply_assets_integrated += 1
+                    elif evidence.stage == SupplyConsumptionStage.INVALIDATED:
+                        telemetry.supply_assets_invalidated += 1
+            closure_history = node.dependency_closure_history
+            if successor.dependency_closure_result is not None:
+                closure_history = closure_history + (
+                    successor.dependency_closure_result,
+                )
             child = StrategicSearchNode(
                 uid,
                 successor.end_state.clone(),
@@ -3984,6 +4417,9 @@ def solve_anytime(
                 pre_geometry,
                 node.deal_contract_history + successor.deal_contracts,
                 node.deal_outcome_history,
+                child_supply_results,
+                closure_history,
+                child_audit_history,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -4070,5 +4506,7 @@ def solve_anytime(
         telemetry=telemetry,
         stop_reason=stop_reason,
         pre_foundation_portfolio=pre_foundation_portfolio,
-        successive_deal_audit=tuple(telemetry.successive_deal_audit),
+        successive_deal_audit=tuple(
+            most_foundations_node.successive_deal_audit_history
+        ),
     )
