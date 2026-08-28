@@ -1,8 +1,9 @@
 # Anytime Optimal Spider Solver Architecture
 
 **Status:** Forward architecture / development roadmap  
-**Date:** 2026-08-12  
-**Scope:** General 1-, 2- and 4-suit perfect-information Spider, with deal 4925153/leaderboard deal 492515 used as the primary benchmark rather than as a hard-coded special case.
+**Date:** 2026-08-28  
+**Scope:** General 1-, 2- and 4-suit perfect-information Spider, with deal 4925153/leaderboard deal 492515 used as the primary benchmark rather than as a hard-coded special case.  
+**Strategic companion:** `docs/whole_deal_structural_economics.md`
 
 ## Purpose
 
@@ -10,369 +11,490 @@ The project goal is not to produce a solver that knows one special route through
 
 1. find a legal solution quickly when one exists;
 2. improve that solution continuously as more search time is available;
-3. exploit each new incumbent to prune the remaining search more aggressively;
+3. exploit each incumbent to prune the remaining search more aggressively;
 4. eventually prove optimality when computationally feasible; and
-5. prove a deal unsolvable when the complete reachable state space can be exhausted without a solution.
+5. prove a deal unsolvable only after the complete reachable state space has been exhausted.
 
-The intended operating model is therefore **anytime optimisation**, not a monolithic search that remains silent until it has proved an optimum.
+The intended operating model is **anytime optimisation**:
 
-A typical run should be able to progress conceptually as:
+`analyse -> generate strategic options -> realise tactics -> first solve -> improve -> tighten bounds -> prove`
 
-`analyse -> find incumbent -> improve -> tighten bounds -> improve -> prove`
-
-At any interruption point the best verified solution found so far remains useful.
+At any interruption point the best independently verified solution found so far remains useful.
 
 ## Benchmark evidence
 
-The current benchmark deal is stored internally as `4925153`; the MobilityWare leaderboard screenshot supplied by the user displays the same deal as **Deal #492515**. The project should retain the existing internal identifier until a deliberate repository-wide rename is undertaken.
+The current benchmark deal is stored internally as `4925153`; the MobilityWare leaderboard screenshot labels the same deal **#492515**. Retain the historical repository identifier until a deliberate migration is undertaken.
 
-Known benchmark evidence for this deal:
+Known benchmark evidence:
 
 - verified replayable project incumbent: **172 corrected MobilityWare moves**;
-- user's historical best shown on the leaderboard: **167**;
-- leaderboard second place: **154**;
-- leaderboard best: **119**;
-- 119 is therefore treated as a credible existence bound for this benchmark deal, although no 119 move sequence is currently available to the project.
+- user's historical leaderboard best: **167**;
+- leaderboard score: **154**;
+- leaderboard best: **119**.
 
-These numbers are benchmark evidence, not deal-specific rules. A general solver must work without knowing a leaderboard score in advance.
+The 119 score is credible external existence evidence, not a route available to the project and not generic strategy input.
 
-## Core strategic insight
+## Global strategic objective
 
-A strong human does not primarily play Spider by selecting a suit and greedily trying to remove it. Human play is dominated by:
+The mature solver should not fundamentally optimise "which foundation can I remove next?"
 
-- exposing hidden cards;
-- making permanent or low-regret same-suit consolidations;
-- creating empty columns;
-- using empty columns as temporary working space;
-- recovering those spaces later;
-- deciding when the tableau is sufficiently well shaped to receive the next stock row;
-- avoiding expensive rearrangement that produces little future access.
+Spider is the transformation of 104 cards into eight complete descending same-suit K-A sequences while:
 
-The perfect-information solver has a major advantage over the human: it knows every hidden card and every future stock card. It should therefore replace human uncertainty heuristics with deterministic downstream analysis.
+- exposing every hidden tableau card;
+- introducing all five stock rows;
+- creating and exploiting workspace;
+- minimising fragmentation and future rehandling;
+- choosing when to construct, carry, merge and finally remove suit material.
 
-For example, exposing a King is not intrinsically good or bad. A human may avoid it because the consequence is unknown and a King may consume a valuable empty column. The solver knows exactly what lies beneath the King, what the exposure unlocks, whether another empty column can be created, and whether a consumed space can be recovered after a later stock deal. It should value the actual downstream consequence, not apply a generic King penalty.
+The forward architectural objective is therefore:
 
-Likewise, reveal count is not itself the objective. Humans gain information by revealing cards; the solver gains no information because it already knows them. The optimal perfect-information route may deliberately leave many cards hidden until they are actually useful.
+> **Minimise the paid structural work required to transform the complete known deal into eight removable same-suit K-A sequences.**
+
+Foundation removal is one major conversion event within that transformation, not the sole measure of progress.
+
+Run construction, reveal/excavation, workspace management, stock timing and foundation removal are competing investments toward the same whole-deal objective.
+
+## Core structural prior: build same-suit runs
+
+A same-suit descending join is structural compression. Two separate card fragments become one movable unit.
+
+Even a two-card run is normally more useful than two separate cards because it can be moved, extended and eventually incorporated into a larger sequence as one object.
+
+The solver should therefore use the following baseline strategic prior:
+
+> If a legal move creates a new same-suit descending connection without sacrificing something demonstrably more valuable, regard the connection as presumptively beneficial.
+
+This is an ordering prior only. It is not a rule, forced move or proof-pruning condition.
+
+Counterexamples must be evaluated explicitly. A join can be sub-optimal when, for example:
+
+- a known future stock row will create the same adjacency for free;
+- the join consumes critical workspace;
+- it forces expensive later disassembly;
+- another physical duplicate produces better downstream geometry;
+- it blocks a more valuable reveal or campaign dependency.
+
+The solver should compare these counterfactual consequences rather than attach a blind same-suit bonus.
+
+## Build horizon and removal horizon are separate
+
+For every prospective K-A sequence, distinguish at least:
+
+### Removal horizon
+
+The earliest stock epoch at which all required physical ranks can exist in the tableau and the sequence could in principle be removed.
+
+### Construction horizon
+
+The epochs in which useful portions of the eventual sequence can economically be assembled.
+
+Therefore:
+
+> **Earliest-removal epoch controls when a campaign can cash out; it must never determine when preparation for that campaign may begin.**
+
+A Club sequence that cannot be removed until Deal 5 may still be a valuable Deal-0 through Deal-4 construction campaign.
+
+The planner should track both build readiness and removal readiness. A late-removal suit is not a low-value suit if cheap permanent structure can be created now.
+
+## Whole-tableau structural balance sheet
+
+The strategic planner should reason about assets and liabilities across the entire tableau.
+
+### Structural assets
+
+- same-suit adjacencies;
+- movable same-suit runs;
+- exposed required sources;
+- empty/recoverable workspace;
+- prepared stock receivers;
+- favourable fragment ordering;
+- near-complete or complete K-A sequences.
+
+### Structural liabilities
+
+- buried compulsory cards;
+- fragmented suit material;
+- mixed boundaries;
+- temporary parks and rehandling obligations;
+- occupied critical workspace;
+- poor stock reception;
+- overlays blocking useful fragments;
+- unresolved dependencies.
+
+A move is strategically valuable when it improves the expected whole-deal transformation at acceptable cost, even if no immediate foundation becomes closer.
+
+## Four universal strategic activities
+
+Every solution must ultimately perform four kinds of work.
+
+### 1. Build runs
+
+Establish same-suit descending adjacencies and reduce fragmentation.
+
+### 2. Expose cards
+
+Every hidden tableau card must become accessible. Reveals have no information value to a perfect-information solver; their value is structural.
+
+### 3. Create and exploit workspace
+
+Empty columns and useful open columns enable excavation, rearrangement, temporary parking and assembly. Space must be modelled with creation, use, occupation, recovery and replacement costs.
+
+### 4. Introduce and exploit stock
+
+Every stock row must eventually be dealt. Timing should be judged against exact incoming cards, free construction opportunities, supplied dependencies, receiver geometry and current work surrendered.
+
+Foundation removal converts completed construction into permanent tableau simplification and more freedom.
+
+## Competing marginal returns
+
+At any state, several objectively useful actions may compete:
+
+- create a same-suit join;
+- expose a compulsory card;
+- create/recover an empty column;
+- clear a campaign overlay;
+- prepare the next known stock row;
+- consume a supplied campaign source;
+- complete a foundation.
+
+The strategic question is:
+
+> Which structural transformation has the highest marginal whole-deal value now, and when should the solver switch objectives?
+
+The analyser should expose transparent components rather than collapse everything prematurely into one fitted score.
+
+For a run-construction opportunity, relevant facts include:
+
+- new same-suit adjacency;
+- fragmentation reduced;
+- future handling avoided;
+- campaign dependency advanced;
+- whether future stock creates the same join for free;
+- workspace/carrying cost;
+- interference with other campaigns.
+
+For reveal, workspace and Deal opportunities, equivalent transparent cost/benefit facts should be available.
+
+## Permanent adjacency accounting
+
+Immediately before removal, every K-A sequence contains twelve same-suit adjacencies. Across eight completed sequences, 96 such relationships must exist at some point.
+
+This is **not** by itself an admissible move lower bound because stock can create joins for free, duplicate assignments are flexible and paid moves can have multiple effects.
+
+It is nevertheless a useful structural representation. The whole-deal analyser should eventually distinguish:
+
+- final adjacencies already established;
+- adjacencies cheap to build now;
+- adjacencies likely to be created for free by known stock;
+- adjacencies blocked by hidden cards/overlays;
+- adjacencies whose early construction carries excessive workspace cost.
+
+## Duplicate-card assignment
+
+Each suit has two copies of each rank. Assignment of physical cards to sequence #1 versus sequence #2 is itself strategic.
+
+Do not commit physical copies earlier than necessary. Campaign identities should permit interchangeable source substitution while that remains economically useful.
+
+The future global planner should be able to compare alternative assignments according to excavation cost, receiver geometry, stock timing and carrying cost.
+
+## Carrying cost of prepared runs
+
+Prepared same-suit structure is valuable but can occupy useful tableau real estate.
+
+A long run that cannot yet be removed may:
+
+- reduce fragmentation and future handling;
+- remain highly movable as one unit;
+
+while also:
+
+- occupying a critical column;
+- covering a receiver;
+- constraining workspace;
+- interfering with another campaign.
+
+Therefore the planner should evaluate **construction value versus carrying/interference cost**.
+
+Sometimes the right answer is to build immediately; sometimes to build only a lower or upper fragment; sometimes to wait because later stock performs the join for free.
 
 ## Spaces as a first-class resource
 
-An empty tableau column should be treated as a strategic asset with a **lifecycle**, not merely counted as one legal destination.
+An empty tableau column is a strategic asset with a lifecycle:
 
-The strategic model should distinguish:
+`create -> use -> occupy -> recover/replace -> carry through stock -> reuse`
+
+The solver should model:
 
 - cost to create a space;
-- temporary occupation of a space;
-- permanent consumption of a space;
-- ability to recover the same space;
-- ability to create a replacement space elsewhere;
-- ability to carry effective working space through a known stock deal;
-- strategic operations enabled while the space exists.
+- temporary versus permanent occupation;
+- operations enabled while free;
+- recoverability;
+- replacement-space creation;
+- exact interaction with known future stock.
 
-Because the stock is known, the solver can analyse cases such as:
+Because stock is known, the solver can reason about:
 
-`space before deal -> incoming card lands -> incoming card has known immediate destination -> space effectively recovered`
+`space before Deal -> incoming card lands -> incoming card has known destination -> space effectively recovered`
 
-This is a powerful perfect-information advantage and should become a first-class planning concept.
+Raw empty-column count is therefore insufficient; effective workspace and recoverability matter.
 
 ## Stock epochs
 
-The game should be modelled strategically as six epochs:
+Model the game strategically as:
 
-`opening -> deal 1 -> deal 2 -> deal 3 -> deal 4 -> deal 5 -> finish`
+`opening -> Deal 1 -> Deal 2 -> Deal 3 -> Deal 4 -> Deal 5 -> finish`
 
-For each epoch the solver knows:
+For every epoch the solver knows:
 
-- the exact current tableau;
-- all still-hidden cards and their dependency chains;
-- the exact next ten stock cards and their destination columns;
-- which suit fragments are available for consolidation;
-- which complete sequences can or cannot yet exist because required cards remain in later stock rows;
-- which empty columns can be created or recovered;
-- the minimum unavoidable work still remaining.
+- exact tableau;
+- hidden-card dependency chains;
+- exact future stock rows;
+- current and potential same-suit fragments;
+- which sequences cannot yet be removed;
+- which sequences can still be profitably constructed;
+- space creation/recovery opportunities;
+- unavoidable remaining work.
 
-The strategic question before a stock deal is therefore not simply "is the tableau good enough?" It is:
+Before a Deal, ask:
 
-> What low-cost tableau structure is best suited to receive this exact known next stock row while preserving or increasing future manoeuvrability?
+> What low-cost tableau is best suited to receive this exact row while preserving or increasing whole-deal structural value?
 
-A sequence may be worth building long before it can be removed. **Build now** and **remove now** are separate decisions.
+Deal remains a first-class option even while tableau moves remain legal under the active Unrestricted Deal profile.
+
+## Whole-deal backward/forward planning
+
+The mature strategic planner should combine backward and forward passes.
+
+### Backward pass
+
+Starting from the requirement for eight complete K-A sequences, derive flexible requirements backwards through known stock epochs:
+
+- which ranks/copies cannot appear before particular Deals;
+- which fragments should ideally be prepared before those Deals;
+- which overlays must be cleared earlier;
+- which receivers/workspaces should be preserved;
+- which same-suit joins are cheap now but expensive later;
+- which physical-copy assignments should remain flexible.
+
+The output is a dependency schedule and portfolio of candidate construction/removal schedules, not one rigid suit order.
+
+### Forward pass
+
+Realise the current plan from the exact tableau while continually measuring:
+
+- actual tactical cost of predicted construction;
+- reveal consequences;
+- workspace geometry;
+- stock reception;
+- campaign dependency closure;
+- carrying cost of prepared runs;
+- whether another campaign/order has become cheaper.
+
+Then replan.
+
+The intended loop is:
+
+`whole-deal analysis -> backward structural schedule -> forward realisation -> exact reanalysis -> schedule revision`
+
+## Relationship to foundation campaigns
+
+Foundation campaigns remain important, but each should expose multiple independent states.
+
+### Removal state
+
+- impossible before epoch N;
+- theoretically available;
+- practically reachable;
+- near removal;
+- removable now.
+
+### Construction state
+
+- fragmented;
+- useful joins available;
+- economically assemblable now;
+- substantially preassembled;
+- staged for later completion.
+
+### Carrying/interference state
+
+- cheap to retain;
+- occupies useful workspace;
+- blocks another campaign;
+- deliberately fragmented because later assembly is cheaper.
+
+A campaign impossible to remove now may still deserve substantial current investment.
 
 ## Three cooperating solver layers
 
-The future solver should separate three responsibilities.
-
 ### 1. Strategic planner
 
-Chooses desirable intermediate outcomes rather than individual moves.
+Chooses desirable intermediate outcomes and whole-deal structural investments.
 
 Examples:
 
+- create a cheap same-suit run even for a late-removal suit;
 - expose a particular dependency chain;
-- create a recoverable empty column;
-- consolidate two same-suit fragments;
-- preserve a space through the next stock deal;
-- shape selected columns for known incoming stock cards;
-- postpone an unnecessary reveal;
-- assemble a suit fragment that cannot yet be removed;
-- trigger a multi-suit cascade only when doing so increases overall freedom.
+- create/recover workspace;
+- shape columns for known stock;
+- clear an overlay blocking a named source;
+- preserve an incoming free adjacency rather than pay for it now;
+- prepare a sequence long before removal;
+- remove a foundation when cashing out structure improves future freedom.
 
-The strategic planner should generate several competing objectives rather than commit greedily to a single suit.
+The planner should maintain several competing objectives and campaign schedules.
 
 ### 2. Tactical exact engine
 
 Finds the cheapest legal way to realise a strategic objective.
 
-Existing work on:
-
-- corrected MobilityWare accounting;
-- collision-safe structural state identity;
-- zero-cost free-column quotienting;
-- algebraic quotient expansion;
-- exact corridor search;
-- checkpoint/resume;
-- durable solution verification;
-
-belongs here and should be reused rather than discarded.
+Reuse corrected accounting, exact/quotient search, replay verification, tactical beams and local bounded realisers.
 
 ### 3. Proof / optimisation engine
 
-Uses incumbents, admissible lower bounds, transposition and exact search to answer:
+Uses incumbents, admissible lower bounds, transposition and exact search to answer whether a branch can still beat the incumbent and eventually prove optimality or unsolvability.
 
-- can this branch still beat the incumbent?
-- can this target score still be achieved from this state?
-- has a claimed optimum been proved?
-- has the entire reachable state space been exhausted without a solution?
-
-This layer converts a strong heuristic solver into an optimiser and, eventually, an optimality/unsolvability prover.
+Heuristic structural economics may order search but never acquire proof authority without a formal admissibility argument.
 
 ## Global branch-and-bound
 
-Once any complete legal solution of cost `U` is known, every state has:
+Once any complete legal solution of cost `U` is known:
 
-- `g(s)`: corrected moves already spent;
-- `h(s)`: an admissible lower bound on corrected moves still required.
+- `g(s)` = corrected paid cost already spent;
+- `h(s)` = admissible lower bound on remaining corrected cost.
 
-For strict improvement, prune when:
+Prune for strict improvement only when:
 
 `g(s) + h(s) >= U`
 
-Every improved solution reduces `U` and automatically tightens the whole search.
+For the benchmark the verified incumbent is 172. The external 119 score may be used as an explicit experimental target input, never as hidden generic strategy logic.
 
-For a fresh deal the solver first seeks any incumbent. For the current benchmark we already have a verified 172 incumbent. The 119 leaderboard score can additionally be used in experiments explicitly targeting a 119-or-better route, but must not be hard-coded into the general solver.
+Current safe lower-bound components include mandatory remaining Deals and the established paid-reveal bound:
 
-### Initial admissible lower-bound components
+`h_deals = remaining_deals`
 
-Only mathematically safe bounds may be used for proof pruning. Candidate components include:
+`h_reveal_paid = ceil(max(0, face_down - 10*remaining_deals) / 2)`
 
-- remaining mandatory stock deals (each cost 1);
-- residual hidden-card flips not coverable by deal-side foundation flips,
-  using at most two flips per paid tableau move (raw face-down count is **not**
-  itself a paid-move lower bound; `face_down + deals` is **not** admissible);
-- proven target-adjacency or breakpoint bounds;
-- proven unavoidable structural repairs;
-- proven foundation/stock availability constraints.
+`h_admissible = h_deals + h_reveal_paid`
 
-Bounds must not be naively summed when a single paid move can satisfy more than one component. Use `max(...)`, matching, disjoint abstractions, additive pattern databases, or another formally justified combination.
+Do not naively add overlapping heuristic components.
 
 ## Canonical solutions as safety nets, not scripts
 
-A known complete human route is valuable, but the solver must not assume the optimum resembles it locally.
+The verified 172 route provides:
 
-A canonical solution provides:
+- an incumbent;
+- legal successful states;
+- suffix-cost evidence;
+- regression anchors;
+- diagnostic human strategy evidence.
 
-- a verified incumbent;
-- exact legal states throughout a successful route;
-- known suffix costs from each canonical state;
-- useful training/diagnostic evidence about human strategy;
-- safe reconnection points for deviation searches.
-
-The canonical route should therefore be treated as a **scaffold or network of safe harbours**, not as the strategy the machine must imitate.
-
-If a new path reaches a canonical state more cheaply, its known suffix immediately gives a complete improvement. Conversely, a strategic search may diverge from the canonical path very early if perfect-information analysis indicates a better route.
+It is a scaffold, not the machine's strategy. New search may diverge immediately when whole-deal analysis finds a better path.
 
 ## Development roadmap
 
-### Phase A — Baseline the new architecture
+### Phase A — Baseline architecture and correctness
 
-- Preserve historical planner and experiment documents as audit history.
-- Adopt this document as the forward architecture.
-- Keep rules, accounting, replay verification and archive invariants frozen unless explicitly audited.
-- Keep benchmark-specific data outside generic strategy code.
+- keep rules, scoring, replay and archive invariants frozen;
+- keep benchmark-specific data out of generic strategy;
+- preserve historical planner/experiment documents as audit evidence.
 
-**Gate:** repository documentation clearly separates historical deal-specific planner work from the new general architecture.
+### Phase B — Perfect-information structural analyser
 
-### Phase B — Perfect-information strategic analyser
+For any state, compute:
 
-Build a deal-independent analyser that can, for any state:
+- hidden-card dependency chains;
+- same-suit construction opportunities;
+- build horizon versus removal horizon;
+- potential final adjacencies and duplicate-copy alternatives;
+- run carrying/interference cost;
+- space lifecycle/recoverability;
+- exact stock reception;
+- candidate strategic objectives.
 
-- construct reveal/dependency chains for every hidden card;
-- estimate minimum work needed to reach useful buried cards;
-- identify same-suit consolidations and their permanence;
-- model empty-column creation, use and recoverability;
-- model exact next-stock reception;
-- determine earliest stock epoch in which suit material can become removable;
-- identify candidate strategic objectives and explain why they matter.
+### Phase C — Strategic objective portfolio
 
-The analyser must use actual known downstream consequences rather than human uncertainty penalties.
+Generate diverse objective families:
 
-**Benchmark diagnostic:** replay the opening of the 172 human route and compare each human move with the analyser's ranked alternatives. Determine which strategic properties the human move improves and whether some human reveals were informational rather than necessary.
+- run construction;
+- targeted reveal;
+- create/recover workspace;
+- overlay/dependency closure;
+- stock receiver preparation;
+- campaign construction;
+- campaign removal;
+- deliberate postponement when future stock performs work more cheaply.
 
-**Gate:** the analyser produces stable, human-readable strategic explanations and does not contain deal-number-specific rules.
+### Phase D — Tactical realisation
 
-### Phase C — Generic strategic objective generator
+Use exact search where tractable and bounded heuristic realisers elsewhere. Every realised strategic edge must independently replay.
 
-Generate a small, diverse set of candidate macro objectives from the analyser rather than selecting a single preferred suit.
+### Phase E — First-solution anytime controller
 
-Candidate families:
+Search over strategic outcomes, not raw moves alone. Maintain diverse whole-deal states and return the first complete legal solution immediately, then continue improving.
 
-- targeted reveal chain;
-- create/recover space;
-- same-suit consolidation;
-- pre-stock shaping;
-- preserve useful hidden structure;
-- prepare multi-suit cascade;
-- foundation removal when removal itself increases future freedom.
+### Phase F — Whole-deal backward/forward scheduler
 
-Each objective records estimated cost, expected structural benefit, stock epoch relevance and required tactical conditions.
+Once local campaign chaining is reliable, add the global structural schedule:
 
-**Gate:** the same objective library operates on arbitrary deals without special cases.
+1. analyse all eight prospective K-A sequences and duplicate assignments;
+2. derive backward construction/dependency requirements across stock epochs;
+3. retain multiple plausible suit/construction schedules;
+4. realise forward while re-evaluating exact geometry;
+5. revise the schedule whenever actual tactical cost changes the economics.
 
-### Phase D — Tactical realisation using exact quotient search
+This phase should explicitly value early construction for suits that cannot be removed until late stock epochs.
 
-Generalise the existing exact quotient machinery from corridor reconnection to strategic objectives.
+### Phase G — Incumbent-guided improvement
 
-The realiser should answer questions such as:
+Use each complete solution to tighten branch-and-bound, search cheaper structural histories and archive every strict verified improvement.
 
-- cheapest way to expose this target card;
-- cheapest way to create a recoverable empty column;
-- cheapest way to reach one of several acceptable pre-stock receiver states;
-- cheapest way to consolidate selected fragments.
+### Phase H — Optimality / unsolvability proof
 
-Use exact search where tractable and bounded/heuristic realisation where exactness would be disproportionate, while retaining replay verification.
-
-**Gate:** strategic objectives can be converted into concrete legal move sequences with measured cost and outcome.
-
-### Phase E — First-solution anytime search
-
-Search over strategic objective choices while the tactical layer realises them.
-
-Primary goal: obtain a complete legal solution quickly on an arbitrary deal.
-
-Use:
-
-- beam/best-first/MCTS or another plan-level search;
-- multiple strategic alternatives;
-- stock-epoch planning;
-- transposition and dead-state detection;
-- incumbent capture as soon as any solve appears.
-
-Do not wait for optimality before returning a useful answer.
-
-**Gate:** previously unseen benchmark deals can produce replay-valid solutions without hand-coded deal logic.
-
-### Phase F — Incumbent-guided improvement
-
-Once an incumbent exists:
-
-- enable global branch-and-bound;
-- improve admissible lower bounds;
-- search for cheaper strategic histories;
-- use canonical/scaffold reconnections opportunistically;
-- continuously archive every strict improvement.
-
-The solver should naturally progress through better incumbents rather than run a separate unrelated optimiser.
-
-**Gate:** the solver demonstrates monotonic incumbent improvement on benchmark deals under increasing compute budgets.
-
-### Phase G — Optimality proof mode
-
-For a strong incumbent, switch increasing effort toward proof:
-
-- A*, IDA*, branch-and-bound or equivalent exact search;
-- strong admissible abstractions / pattern databases;
-- compact/disk-backed transposition when required;
-- parallel exact expansion where deterministic correctness can be retained.
-
-If all states capable of beating incumbent `U` are eliminated, `U` is proven optimal.
-
-Report both best solution and best proven lower bound so an optimality gap is always visible.
-
-Example:
-
-`best known = 123; proven lower bound = 118; gap <= 5`
-
-**Gate:** at least small/medium benchmark cases reach mathematically proved optimum.
-
-### Phase H — Unsolvability proof
-
-For deals with no incumbent:
-
-- apply exact deadlock detection;
-- quotient zero-cost equivalences;
-- use transposition/dominance aggressively;
-- exhaust the reachable state space when feasible.
-
-If no solved state exists after complete exhaustion, the deal is proven unsolvable.
-
-Otherwise report `unknown within resource budget` rather than claiming impossibility without proof.
+Use exact search, stronger admissible abstractions and complete state-space exhaustion where feasible. Otherwise report the best incumbent and proof gap or `unknown within resource budget`.
 
 ### Phase I — General benchmark suite
 
-After the architecture works on the primary benchmark, expand to a corpus containing:
+Expand to diverse 1-, 2- and 4-suit deals and track time to first solve, score over time, proven lower bound, optimality gap and memory.
 
-- 1-suit, 2-suit and 4-suit deals;
-- easy, difficult and known-unsolvable examples where available;
-- deals with known human/solver scores;
-- deals unseen during heuristic development.
+## Near-term controller guidance
 
-Track:
+Current v0.x foundation gates remain useful capability tests because they expose missing planning/realisational machinery.
 
-- time to first solve;
-- first-solve score;
-- best score over time;
-- proven lower bound;
-- optimality gap;
-- memory;
-- states/quotient states expanded;
-- whether result is solved, optimal, unsolvable, or unknown.
+However, they must not cause architecture drift toward foundation count as the sole progress measure.
 
-This phase is the protection against overfitting to deal 492515/4925153.
+Near-term work should preserve and increasingly expose:
 
-## Immediate next development work
+- same-suit construction opportunity;
+- late-removal suit preparation;
+- run carrying cost;
+- reveal/dependency progress;
+- effective workspace;
+- exact stock opportunity;
+- campaign readiness;
+- foundation progress.
 
-Do **not** continue local corridor optimisation as the main programme.
-
-The next implementation work should be Phase B: a perfect-information strategic analyser, beginning with two generic concepts that current code does not model deeply enough:
-
-1. **downstream reveal value** — analyse the actual known chain beneath a face-down card and the structural opportunities it enables;
-2. **space lifecycle / recoverability** — analyse not only how to create an empty column, but how it can be used, recovered, replaced, or carried through known future stock rows.
-
-The first benchmark experiment should analyse the opening through the first stock deal and compare the human 172 route against all legal alternatives. This is diagnostic work: the goal is to learn what the present evaluation function fails to value, not to hard-code the human route.
-
-In parallel, define the first generic admissible lower-bound API so every future search can use a known incumbent globally rather than only applying local corridor ceilings.
+The future transition to the whole-deal backward/forward scheduler should occur once the controller can reliably chain multiple foundation campaigns without route seeding.
 
 ## Non-negotiable correctness rules
 
 - `mobilityware_moves` is the optimisation metric; `legacy_mw` is forensic only.
 - Every claimed solution must independently replay legally from the true deal.
 - Automatic foundation removal remains zero cost.
-- Stock deals cost one.
-- A free empty-column relocation applies only to a complete fully open source column under the corrected rule.
+- Stock Deals cost one.
+- Active benchmark rule profile retains Unrestricted Deal ON.
+- Multi-card tableau movement requires descending same-suit blocks.
+- A free empty-column relocation applies only under the corrected tested whole-open-column rule.
 - Every strict improvement must pass durable archive write and read-back replay.
-- Heuristic estimates may order search, but only admissible bounds may prune branches in proof mode.
-- Benchmark knowledge such as the 119 score must never become a hidden deal-specific rule in generic solver logic.
+- Heuristic estimates may order search, but only admissible bounds may proof-prune.
+- Benchmark scores, routes, suits and columns must never become hidden generic strategy constants.
 
-## Relationship to historical planner documents
+## Relationship to companion and historical documents
 
-`docs/layered_planner_development_plan.md` remains an important historical baseline. It captured the earlier five-layer human-style planner direction and drove useful dependency, campaign and tactical work. It is not deleted or rewritten.
+`docs/whole_deal_structural_economics.md` is the detailed strategic companion to this architecture and is authoritative on the separation of build horizon from removal horizon, presumptive run-construction value, carrying cost and whole-deal backward/forward planning.
 
-This document supersedes it as the **forward strategic architecture** because subsequent work established:
+`docs/anytime_solver_development_plan.md` remains the forward implementation/audit plan and should interpret foundation-oriented milestones under this broader structural objective.
 
-- corrected move accounting;
-- durable incumbent verification;
-- exact free-column quotienting;
-- a practical algebraic tactical engine;
-- strong evidence that local optimisation of the 172 route is insufficient;
-- credible leaderboard evidence that a 119 solution exists;
-- a clarified requirement that the eventual solver generalise to arbitrary deals.
+`docs/layered_planner_development_plan.md` remains a historical baseline. It is not deleted or rewritten.
 
-Historical experiments remain useful as evidence and reusable implementation assets, but new development decisions should be evaluated against this anytime, deal-independent architecture.
+Historical v0.x controller documents remain useful evidence and regression history. New development choices should be evaluated against this whole-deal, deal-independent architecture rather than against any single benchmark route or foundation order.
