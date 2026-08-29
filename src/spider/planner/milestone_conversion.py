@@ -8,11 +8,14 @@ from typing import Callable, Optional, Tuple
 
 from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
+from spider.planner.milestone_actionability import ResidualMilestoneTarget
 from spider.planner.strategic_milestone import (
     MilestoneRealizationResult,
     StrategicMilestone,
     StrategicMilestoneProgress,
     StrategicMilestoneStatus,
+    classify_milestone_outcome,
+    milestone_target_identity,
 )
 from spider.state_identity import states_structurally_equal
 
@@ -26,6 +29,9 @@ class MilestonePrimitiveStep:
     harvest_events: Tuple[str, ...]
     independently_replay_verified: bool
     reason: str
+    workspace_created: bool = False
+    workspace_used: bool = False
+    workspace_recovered_or_replaced: bool = False
 
 
 @dataclass(frozen=True)
@@ -35,6 +41,8 @@ class FreshMilestoneAssessment:
     contradicted: bool = False
     superseded: bool = False
     reason: str = "fresh milestone analysis"
+    residual_target: Optional[ResidualMilestoneTarget] = None
+    structural_progress: bool = False
 
 
 PrimitiveProvider = Callable[[SpiderState, StrategicMilestone, int, int, float], Optional[MilestonePrimitiveStep]]
@@ -73,7 +81,11 @@ def realize_milestone(
     cost = 0
     nodes = 0
     harvest = []
+    residual_timeline = []
+    blocker_transitions = []
+    previous_blockers: Tuple[str, ...] = ()
     reanalyses = 0
+    primitive_invocations = 0
     status = active.status
     reason = "bounded primitive envelope exhausted"
     for index in range(step_limit):
@@ -87,6 +99,7 @@ def realize_milestone(
             status = StrategicMilestoneStatus.BOUNDED_MISS
             reason = "no relevant v0.8 tactical grant or primitive remained"
             break
+        primitive_invocations += 1
         if not _verify_step(state, step):
             status = StrategicMilestoneStatus.INVALIDATED
             reason = "primitive edge failed independent replay"
@@ -96,8 +109,37 @@ def realize_milestone(
         cost += step.corrected_paid_cost
         nodes += step.tactical_nodes
         harvest.extend(step.harvest_events)
+        if (
+            step.workspace_created
+            or step.workspace_used
+            or step.workspace_recovered_or_replaced
+        ):
+            active = replace(
+                active,
+                progress=replace(
+                    active.progress,
+                    workspace_created=(
+                        active.progress.workspace_created or step.workspace_created
+                    ),
+                    workspace_used=(
+                        active.progress.workspace_used or step.workspace_used
+                    ),
+                    workspace_recovered_or_replaced=(
+                        active.progress.workspace_recovered_or_replaced
+                        or step.workspace_recovered_or_replaced
+                    ),
+                ),
+            )
         fresh = fresh_analyzer(state, active)
         reanalyses += 1
+        if fresh.residual_target is not None:
+            residual_timeline.append(fresh.residual_target.summary)
+            blockers = tuple(item.value for item in fresh.residual_target.blockers)
+            if previous_blockers and blockers != previous_blockers:
+                blocker_transitions.append(
+                    f"{','.join(previous_blockers) or 'none'} -> {','.join(blockers) or 'none'}"
+                )
+            previous_blockers = blockers
         if fresh.superseded:
             status = StrategicMilestoneStatus.SUPERSEDED
             active = replace(active, progress=fresh.progress, status=status)
@@ -115,7 +157,10 @@ def realize_milestone(
             active = replace(active, status=status)
             reason = fresh.reason
             break
-        if fresh.progress.satisfied_units > previous.satisfied_units:
+        if (
+            fresh.progress.satisfied_units > previous.satisfied_units
+            or fresh.structural_progress
+        ):
             status = StrategicMilestoneStatus.ADVANCED
             active = replace(active, status=status)
             reason = fresh.reason
@@ -145,11 +190,15 @@ def realize_milestone(
         tuple(actions),
         cost,
         state,
-        len(actions),
+        primitive_invocations,
         nodes,
         time.perf_counter() - started,
         verified,
         reanalyses,
         tuple(harvest),
         reason,
+        outcome_kind=classify_milestone_outcome(active, status),
+        target_identity=milestone_target_identity(active),
+        residual_timeline=tuple(residual_timeline),
+        blocker_transitions=tuple(blocker_transitions),
     )

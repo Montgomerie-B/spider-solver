@@ -7,6 +7,7 @@ participate in canonical state identity or admissible proof pruning.
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Mapping, Optional, Sequence, Tuple
@@ -57,6 +58,21 @@ class StrategicMilestoneStatus(str, Enum):
     BOUNDED_MISS = "BOUNDED_MISS"
 
 
+class MilestoneOutcomeKind(str, Enum):
+    """Economic meaning of a completed milestone attempt.
+
+    A primitive result and a stock transition checkpoint are intentionally
+    separate from a substantial structural milestone.  Search ordering may
+    use all four classes, but only the latter two represent durable campaign
+    harvest.
+    """
+
+    PRIMITIVE_RESULT = "PRIMITIVE_RESULT"
+    TRANSITION_CHECKPOINT = "TRANSITION_CHECKPOINT"
+    SUBSTANTIAL_STRUCTURAL_MILESTONE = "SUBSTANTIAL_STRUCTURAL_MILESTONE"
+    FOUNDATION = "FOUNDATION"
+
+
 class MilestonePredicateKind(str, Enum):
     SAME_SUIT_INTERVAL = "SAME_SUIT_INTERVAL"
     DEPENDENCIES_CLOSED = "DEPENDENCIES_CLOSED"
@@ -91,6 +107,34 @@ class MilestoneTargetPredicate:
     target_foundation_count: Optional[int] = None
     workspace_requires_use: bool = False
     workspace_requires_recovery: bool = False
+
+
+@dataclass(frozen=True)
+class MilestoneTargetIdentity:
+    """Coordinate-free identity for a strategic objective across fresh states."""
+
+    objective_id: str
+    campaign_id: Optional[str]
+    kind: StrategicMilestoneKind
+    predicate_kind: MilestonePredicateKind
+    suit: Optional[str]
+    required_ranks: Tuple[int, ...]
+    dependency_outcomes: Tuple[str, ...]
+    completion_condition: str
+    proof_pruning_allowed: bool = False
+
+    @property
+    def fingerprint(self) -> Tuple:
+        return (
+            self.objective_id,
+            self.campaign_id,
+            self.kind,
+            self.predicate_kind,
+            self.suit,
+            self.required_ranks,
+            self.dependency_outcomes,
+            self.completion_condition,
+        )
 
 
 @dataclass(frozen=True)
@@ -139,23 +183,25 @@ class StrategicMilestone:
     created_depth: int = 0
     created_elapsed_seconds: float = 0.0
     proof_pruning_allowed: bool = False
+    target_identity: Optional[MilestoneTargetIdentity] = None
 
     @property
     def same_target_key(self) -> Tuple:
-        return (
-            self.kind,
-            self.campaign_id,
-            self.suit,
-            self.ranks,
-            self.target.kind,
-            self.target.dependency_ids,
-        )
+        return milestone_target_identity(self).fingerprint
 
     def ordering_key(self) -> Tuple:
         blocked = self.status == StrategicMilestoneStatus.BLOCKED_CURRENT_EPOCH
         return (
             blocked,
             0 if self.kind == StrategicMilestoneKind.FOUNDATION_REMOVAL else 1,
+            (
+                0
+                if milestone_is_substantial(self)
+                and self.kind != StrategicMilestoneKind.TERMINAL_QUALIFICATION
+                else 3
+                if self.kind == StrategicMilestoneKind.TERMINAL_QUALIFICATION
+                else 2
+            ),
             -self.progress.satisfied_units,
             self.progress.total_units,
             self.estimated_paid_cost,
@@ -201,6 +247,10 @@ class MilestoneRealizationResult:
     harvest_events: Tuple[str, ...]
     reason: str
     proof_pruning_allowed: bool = False
+    outcome_kind: MilestoneOutcomeKind = MilestoneOutcomeKind.PRIMITIVE_RESULT
+    target_identity: Optional[MilestoneTargetIdentity] = None
+    residual_timeline: Tuple[str, ...] = ()
+    blocker_transitions: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -218,6 +268,70 @@ class MilestoneConversionLedger:
 
 def _stable_id(*parts: object) -> str:
     return hashlib.sha256(repr(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def semantic_dependency_outcome(dependency_id: str) -> str:
+    """Remove volatile tableau coordinates while retaining logical purpose."""
+
+    value = re.sub(r":c\d+(?::|$)", ":", dependency_id)
+    value = re.sub(r"column[=:]?\d+", "column", value, flags=re.IGNORECASE)
+    return value.rstrip(":")
+
+
+def milestone_target_identity(milestone: StrategicMilestone) -> MilestoneTargetIdentity:
+    if milestone.target_identity is not None:
+        return milestone.target_identity
+    ranks = milestone.ranks
+    if milestone.target.high_rank is not None and milestone.target.low_rank is not None:
+        ranks = tuple(range(milestone.target.high_rank, milestone.target.low_rank - 1, -1))
+    outcomes = tuple(
+        sorted({semantic_dependency_outcome(item) for item in milestone.target.dependency_ids})
+    )
+    return MilestoneTargetIdentity(
+        objective_id=milestone.objective_id,
+        campaign_id=milestone.campaign_id,
+        kind=milestone.kind,
+        predicate_kind=milestone.target.kind,
+        suit=milestone.suit or milestone.target.suit,
+        required_ranks=ranks,
+        dependency_outcomes=outcomes,
+        completion_condition=milestone.completion_condition,
+    )
+
+
+def milestone_is_substantial(milestone: StrategicMilestone) -> bool:
+    """Return whether the target describes a coherent durable endpoint."""
+
+    if milestone.kind == StrategicMilestoneKind.INTERVAL_ASSEMBLY:
+        return len(milestone_target_identity(milestone).required_ranks) >= 2
+    if milestone.kind == StrategicMilestoneKind.SOURCE_CHAIN:
+        return max(
+            milestone.progress.total_units,
+            len(milestone_target_identity(milestone).dependency_outcomes),
+        ) >= 2
+    if milestone.kind == StrategicMilestoneKind.RECEIVER_GEOMETRY:
+        return milestone.progress.total_units >= 2
+    return milestone.kind in {
+        StrategicMilestoneKind.SUPPLY_INTEGRATION,
+        StrategicMilestoneKind.WORKSPACE_LIFECYCLE,
+        StrategicMilestoneKind.TERMINAL_QUALIFICATION,
+        StrategicMilestoneKind.FOUNDATION_REMOVAL,
+    }
+
+
+def classify_milestone_outcome(
+    milestone: StrategicMilestone,
+    status: StrategicMilestoneStatus,
+) -> MilestoneOutcomeKind:
+    if milestone.kind == StrategicMilestoneKind.EPOCH_TRANSITION:
+        return MilestoneOutcomeKind.TRANSITION_CHECKPOINT
+    if status != StrategicMilestoneStatus.ACHIEVED:
+        return MilestoneOutcomeKind.PRIMITIVE_RESULT
+    if milestone.kind == StrategicMilestoneKind.FOUNDATION_REMOVAL:
+        return MilestoneOutcomeKind.FOUNDATION
+    if milestone_is_substantial(milestone):
+        return MilestoneOutcomeKind.SUBSTANTIAL_STRUCTURAL_MILESTONE
+    return MilestoneOutcomeKind.PRIMITIVE_RESULT
 
 
 def _same_suit_runs(state: SpiderState, suit: str) -> Tuple[Tuple[int, ...], ...]:
@@ -248,6 +362,9 @@ def interval_is_assembled(state: SpiderState, suit: str, high: int, low: int) ->
 
 def _interval_progress(state: SpiderState, suit: str, high: int, low: int) -> Tuple[int, Tuple[int, ...]]:
     required = set(range(high, low - 1, -1))
+    if any(foundation and foundation[0].suit == suit for foundation in state.foundations):
+        assembled = tuple(range(high, low - 1, -1))
+        return len(assembled), assembled
     best: set[int] = set()
     for run in _same_suit_runs(state, suit):
         covered = required.intersection(run)
@@ -397,7 +514,20 @@ def derive_strategic_milestones(
                 StrategicMilestoneStatus.ACTIVE if feasibility.feasible_now else StrategicMilestoneStatus.BLOCKED_CURRENT_EPOCH,
                 created_depth, created_elapsed_seconds,
             ))
-        chain_ids = tuple(item.dependency_id for item in graph.dependencies if item.kind not in (CampaignDependencyType.MISSING_SAME_SUIT_INTERVAL, CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE))
+        all_chain_ids = tuple(
+            item.dependency_id
+            for item in graph.dependencies
+            if item.kind not in (
+                CampaignDependencyType.MISSING_SAME_SUIT_INTERVAL,
+                CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE,
+            )
+        )
+        critical_ids = tuple(
+            item.dependency_id
+            for item in (summary.entries if summary is not None else ())
+            if item.dependency_id in all_chain_ids
+        )
+        chain_ids = tuple(dict.fromkeys(critical_ids + all_chain_ids))[:4]
         if chain_ids:
             kind = StrategicMilestoneKind.SOURCE_CHAIN
             if summary and summary.workspace_required:

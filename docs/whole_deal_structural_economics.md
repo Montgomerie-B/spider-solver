@@ -357,3 +357,25 @@ The forward architecture adopts the following principle:
 > The solver's global objective is to minimise the paid structural work required to transform the complete known deal into eight removable same-suit K-A sequences. Run construction, reveal/excavation, workspace management, stock timing and foundation removal are competing investments toward that objective. Earliest removal controls when a sequence can cash out, not when useful construction may begin.
 
 This principle is heuristic strategy architecture. It does not alter Spider legality, corrected MobilityWare scoring, exact state identity, transposition dominance or admissible proof bounds.
+
+## Persistent structural projects
+
+Controller v0.10 represents a near-term structural project by semantic target
+and fresh residual debt rather than by one tableau geometry. This permits useful
+interval, source-chain, workspace and supply investment to survive ordinary
+rearrangement and duplicate-card substitution. The target remains bounded and
+competes with alternative campaign and late-removal construction; persistence
+does not imply tunnel vision or exclusive successor generation.
+
+Economic completion credit is separated from transition bookkeeping. A small
+same-suit join is still presumptively valuable primitive construction, a
+purposeful Deal is a bridge with a post-Deal conversion obligation, and only a
+coherent multi-step result is a substantial structural milestone. An unresolved
+actionable obligation is debt, not progress.
+
+Permanent-move dominance applies within this model: at equal immediate
+corrected cost and comparable reveal, workspace, stock-reception and campaign
+effects, a stable same-suit join dominates a mixed-suit park. Mixed-suit parking
+retains its exit route and estimated rehandling debt and requires a concrete
+forward benefit to override the permanent join. These lifecycle estimates may
+order the frontier but never proof-prune it.

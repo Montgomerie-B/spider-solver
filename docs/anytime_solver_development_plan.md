@@ -624,6 +624,43 @@ closure/construction work into a continuous interval-building milestone and
 terminal qualification, without restoring expensive whole-campaign setup or
 increasing any budget. See `docs/anytime_whole_game_controller_v0_8.md`.
 
+### Verified v0.10 status
+
+Controller v0.10 adds coordinate-free semantic target identity, fresh residual
+predicate rebuilding, blocker-to-existing-realiser actionability and persistent
+post-Deal obligations. It separates primitive results, transition checkpoints,
+substantial structural milestones and foundations, so stock movement cannot
+self-award structural completion. Exact state identity, lower-corrected-cost TT
+dominance, proof bounds, search ceilings and Unrestricted Deal ON are unchanged.
+
+All eight capability gates pass. The 52 focused v0.10 tests and the combined
+194-test v0.10-through-v0.7 controller cohort pass. Natural cost-21 Gate I used
+all 25 strategic expansions and selected a replay-valid added-`g=3` route with
+no Deal, retaining its existing foundation, stock 30 and 32 face-down cards.
+Across the frontier it recorded four blocker transitions, 22 primitive
+outcomes, two transition checkpoints, no substantial milestone and no terminal
+qualification. Its real tableau progress with less transition-driven stock
+authorized Gate J under condition 5.
+
+Untouched Gate J used all 50 unchanged strategic expansions and selected a
+replay-valid corrected-`g=8` route ending at stock 40 and 38 face-down cards.
+Across its frontier it recorded two substantial interval outcomes without
+counting one-action joins or Deals as substantial. The selected source-chain
+target survived two primitives but remained actionable at two of three scoped
+requirements with buried-source debt; its post-Deal obligation was not falsely
+credited as converted. It removed no foundation.
+
+The final complete repository run passed 1007 ordinary tests with the same 37
+historical expected-invalid xfails and one existing warning in 1146.78 seconds.
+
+The verified verdict is PARTIAL. F2 is absent, so repeatability, F3 and the
+whole-game continuation are not authorized. The precise next task is to audit
+why the existing dependency-closure realiser cannot consume the final
+`SOURCE_BURIED` requirement exposed by fresh analysis inside the unchanged
+envelope. Do not increase budgets, tune benchmark weights, start v0.11 or begin
+the global scheduler automatically. See
+`docs/anytime_whole_game_controller_v0_10.md`.
+
 ### Verified v0.9 status
 
 Controller v0.9 adds bounded, inspectable strategic milestones above the v0.8

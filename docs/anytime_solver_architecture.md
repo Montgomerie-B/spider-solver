@@ -498,3 +498,24 @@ The future transition to the whole-deal backward/forward scheduler should occur 
 `docs/layered_planner_development_plan.md` remains a historical baseline. It is not deleted or rewritten.
 
 Historical v0.x controller documents remain useful evidence and regression history. New development choices should be evaluated against this whole-deal, deal-independent architecture rather than against any single benchmark route or foundation order.
+
+## v0.10 semantic continuity refinement
+
+Controller v0.10 makes strategic continuity coordinate-free. A live interval,
+source-chain, receiver, workspace, supply or terminal objective is identified
+by its semantic structural requirements, then rebuilt as a fresh residual after
+each independently replayed primitive. Changed columns, fragments or duplicate
+card assignment do not by themselves invalidate the target. A narrow adapter
+maps the resulting blocker onto the existing construction, dependency-closure,
+workspace, terminal or epoch realiser; it introduces no second broad search.
+
+Strategic outcomes are now typed. Primitive results remain useful work,
+transition checkpoints record deliberate epoch movement, substantial
+milestones require coherent multi-step structural completion, and foundations
+remain explicit. A stock Deal cannot turn its own checkpoint into repeated
+structural reward. Purposeful Deals instead create bounded post-Deal conversion
+obligations whose actionable debt is considered before another transition.
+
+All identity, blocker, obligation, permanent-join and rehandling-debt metadata
+is heuristic context only. Canonical state, lower-corrected-cost TT dominance,
+legal successor coverage and admissible proof bounds remain unchanged.
