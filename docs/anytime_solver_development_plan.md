@@ -624,6 +624,36 @@ closure/construction work into a continuous interval-building milestone and
 terminal qualification, without restoring expensive whole-campaign setup or
 increasing any budget. See `docs/anytime_whole_game_controller_v0_8.md`.
 
+### Verified v0.9 status
+
+Controller v0.9 adds bounded, inspectable strategic milestones above the v0.8
+tactical allocator and duplicate-aware stock-epoch analysis. Milestone
+continuity is ordering context only; the exact TT remains structural state to
+lowest corrected `g`, and current-epoch blocks and bounded conversion misses
+have no proof authority. Pre-Deal work is classified against the exact next
+row, and a selected purposeful Deal records its material/economic reason and
+requires fresh post-Deal milestone analysis. Unrestricted Deal remains ON.
+
+The 50 focused v0.9 capability tests pass. A wider targeted cohort passed 428
+ordinary tests with the same 37 historical expected-invalid xfails. Natural
+cost-21 Gate H reached all 25 expansions in 18.845 seconds, achieved 13
+milestones across the explored frontier and selected three purpose-audited
+Deals, but retained only its existing foundation. This authorized the untouched
+Gate I. After recording epoch transitions as achieved strategic checkpoints,
+Gate I selected a replay-valid `g=24` route with five purpose-audited Deals at
+actions 10, 13, 15, 18 and 22 instead of the v0.8 stock-50/no-Deal route. It
+reached all 50 expansions in 44.259 seconds and used 654 tactical nodes under
+the unchanged 500,000-node/180-second ceilings. It removed no foundation.
+
+The final complete repository run passed 955 ordinary tests with the same 37
+expected-invalid xfails and one existing warning in 1120.21 seconds.
+
+The verified verdict is PARTIAL. The no-Deal failure is corrected, but fresh
+same-target interval/source-chain actionability still fails to reach terminal
+qualification. Do not increase budgets, tune benchmark weights, start v0.10 or
+begin the full scheduler automatically. See
+`docs/anytime_whole_game_controller_v0_9.md`.
+
 ### Historical v0.7 status
 
 Controller v0.7 now preserves objective-specific structural investment across

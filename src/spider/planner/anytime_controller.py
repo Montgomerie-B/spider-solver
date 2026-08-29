@@ -94,6 +94,15 @@ from spider.planner.economic_projects import (
     RevealValueClass,
     analyze_economic_projects,
 )
+from spider.planner.epoch_progression import (
+    CampaignEpochAvailability,
+    EpochTransitionAssessment,
+    EpochTransitionStatus,
+    PreDealWorkDisposition,
+    analyze_campaign_epoch_availability,
+    assess_epoch_transition,
+    classify_pre_deal_construction,
+)
 from spider.planner.foundation_campaign import CampaignReadiness, FoundationCampaign
 from spider.planner.foundation_campaign_realizer import (
     CampaignRealizationStatus,
@@ -104,6 +113,11 @@ from spider.planner.foundation_campaign_removal import (
     realize_campaign_to_removal_epoch,
 )
 from spider.planner.incumbent_budget import IncumbentBudget, build_incumbent_budget
+from spider.planner.milestone_conversion import (
+    FreshMilestoneAssessment,
+    MilestonePrimitiveStep,
+    realize_milestone,
+)
 from spider.planner.pre_foundation_diversity import (
     PreFoundationGeometry,
     PreFoundationPortfolio,
@@ -159,6 +173,17 @@ from spider.planner.structural_investment import (
     refresh_continuation_credit,
     successor_matches_continuation,
 )
+from spider.planner.strategic_milestone import (
+    MilestoneConversionLedger,
+    MilestoneRealizationResult,
+    StrategicMilestone,
+    StrategicMilestoneKind,
+    StrategicMilestonePortfolio,
+    StrategicMilestoneStatus,
+    derive_strategic_milestones,
+    evaluate_milestone_progress,
+    refresh_milestone,
+)
 from spider.planner.tactical_resource_allocator import (
     RemovalAllocationPolicy,
     TacticalDemand,
@@ -196,6 +221,7 @@ class StrategicActionKind(str, Enum):
     CAMPAIGN_CORRIDOR = "CAMPAIGN_CORRIDOR"
     CAMPAIGN_DEPENDENCY_CLOSURE = "CAMPAIGN_DEPENDENCY_CLOSURE"
     SAME_SUIT_CONSTRUCTION = "SAME_SUIT_CONSTRUCTION"
+    MILESTONE_CONVERSION = "MILESTONE_CONVERSION"
     DEAL_NOW = "DEAL_NOW"
     PREPARE_THEN_DEAL = "PREPARE_THEN_DEAL"
     RAW_TABLEAU_MOVE = "RAW_TABLEAU_MOVE"
@@ -313,6 +339,12 @@ class AnytimeControllerConfig:
     tactical_resource_config: TacticalResourceAllocatorConfig = field(
         default_factory=TacticalResourceAllocatorConfig
     )
+    enable_strategic_milestones: bool = False
+    max_milestones_per_state: int = 8
+    milestone_max_primitive_steps: int = 4
+    milestone_max_strategic_expansions: int = 3
+    milestone_max_time_s_per_expansion: float = 4.0
+    milestone_max_nodes_per_expansion: int = 12_000
     deal_timing_config: DealTimingConfig = field(
         default_factory=lambda: DealTimingConfig(
             max_preparation_projects=2,
@@ -385,6 +417,14 @@ class AnytimeControllerConfig:
             raise ValueError("same-campaign continuation limits must be positive")
         if self.max_construction_successors_per_expansion <= 0:
             raise ValueError("construction successor limit must be positive")
+        if self.max_milestones_per_state <= 0 or self.milestone_max_primitive_steps <= 0:
+            raise ValueError("milestone portfolio and step limits must be positive")
+        if self.milestone_max_strategic_expansions <= 0:
+            raise ValueError("milestone continuation limit must be positive")
+        if not 0 < self.milestone_max_time_s_per_expansion <= self.tactical_resource_config.max_granted_seconds_per_expansion:
+            raise ValueError("milestone time must fit the existing per-expansion allocator ceiling")
+        if not 0 < self.milestone_max_nodes_per_expansion <= self.tactical_resource_config.max_granted_nodes_per_expansion:
+            raise ValueError("milestone nodes must fit the existing per-expansion allocator ceiling")
 
 
 @dataclass(frozen=True)
@@ -575,6 +615,9 @@ class StrategicAnalysisSnapshot:
     stage: AnalysisStage = AnalysisStage.STRATEGIC_CORE
     construction: Optional[StructuralConstructionAnalysis] = None
     tactical_demands: Optional[TacticalDemandPortfolio] = None
+    milestone_portfolio: Optional[StrategicMilestonePortfolio] = None
+    campaign_epoch_availability: Tuple[CampaignEpochAvailability, ...] = ()
+    epoch_transition: Optional[EpochTransitionAssessment] = None
 
 
 @dataclass(frozen=True)
@@ -614,6 +657,8 @@ class StrategicSuccessor:
     structural_investment: Optional[StructuralInvestment] = None
     continuation_credit: Optional[SameCampaignContinuationCredit] = None
     construction_opportunity: Optional[SameSuitConstructionOpportunity] = None
+    milestone_result: Optional[MilestoneRealizationResult] = None
+    epoch_transition: Optional[EpochTransitionAssessment] = None
 
 
 @dataclass(frozen=True)
@@ -642,6 +687,10 @@ class StrategicSearchNode:
         default_factory=StructuralInvestmentLedger
     )
     continuation_credit: Optional[SameCampaignContinuationCredit] = None
+    active_milestone: Optional[StrategicMilestone] = None
+    milestone_ledger: MilestoneConversionLedger = field(
+        default_factory=MilestoneConversionLedger
+    )
 
 
 @dataclass(frozen=True)
@@ -905,6 +954,37 @@ class ControllerTelemetry:
     tactical_allocation_timeline: List[
         Tuple[int, str, str, str, int, float, str]
     ] = field(default_factory=list)
+    milestones_generated_by_kind: Dict[str, int] = field(default_factory=dict)
+    milestones_admitted: int = 0
+    milestones_activated: int = 0
+    milestone_primitive_steps: int = 0
+    milestones_advanced: int = 0
+    milestones_achieved: int = 0
+    milestones_replanned: int = 0
+    milestones_stock_blocked: int = 0
+    milestones_invalidated: int = 0
+    milestones_superseded: int = 0
+    milestones_expired: int = 0
+    milestone_bounded_misses: int = 0
+    milestone_intervals_completed: int = 0
+    milestone_source_chains_completed: int = 0
+    milestone_supply_completed: int = 0
+    milestone_workspace_lifecycles_completed: int = 0
+    milestone_predeal_completed: int = 0
+    milestone_terminal_qualifications: int = 0
+    milestone_foundations: int = 0
+    milestone_conversion_seconds: float = 0.0
+    milestone_conversion_nodes: int = 0
+    milestone_timeline: List[Tuple[int, str, str, str, int, int]] = field(default_factory=list)
+    epoch_feasible_milestones: int = 0
+    epoch_stock_blocked_milestones: int = 0
+    earliest_required_future_epochs: Dict[int, int] = field(default_factory=dict)
+    predeal_must_items: int = 0
+    predeal_should_items: int = 0
+    predeal_free_join_deferrals: int = 0
+    predeal_avoided_actions: int = 0
+    purposeful_deals: int = 0
+    epoch_timeline: List[Tuple[int, int, str, str]] = field(default_factory=list)
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -937,6 +1017,9 @@ class AnytimeSearchResult:
     successive_deal_audit: Tuple[SuccessiveDealAuditEntry, ...] = ()
     tactical_resource_ledger: TacticalResourceLedger = field(
         default_factory=TacticalResourceLedger
+    )
+    milestone_conversion_ledger: MilestoneConversionLedger = field(
+        default_factory=MilestoneConversionLedger
     )
 
 
@@ -1308,6 +1391,8 @@ def analysis_config_fingerprint(
         config.corridor_config.max_source_combinations,
         config.corridor_config.max_epoch_transitions,
         int(config.enable_residual_conversion),
+        int(config.enable_strategic_milestones),
+        config.max_milestones_per_state,
         config.max_foundation_checkpoints,
         *config.residual_lanes_by_credit,
         int(MW_RULES.can_deal_into_empty),
@@ -1583,8 +1668,9 @@ def analyze_strategic_state(
         else None
     )
     critical_paths = []
+    dependency_graphs = []
     campaign_suits = {}
-    if config.enable_tactical_resource_allocation:
+    if config.enable_tactical_resource_allocation or config.enable_strategic_milestones:
         for campaign in campaigns[: config.tactical_resource_config.max_campaign_demands]:
             terminal_qualified = campaign_is_near_removal(
                 state,
@@ -1596,6 +1682,7 @@ def analyze_strategic_state(
                 campaign,
                 supply_consumptions=supply_consumptions,
             )
+            dependency_graphs.append(graph)
             critical_paths.append(
                 build_campaign_critical_path(
                     graph,
@@ -1612,6 +1699,64 @@ def analyze_strategic_state(
             deal_available=state.can_deal(MW_RULES),
         )
         if config.enable_tactical_resource_allocation
+        else None
+    )
+    epoch_availability = tuple(
+        analyze_campaign_epoch_availability(
+            state,
+            campaign.label,
+            campaign.suit,
+            campaign.required_ranks,
+        )
+        for campaign in campaigns
+    ) if config.enable_strategic_milestones else ()
+    availability_by_campaign = {
+        item.campaign_id: item for item in epoch_availability
+    }
+    milestone_portfolio = (
+        derive_strategic_milestones(
+            state,
+            campaigns,
+            dependency_graphs,
+            critical_paths,
+            construction,
+            availability_by_campaign,
+            maximum=config.max_milestones_per_state,
+        )
+        if config.enable_strategic_milestones
+        else None
+    )
+    predeal_items = (
+        classify_pre_deal_construction(
+            state,
+            construction.opportunities if construction is not None else (),
+            campaign_id=(
+                economic.campaign_portfolio.primary.label
+                if economic.campaign_portfolio.primary is not None
+                else None
+            ),
+            milestone_id=(
+                milestone_portfolio.plan.primary.milestone_id
+                if milestone_portfolio is not None
+                and milestone_portfolio.plan.primary is not None
+                else None
+            ),
+        )
+        if config.enable_strategic_milestones
+        else ()
+    )
+    epoch_transition = (
+        assess_epoch_transition(
+            state,
+            epoch_availability,
+            predeal_items,
+            milestone_ids=(
+                tuple(item.milestone_id for item in milestone_portfolio.milestones)
+                if milestone_portfolio is not None
+                else ()
+            ),
+        )
+        if config.enable_strategic_milestones
         else None
     )
     return StrategicAnalysisSnapshot(
@@ -1639,6 +1784,9 @@ def analyze_strategic_state(
         ),
         construction=construction,
         tactical_demands=tactical_demands,
+        milestone_portfolio=milestone_portfolio,
+        campaign_epoch_availability=epoch_availability,
+        epoch_transition=epoch_transition,
     )
 
 
@@ -2205,11 +2353,13 @@ def deduplicate_strategic_successors(
         elif (
             successor.corrected_cost,
             len(successor.actions),
+            0 if successor.milestone_result is not None else 1,
             0 if successor.structural_investment is not None else 1,
             successor.label,
         ) < (
             previous.corrected_cost,
             len(previous.actions),
+            0 if previous.milestone_result is not None else 1,
             0 if previous.structural_investment is not None else 1,
             previous.label,
         ):
@@ -2226,6 +2376,7 @@ def retain_diverse_portfolio(
     if len(successors) <= maximum:
         return tuple(successors)
     categories = (
+        "milestone_conversion",
         "dependency_closure",
         "residual_conversion",
         "campaign_corridor",
@@ -2233,6 +2384,7 @@ def retain_diverse_portfolio(
         "run_construction",
         "campaign",
         "workspace_excavation",
+        "milestone_epoch",
         "deal_timing",
         "rework",
         "other",
@@ -2771,6 +2923,8 @@ def _named_dependency_closure_campaign(
     """Select one already-named protected/supply objective, never a suit constant."""
     assert node.analysis is not None
     labels = []
+    if node.active_milestone is not None and node.active_milestone.campaign_id is not None:
+        labels.append(node.active_milestone.campaign_id)
     if node.continuation_credit is not None and node.continuation_credit.is_live:
         labels.append(node.continuation_credit.objective_id)
     if node.protected_conversion_lane is not None:
@@ -3260,6 +3414,18 @@ def _foundation_successors(
         and node.credit_level == StrategicCreditLevel.CLEAN
         else node.analysis.economic.campaign_portfolio.campaigns[:campaign_limit]
     )
+    if node.active_milestone is not None and node.active_milestone.campaign_id is not None:
+        named = next(
+            (
+                item
+                for item in node.analysis.economic.campaign_portfolio.campaigns
+                if item.label == node.active_milestone.campaign_id
+            ),
+            None,
+        )
+        if named is not None:
+            campaigns = (named,) + tuple(item for item in campaigns if item.label != named.label)
+            campaigns = campaigns[:campaign_limit]
     successors: List[StrategicSuccessor] = []
     allocator = resource_allocator or _resource_allocator_for_config(config)
     for campaign in campaigns:
@@ -3801,6 +3967,326 @@ def _campaign_corridor_successors(
     return successors
 
 
+def _fresh_milestone_facts(
+    state: SpiderState,
+    analysis: StrategicAnalysisSnapshot,
+    milestone: StrategicMilestone,
+    supply_consumptions: Sequence[SupplyConsumptionResult],
+    config: AnytimeControllerConfig,
+) -> Tuple[Tuple[str, ...], bool]:
+    campaign = next(
+        (
+            item
+            for item in analysis.economic.campaign_portfolio.campaigns
+            if item.label == milestone.campaign_id
+        ),
+        None,
+    )
+    if campaign is None:
+        return (), False
+    graph = build_campaign_dependency_graph(
+        state, campaign, supply_consumptions=supply_consumptions
+    )
+    remaining = tuple(
+        item.dependency_id
+        for item in graph.dependencies
+        if item.kind != CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE
+    )
+    terminal = campaign_is_near_removal(
+        state, campaign, config=config.terminal_assembly_config.near_removal
+    )
+    return remaining, terminal
+
+
+def _matching_fresh_milestone(
+    portfolio: Optional[StrategicMilestonePortfolio],
+    milestone: StrategicMilestone,
+) -> Optional[StrategicMilestone]:
+    if portfolio is None:
+        return None
+    exact = portfolio.matching(milestone)
+    if exact is not None:
+        return exact
+    return next(
+        (
+            item
+            for item in portfolio.milestones
+            if item.kind == milestone.kind
+            and item.campaign_id == milestone.campaign_id
+            and item.suit == milestone.suit
+            and (not milestone.ranks or item.ranks == milestone.ranks)
+        ),
+        None,
+    )
+
+
+def _milestone_conversion_successors(
+    node: StrategicSearchNode,
+    cards: Sequence[Card],
+    *,
+    incumbent_cost: Optional[int],
+    config: AnytimeControllerConfig,
+    telemetry: ControllerTelemetry,
+    started: float,
+    analysis_cache: Optional[
+        Dict[Tuple[CanonicalStateKey, AnalysisConfigFingerprint], StrategicAnalysisFacts]
+    ],
+    deadline: SearchDeadline,
+    dependency_closure_cache: Optional[DependencyClosureCache],
+    resource_allocator: TacticalResourceAllocator,
+) -> List[StrategicSuccessor]:
+    """Compose existing v0.8 primitives inside one allocator expansion."""
+    if not config.enable_strategic_milestones or node.analysis is None:
+        return []
+    portfolio = node.analysis.milestone_portfolio
+    active = node.active_milestone or (
+        portfolio.plan.primary if portfolio is not None else None
+    )
+    if active is None or active.status in (
+        StrategicMilestoneStatus.ACHIEVED,
+        StrategicMilestoneStatus.INVALIDATED,
+        StrategicMilestoneStatus.SUPERSEDED,
+        StrategicMilestoneStatus.EXPIRED,
+    ):
+        return []
+    if active.status == StrategicMilestoneStatus.BLOCKED_CURRENT_EPOCH:
+        return []
+    active = replace(
+        active,
+        created_depth=(node.depth if node.active_milestone is None else active.created_depth),
+        created_elapsed_seconds=(
+            time.perf_counter() - started
+            if node.active_milestone is None
+            else active.created_elapsed_seconds
+        ),
+        max_primitive_steps=min(active.max_primitive_steps, config.milestone_max_primitive_steps),
+        max_strategic_expansions=min(active.max_strategic_expansions, config.milestone_max_strategic_expansions),
+        max_elapsed_seconds=min(active.max_elapsed_seconds, config.milestone_max_time_s_per_expansion),
+        max_tactical_nodes=min(active.max_tactical_nodes, config.milestone_max_nodes_per_expansion),
+    )
+    latest_analysis = node.analysis
+
+    def analyze_fresh(state: SpiderState, prior: StrategicMilestone) -> FreshMilestoneAssessment:
+        nonlocal latest_analysis
+        try:
+            latest_analysis = analyze_strategic_state(
+                state,
+                cards,
+                spent_cost=node.g,
+                incumbent_cost=incumbent_cost,
+                config=config,
+                include_deal_timing=False,
+                analysis_cache=analysis_cache,
+                telemetry=telemetry,
+                deadline=deadline,
+                supply_consumptions=node.supply_consumption_results,
+                continuation_objective_id=prior.campaign_id,
+            )
+        except AnalysisResourceLimit:
+            return FreshMilestoneAssessment(
+                None,
+                prior.progress,
+                contradicted=True,
+                reason="deadline prevented mandatory fresh milestone analysis",
+            )
+        telemetry.reanalyses += 1
+        telemetry.stage1_analyses += 1
+        remaining, terminal = _fresh_milestone_facts(
+            state, latest_analysis, prior, node.supply_consumption_results, config
+        )
+        progress = evaluate_milestone_progress(
+            state,
+            prior,
+            remaining_dependencies=remaining,
+            terminal_qualified=terminal,
+        )
+        matching = _matching_fresh_milestone(latest_analysis.milestone_portfolio, prior)
+        if matching is None and progress.complete:
+            matching = prior
+        return FreshMilestoneAssessment(
+            matching,
+            progress,
+            contradicted=matching is None,
+            reason=(
+                "fresh structural analysis satisfies the milestone predicate"
+                if progress.complete
+                else "fresh structural analysis retains the same target"
+            ),
+        )
+
+    def primitive(
+        state: SpiderState,
+        current: StrategicMilestone,
+        nodes_left: int,
+        _steps_left: int,
+        seconds_left: float,
+    ) -> Optional[MilestonePrimitiveStep]:
+        temporary = replace(
+            node,
+            state=state.clone(),
+            analysis=latest_analysis,
+            stage0=analyze_stage0_state(
+                state, spent_cost=node.g, incumbent_cost=incumbent_cost
+            ),
+            active_milestone=current,
+        )
+        candidates: List[StrategicSuccessor] = []
+        if current.kind in (
+            StrategicMilestoneKind.INTERVAL_ASSEMBLY,
+            StrategicMilestoneKind.RUN_CONSTRUCTION,
+        ):
+            candidates.extend(
+                item
+                for item in _construction_successors(
+                    temporary,
+                    config=config,
+                    telemetry=telemetry,
+                    started=started,
+                    resource_allocator=resource_allocator,
+                )
+                if item.construction_opportunity is not None
+                and item.construction_opportunity.suit == current.suit
+            )
+        elif current.kind in (
+            StrategicMilestoneKind.SOURCE_CHAIN,
+            StrategicMilestoneKind.RECEIVER_GEOMETRY,
+            StrategicMilestoneKind.SUPPLY_INTEGRATION,
+            StrategicMilestoneKind.OVERLAY_CLEARANCE,
+            StrategicMilestoneKind.WORKSPACE_LIFECYCLE,
+            StrategicMilestoneKind.PRE_DEAL_PREPARATION,
+            StrategicMilestoneKind.TERMINAL_QUALIFICATION,
+        ):
+            closure, _result = _dependency_closure_successors(
+                temporary,
+                config=config,
+                telemetry=telemetry,
+                deadline=deadline,
+                started=started,
+                cache=dependency_closure_cache,
+                resource_allocator=resource_allocator,
+            )
+            candidates.extend(closure)
+        elif current.kind == StrategicMilestoneKind.FOUNDATION_REMOVAL:
+            candidates.extend(
+                _foundation_successors(
+                    temporary,
+                    cards,
+                    config=config,
+                    telemetry=telemetry,
+                    started=started,
+                    deadline=deadline,
+                    resource_allocator=resource_allocator,
+                )
+            )
+        candidates = [
+            item
+            for item in candidates
+            if item.actions
+            and item.independent_replay_verified
+            and item.tactical_nodes <= nodes_left
+        ]
+        if not candidates:
+            return None
+        chosen = min(
+            candidates,
+            key=lambda item: (
+                0 if item.source_project_id == current.campaign_id else 1,
+                item.corrected_cost,
+                -len(item.actions),
+                item.label,
+            ),
+        )
+        return MilestonePrimitiveStep(
+            chosen.actions,
+            chosen.end_state.clone(),
+            chosen.corrected_cost,
+            chosen.tactical_nodes,
+            (chosen.label,),
+            chosen.independent_replay_verified,
+            chosen.label,
+        )
+
+    result = realize_milestone(
+        node.state,
+        active,
+        primitive,
+        analyze_fresh,
+        max_primitive_steps=config.milestone_max_primitive_steps,
+        max_tactical_nodes=min(
+            config.milestone_max_nodes_per_expansion,
+            max(0, config.max_tactical_nodes - telemetry.tactical_nodes),
+        ),
+        time_limit_s=min(
+            config.milestone_max_time_s_per_expansion,
+            max(0.01, deadline.remaining_wall_time),
+        ),
+    )
+    telemetry.milestone_conversion_seconds += result.elapsed_seconds
+    telemetry.milestone_conversion_nodes += result.tactical_nodes
+    telemetry.milestone_primitive_steps += result.primitive_steps
+    status_counts = {
+        StrategicMilestoneStatus.ADVANCED: "milestones_advanced",
+        StrategicMilestoneStatus.ACHIEVED: "milestones_achieved",
+        StrategicMilestoneStatus.REPLANNED: "milestones_replanned",
+        StrategicMilestoneStatus.INVALIDATED: "milestones_invalidated",
+        StrategicMilestoneStatus.SUPERSEDED: "milestones_superseded",
+        StrategicMilestoneStatus.EXPIRED: "milestones_expired",
+        StrategicMilestoneStatus.BOUNDED_MISS: "milestone_bounded_misses",
+    }
+    field_name = status_counts.get(result.status)
+    if field_name is not None:
+        setattr(telemetry, field_name, getattr(telemetry, field_name) + 1)
+    if result.status == StrategicMilestoneStatus.ACHIEVED:
+        harvest_field = {
+            StrategicMilestoneKind.INTERVAL_ASSEMBLY: "milestone_intervals_completed",
+            StrategicMilestoneKind.SOURCE_CHAIN: "milestone_source_chains_completed",
+            StrategicMilestoneKind.SUPPLY_INTEGRATION: "milestone_supply_completed",
+            StrategicMilestoneKind.WORKSPACE_LIFECYCLE: "milestone_workspace_lifecycles_completed",
+            StrategicMilestoneKind.PRE_DEAL_PREPARATION: "milestone_predeal_completed",
+            StrategicMilestoneKind.TERMINAL_QUALIFICATION: "milestone_terminal_qualifications",
+            StrategicMilestoneKind.FOUNDATION_REMOVAL: "milestone_foundations",
+        }.get(result.milestone.kind)
+        if harvest_field is not None:
+            setattr(telemetry, harvest_field, getattr(telemetry, harvest_field) + 1)
+    _append_bounded(
+        telemetry.milestone_timeline,
+        (
+            node.g,
+            result.milestone.milestone_id,
+            result.milestone.kind.value,
+            result.status.value,
+            result.primitive_steps,
+            result.corrected_paid_cost,
+        ),
+        config.max_timeline_entries,
+    )
+    if not result.actions or not result.independent_replay_verified:
+        return []
+    return [
+        StrategicSuccessor(
+            StrategicActionKind.MILESTONE_CONVERSION,
+            "milestone_conversion",
+            f"{result.milestone.kind.value.lower()} {result.status.value.lower()}",
+            result.actions,
+            result.corrected_paid_cost,
+            result.end_state.clone(),
+            node.credit_level,
+            result.milestone.estimated_paid_cost,
+            result.corrected_paid_cost,
+            result.tactical_nodes,
+            True,
+            False,
+            (
+                result.reason,
+                f"fresh_reanalyses={result.fresh_reanalyses}",
+                "milestone context is ordering-only and absent from exact TT identity",
+            ),
+            source_project_id=result.milestone.objective_id,
+            milestone_result=result,
+        )
+    ]
+
+
 def generate_strategic_successors(
     node: StrategicSearchNode,
     cards: Sequence[Card],
@@ -3834,6 +4320,59 @@ def generate_strategic_successors(
     if resource_allocator is None:
         allocator.begin_expansion()
     allowed = set(allowed_frontier_tiers(node.credit_level))
+
+    if analysis.milestone_portfolio is not None:
+        telemetry.milestones_admitted += len(analysis.milestone_portfolio.milestones)
+        for kind, count in analysis.milestone_portfolio.generated_by_kind:
+            telemetry.milestones_generated_by_kind[kind] = (
+                telemetry.milestones_generated_by_kind.get(kind, 0) + count
+            )
+        blocked_milestones = tuple(
+            item for item in analysis.milestone_portfolio.milestones
+            if item.status == StrategicMilestoneStatus.BLOCKED_CURRENT_EPOCH
+        )
+        telemetry.epoch_feasible_milestones += (
+            len(analysis.milestone_portfolio.milestones) - len(blocked_milestones)
+        )
+        telemetry.epoch_stock_blocked_milestones += len(blocked_milestones)
+        telemetry.milestones_stock_blocked += len(blocked_milestones)
+        for item in blocked_milestones:
+            epoch = (
+                item.epoch_feasibility.earliest_feasible_epoch
+                if item.epoch_feasibility is not None else None
+            )
+            if epoch is not None:
+                telemetry.earliest_required_future_epochs[epoch] = (
+                    telemetry.earliest_required_future_epochs.get(epoch, 0) + 1
+                )
+        if node.active_milestone is None and analysis.milestone_portfolio.plan.primary is not None:
+            telemetry.milestones_activated += 1
+    if analysis.epoch_transition is not None:
+        telemetry.predeal_must_items += sum(
+            item.disposition == PreDealWorkDisposition.MUST_BEFORE_DEAL
+            for item in analysis.epoch_transition.work_items
+        )
+        telemetry.predeal_should_items += sum(
+            item.disposition == PreDealWorkDisposition.SHOULD_BEFORE_DEAL
+            for item in analysis.epoch_transition.work_items
+        )
+        telemetry.predeal_free_join_deferrals += len(analysis.epoch_transition.free_future_joins)
+        telemetry.predeal_avoided_actions += len(analysis.epoch_transition.surrendered_opportunities)
+
+    raw.extend(
+        _milestone_conversion_successors(
+            node,
+            cards,
+            incumbent_cost=incumbent_cost,
+            config=config,
+            telemetry=telemetry,
+            started=started,
+            analysis_cache=analysis_cache,
+            deadline=shared_deadline,
+            dependency_closure_cache=dependency_closure_cache,
+            resource_allocator=allocator,
+        )
+    )
 
     # Whole-deal construction is a first-class strategic family.  Its best
     # late-removal opportunity is retained alongside nearer removal work.
@@ -4055,6 +4594,97 @@ def generate_strategic_successors(
             telemetry.deal_successors_generated += 1
             if successor.kind == StrategicActionKind.PREPARE_THEN_DEAL:
                 telemetry.deal_preparations_retained += 1
+    purposeful = analysis.epoch_transition
+    if (
+        purposeful is not None
+        and purposeful.status == EpochTransitionStatus.PREPARATION_REQUIRED
+    ):
+        actions_since_deal = 0
+        for prior_action in reversed(node.actions):
+            if prior_action == ("deal",):
+                break
+            actions_since_deal += 1
+        if actions_since_deal >= config.milestone_max_primitive_steps:
+            purposeful = assess_epoch_transition(
+                node.state,
+                analysis.campaign_epoch_availability,
+                purposeful.work_items,
+                milestone_ids=purposeful.milestone_ids,
+                boundedly_exhausted=True,
+            )
+    if (
+        node.state.can_deal(MW_RULES)
+        and purposeful is not None
+        and purposeful.purposeful_deal_eligible
+    ):
+        end = node.state.clone()
+        cost = end.deal(MW_RULES)
+        actions: Tuple[Action, ...] = (("deal",),)
+        epoch_milestone = (
+            next(
+                (
+                    item
+                    for item in analysis.milestone_portfolio.milestones
+                    if item.kind == StrategicMilestoneKind.EPOCH_TRANSITION
+                    and (
+                        not purposeful.campaign_ids
+                        or item.campaign_id in purposeful.campaign_ids
+                    )
+                ),
+                None,
+            )
+            if analysis.milestone_portfolio is not None
+            else None
+        )
+        epoch_result = None
+        if epoch_milestone is not None:
+            epoch_progress = evaluate_milestone_progress(end, epoch_milestone)
+            achieved_epoch = replace(
+                epoch_milestone,
+                progress=epoch_progress,
+                status=StrategicMilestoneStatus.ACHIEVED,
+            )
+            epoch_result = MilestoneRealizationResult(
+                achieved_epoch,
+                StrategicMilestoneStatus.ACHIEVED,
+                actions,
+                cost,
+                end.clone(),
+                1,
+                0,
+                0.0,
+                _replay_edge(node.state, actions, end, cost),
+                1,
+                ("purposeful stock epoch advanced",),
+                purposeful.purpose,
+            )
+        raw.append(
+            StrategicSuccessor(
+                StrategicActionKind.DEAL_NOW,
+                "milestone_epoch",
+                f"purposeful Deal: {purposeful.purpose}",
+                actions,
+                cost,
+                end,
+                node.credit_level,
+                cost,
+                cost,
+                0,
+                _replay_edge(node.state, actions, end, cost),
+                False,
+                (
+                    purposeful.purpose,
+                    f"exact_next_row={' '.join(str(card) for card in purposeful.exact_next_row)}",
+                    f"completed_predeal={purposeful.completed_work}",
+                    f"deliberately_deferred={purposeful.deliberately_deferred_work}",
+                    "post-Deal milestone portfolio must be rebuilt from the exact child",
+                ),
+                milestone_result=epoch_result,
+                epoch_transition=purposeful,
+            )
+        )
+        deal_added = True
+        telemetry.deal_successors_generated += 1
     if node.state.can_deal(MW_RULES) and not deal_added:
         end = node.state.clone()
         cost = end.deal(MW_RULES)
@@ -4311,6 +4941,26 @@ def generate_strategic_successors(
     return final
 
 
+def _milestone_checkpoint_order(node: StrategicSearchNode) -> Tuple[int, int, int]:
+    epoch_checkpoints = sum(
+        item.status == StrategicMilestoneStatus.ACHIEVED
+        and item.milestone.kind == StrategicMilestoneKind.EPOCH_TRANSITION
+        for item in node.milestone_ledger.results
+    )
+    deals = sum(action == ("deal",) for action in node.actions)
+    anonymous_deal_debt = max(0, deals - epoch_checkpoints)
+    structural_achievements = sum(
+        item.status == StrategicMilestoneStatus.ACHIEVED
+        and item.milestone.kind != StrategicMilestoneKind.EPOCH_TRANSITION
+        for item in node.milestone_ledger.results
+    )
+    # Anonymous Deal debt precedes checkpoint count: more construction harvest
+    # cannot launder a Deal taken before its exact preparation/purpose gate.
+    # The binary epoch rank prevents both epoch-0 stagnation and stock racing:
+    # one deliberate transition is recognized, additional rows are not a score.
+    return anonymous_deal_debt, 0 if epoch_checkpoints else 1, -structural_achievements
+
+
 def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
     """Return the inspectable heuristic order; stock epoch is absent."""
     if node.analysis is None:
@@ -4318,7 +4968,8 @@ def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
             raise ValueError("lazy node lacks required Stage-0 analysis")
         # Foundation count leads this exact/cheap admission order.  Stock
         # count/epoch is intentionally absent, matching the full order.
-        return node.stage0.ordering_key()
+        base = node.stage0.ordering_key()
+        return base[:1] + _milestone_checkpoint_order(node) + base[1:]
     progress_key = node.analysis.progress.ordering_key()
     delta = node.incoming_edge.progress_delta if node.incoming_edge is not None else None
     deal_delta_key = (
@@ -4348,13 +4999,14 @@ def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
     # Only an explicit actionability requirement may interrupt the intrinsic
     # structural order. Other bounded timing preferences break structural
     # ties after exact consequence deltas; neither rank contains an epoch.
-    return (
+    combined = (
         progress_key[:5]
         + (deal_required_rank,)
         + progress_key[5:]
         + deal_delta_key
         + (timing_priority, purpose_debt_penalty)
     )
+    return combined[:4] + _milestone_checkpoint_order(node) + combined[4:]
 
 
 def _node_priority(node: StrategicSearchNode) -> Tuple:
@@ -4364,12 +5016,26 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
         0 if credit is not None and credit.is_live else 1,
         credit.ordering_key() if credit is not None else (1, 0, 0, 0, ""),
     )
+    milestone = node.active_milestone
+    milestone_continuity = (
+        0
+        if milestone is not None
+        and milestone.status in (
+            StrategicMilestoneStatus.ACTIVE,
+            StrategicMilestoneStatus.ADVANCED,
+        )
+        else 1,
+        milestone.ordering_key() if milestone is not None else (1, 1, 0, 0, 0, "", ""),
+    )
     # Preserve solved/foundation precedence, then give a freshly harvested
     # child its promised bounded next-step opportunity.  Lazy Stage-0 nodes
     # expose foundation count as their first component; full analyses expose
     # solved/realized/removal/foundation as their first four.
-    continuity_index = 1 if node.analysis is None else 4
-    return base[:continuity_index] + continuity + base[continuity_index:] + (
+    # Foundation precedence and milestone checkpoint audit come first. A live
+    # same-target continuation may not outrank a completed purposeful Deal or
+    # launder anonymous Deal debt.
+    continuity_index = 4 if node.analysis is None else 7
+    return base[:continuity_index] + milestone_continuity + continuity + base[continuity_index:] + (
         int(node.credit_level),
         node.depth,
         node.node_id,
@@ -4377,9 +5043,7 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
 
 
 def _better_progress(candidate: StrategicSearchNode, incumbent: StrategicSearchNode) -> bool:
-    if candidate.analysis is None or incumbent.analysis is None:
-        return strategic_progress_order_key(candidate) < strategic_progress_order_key(incumbent)
-    return candidate.analysis.progress.ordering_key() < incumbent.analysis.progress.ordering_key()
+    return strategic_progress_order_key(candidate) < strategic_progress_order_key(incumbent)
 
 
 def verify_complete_candidate(
@@ -4818,6 +5482,57 @@ def _refresh_same_campaign_continuation(
     )
 
 
+def _refresh_active_milestone(
+    node: StrategicSearchNode,
+    telemetry: ControllerTelemetry,
+    config: AnytimeControllerConfig,
+    *,
+    elapsed_seconds: float,
+) -> StrategicSearchNode:
+    active = node.active_milestone
+    if active is None or node.analysis is None or not config.enable_strategic_milestones:
+        return node
+    remaining, terminal = _fresh_milestone_facts(
+        node.state,
+        node.analysis,
+        active,
+        node.supply_consumption_results,
+        config,
+    )
+    matching = _matching_fresh_milestone(node.analysis.milestone_portfolio, active)
+    progress = evaluate_milestone_progress(
+        node.state,
+        active,
+        remaining_dependencies=remaining,
+        terminal_qualified=terminal,
+    )
+    if matching is None and progress.complete:
+        matching = active
+    refreshed = refresh_milestone(
+        node.state,
+        active,
+        matching_fresh=matching,
+        depth=node.depth,
+        elapsed_seconds=elapsed_seconds,
+        remaining_dependencies=remaining,
+        terminal_qualified=terminal,
+    )
+    if refreshed.status != active.status:
+        field_name = {
+            StrategicMilestoneStatus.ADVANCED: "milestones_advanced",
+            StrategicMilestoneStatus.ACHIEVED: "milestones_achieved",
+            StrategicMilestoneStatus.REPLANNED: "milestones_replanned",
+            StrategicMilestoneStatus.BLOCKED_CURRENT_EPOCH: "milestones_stock_blocked",
+            StrategicMilestoneStatus.INVALIDATED: "milestones_invalidated",
+            StrategicMilestoneStatus.SUPERSEDED: "milestones_superseded",
+            StrategicMilestoneStatus.EXPIRED: "milestones_expired",
+            StrategicMilestoneStatus.BOUNDED_MISS: "milestone_bounded_misses",
+        }.get(refreshed.status)
+        if field_name is not None:
+            setattr(telemetry, field_name, getattr(telemetry, field_name) + 1)
+    return replace(node, active_milestone=refreshed)
+
+
 def _trace_expansion(
     node: StrategicSearchNode,
     successors: Sequence[StrategicSuccessor],
@@ -4918,6 +5633,32 @@ def _record_transition(
                 telemetry.deal_escape_only_count += 1
             telemetry.current_epoch_opportunities_lost_to_deal += len(
                 opportunity.current_epoch_projects_blocked
+            )
+        if successor.epoch_transition is not None:
+            telemetry.purposeful_deals += 1
+            if successor.milestone_result is not None:
+                telemetry.milestones_achieved += 1
+                _append_bounded(
+                    telemetry.milestone_timeline,
+                    (
+                        parent.g,
+                        successor.milestone_result.milestone.milestone_id,
+                        StrategicMilestoneKind.EPOCH_TRANSITION.value,
+                        StrategicMilestoneStatus.ACHIEVED.value,
+                        1,
+                        successor.corrected_cost,
+                    ),
+                    config.max_timeline_entries,
+                )
+            _append_bounded(
+                telemetry.epoch_timeline,
+                (
+                    child.g,
+                    successor.epoch_transition.next_epoch or 5,
+                    successor.epoch_transition.status.value,
+                    successor.epoch_transition.purpose,
+                ),
+                config.max_timeline_entries,
             )
     if cm0.foundation_count > pm.foundation_count:
         _append_bounded(
@@ -5293,6 +6034,12 @@ def solve_anytime(
             telemetry,
             config,
             continuation_events_seen,
+            elapsed_seconds=elapsed,
+        )
+        node = _refresh_active_milestone(
+            node,
+            telemetry,
+            config,
             elapsed_seconds=elapsed,
         )
         expansion_key = (canonical_state_key(node.state), int(node.credit_level))
@@ -5796,6 +6543,44 @@ def solve_anytime(
                 child_continuation = node.continuation_credit
             if child_continuation is not None and child_continuation.is_live:
                 telemetry.continuation_descendants_admitted += 1
+            child_milestone_ledger = node.milestone_ledger
+            child_active_milestone: Optional[StrategicMilestone] = None
+            milestone_result = successor.milestone_result
+            if milestone_result is not None:
+                child_milestone_ledger = child_milestone_ledger.add(milestone_result)
+                if milestone_result.status in (
+                    StrategicMilestoneStatus.ACTIVE,
+                    StrategicMilestoneStatus.ADVANCED,
+                    StrategicMilestoneStatus.BOUNDED_MISS,
+                ):
+                    child_active_milestone = milestone_result.milestone
+            elif successor.kind not in _DEAL_ACTION_KINDS:
+                if (
+                    node.active_milestone is not None
+                    and successor.source_project_id
+                    in (
+                        node.active_milestone.objective_id,
+                        node.active_milestone.campaign_id,
+                    )
+                ):
+                    child_active_milestone = node.active_milestone
+                elif node.analysis.milestone_portfolio is not None:
+                    selected_milestone = next(
+                        (
+                            item
+                            for item in node.analysis.milestone_portfolio.milestones
+                            if successor.source_project_id
+                            in (item.objective_id, item.campaign_id)
+                        ),
+                        None,
+                    )
+                    if selected_milestone is not None:
+                        child_active_milestone = replace(
+                            selected_milestone,
+                            created_depth=node.depth + 1,
+                            created_elapsed_seconds=time.perf_counter() - started,
+                        )
+                        telemetry.milestones_activated += 1
             child = StrategicSearchNode(
                 uid,
                 successor.end_state.clone(),
@@ -5823,6 +6608,8 @@ def solve_anytime(
                 child_audit_history,
                 ledger,
                 child_continuation,
+                child_active_milestone,
+                child_milestone_ledger,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -5918,4 +6705,5 @@ def solve_anytime(
             most_foundations_node.successive_deal_audit_history
         ),
         tactical_resource_ledger=resource_allocator.ledger,
+        milestone_conversion_ledger=most_foundations_node.milestone_ledger,
     )
