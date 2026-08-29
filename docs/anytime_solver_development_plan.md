@@ -596,6 +596,36 @@ Do not use low-level optimisation to compensate for a poor strategic model.
 
 ## 7. Immediate development sprint
 
+Controller v0.8 now allocates the existing tactical budget from each fresh
+campaign critical path. The scheduler distinguishes closure, receiver,
+interval, overlay, supply, construction, excavation, workspace, removal, Deal
+and fallback demand; grants PROBE, SHALLOW, COMMITTED or TERMINAL tranches;
+and promotes only named structural return. Repeated misses are remembered only
+for the exact state/objective/realiser/blocker context and have no proof
+authority.
+
+A fresh profile confirmed that v0.7 current-epoch/removal work consumed about
+75% of a 30-second sample. In the accepted v0.8 policy, an explicit
+prerequisite gates current-epoch, removal and corridor execution. The cost-21
+Gate F reached its 25-expansion ceiling in 16.963 seconds, compared with six
+expansions in 90.007 seconds for v0.7. The authorized untouched Gate G reached
+all 50 expansions in 35.444 seconds, compared with nine in 181.863 seconds.
+Gate G granted 27.8 tactical seconds but consumed 3.069, retained 56 generic
+construction opportunities and recorded 238 named harvest events. The fixed
+runtime and node ceilings, unrestricted rules, exact TT and admissible bound
+are unchanged.
+
+The result remains partial. Gate F retained its existing Spades foundation but
+did not remove F2. The untouched Gate G did not remove F1; its leading Spades
+campaign had one shallow compulsory source and no overlay, but still lacked
+the K, J-8 and A intervals when the 50-expansion ceiling arrived. The next
+authorized sprint should therefore convert harvested primitive
+closure/construction work into a continuous interval-building milestone and
+terminal qualification, without restoring expensive whole-campaign setup or
+increasing any budget. See `docs/anytime_whole_game_controller_v0_8.md`.
+
+### Historical v0.7 status
+
 Controller v0.7 now preserves objective-specific structural investment across
 fresh state analysis. Successful dependency closure can issue bounded
 same-campaign continuation credit, and the strategic portfolio explicitly

@@ -162,6 +162,15 @@ class CampaignCriticalPathSummary:
     total_weighted_burden: int
     bottleneck_dependency_id: Optional[str]
     proof_pruning_allowed: bool = False
+    bottleneck_kind: Optional[CampaignDependencyType] = None
+    prerequisite_dependency_ids: Tuple[str, ...] = ()
+    deepest_source_depth: int = 0
+    receiver_missing: bool = False
+    workspace_required: bool = False
+    supplied_asset_waiting: bool = False
+    interval_missing: bool = False
+    overlay_present: bool = False
+    terminal_qualified: bool = False
 
 
 @dataclass(frozen=True)
@@ -544,6 +553,8 @@ def _criticality_rank(dependency: CampaignDependency) -> int:
 
 def build_campaign_critical_path(
     graph: CampaignDependencyGraph,
+    *,
+    terminal_qualified: bool = False,
 ) -> CampaignCriticalPathSummary:
     """Return a small dependency bottleneck view for ordering and telemetry."""
     entries = []
@@ -576,11 +587,35 @@ def build_campaign_critical_path(
         )
     entries.sort(key=lambda item: item.ordering_key())
     burden = sum(1 + item.downstream_dependencies_unlocked for item in entries)
+    kinds = {item.kind for item in entries}
+    leading = entries[0] if entries else None
     return CampaignCriticalPathSummary(
         graph.campaign_id,
         tuple(entries),
         burden,
-        entries[0].dependency_id if entries else None,
+        leading.dependency_id if leading else None,
+        False,
+        leading.kind if leading else None,
+        leading.prerequisites if leading else (),
+        max((item.source_depth for item in entries), default=0),
+        bool(
+            kinds
+            & {
+                CampaignDependencyType.RECEIVER_MISSING,
+                CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED,
+            }
+        ),
+        CampaignDependencyType.WORKSPACE_REQUIRED in kinds,
+        any(item.supplied_asset_waiting for item in entries),
+        bool(
+            kinds
+            & {
+                CampaignDependencyType.MISSING_SAME_SUIT_INTERVAL,
+                CampaignDependencyType.FRAGMENT_ORDERING,
+            }
+        ),
+        CampaignDependencyType.MIXED_OVERLAY in kinds,
+        terminal_qualified,
     )
 
 

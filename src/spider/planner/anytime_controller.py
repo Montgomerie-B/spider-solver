@@ -46,6 +46,7 @@ from spider.planner.campaign_corridor import (
     realize_campaign_corridor,
 )
 from spider.planner.campaign_dependency_closure import (
+    CampaignDependencyType,
     DependencyClosureCache,
     DependencyClosureConfig,
     DependencyClosureResult,
@@ -157,6 +158,21 @@ from spider.planner.structural_investment import (
     investment_from_dependency_closure,
     refresh_continuation_credit,
     successor_matches_continuation,
+)
+from spider.planner.tactical_resource_allocator import (
+    RemovalAllocationPolicy,
+    TacticalDemand,
+    TacticalDemandPortfolio,
+    TacticalObjectiveKind,
+    TacticalRealizerKind,
+    TacticalResourceAllocator,
+    TacticalResourceAllocatorConfig,
+    TacticalResourceDecision,
+    TacticalResourceLedger,
+    TacticalResourceOutcome,
+    TacticalResourceTier,
+    TacticalResourceTierSpec,
+    derive_tactical_demands,
 )
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.state_identity import (
@@ -293,6 +309,10 @@ class AnytimeControllerConfig:
     continuation_max_elapsed_seconds: float = 30.0
     enable_same_suit_construction: bool = True
     max_construction_successors_per_expansion: int = 2
+    enable_tactical_resource_allocation: bool = False
+    tactical_resource_config: TacticalResourceAllocatorConfig = field(
+        default_factory=TacticalResourceAllocatorConfig
+    )
     deal_timing_config: DealTimingConfig = field(
         default_factory=lambda: DealTimingConfig(
             max_preparation_projects=2,
@@ -554,6 +574,7 @@ class StrategicAnalysisSnapshot:
     residual: ResidualCampaignAssessment
     stage: AnalysisStage = AnalysisStage.STRATEGIC_CORE
     construction: Optional[StructuralConstructionAnalysis] = None
+    tactical_demands: Optional[TacticalDemandPortfolio] = None
 
 
 @dataclass(frozen=True)
@@ -859,6 +880,31 @@ class ControllerTelemetry:
     construction_timeline: List[Tuple[int, str, str, int, Optional[int]]] = field(
         default_factory=list
     )
+    tactical_requests_by_objective: Dict[str, int] = field(default_factory=dict)
+    tactical_grants_by_tier: Dict[str, int] = field(default_factory=dict)
+    tactical_nodes_granted_by_family: Dict[str, int] = field(default_factory=dict)
+    tactical_nodes_consumed_by_family: Dict[str, int] = field(default_factory=dict)
+    tactical_seconds_granted_by_family: Dict[str, float] = field(default_factory=dict)
+    tactical_seconds_consumed_by_family: Dict[str, float] = field(default_factory=dict)
+    tactical_promotions: int = 0
+    tactical_demotions: int = 0
+    tactical_suspensions: int = 0
+    tactical_terminal_escalations: int = 0
+    tactical_zero_harvest_invocations: int = 0
+    tactical_repeated_equivalent_misses: int = 0
+    tactical_harvest_events_by_realizer: Dict[str, int] = field(default_factory=dict)
+    tactical_dependencies_closed: int = 0
+    tactical_overlays_cleared: int = 0
+    tactical_receivers_created: int = 0
+    tactical_intervals_assembled: int = 0
+    tactical_supply_integrated: int = 0
+    tactical_joins_created: int = 0
+    tactical_workspace_objectives_achieved: int = 0
+    tactical_concrete_deal_unlocks: int = 0
+    tactical_foundations_removed: int = 0
+    tactical_allocation_timeline: List[
+        Tuple[int, str, str, str, int, float, str]
+    ] = field(default_factory=list)
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -889,6 +935,9 @@ class AnytimeSearchResult:
     stop_reason: str
     pre_foundation_portfolio: Optional[PreFoundationPortfolio] = None
     successive_deal_audit: Tuple[SuccessiveDealAuditEntry, ...] = ()
+    tactical_resource_ledger: TacticalResourceLedger = field(
+        default_factory=TacticalResourceLedger
+    )
 
 
 class StrategicTranspositionTable:
@@ -1411,6 +1460,8 @@ def analyze_strategic_state(
     precomputed_state_key: Optional[CanonicalStateKey] = None,
     precomputed_config_fingerprint: Optional[AnalysisConfigFingerprint] = None,
     deadline: Optional[SearchDeadline] = None,
+    supply_consumptions: Sequence[SupplyConsumptionResult] = (),
+    continuation_objective_id: Optional[str] = None,
 ) -> StrategicAnalysisSnapshot:
     """Recompute all current-state strategic layers from the actual state."""
     state_key = canonical_state_key(state)
@@ -1531,6 +1582,38 @@ def analyze_strategic_state(
         if config.enable_same_suit_construction
         else None
     )
+    critical_paths = []
+    campaign_suits = {}
+    if config.enable_tactical_resource_allocation:
+        for campaign in campaigns[: config.tactical_resource_config.max_campaign_demands]:
+            terminal_qualified = campaign_is_near_removal(
+                state,
+                campaign,
+                config=config.terminal_assembly_config.near_removal,
+            )
+            graph = build_campaign_dependency_graph(
+                state,
+                campaign,
+                supply_consumptions=supply_consumptions,
+            )
+            critical_paths.append(
+                build_campaign_critical_path(
+                    graph,
+                    terminal_qualified=terminal_qualified,
+                )
+            )
+            campaign_suits[campaign.label] = campaign.suit
+    tactical_demands = (
+        derive_tactical_demands(
+            critical_paths,
+            campaign_suits=campaign_suits,
+            construction=construction,
+            continuation_objective_id=continuation_objective_id,
+            deal_available=state.can_deal(MW_RULES),
+        )
+        if config.enable_tactical_resource_allocation
+        else None
+    )
     return StrategicAnalysisSnapshot(
         state_hash=_state_hash(state),
         economic=economic,
@@ -1555,6 +1638,7 @@ def analyze_strategic_state(
             else AnalysisStage.STRATEGIC_CORE
         ),
         construction=construction,
+        tactical_demands=tactical_demands,
     )
 
 
@@ -2245,6 +2329,360 @@ def _remaining_controller_time(started: float, config: AnytimeControllerConfig) 
     return max(0.0, config.wall_clock_limit_s - (time.perf_counter() - started))
 
 
+def _resource_allocator_for_config(
+    config: AnytimeControllerConfig,
+) -> TacticalResourceAllocator:
+    if config.enable_tactical_resource_allocation:
+        return TacticalResourceAllocator(config.tactical_resource_config)
+    # Compatibility mode preserves the inherited scheduler exactly.  The
+    # synthetic grants are deliberately wider than every existing component;
+    # each legacy component's own established cap therefore remains binding.
+    legacy_cost = max(
+        config.campaign_max_added_cost,
+        config.corridor_config.max_added_cost,
+        config.dependency_closure_config.max_added_cost,
+        config.terminal_assembly_config.max_added_cost,
+        max(config.tactical_max_cost_by_credit),
+    )
+    legacy_nodes = max(config.max_tactical_nodes, 1)
+    legacy_seconds = max(config.wall_clock_limit_s, 0.01)
+    legacy = TacticalResourceAllocatorConfig(
+        tiers=tuple(
+            TacticalResourceTierSpec(tier, legacy_cost, legacy_nodes, legacy_seconds)
+            for tier in TacticalResourceTier
+        ),
+        repeated_misses_before_suspend=10**9,
+        max_campaign_demands=4,
+        max_granted_nodes_per_expansion=legacy_nodes * 64,
+        max_granted_seconds_per_expansion=legacy_seconds * 64,
+        reserve_nodes_for_alternate=0,
+    )
+    return TacticalResourceAllocator(legacy)
+
+
+def _resource_demand(
+    node: StrategicSearchNode,
+    realizer: TacticalRealizerKind,
+    *,
+    campaign_id: Optional[str] = None,
+    construction_opportunity_id: Optional[str] = None,
+) -> TacticalDemand:
+    portfolio = node.analysis.tactical_demands if node.analysis is not None else None
+    if portfolio is not None:
+        matches = tuple(
+            item
+            for item in portfolio.demands
+            if item.realizer == realizer
+            and (campaign_id is None or item.campaign_id == campaign_id)
+            and (
+                construction_opportunity_id is None
+                or item.construction_opportunity_id == construction_opportunity_id
+            )
+        )
+        if matches:
+            return min(matches, key=lambda item: item.ordering_key())
+    objective = {
+        TacticalRealizerKind.DEPENDENCY_CLOSURE: TacticalObjectiveKind.DEPENDENCY_CLOSURE,
+        TacticalRealizerKind.CAMPAIGN_CURRENT_EPOCH: TacticalObjectiveKind.DEPENDENCY_CLOSURE,
+        TacticalRealizerKind.CAMPAIGN_REMOVAL: TacticalObjectiveKind.FOUNDATION_REMOVAL,
+        TacticalRealizerKind.TERMINAL_ASSEMBLY: TacticalObjectiveKind.FOUNDATION_REMOVAL,
+        TacticalRealizerKind.CAMPAIGN_CORRIDOR: TacticalObjectiveKind.DEPENDENCY_CLOSURE,
+        TacticalRealizerKind.RUN_CONSTRUCTION: TacticalObjectiveKind.RUN_CONSTRUCTION,
+        TacticalRealizerKind.DEAL_TIMING: TacticalObjectiveKind.DEAL_EVALUATION,
+        TacticalRealizerKind.ECONOMIC_PROJECT: TacticalObjectiveKind.EXCAVATION,
+        TacticalRealizerKind.RAW_FALLBACK: TacticalObjectiveKind.RAW_FALLBACK,
+    }[realizer]
+    return TacticalDemand(
+        objective,
+        realizer,
+        "generic bounded fallback demand; no benchmark or proof authority",
+        campaign_id=campaign_id,
+        construction_opportunity_id=construction_opportunity_id,
+        removal_policy=(
+            RemovalAllocationPolicy.REMOVAL_DIAGNOSTIC_ONLY
+            if realizer == TacticalRealizerKind.CAMPAIGN_REMOVAL
+            else RemovalAllocationPolicy.REMOVAL_NOT_QUALIFIED
+        ),
+    )
+
+
+def _explicit_resource_demand(
+    node: StrategicSearchNode,
+    realizer: TacticalRealizerKind,
+    *,
+    campaign_id: Optional[str] = None,
+) -> Optional[TacticalDemand]:
+    portfolio = node.analysis.tactical_demands if node.analysis is not None else None
+    if portfolio is None:
+        return None
+    return portfolio.best_for(realizer, campaign_id=campaign_id)
+
+
+def _record_tactical_transition(
+    allocator: TacticalResourceAllocator,
+    grant,
+    node: StrategicSearchNode,
+    end_state: SpiderState,
+    *,
+    nodes_consumed: int,
+    seconds_consumed: float,
+    corrected_paid_cost: int,
+    legal_successor_count: int,
+    campaign: Optional[FoundationCampaign] = None,
+    supply_after: Optional[Sequence[SupplyConsumptionResult]] = None,
+    dependencies_closed: Optional[int] = None,
+    overlays_cleared: Optional[int] = None,
+    receivers_created: Optional[int] = None,
+    supply_consumed_or_integrated: Optional[int] = None,
+    permanent_adjacencies_created: Optional[int] = None,
+    intervals_assembled: Optional[int] = None,
+    concrete_deal_unlocks: int = 0,
+    reason: str = "",
+) -> TacticalResourceOutcome:
+    before = node.stage0 or analyze_stage0_state(
+        node.state, spent_cost=node.g, incumbent_cost=None
+    )
+    after = analyze_stage0_state(
+        end_state,
+        spent_cost=node.g + corrected_paid_cost,
+        incumbent_cost=None,
+    )
+    blocker_before = grant.key.critical_path_fingerprint
+    blocker_after = blocker_before
+    terminal_before = False
+    terminal_after = False
+    derived_dependencies = 0
+    derived_overlays = 0
+    derived_receivers = 0
+    derived_intervals = 0
+    if campaign is not None:
+        before_graph = build_campaign_dependency_graph(
+            node.state,
+            campaign,
+            supply_consumptions=node.supply_consumption_results,
+        )
+        after_graph = build_campaign_dependency_graph(
+            end_state,
+            campaign,
+            supply_consumptions=(
+                tuple(supply_after)
+                if supply_after is not None
+                else node.supply_consumption_results
+            ),
+        )
+        before_ids = {
+            item.dependency_id
+            for item in before_graph.dependencies
+            if item.kind != CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE
+        }
+        after_ids = {
+            item.dependency_id
+            for item in after_graph.dependencies
+            if item.kind != CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE
+        }
+        closed_ids = before_ids - after_ids
+        derived_dependencies = len(closed_ids)
+        derived_overlays = sum(item.startswith("overlay:") for item in closed_ids)
+        derived_receivers = sum(item.startswith("receiver:") for item in closed_ids)
+        derived_intervals = sum(item.startswith("interval:") for item in closed_ids)
+        terminal_before = campaign_is_near_removal(
+            node.state,
+            campaign,
+        )
+        terminal_after = campaign_is_near_removal(
+            end_state,
+            campaign,
+        )
+        after_path = build_campaign_critical_path(
+            after_graph,
+            terminal_qualified=terminal_after,
+        )
+        blocker_after = after_path.bottleneck_dependency_id
+    supply_before_count = sum(
+        item.consumed_count for item in node.supply_consumption_results
+    )
+    supply_after_count = sum(
+        item.consumed_count for item in (supply_after or node.supply_consumption_results)
+    )
+    outcome = TacticalResourceOutcome(
+        grant.request_id,
+        grant.key,
+        grant.tier,
+        nodes_consumed,
+        seconds_consumed,
+        corrected_paid_cost,
+        legal_successor_count,
+        dependencies_closed=(
+            derived_dependencies if dependencies_closed is None else dependencies_closed
+        ),
+        overlays_cleared=(derived_overlays if overlays_cleared is None else overlays_cleared),
+        receivers_created=(
+            derived_receivers if receivers_created is None else receivers_created
+        ),
+        supply_consumed_or_integrated=(
+            max(0, supply_after_count - supply_before_count)
+            if supply_consumed_or_integrated is None
+            else supply_consumed_or_integrated
+        ),
+        permanent_adjacencies_created=(
+            max(0, after.stable_same_suit_joins - before.stable_same_suit_joins)
+            if permanent_adjacencies_created is None
+            else permanent_adjacencies_created
+        ),
+        strategically_relevant_sources_exposed=(
+            max(0, before.face_down_count - after.face_down_count)
+            if grant.key.objective == TacticalObjectiveKind.EXCAVATION
+            else 0
+        ),
+        workspace_created_or_recovered=max(
+            0, len(after.empty_columns) - len(before.empty_columns)
+        ),
+        intervals_assembled=(
+            derived_intervals if intervals_assembled is None else intervals_assembled
+        ),
+        concrete_deal_unlocks=concrete_deal_unlocks,
+        terminal_qualification_before=terminal_before,
+        terminal_qualification_after=terminal_after,
+        foundation_removals=max(
+            0, after.foundation_count - before.foundation_count
+        ),
+        blocker_before=blocker_before,
+        blocker_after=blocker_after,
+        reason=reason,
+    )
+    return allocator.record_outcome(outcome)
+
+
+def _probe_exact_deal_unlocks(node: StrategicSearchNode) -> int:
+    """Return named, exact next-row reasons for widening Deal analysis.
+
+    The probe deliberately avoids economic reanalysis.  It reads only the
+    known next row, current receivers, and already-selected campaign stock
+    sources.  The raw legal Deal successor is generated independently, so a
+    zero result can suspend this evaluator without suppressing Deal itself.
+    """
+    if len(node.state.stock) < 10:
+        return 0
+    row = tuple(node.state.stock[-10:])
+    unlocks: set[Tuple] = set()
+    for column_index, incoming in enumerate(row):
+        receiver = node.state.columns[column_index].top()
+        if (
+            receiver is not None
+            and receiver.suit == incoming.suit
+            and receiver.rank == incoming.rank + 1
+        ):
+            unlocks.add(("stable_join", column_index, incoming.suit, incoming.rank))
+
+    campaigns = (
+        node.analysis.economic.campaign_portfolio.campaigns
+        if node.analysis is not None
+        else ()
+    )
+    for campaign in campaigns[:2]:
+        next_epoch = campaign.current_epoch + 1
+        for need in campaign.rank_needs:
+            source = need.chosen
+            if source is None or source.stock_epoch != next_epoch:
+                continue
+            for column_index, incoming in enumerate(row):
+                if incoming != source.card:
+                    continue
+                if source.stock_column not in (None, column_index, column_index + 1):
+                    continue
+                unlocks.add(
+                    ("campaign_supply", campaign.label, source.source_key, column_index)
+                )
+
+    dealt = node.state.clone()
+    foundations_before = len(dealt.foundations)
+    dealt.deal(MW_RULES)
+    for offset in range(len(dealt.foundations) - foundations_before):
+        unlocks.add(("foundation_on_deal", offset))
+    return len(unlocks)
+
+
+def _publish_tactical_resource_telemetry(
+    telemetry: ControllerTelemetry,
+    ledger: TacticalResourceLedger,
+    *,
+    maximum_timeline_entries: int,
+) -> None:
+    for request in ledger.requests:
+        key = request.demand.objective.value
+        telemetry.tactical_requests_by_objective[key] = (
+            telemetry.tactical_requests_by_objective.get(key, 0) + 1
+        )
+    for index, grant in enumerate(ledger.grants):
+        tier = grant.tier.name
+        family = grant.key.realizer.value
+        telemetry.tactical_grants_by_tier[tier] = (
+            telemetry.tactical_grants_by_tier.get(tier, 0) + 1
+        )
+        telemetry.tactical_nodes_granted_by_family[family] = (
+            telemetry.tactical_nodes_granted_by_family.get(family, 0)
+            + grant.nodes_granted
+        )
+        telemetry.tactical_seconds_granted_by_family[family] = (
+            telemetry.tactical_seconds_granted_by_family.get(family, 0.0)
+            + grant.seconds_granted
+        )
+        _append_bounded(
+            telemetry.tactical_allocation_timeline,
+            (
+                index,
+                grant.key.objective.value,
+                family,
+                tier,
+                grant.nodes_granted,
+                grant.seconds_granted,
+                grant.removal_policy.value,
+            ),
+            maximum_timeline_entries,
+        )
+    for outcome in ledger.outcomes:
+        family = outcome.key.realizer.value
+        telemetry.tactical_nodes_consumed_by_family[family] = (
+            telemetry.tactical_nodes_consumed_by_family.get(family, 0)
+            + outcome.nodes_consumed
+        )
+        telemetry.tactical_seconds_consumed_by_family[family] = (
+            telemetry.tactical_seconds_consumed_by_family.get(family, 0.0)
+            + outcome.seconds_consumed
+        )
+        telemetry.tactical_harvest_events_by_realizer[family] = (
+            telemetry.tactical_harvest_events_by_realizer.get(family, 0)
+            + outcome.named_harvest_events
+        )
+        telemetry.tactical_zero_harvest_invocations += int(not outcome.has_named_harvest)
+        telemetry.tactical_repeated_equivalent_misses += int(
+            outcome.repeated_equivalent_miss
+        )
+        telemetry.tactical_dependencies_closed += outcome.dependencies_closed
+        telemetry.tactical_overlays_cleared += outcome.overlays_cleared
+        telemetry.tactical_receivers_created += outcome.receivers_created
+        telemetry.tactical_intervals_assembled += outcome.intervals_assembled
+        telemetry.tactical_supply_integrated += outcome.supply_consumed_or_integrated
+        telemetry.tactical_joins_created += outcome.permanent_adjacencies_created
+        telemetry.tactical_workspace_objectives_achieved += (
+            outcome.workspace_created_or_recovered
+        )
+        telemetry.tactical_concrete_deal_unlocks += outcome.concrete_deal_unlocks
+        telemetry.tactical_foundations_removed += outcome.foundation_removals
+        telemetry.tactical_promotions += int(
+            outcome.decision == TacticalResourceDecision.PROMOTE
+        )
+        telemetry.tactical_demotions += int(
+            outcome.decision == TacticalResourceDecision.DEMOTE
+        )
+        telemetry.tactical_suspensions += int(
+            outcome.decision == TacticalResourceDecision.SUSPEND_FOR_STATE
+        )
+        telemetry.tactical_terminal_escalations += int(
+            outcome.decision == TacticalResourceDecision.TERMINAL_ESCALATION
+        )
+
+
 def actionability_tier_for_credit(
     credit: StrategicCreditLevel,
 ) -> Optional[ActionabilityTier]:
@@ -2333,6 +2771,8 @@ def _named_dependency_closure_campaign(
     """Select one already-named protected/supply objective, never a suit constant."""
     assert node.analysis is not None
     labels = []
+    if node.continuation_credit is not None and node.continuation_credit.is_live:
+        labels.append(node.continuation_credit.objective_id)
     if node.protected_conversion_lane is not None:
         labels.append(node.protected_conversion_lane.target_campaign)
     for contract in node.active_deal_contracts:
@@ -2348,6 +2788,14 @@ def _named_dependency_closure_campaign(
             )
         ):
             labels.append(contract.campaign_id)
+    if node.analysis.tactical_demands is not None:
+        labels.extend(
+            item.campaign_id
+            for item in node.analysis.tactical_demands.for_realizer(
+                TacticalRealizerKind.DEPENDENCY_CLOSURE
+            )
+            if item.campaign_id is not None
+        )
     for label in dict.fromkeys(labels):
         campaign = next(
             (
@@ -2370,16 +2818,29 @@ def _dependency_closure_successors(
     deadline: SearchDeadline,
     started: float,
     cache: Optional[DependencyClosureCache] = None,
+    resource_allocator: Optional[TacticalResourceAllocator] = None,
 ) -> Tuple[List[StrategicSuccessor], Optional[DependencyClosureResult]]:
     """Offer one bounded same-epoch closure before considering another Deal."""
     if (
         not config.enable_dependency_closure
-        or not node.state.foundations
+        or (
+            not config.enable_tactical_resource_allocation
+            and not node.state.foundations
+        )
         or node.analysis is None
     ):
         return [], None
     campaign = _named_dependency_closure_campaign(node)
     if campaign is None:
+        return [], None
+    allocator = resource_allocator or _resource_allocator_for_config(config)
+    demand = _resource_demand(
+        node,
+        TacticalRealizerKind.DEPENDENCY_CLOSURE,
+        campaign_id=campaign.label,
+    )
+    _request, grant = allocator.request(canonical_state_key(node.state), demand)
+    if grant is None:
         return [], None
     remaining_nodes = max(0, config.max_tactical_nodes - telemetry.tactical_nodes)
     if remaining_nodes <= 0 or not deadline.can_start(
@@ -2388,11 +2849,20 @@ def _dependency_closure_successors(
         return [], None
     closure_config = replace(
         config.dependency_closure_config,
-        max_nodes=min(config.dependency_closure_config.max_nodes, remaining_nodes),
+        max_added_cost=min(
+            config.dependency_closure_config.max_added_cost,
+            grant.max_added_cost,
+        ),
+        max_nodes=min(
+            config.dependency_closure_config.max_nodes,
+            grant.nodes_granted,
+            remaining_nodes,
+        ),
         time_limit_s=max(
             0.01,
             min(
                 config.dependency_closure_config.time_limit_s,
+                grant.seconds_granted,
                 deadline.time_slice(
                     "campaign_dependency_closure",
                     config.dependency_closure_config.time_limit_s,
@@ -2487,6 +2957,24 @@ def _dependency_closure_successors(
         telemetry.dependency_closure_failures[result.status.value] = (
             telemetry.dependency_closure_failures.get(result.status.value, 0) + 1
         )
+        _record_tactical_transition(
+            allocator,
+            grant,
+            node,
+            result.end_state,
+            nodes_consumed=result.nodes_expanded,
+            seconds_consumed=elapsed,
+            corrected_paid_cost=int(result.corrected_added_cost or 0),
+            legal_successor_count=0,
+            campaign=campaign,
+            supply_after=result.supply_consumptions,
+            dependencies_closed=len(result.dependencies_closed),
+            overlays_cleared=len(result.overlays_cleared),
+            receivers_created=sum(
+                item.startswith("receiver:") for item in result.dependencies_closed
+            ),
+            reason=result.reason,
+        )
         return [], result
     if (
         not result.actions
@@ -2498,6 +2986,24 @@ def _dependency_closure_successors(
         )
         return [], result
     telemetry.dependency_closure_successes += 1
+    _record_tactical_transition(
+        allocator,
+        grant,
+        node,
+        result.end_state,
+        nodes_consumed=result.nodes_expanded,
+        seconds_consumed=elapsed,
+        corrected_paid_cost=int(result.corrected_added_cost or 0),
+        legal_successor_count=1,
+        campaign=campaign,
+        supply_after=result.supply_consumptions,
+        dependencies_closed=len(result.dependencies_closed),
+        overlays_cleared=len(result.overlays_cleared),
+        receivers_created=sum(
+            item.startswith("receiver:") for item in result.dependencies_closed
+        ),
+        reason=result.reason,
+    )
     investment = None
     continuation = None
     if config.enable_structural_investment:
@@ -2586,6 +3092,7 @@ def _construction_successors(
     config: AnytimeControllerConfig,
     telemetry: ControllerTelemetry,
     started: float,
+    resource_allocator: Optional[TacticalResourceAllocator] = None,
 ) -> List[StrategicSuccessor]:
     """Retain durable construction independently of removal proximity."""
     if (
@@ -2634,11 +3141,21 @@ def _construction_successors(
         selected.append(late)
     selected = selected[: config.max_construction_successors_per_expansion]
     campaigns = node.analysis.economic.campaign_portfolio.campaigns
+    allocator = resource_allocator or _resource_allocator_for_config(config)
     successors = []
     for opportunity in selected:
+        demand = _resource_demand(
+            node,
+            TacticalRealizerKind.RUN_CONSTRUCTION,
+            construction_opportunity_id=opportunity.opportunity_id,
+        )
+        _request, grant = allocator.request(canonical_state_key(node.state), demand)
+        if grant is None:
+            continue
         action = opportunity.action
         if not node.state.can_move(*action):
             continue
+        call_started = time.perf_counter()
         end = node.state.clone()
         cost = end.move(*action, rules=MW_RULES)
         campaign = next(
@@ -2655,6 +3172,18 @@ def _construction_successors(
             created_depth=node.depth,
             created_elapsed_seconds=time.perf_counter() - started,
             baseline_total_g=node.g + cost,
+        )
+        _record_tactical_transition(
+            allocator,
+            grant,
+            node,
+            end,
+            nodes_consumed=1,
+            seconds_consumed=time.perf_counter() - call_started,
+            corrected_paid_cost=cost,
+            legal_successor_count=1,
+            permanent_adjacencies_created=opportunity.new_adjacencies,
+            reason="durable same-suit construction edge",
         )
         _append_bounded(
             telemetry.construction_timeline,
@@ -2701,6 +3230,8 @@ def _foundation_successors(
     telemetry: ControllerTelemetry,
     started: float,
     deadline: Optional[SearchDeadline] = None,
+    resource_allocator: Optional[TacticalResourceAllocator] = None,
+    closure_offer: Optional[DependencyClosureResult] = None,
 ) -> List[StrategicSuccessor]:
     if not config.enable_campaign_edges:
         return []
@@ -2730,6 +3261,7 @@ def _foundation_successors(
         else node.analysis.economic.campaign_portfolio.campaigns[:campaign_limit]
     )
     successors: List[StrategicSuccessor] = []
+    allocator = resource_allocator or _resource_allocator_for_config(config)
     for campaign in campaigns:
         if (
             telemetry.tactical_nodes >= config.max_tactical_nodes
@@ -2745,6 +3277,20 @@ def _foundation_successors(
             and not campaign.blockers
         )
         added = False
+        terminal_attempted = False
+        removal_attempted = False
+        closure_harvested_same_campaign = bool(
+            config.enable_tactical_resource_allocation
+            and closure_offer is not None
+            and closure_offer.campaign_id == campaign.label
+            and closure_offer.status
+            in (
+                DependencyClosureStatus.FOUNDATION_REMOVED,
+                DependencyClosureStatus.DEPENDENCY_CLOSED,
+                DependencyClosureStatus.SUPPLY_CONSUMED,
+                DependencyClosureStatus.MILESTONE_REACHED,
+            )
+        )
         if (
             config.enable_terminal_assembly
             and campaign_is_near_removal(
@@ -2753,25 +3299,62 @@ def _foundation_successors(
                 config=config.terminal_assembly_config.near_removal,
             )
         ):
-            telemetry.near_removal_campaigns_detected += 1
-            telemetry.terminal_realizer_attempts += 1
-            terminal_config = replace(
-                config.terminal_assembly_config,
-                max_nodes=min(config.terminal_assembly_config.max_nodes, remaining_nodes),
-                time_limit_s=min(
-                    config.terminal_assembly_config.time_limit_s,
-                    max(0.01, _remaining_controller_time(started, config)),
-                ),
+            demand = _resource_demand(
+                node,
+                TacticalRealizerKind.TERMINAL_ASSEMBLY,
+                campaign_id=campaign.label,
             )
-            terminal = realize_terminal_campaign_assembly(
-                node.state,
-                campaign,
-                config=terminal_config,
-                deadline=deadline,
-            )
-            telemetry.tactical_nodes += terminal.nodes_expanded
-            remaining_nodes = max(1, config.max_tactical_nodes - telemetry.tactical_nodes)
+            _request, grant = allocator.request(canonical_state_key(node.state), demand)
+            terminal = None
+            if grant is not None:
+                terminal_attempted = True
+                telemetry.near_removal_campaigns_detected += 1
+                telemetry.terminal_realizer_attempts += 1
+                terminal_config = replace(
+                    config.terminal_assembly_config,
+                    max_added_cost=min(
+                        config.terminal_assembly_config.max_added_cost,
+                        grant.max_added_cost,
+                    ),
+                    max_nodes=min(
+                        config.terminal_assembly_config.max_nodes,
+                        grant.nodes_granted,
+                        remaining_nodes,
+                    ),
+                    time_limit_s=min(
+                        config.terminal_assembly_config.time_limit_s,
+                        grant.seconds_granted,
+                        max(0.01, _remaining_controller_time(started, config)),
+                    ),
+                )
+                call_started = time.perf_counter()
+                terminal = realize_terminal_campaign_assembly(
+                    node.state,
+                    campaign,
+                    config=terminal_config,
+                    deadline=deadline,
+                )
+                terminal_elapsed = time.perf_counter() - call_started
+                telemetry.tactical_nodes += terminal.nodes_expanded
+                remaining_nodes = max(1, config.max_tactical_nodes - telemetry.tactical_nodes)
+                _record_tactical_transition(
+                    allocator,
+                    grant,
+                    node,
+                    terminal.end_state,
+                    nodes_consumed=terminal.nodes_expanded,
+                    seconds_consumed=terminal_elapsed,
+                    corrected_paid_cost=int(terminal.corrected_added_cost or 0),
+                    legal_successor_count=int(
+                        terminal.status == TerminalAssemblyStatus.FOUNDATION_REMOVED
+                        and terminal.independent_replay_verified
+                    ),
+                    campaign=campaign,
+                    reason=terminal.reason,
+                )
             if (
+                terminal is not None
+                and
                 terminal.status == TerminalAssemblyStatus.FOUNDATION_REMOVED
                 and terminal.independent_replay_verified
                 and terminal.actions
@@ -2801,21 +3384,80 @@ def _foundation_successors(
                     )
                 )
                 added = True
-        if removal_eligible and not added:
+        if (
+            removal_eligible
+            and not added
+            and (
+                not terminal_attempted
+                or not config.enable_tactical_resource_allocation
+            )
+            and not closure_harvested_same_campaign
+            and (
+                not config.enable_tactical_resource_allocation
+                or node.credit_level >= StrategicCreditLevel.ESCAPE
+            )
+        ):
+            demand = _resource_demand(
+                node,
+                TacticalRealizerKind.CAMPAIGN_REMOVAL,
+                campaign_id=campaign.label,
+            )
+            _request, grant = allocator.request(canonical_state_key(node.state), demand)
+            if grant is None:
+                continue
+            removal_attempted = True
+            if (
+                config.enable_tactical_resource_allocation
+                and grant.removal_policy
+                == RemovalAllocationPolicy.REMOVAL_DIAGNOSTIC_ONLY
+            ):
+                _record_tactical_transition(
+                    allocator,
+                    grant,
+                    node,
+                    node.state,
+                    nodes_consumed=0,
+                    seconds_consumed=0.0,
+                    corrected_paid_cost=0,
+                    legal_successor_count=0,
+                    campaign=campaign,
+                    reason=(
+                        "removal diagnostic retained without invoking the expensive "
+                        "realiser while an explicit prerequisite remains"
+                    ),
+                )
+                continue
             telemetry.foundation_macro_attempts += 1
+            call_started = time.perf_counter()
             removal = realize_campaign_to_removal_epoch(
                 node.state,
                 campaign,
                 cards,
-                max_added_cost=config.campaign_max_added_cost,
-                max_nodes=min(config.campaign_max_nodes, remaining_nodes),
+                max_added_cost=min(config.campaign_max_added_cost, grant.max_added_cost),
+                max_nodes=min(config.campaign_max_nodes, grant.nodes_granted, remaining_nodes),
                 time_limit_s=min(
                     config.campaign_time_limit_s,
+                    grant.seconds_granted,
                     max(0.01, _remaining_controller_time(started, config)),
                 ),
                 beam_width=config.campaign_beam_width,
             )
+            removal_elapsed = time.perf_counter() - call_started
             telemetry.tactical_nodes += removal.nodes_expanded
+            _record_tactical_transition(
+                allocator,
+                grant,
+                node,
+                removal.end_state,
+                nodes_consumed=removal.nodes_expanded,
+                seconds_consumed=removal_elapsed,
+                corrected_paid_cost=int(removal.corrected_added_cost or 0),
+                legal_successor_count=int(
+                    removal.independent_replay_verified and bool(removal.actions)
+                ),
+                campaign=campaign,
+                reason=removal.stop_reason,
+            )
             if (
                 removal.status
                 in (
@@ -2854,6 +3496,11 @@ def _foundation_successors(
                 added = True
         if (
             added
+            or (
+                removal_attempted
+                and config.enable_tactical_resource_allocation
+            )
+            or closure_harvested_same_campaign
             or telemetry.tactical_nodes >= config.max_tactical_nodes
             or (
                 node.credit_level == StrategicCreditLevel.CLEAN
@@ -2861,22 +3508,58 @@ def _foundation_successors(
             )
         ):
             continue
+        demand = (
+            _explicit_resource_demand(
+                node,
+                TacticalRealizerKind.CAMPAIGN_CURRENT_EPOCH,
+                campaign_id=campaign.label,
+            )
+            if config.enable_tactical_resource_allocation
+            else _resource_demand(
+                node,
+                TacticalRealizerKind.CAMPAIGN_CURRENT_EPOCH,
+                campaign_id=campaign.label,
+            )
+        )
+        if demand is None:
+            continue
+        _request, grant = allocator.request(canonical_state_key(node.state), demand)
+        if grant is None:
+            continue
         telemetry.foundation_macro_attempts += 1
+        call_started = time.perf_counter()
         result = realize_campaign_to_next_epoch(
             node.state,
             campaign,
             cards,
-            max_added_cost=config.campaign_max_added_cost,
+            max_added_cost=min(config.campaign_max_added_cost, grant.max_added_cost),
             max_nodes=min(
                 config.campaign_max_nodes,
+                grant.nodes_granted,
                 max(1, config.max_tactical_nodes - telemetry.tactical_nodes),
             ),
             time_limit_s=min(
                 config.campaign_time_limit_s,
+                grant.seconds_granted,
                 max(0.01, _remaining_controller_time(started, config)),
             ),
         )
+        current_elapsed = time.perf_counter() - call_started
         telemetry.tactical_nodes += result.nodes_expanded
+        _record_tactical_transition(
+            allocator,
+            grant,
+            node,
+            result.resulting_state,
+            nodes_consumed=result.nodes_expanded,
+            seconds_consumed=current_elapsed,
+            corrected_paid_cost=int(result.corrected_added_cost or 0),
+            legal_successor_count=int(
+                result.independent_replay_verified and bool(result.actions)
+            ),
+            campaign=campaign,
+            reason=result.stop_reason,
+        )
         if (
             result.status in (CampaignRealizationStatus.FOUND, CampaignRealizationStatus.PARTIAL)
             and result.independent_replay_verified
@@ -2915,6 +3598,7 @@ def _campaign_corridor_successors(
     config: AnytimeControllerConfig,
     telemetry: ControllerTelemetry,
     deadline: SearchDeadline,
+    resource_allocator: Optional[TacticalResourceAllocator] = None,
 ) -> List[StrategicSuccessor]:
     """Give credible multi-epoch campaigns a protected bounded opportunity."""
     if not config.enable_campaign_corridors:
@@ -2953,6 +3637,7 @@ def _campaign_corridor_successors(
     if is_residual:
         telemetry.residual_lanes_generated += len(lanes)
     successors: List[StrategicSuccessor] = []
+    allocator = resource_allocator or _resource_allocator_for_config(config)
     for lane in lanes[:lane_limit]:
         if (
             telemetry.tactical_nodes >= config.max_tactical_nodes
@@ -2969,22 +3654,64 @@ def _campaign_corridor_successors(
         campaign = node.analysis.economic.campaign_portfolio.campaign_for(
             identity.suit, identity.copy_index
         )
+        demand = (
+            _explicit_resource_demand(
+                node,
+                TacticalRealizerKind.CAMPAIGN_CORRIDOR,
+                campaign_id=campaign.label,
+            )
+            if config.enable_tactical_resource_allocation
+            else _resource_demand(
+                node,
+                TacticalRealizerKind.CAMPAIGN_CORRIDOR,
+                campaign_id=campaign.label,
+            )
+        )
+        if demand is None:
+            continue
+        _request, grant = allocator.request(canonical_state_key(node.state), demand)
+        if grant is None:
+            continue
+        lane_config = replace(
+            corridor_config,
+            max_added_cost=min(corridor_config.max_added_cost, grant.max_added_cost),
+            max_nodes=min(
+                corridor_config.max_nodes,
+                grant.nodes_granted,
+                max(1, config.max_tactical_nodes - telemetry.tactical_nodes),
+            ),
+            time_limit_s=min(
+                corridor_config.time_limit_s,
+                grant.seconds_granted,
+                max(0.01, deadline.remaining_wall_time),
+            ),
+        )
+        call_started = time.perf_counter()
         result = realize_campaign_corridor(
             node.state,
             campaign,
             cards,
-            config=replace(
-                corridor_config,
-                max_nodes=min(
-                    corridor_config.max_nodes,
-                    max(1, config.max_tactical_nodes - telemetry.tactical_nodes),
-                ),
-            ),
+            config=lane_config,
             deadline=deadline,
         )
+        call_elapsed = time.perf_counter() - call_started
         telemetry.tactical_nodes += result.nodes_expanded
         telemetry.corridor_nodes += result.nodes_expanded
         telemetry.corridor_seconds += result.elapsed_seconds
+        _record_tactical_transition(
+            allocator,
+            grant,
+            node,
+            result.end_state,
+            nodes_consumed=result.nodes_expanded,
+            seconds_consumed=call_elapsed,
+            corrected_paid_cost=int(result.corrected_added_cost or 0),
+            legal_successor_count=int(
+                result.independent_replay_verified and bool(result.actions)
+            ),
+            campaign=campaign,
+            reason=result.stop_reason,
+        )
         for step in result.steps:
             for milestone in step.milestones_reached:
                 telemetry.corridor_milestones[milestone] = (
@@ -3088,6 +3815,7 @@ def generate_strategic_successors(
     ] = None,
     deadline: Optional[SearchDeadline] = None,
     dependency_closure_cache: Optional[DependencyClosureCache] = None,
+    resource_allocator: Optional[TacticalResourceAllocator] = None,
 ) -> Tuple[StrategicSuccessor, ...]:
     """Generate a replay-verified portfolio in an explicit resource order.
 
@@ -3102,6 +3830,9 @@ def generate_strategic_successors(
     shared_deadline = deadline or SearchDeadline.from_seconds(
         max(0.01, _remaining_controller_time(started, config))
     )
+    allocator = resource_allocator or _resource_allocator_for_config(config)
+    if resource_allocator is None:
+        allocator.begin_expansion()
     allowed = set(allowed_frontier_tiers(node.credit_level))
 
     # Whole-deal construction is a first-class strategic family.  Its best
@@ -3112,6 +3843,7 @@ def generate_strategic_successors(
             config=config,
             telemetry=telemetry,
             started=started,
+            resource_allocator=allocator,
         )
     )
 
@@ -3160,6 +3892,7 @@ def generate_strategic_successors(
         deadline=shared_deadline,
         started=started,
         cache=dependency_closure_cache,
+        resource_allocator=allocator,
     )
     raw.extend(closure_successors)
 
@@ -3172,6 +3905,8 @@ def generate_strategic_successors(
             telemetry=telemetry,
             started=started,
             deadline=shared_deadline,
+            resource_allocator=allocator,
+            closure_offer=closure_offer,
         )
     )
 
@@ -3183,6 +3918,7 @@ def generate_strategic_successors(
         config=config,
         telemetry=telemetry,
         deadline=shared_deadline,
+        resource_allocator=allocator,
     )
     raw.extend(corridor_successors)
 
@@ -3202,22 +3938,105 @@ def generate_strategic_successors(
         and shared_deadline.remaining_wall_time
         >= config.optional_analysis_minimum_start_s
     ):
-        try:
-            optional = analyze_strategic_state(
-                node.state,
-                cards,
-                spent_cost=node.g,
-                incumbent_cost=incumbent_cost,
-                config=config,
-                include_deal_timing=True,
-                analysis_cache=analysis_cache,
-                telemetry=telemetry,
-                deadline=shared_deadline,
-            )
-        except AnalysisResourceLimit:
+        deal_demand = _resource_demand(
+            node,
+            TacticalRealizerKind.DEAL_TIMING,
+        )
+        _deal_request, deal_grant = allocator.request(
+            canonical_state_key(node.state), deal_demand
+        )
+        if deal_grant is None:
             telemetry.optional_analyses_skipped += 1
+        elif deal_grant.tier < TacticalResourceTier.COMMITTED:
+            deal_probe_started = time.perf_counter()
+            concrete_unlocks = _probe_exact_deal_unlocks(node)
+            _record_tactical_transition(
+                allocator,
+                deal_grant,
+                node,
+                node.state,
+                nodes_consumed=0,
+                seconds_consumed=time.perf_counter() - deal_probe_started,
+                corrected_paid_cost=0,
+                legal_successor_count=1,
+                concrete_deal_unlocks=concrete_unlocks,
+                reason=(
+                    "exact incoming-row Deal probe; deeper counterfactual analysis "
+                    "requires COMMITTED promotion"
+                ),
+            )
         else:
-            if optional.deal_timing is not None:
+            limited_deal_config = replace(
+                config.deal_timing_config,
+                tactical_max_cost=min(
+                    config.deal_timing_config.tactical_max_cost,
+                    deal_grant.max_added_cost,
+                ),
+                tactical_max_nodes=min(
+                    config.deal_timing_config.tactical_max_nodes,
+                    deal_grant.nodes_granted,
+                ),
+                tactical_time_limit_s=min(
+                    config.deal_timing_config.tactical_time_limit_s,
+                    deal_grant.seconds_granted,
+                ),
+                downstream_max_cost=min(
+                    config.deal_timing_config.downstream_max_cost,
+                    deal_grant.max_added_cost,
+                ),
+                downstream_max_nodes=min(
+                    config.deal_timing_config.downstream_max_nodes,
+                    deal_grant.nodes_granted,
+                ),
+                downstream_time_limit_s=min(
+                    config.deal_timing_config.downstream_time_limit_s,
+                    deal_grant.seconds_granted,
+                ),
+            )
+            allocation_config = replace(
+                config,
+                deal_timing_config=limited_deal_config,
+            )
+            deal_call_started = time.perf_counter()
+            try:
+                optional = analyze_strategic_state(
+                    node.state,
+                    cards,
+                    spent_cost=node.g,
+                    incumbent_cost=incumbent_cost,
+                    config=allocation_config,
+                    include_deal_timing=True,
+                    analysis_cache=analysis_cache,
+                    telemetry=telemetry,
+                    deadline=shared_deadline,
+                    supply_consumptions=node.supply_consumption_results,
+                    continuation_objective_id=(
+                        node.continuation_credit.objective_id
+                        if node.continuation_credit is not None
+                        and node.continuation_credit.is_live
+                        else None
+                    ),
+                )
+            except AnalysisResourceLimit:
+                telemetry.optional_analyses_skipped += 1
+                optional = None
+            deal_elapsed = time.perf_counter() - deal_call_started
+            _record_tactical_transition(
+                allocator,
+                deal_grant,
+                node,
+                node.state,
+                nodes_consumed=0,
+                seconds_consumed=deal_elapsed,
+                corrected_paid_cost=0,
+                legal_successor_count=(
+                    len(order_deal_timing_arms(optional.deal_timing))
+                    if optional is not None and optional.deal_timing is not None
+                    else 0
+                ),
+                reason="bounded exact Deal timing analysis",
+            )
+            if optional is not None and optional.deal_timing is not None:
                 analysis = optional
                 telemetry.stage2_analyses += 1
     elif analysis.deal_timing is None and node.state.can_deal(MW_RULES):
@@ -4173,6 +4992,7 @@ def solve_anytime(
     )
     supplied_record = incumbent if isinstance(incumbent, IncumbentRecord) else None
     telemetry = ControllerTelemetry()
+    resource_allocator = _resource_allocator_for_config(config)
     checkpoint_profiles: List[FoundationCheckpointProfile] = []
     pre_foundation_profiles: List[PreFoundationGeometry] = []
     checkpoint_portfolio = retain_foundation_checkpoint_portfolio(
@@ -4293,6 +5113,8 @@ def solve_anytime(
         telemetry=telemetry,
         include_deal_timing=False,
         deadline=deadline,
+        supply_consumptions=(),
+        continuation_objective_id=None,
     )
     telemetry.reanalyses += 1
     telemetry.stage0_analyses += 1
@@ -4416,6 +5238,13 @@ def solve_anytime(
                         else None
                     ),
                     deadline=deadline,
+                    supply_consumptions=node.supply_consumption_results,
+                    continuation_objective_id=(
+                        node.continuation_credit.objective_id
+                        if node.continuation_credit is not None
+                        and node.continuation_credit.is_live
+                        else None
+                    ),
                 )
             except AnalysisResourceLimit:
                 telemetry.optional_analyses_skipped += 1
@@ -4666,6 +5495,7 @@ def solve_anytime(
             stop_reason = "first-foundation milestone"
             break
 
+        resource_allocator.begin_expansion()
         successors = generate_strategic_successors(
             node,
             cards,
@@ -4677,6 +5507,7 @@ def solve_anytime(
             analysis_cache=analysis_cache,
             deadline=deadline,
             dependency_closure_cache=dependency_closure_cache,
+            resource_allocator=resource_allocator,
         )
         telemetry.generated += len(successors)
         _trace_expansion(node, successors, telemetry, config, current_incumbent_cost)
@@ -5046,6 +5877,11 @@ def solve_anytime(
     telemetry.tt_improved = tt.improvements
     telemetry.tt_suppressed = max(telemetry.tt_suppressed, tt.suppressions)
     telemetry.component_timings = deadline.timing_snapshot()
+    _publish_tactical_resource_telemetry(
+        telemetry,
+        resource_allocator.ledger,
+        maximum_timeline_entries=config.max_timeline_entries,
+    )
     elapsed = time.perf_counter() - started
     if current_incumbent is not None and (
         first_solution is not None or initial_incumbent_cost is None
@@ -5081,4 +5917,5 @@ def solve_anytime(
         successive_deal_audit=tuple(
             most_foundations_node.successive_deal_audit_history
         ),
+        tactical_resource_ledger=resource_allocator.ledger,
     )

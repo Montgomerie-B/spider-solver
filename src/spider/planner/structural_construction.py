@@ -46,6 +46,11 @@ class SameSuitConstructionOpportunity:
     rationale: Tuple[str, ...]
     proof_pruning_allowed: bool = False
 
+    @property
+    def opportunity_id(self) -> str:
+        src, dst, count = self.action
+        return f"join:{self.suit}:{src}:{dst}:{count}:{self.run_length_after}"
+
     def ordering_key(self) -> Tuple:
         disposition = {
             ConstructionDisposition.MAKE_NOW: 0,
