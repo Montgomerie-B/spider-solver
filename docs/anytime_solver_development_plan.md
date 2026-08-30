@@ -1,7 +1,7 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; Phase 4 v0.7 continuity, coherent supply scope and first construction economics are verified, but the two-foundation gate remains partial
-**Date:** 2026-08-28
+**Status:** Forward implementation plan; v0.13 persisted-target grant lineage is verified, but the two-foundation gate remains partial
+**Date:** 2026-08-30
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
 
@@ -623,6 +623,45 @@ authorized sprint should therefore convert harvested primitive
 closure/construction work into a continuous interval-building milestone and
 terminal qualification, without restoring expensive whole-campaign setup or
 increasing any budget. See `docs/anytime_whole_game_controller_v0_8.md`.
+
+### Verified v0.13 status
+
+Controller v0.13 confirms that v0.12's coordinate-free semantic target crossed
+the outer milestone boundary while the v0.8 allocator's earned evidence did
+not: an exact-state change restarted an otherwise valid, progressed target at
+`PROBE`. The correction adds proof-neutral target-grant lineage. Only named,
+target-specific harvest can retain or promote the next bounded opportunity;
+misses, contradiction, supersession, uncompensated debt and expiry decay or
+reset it. `TERMINAL` still requires fresh qualification. No unused grant is
+carried and all tier, per-expansion, controller, closure, beam and proof limits
+remain unchanged.
+
+All generic capability Gates A-K pass. The focused v0.13 suite adds 65 passing
+cases and the combined v0.8-v0.13 controller cohort passes 385. Two unseen
+four-suit smokes retain unrestricted Deal, raw/Deal/construction coverage and
+legal replay.
+
+Natural Gate M used the exact cost-21 90-second/25-expansion/300,000-node/
+frontier-256/beam-192 envelope. It reached all 25 expansions in about 23.4
+seconds and selected the same replay-valid added-`g=5` endpoint at total
+`g=26`, F1, stock 30 and 32 face-down cards. It demonstrated retained
+`SHALLOW`/`COMMITTED` target opportunities and execution of a formerly lost
+same-target next-action class, authorizing untouched Gate N under condition 5.
+It still produced zero actual source exposures/consumptions, no substantial
+source-chain completion, no terminal qualification and no F2.
+
+Gate N started untouched under the exact 180-second/50-expansion/500,000-node/
+frontier-256/beam-192 limits. It reached 50 expansions and two substantial
+interval milestones, but no source exposure, F1 or F2. The verified verdict is
+PARTIAL; repeatability, F3 and whole-game runs were not authorized. A later
+explicitly authorized task should trace why executed retained candidates still
+expire or turn over before controller-level named-source exposure, without
+increasing resources or beginning the global scheduler. See
+`docs/anytime_whole_game_controller_v0_13.md`.
+
+The definitive complete repository suite passed 1,244 ordinary tests with the
+same 37 historical expected-invalid xfails and one inherited warning in
+1,146.43 seconds.
 
 ### Verified v0.12 status
 

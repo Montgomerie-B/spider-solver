@@ -216,6 +216,20 @@ from spider.planner.tactical_resource_allocator import (
     TacticalResourceTierSpec,
     derive_tactical_demands,
 )
+from spider.planner.target_grant_lineage import (
+    PersistedTargetFailureDiagnosis,
+    TargetBoundaryTrace,
+    TargetCommitmentEvidence,
+    TargetGrantDecision,
+    TargetGrantLineage,
+    TargetGrantLineageEntry,
+    decide_target_grant,
+    diagnose_persisted_target_failure,
+    make_boundary_trace,
+    new_target_lineage_entry,
+    record_target_grant,
+    record_target_outcome,
+)
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.state_identity import (
     CanonicalStateKey,
@@ -358,6 +372,7 @@ class AnytimeControllerConfig:
         default_factory=TacticalResourceAllocatorConfig
     )
     enable_strategic_milestones: bool = False
+    enable_target_grant_lineage: bool = True
     max_milestones_per_state: int = 8
     milestone_max_primitive_steps: int = 4
     milestone_max_strategic_expansions: int = 3
@@ -682,6 +697,8 @@ class StrategicSuccessor:
     residual_target: Optional[ResidualMilestoneTarget] = None
     post_deal_obligation: Optional[PostDealMilestoneObligation] = None
     persistent_target: Optional[StrategicMilestone] = None
+    target_grant_entry: Optional[TargetGrantLineageEntry] = None
+    target_boundary_trace: Optional[TargetBoundaryTrace] = None
 
 
 @dataclass(frozen=True)
@@ -716,6 +733,7 @@ class StrategicSearchNode:
     )
     active_residual_target: Optional[ResidualMilestoneTarget] = None
     post_deal_obligations: Tuple[PostDealMilestoneObligation, ...] = ()
+    target_grant_lineage: TargetGrantLineage = field(default_factory=TargetGrantLineage)
 
 
 @dataclass(frozen=True)
@@ -1083,6 +1101,22 @@ class ControllerTelemetry:
     semantic_target_timeline: List[Tuple[int, str, str, str]] = field(default_factory=list)
     residual_target_timeline: List[Tuple[int, str, str, str]] = field(default_factory=list)
     post_deal_obligation_timeline: List[Tuple[int, str, str, str]] = field(default_factory=list)
+    target_lineages_created: int = 0
+    target_lineages_persisted: int = 0
+    target_tier_promotions_retained: int = 0
+    target_tier_resets: int = 0
+    target_tier_demotions: int = 0
+    target_tier_expirations: int = 0
+    target_grants_before_by_tier: Dict[str, int] = field(default_factory=dict)
+    target_grants_after_by_tier: Dict[str, int] = field(default_factory=dict)
+    target_next_candidates_inside_grant: int = 0
+    target_next_candidates_outside_grant: int = 0
+    target_failure_classifications: Dict[str, int] = field(default_factory=dict)
+    target_boundary_traces: List[TargetBoundaryTrace] = field(default_factory=list)
+    advanced_descendants_admitted: int = 0
+    advanced_descendants_trimmed: int = 0
+    same_target_reserved_representatives: int = 0
+    mature_targets_lost_to_lower_g: int = 0
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -1119,6 +1153,7 @@ class AnytimeSearchResult:
     milestone_conversion_ledger: MilestoneConversionLedger = field(
         default_factory=MilestoneConversionLedger
     )
+    target_grant_lineage: TargetGrantLineage = field(default_factory=TargetGrantLineage)
 
 
 class StrategicTranspositionTable:
@@ -2670,6 +2705,268 @@ def _explicit_resource_demand(
     return portfolio.best_for(realizer, campaign_id=campaign_id)
 
 
+def _target_lineage_request_context(
+    node: StrategicSearchNode,
+    demand: TacticalDemand,
+    config: AnytimeControllerConfig,
+) -> Tuple[TacticalDemand, Optional[TargetGrantLineageEntry], Optional[TargetGrantDecision]]:
+    """Apply portable same-target evidence to one existing allocator request."""
+
+    residual = node.active_residual_target
+    if (
+        not config.enable_target_grant_lineage
+        or not config.enable_tactical_resource_allocation
+        or residual is None
+        or (
+            demand.campaign_id is not None
+            and residual.identity.campaign_id is not None
+            and demand.campaign_id != residual.identity.campaign_id
+        )
+    ):
+        return demand, None, None
+    fingerprint = residual.identity.fingerprint
+    entry = node.target_grant_lineage.active_for(fingerprint)
+    existing_entry = entry
+    blocker_kind = residual.blockers[0].value if residual.blockers else None
+    if entry is None:
+        entry = new_target_lineage_entry(
+            fingerprint,
+            canonical_state_key(node.state),
+            campaign_id=residual.identity.campaign_id,
+            objective_id=residual.identity.objective_id,
+            dependency_id=demand.target_dependency_id,
+            blocker_fingerprint=demand.critical_path_fingerprint,
+            blocker_kind=blocker_kind,
+            initial_tier=demand.initial_tier,
+            persistence_limit=(
+                node.active_milestone.max_strategic_expansions
+                if node.active_milestone is not None
+                else config.milestone_max_strategic_expansions
+            ),
+            realizer=demand.realizer.value,
+        )
+    decision = decide_target_grant(
+        existing_entry,
+        semantic_target_fingerprint=fingerprint,
+        requested_initial_tier=demand.initial_tier,
+        terminal_qualified=demand.terminal_qualified,
+        target_valid=residual.status != ResidualTargetStatus.INVALIDATED,
+        current_state_key=canonical_state_key(node.state),
+        current_blocker_fingerprint=demand.critical_path_fingerprint,
+        current_blocker_kind=blocker_kind,
+        lifecycle_debt=entry.lifecycle_debt,
+        compensation_credible=entry.evidence.compensation_credible,
+    )
+    return replace(demand, initial_tier=decision.requested_tier), entry, decision
+
+
+def _target_lineage_after_closure(
+    node: StrategicSearchNode,
+    demand: TacticalDemand,
+    grant,
+    entry: Optional[TargetGrantLineageEntry],
+    decision: Optional[TargetGrantDecision],
+    result: DependencyClosureResult,
+) -> Tuple[Optional[TargetGrantLineageEntry], Optional[TargetBoundaryTrace]]:
+    if entry is None or decision is None:
+        return None, None
+    residual = node.active_residual_target
+    blocker_kind = residual.blockers[0].value if residual and residual.blockers else None
+    granted_entry = record_target_grant(
+        entry,
+        state_key=canonical_state_key(node.state),
+        dependency_id=demand.target_dependency_id,
+        blocker_fingerprint=demand.critical_path_fingerprint,
+        blocker_kind=blocker_kind,
+        requested_tier=decision.requested_tier,
+        granted_tier=(grant.tier if grant is not None else None),
+        decision=decision,
+        realizer=demand.realizer.value,
+    )
+    endpoint = result.endpoint_assessment
+    progress = tuple(
+        dict.fromkeys(
+            step.progress_evidence.kind.value
+            for step in result.steps
+            if step.progress_evidence is not None
+            and step.progress_evidence.target_relevant
+        )
+    )
+    lifecycle = endpoint.lifecycle if endpoint is not None else None
+    evidence = TargetCommitmentEvidence(
+        named_harvest=tuple(result.dependencies_closed) + progress,
+        completion_class=result.completion_class.value,
+        source_depth_before=(endpoint.source_depth_before if endpoint is not None else None),
+        source_depth_after=(endpoint.source_depth_after if endpoint is not None else None),
+        blockers_before=(endpoint.blockers_before if endpoint is not None else None),
+        blockers_after=(endpoint.blockers_after if endpoint is not None else None),
+        dependency_completed=bool(endpoint and endpoint.requested_dependency_completed),
+        prerequisite_completed=bool(endpoint and endpoint.prerequisite_progress),
+        source_exposed=bool(endpoint and endpoint.source_exposed),
+        source_consumed=bool(endpoint and endpoint.source_consumed),
+        substantial_progress=bool(
+            endpoint
+            and (
+                endpoint.requested_dependency_completed
+                or endpoint.source_exposed
+                or endpoint.source_consumed
+            )
+        ),
+        target_relevant=bool(
+            result.actions
+            and result.completion_class
+            in {
+                ClosureCompletionClass.DEPENDENCY_ADVANCED,
+                ClosureCompletionClass.DEPENDENCY_COMPLETED,
+                ClosureCompletionClass.SOURCE_EXPOSED,
+            }
+        ),
+        nodes_consumed=result.nodes_expanded,
+        seconds_consumed=result.elapsed_seconds,
+        corrected_paid_cost=int(result.corrected_added_cost or 0),
+        lifecycle_debt=(lifecycle.final_rehandling_debt if lifecycle is not None else 0.0),
+        restore_replace_obligation=(
+            lifecycle.restore_replace_obligation if lifecycle is not None else None
+        ),
+        compensation_credible=bool(
+            lifecycle is None
+            or lifecycle.restore_replace_obligation is None
+            or lifecycle.projected_compensation_accepted > 0
+        ),
+    )
+    updated = record_target_outcome(
+        granted_entry,
+        evidence,
+        end_state_key=canonical_state_key(result.end_state),
+        target_valid=bool(endpoint is None or endpoint.same_semantic_target_valid),
+        completed=bool(
+            len(result.end_state.foundations) > len(node.state.foundations)
+            or residual is not None and residual.status == ResidualTargetStatus.COMPLETE
+        ),
+    )
+    candidate_classes = tuple(
+        item.blocker.value for item in residual.candidates
+    ) if residual is not None else ()
+    best_candidate = (
+        residual.next_candidate.rationale
+        if residual is not None and residual.next_candidate is not None
+        else None
+    )
+    minimum_tier = None
+    if (
+        result.completion_class == ClosureCompletionClass.RESOURCE_BOUND
+        or result.failure_diagnosis.value == "RESOURCE_BOUND"
+    ) and grant is not None and grant.tier < TacticalResourceTier.COMMITTED:
+        minimum_tier = TacticalResourceTier(int(grant.tier) + 1)
+    preliminary = make_boundary_trace(
+        updated,
+        decision,
+        dependency_after=result.target_dependency_id,
+        blocker_after=(
+            endpoint.target_kind_after.value
+            if endpoint is not None and endpoint.target_kind_after is not None
+            else None
+        ),
+        progress_before=(
+            f"{entry.evidence.completion_class or 'NEW'}:"
+            f"{entry.evidence.source_depth_before}->{entry.evidence.source_depth_after}"
+        ),
+        progress_after=(
+            f"{result.completion_class.value}:"
+            f"{endpoint.source_depth_before if endpoint else None}->"
+            f"{endpoint.source_depth_after if endpoint else None}"
+        ),
+        fresh_candidate_classes=candidate_classes,
+        best_next_candidate=best_candidate,
+        best_candidate_minimum_tier=minimum_tier,
+        granted_tier=(grant.tier if grant is not None else None),
+        selected_action=(repr(result.actions[0]) if result.actions else None),
+        admission_reason=result.reason,
+        next_closure_result=result.completion_class.value,
+        eventual_target_outcome=(
+            "COMPLETED"
+            if endpoint is not None and endpoint.requested_dependency_completed
+            else "EXPOSED"
+            if endpoint is not None and endpoint.source_exposed
+            else "ADVANCED"
+            if result.completion_class == ClosureCompletionClass.DEPENDENCY_ADVANCED
+            else result.completion_class.value
+        ),
+    )
+    diagnosis = None
+    if not (
+        endpoint is not None
+        and (endpoint.requested_dependency_completed or endpoint.source_exposed)
+    ):
+        diagnosis = diagnose_persisted_target_failure(
+            preliminary,
+            same_target_attributed=bool(endpoint is None or endpoint.same_semantic_target_valid),
+            candidate_turnover=bool(
+                entry.current_blocker_kind
+                and blocker_kind
+                and entry.current_blocker_kind != blocker_kind
+            ),
+            lifecycle_context_lost=bool(
+                entry.restore_replace_obligation
+                and lifecycle is not None
+                and lifecycle.restore_replace_obligation is None
+                and not evidence.compensation_credible
+            ),
+            resource_bound=bool(
+                result.completion_class == ClosureCompletionClass.RESOURCE_BOUND
+                or result.failure_diagnosis.value == "RESOURCE_BOUND"
+            ),
+            structural_blocker=bool(
+                result.completion_class == ClosureCompletionClass.STRUCTURAL_BLOCKER
+                or result.failure_diagnosis.value == "STRUCTURAL_BLOCKER"
+            ),
+            superseded=decision.status.value == "SUPERSEDED",
+            expired=decision.status.value == "EXPIRED",
+        )
+    return updated, replace(preliminary, failure_diagnosis=diagnosis)
+
+
+def _publish_target_boundary_telemetry(
+    telemetry: ControllerTelemetry,
+    entry: Optional[TargetGrantLineageEntry],
+    decision: Optional[TargetGrantDecision],
+    trace: Optional[TargetBoundaryTrace],
+    *,
+    maximum: int,
+) -> None:
+    if entry is None or decision is None or trace is None:
+        return
+    telemetry.target_lineages_created += int(entry.previous_granted_tier is None)
+    persisted = bool(
+        trace.previous_tier is not None
+        and trace.state_before_hash
+        and trace.state_before_hash != trace.state_after_hash
+    )
+    telemetry.target_lineages_persisted += int(persisted)
+    telemetry.target_tier_promotions_retained += int(decision.inherited_commitment)
+    telemetry.target_tier_resets += int(decision.status.value in {"RESET", "INVALIDATED"})
+    telemetry.target_tier_demotions += int(decision.status.value == "DEMOTED")
+    telemetry.target_tier_expirations += int(decision.status.value == "EXPIRED")
+    if trace.previous_tier is not None:
+        name = trace.previous_tier.name
+        telemetry.target_grants_before_by_tier[name] = (
+            telemetry.target_grants_before_by_tier.get(name, 0) + 1
+        )
+    if trace.granted_next_tier is not None:
+        name = trace.granted_next_tier.name
+        telemetry.target_grants_after_by_tier[name] = (
+            telemetry.target_grants_after_by_tier.get(name, 0) + 1
+        )
+    telemetry.target_next_candidates_inside_grant += int(trace.candidate_inside_grant is True)
+    telemetry.target_next_candidates_outside_grant += int(trace.candidate_inside_grant is False)
+    if trace.failure_diagnosis is not None:
+        name = trace.failure_diagnosis.value
+        telemetry.target_failure_classifications[name] = (
+            telemetry.target_failure_classifications.get(name, 0) + 1
+        )
+    _append_bounded(telemetry.target_boundary_traces, trace, maximum)
+
+
 def _record_tactical_transition(
     allocator: TacticalResourceAllocator,
     grant,
@@ -3108,8 +3405,52 @@ def _dependency_closure_successors(
         TacticalRealizerKind.DEPENDENCY_CLOSURE,
         campaign_id=campaign.label,
     )
+    demand, lineage_entry, lineage_decision = _target_lineage_request_context(
+        node, demand, config
+    )
     _request, grant = allocator.request(canonical_state_key(node.state), demand)
     if grant is None:
+        if lineage_entry is not None and lineage_decision is not None:
+            residual = node.active_residual_target
+            blocker_kind = residual.blockers[0].value if residual and residual.blockers else None
+            refused = record_target_grant(
+                lineage_entry,
+                state_key=canonical_state_key(node.state),
+                dependency_id=demand.target_dependency_id,
+                blocker_fingerprint=demand.critical_path_fingerprint,
+                blocker_kind=blocker_kind,
+                requested_tier=lineage_decision.requested_tier,
+                granted_tier=None,
+                decision=lineage_decision,
+                realizer=demand.realizer.value,
+            )
+            trace = make_boundary_trace(
+                refused,
+                lineage_decision,
+                dependency_after=demand.target_dependency_id,
+                blocker_after=blocker_kind,
+                progress_before=lineage_entry.evidence.completion_class or "NEW",
+                progress_after="NO_GRANT_WITHIN_PER_EXPANSION_CEILING",
+                fresh_candidate_classes=(
+                    tuple(item.blocker.value for item in residual.candidates)
+                    if residual is not None else ()
+                ),
+                best_next_candidate=(
+                    residual.next_candidate.rationale
+                    if residual is not None and residual.next_candidate is not None
+                    else None
+                ),
+                admission_reason="existing per-expansion allocator ceiling refused the request",
+                eventual_target_outcome="NOT_EXECUTED",
+                failure_diagnosis=PersistedTargetFailureDiagnosis.RESOURCE_BOUND,
+            )
+            _publish_target_boundary_telemetry(
+                telemetry,
+                refused,
+                lineage_decision,
+                trace,
+                maximum=config.max_timeline_entries,
+            )
         return [], None
     remaining_nodes = max(0, config.max_tactical_nodes - telemetry.tactical_nodes)
     if remaining_nodes <= 0 or not deadline.can_start(
@@ -3389,6 +3730,21 @@ def _dependency_closure_successors(
         DependencyClosureStatus.SUPPLY_CONSUMED,
         DependencyClosureStatus.MILESTONE_REACHED,
     )
+    target_grant_entry, target_boundary_trace = _target_lineage_after_closure(
+        node,
+        demand,
+        grant,
+        lineage_entry,
+        lineage_decision,
+        result,
+    )
+    _publish_target_boundary_telemetry(
+        telemetry,
+        target_grant_entry,
+        lineage_decision,
+        target_boundary_trace,
+        maximum=config.max_timeline_entries,
+    )
     if not successful:
         telemetry.dependency_closure_failures[result.status.value] = (
             telemetry.dependency_closure_failures.get(result.status.value, 0) + 1
@@ -3518,6 +3874,8 @@ def _dependency_closure_successors(
             dependency_closure_result=result,
             structural_investment=investment,
             continuation_credit=continuation,
+            target_grant_entry=target_grant_entry,
+            target_boundary_trace=target_boundary_trace,
         )
     ], result
 
@@ -3594,6 +3952,9 @@ def _construction_successors(
             TacticalRealizerKind.RUN_CONSTRUCTION,
             construction_opportunity_id=opportunity.opportunity_id,
         )
+        demand, lineage_entry, lineage_decision = _target_lineage_request_context(
+            node, demand, config
+        )
         _request, grant = allocator.request(canonical_state_key(node.state), demand)
         if grant is None:
             continue
@@ -3630,6 +3991,64 @@ def _construction_successors(
             permanent_adjacencies_created=opportunity.new_adjacencies,
             reason="durable same-suit construction edge",
         )
+        target_grant_entry = None
+        target_boundary_trace = None
+        if lineage_entry is not None and lineage_decision is not None:
+            residual = node.active_residual_target
+            blocker_kind = residual.blockers[0].value if residual and residual.blockers else None
+            target_grant_entry = record_target_grant(
+                lineage_entry,
+                state_key=canonical_state_key(node.state),
+                dependency_id=demand.target_dependency_id,
+                blocker_fingerprint=demand.critical_path_fingerprint,
+                blocker_kind=blocker_kind,
+                requested_tier=lineage_decision.requested_tier,
+                granted_tier=grant.tier,
+                decision=lineage_decision,
+                realizer=demand.realizer.value,
+            )
+            evidence = TargetCommitmentEvidence(
+                named_harvest=("PERMANENT_SAME_SUIT_PREREQUISITE",),
+                prerequisite_completed=True,
+                substantial_progress=opportunity.run_length_after > 2,
+                target_relevant=target_demand is not None,
+                nodes_consumed=1,
+                seconds_consumed=time.perf_counter() - call_started,
+                corrected_paid_cost=cost,
+            )
+            target_grant_entry = record_target_outcome(
+                target_grant_entry,
+                evidence,
+                end_state_key=canonical_state_key(end),
+            )
+            candidate_classes = tuple(
+                item.blocker.value for item in residual.candidates
+            ) if residual is not None else ()
+            target_boundary_trace = make_boundary_trace(
+                target_grant_entry,
+                lineage_decision,
+                dependency_after=demand.target_dependency_id,
+                blocker_after=blocker_kind,
+                progress_before=lineage_entry.evidence.completion_class or "NEW",
+                progress_after="PERMANENT_SAME_SUIT_PREREQUISITE",
+                fresh_candidate_classes=candidate_classes,
+                best_next_candidate=(
+                    residual.next_candidate.rationale
+                    if residual is not None and residual.next_candidate is not None
+                    else None
+                ),
+                granted_tier=grant.tier,
+                selected_action=repr(action),
+                admission_reason="target-attributed durable construction executed",
+                eventual_target_outcome="ADVANCED",
+            )
+            _publish_target_boundary_telemetry(
+                telemetry,
+                target_grant_entry,
+                lineage_decision,
+                target_boundary_trace,
+                maximum=config.max_timeline_entries,
+            )
         _append_bounded(
             telemetry.construction_timeline,
             (
@@ -3662,6 +4081,8 @@ def _construction_successors(
                 source_project_id=objective_id,
                 structural_investment=investment,
                 construction_opportunity=opportunity,
+                target_grant_entry=target_grant_entry,
+                target_boundary_trace=target_boundary_trace,
             )
         )
     return successors
@@ -4401,6 +4822,8 @@ def _milestone_conversion_successors(
     )
     latest_analysis = node.analysis
     latest_residual = replace(initial_residual, milestone=active)
+    latest_target_grant_entry: Optional[TargetGrantLineageEntry] = None
+    latest_target_boundary_trace: Optional[TargetBoundaryTrace] = None
 
     def analyze_fresh(state: SpiderState, prior: StrategicMilestone) -> FreshMilestoneAssessment:
         nonlocal latest_analysis, latest_residual
@@ -4473,6 +4896,7 @@ def _milestone_conversion_successors(
         _steps_left: int,
         seconds_left: float,
     ) -> Optional[MilestonePrimitiveStep]:
+        nonlocal latest_target_grant_entry, latest_target_boundary_trace
         temporary = replace(
             node,
             state=state.clone(),
@@ -4546,6 +4970,9 @@ def _milestone_conversion_successors(
                 item.label,
             ),
         )
+        if chosen.target_grant_entry is not None:
+            latest_target_grant_entry = chosen.target_grant_entry
+            latest_target_boundary_trace = chosen.target_boundary_trace
         workspace_created = False
         workspace_used = False
         workspace_recovered = False
@@ -4734,6 +5161,8 @@ def _milestone_conversion_successors(
             source_project_id=result.milestone.objective_id,
             milestone_result=result,
             residual_target=latest_residual,
+            target_grant_entry=latest_target_grant_entry,
+            target_boundary_trace=latest_target_boundary_trace,
         )
     ]
 
@@ -5681,6 +6110,7 @@ def _trim_frontier_with_checkpoint_diversity(
     maximum: int,
     portfolio: FoundationCheckpointPortfolio,
     pre_foundation_portfolio: Optional[PreFoundationPortfolio] = None,
+    telemetry: Optional[ControllerTelemetry] = None,
 ) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
     """Protect checkpoint and material pre-foundation geometries."""
     ordered = sorted(frontier)
@@ -5702,6 +6132,35 @@ def _trim_frontier_with_checkpoint_diversity(
     if continuity_item is not None:
         kept.append(continuity_item)
         kept_ids.add(continuity_item[1])
+        if len(kept) >= maximum:
+            return kept
+    # Keep at most one strongest currently actionable target whose own named
+    # harvest earned portable commitment.  This is a bounded follow-up
+    # opportunity, not sunk-cost protection or proof dominance.
+    target_item = next(
+        (
+            item
+            for item in ordered
+            if item[1] not in kept_ids
+            and item[2].active_residual_target is not None
+            and item[2].active_residual_target.status == ResidualTargetStatus.ACTIONABLE
+            and (
+                (
+                    entry := item[2].target_grant_lineage.active_for(
+                        item[2].active_residual_target.identity.fingerprint
+                    )
+                )
+                is not None
+                and entry.evidence.has_portable_harvest
+            )
+        ),
+        None,
+    )
+    if target_item is not None:
+        kept.append(target_item)
+        kept_ids.add(target_item[1])
+        if telemetry is not None:
+            telemetry.same_target_reserved_representatives += 1
         if len(kept) >= maximum:
             return kept
     if pre_foundation_portfolio is not None:
@@ -7387,6 +7846,15 @@ def solve_anytime(
                 telemetry.successive_deals_before_obligation_conversion += sum(
                     item.unresolved_actionable for item in node.post_deal_obligations
                 )
+            child_target_lineage = node.target_grant_lineage
+            if successor.target_grant_entry is not None:
+                child_target_lineage = child_target_lineage.with_entry(
+                    successor.target_grant_entry
+                )
+                if successor.target_boundary_trace is not None:
+                    child_target_lineage = child_target_lineage.with_trace(
+                        successor.target_boundary_trace
+                    )
             child = StrategicSearchNode(
                 uid,
                 successor.end_state.clone(),
@@ -7418,6 +7886,7 @@ def solve_anytime(
                 child_milestone_ledger,
                 child_residual_target,
                 child_obligations,
+                child_target_lineage,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -7427,6 +7896,10 @@ def solve_anytime(
             heapq.heappush(frontier, (_node_priority(child), uid, child))
             telemetry.retained += 1
             telemetry.lazy_children_admitted += 1
+            telemetry.advanced_descendants_admitted += int(
+                successor.target_grant_entry is not None
+                and successor.target_grant_entry.evidence.has_portable_harvest
+            )
             telemetry.successor_kinds[child_successor.kind.value] = (
                 telemetry.successor_kinds.get(child_successor.kind.value, 0) + 1
             )
@@ -7457,11 +7930,29 @@ def solve_anytime(
                 heapq.heappush(frontier, (_node_priority(widened), uid, widened))
 
         if len(frontier) > config.max_frontier_size:
+            mature_before = {
+                item[1]: item[2]
+                for item in frontier
+                if item[2].active_residual_target is not None
+                and item[2].target_grant_lineage.active_for(
+                    item[2].active_residual_target.identity.fingerprint
+                ) is not None
+            }
             frontier = _trim_frontier_with_checkpoint_diversity(
                 frontier,
                 maximum=config.max_frontier_size,
                 portfolio=checkpoint_portfolio,
                 pre_foundation_portfolio=pre_foundation_portfolio,
+                telemetry=telemetry,
+            )
+            retained_ids = {item[1] for item in frontier}
+            trimmed_mature = [
+                node for key, node in mature_before.items() if key not in retained_ids
+            ]
+            telemetry.advanced_descendants_trimmed += len(trimmed_mature)
+            minimum_retained_g = min((item[2].g for item in frontier), default=10**9)
+            telemetry.mature_targets_lost_to_lower_g += sum(
+                minimum_retained_g < node.g for node in trimmed_mature
             )
             heapq.heapify(frontier)
             telemetry.frontier_trimmed += 1
@@ -7514,4 +8005,5 @@ def solve_anytime(
         ),
         tactical_resource_ledger=resource_allocator.ledger,
         milestone_conversion_ledger=most_foundations_node.milestone_ledger,
+        target_grant_lineage=best_progress_node.target_grant_lineage,
     )
