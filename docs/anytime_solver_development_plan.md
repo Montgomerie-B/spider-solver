@@ -624,6 +624,40 @@ closure/construction work into a continuous interval-building milestone and
 terminal qualification, without restoring expensive whole-campaign setup or
 increasing any budget. See `docs/anytime_whole_game_controller_v0_8.md`.
 
+### Verified v0.11 status
+
+Controller v0.11 adds a bounded, typed autopsy for the existing named
+`SOURCE_BURIED` closure path. The tactical demand's exact dependency identity
+now reaches closure and its cache key. Fresh physical-source enumeration and
+progress attribution recognize direct blocker removal, receiver/workspace
+prerequisites, bounded parks and interchangeable source copies. Local beam
+retention preserves progress-class diversity inside the unchanged width. All
+facts remain ordering/diagnostic evidence; exact TT, admissible bounds,
+Unrestricted Deal ON and all v0.8-v0.10 resource envelopes are unchanged.
+
+All generic capability Gates A-I pass. The original receiver-prerequisite
+failure now executes a permanent receiver join, moves the blocker and closes
+the named source with independent replay. The natural cost-21 Gate J used all
+25 expansions and ended replay-valid at total corrected `g=26`, F1, stock 30
+and 32 face-down cards. Its 31 buried-source attempts contained 286 legal
+target-relevant candidates, 500 generated candidates, zero generator misses
+and zero beam discards. It executed 15 receiver prerequisites, 10 source-depth
+reductions and 32 bounded parks, but exposed/consumed zero named sources and
+reached neither substantial completion, terminal qualification nor F2.
+
+The definitive complete repository suite passed 1,106 ordinary tests with the
+same 37 historical expected-invalid xfails and one inherited warning in
+1,169.60 seconds.
+
+The exact v0.10 2/3 residual had no committed replayable artifact, so it was
+not reconstructed. Gate K was not authorized. The verified verdict is
+PARTIAL. The next task is to audit why natural multi-primitive closure returns
+after prerequisite/depth progress instead of carrying the same fresh named
+source through exposure/consumption, especially across stable-run
+restore/replace compensation and the outer milestone primitive boundary. Do
+not widen budgets or begin a global scheduler. See
+`docs/anytime_whole_game_controller_v0_11.md`.
+
 ### Verified v0.10 status
 
 Controller v0.10 adds coordinate-free semantic target identity, fresh residual

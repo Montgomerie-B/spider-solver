@@ -342,6 +342,7 @@ class AnytimeControllerConfig:
     dependency_closure_config: DependencyClosureConfig = field(
         default_factory=DependencyClosureConfig
     )
+    enable_closure_candidate_audit: bool = False
     enable_pre_foundation_diversity: bool = True
     max_pre_foundation_geometries: int = 6
     enable_structural_investment: bool = True
@@ -934,6 +935,30 @@ class ControllerTelemetry:
     high_unlock_dependencies_chosen: int = 0
     receivers_created_by_closure: int = 0
     closure_successors_admitted: int = 0
+    source_buried_attempts: int = 0
+    source_physical_blockers: int = 0
+    source_copies_considered: int = 0
+    source_copy_substitutions: int = 0
+    source_depth_reduced: int = 0
+    sources_exposed: int = 0
+    sources_consumed: int = 0
+    closure_legal_candidate_audit_count: int = 0
+    closure_candidates_generated: int = 0
+    closure_candidates_missing_from_generator: int = 0
+    closure_candidates_admitted: int = 0
+    closure_candidates_rejected_by_reason: Dict[str, int] = field(default_factory=dict)
+    closure_beam_retained: int = 0
+    closure_beam_discarded: int = 0
+    closure_target_progress_representatives: int = 0
+    closure_receivers_created: int = 0
+    closure_workspace_created: int = 0
+    closure_workspace_used: int = 0
+    closure_temporary_parks: int = 0
+    closure_temporary_park_exits: int = 0
+    closure_stable_runs_broken: int = 0
+    closure_stable_runs_restored: int = 0
+    closure_lifecycle_debt: float = 0.0
+    closure_failure_diagnoses: Dict[str, int] = field(default_factory=dict)
     same_suit_construction_opportunities: int = 0
     two_card_construction_joins: int = 0
     larger_construction_merges: int = 0
@@ -3069,6 +3094,7 @@ def _dependency_closure_successors(
         return [], None
     closure_config = replace(
         config.dependency_closure_config,
+        enable_legal_candidate_audit=config.enable_closure_candidate_audit,
         max_added_cost=min(
             config.dependency_closure_config.max_added_cost,
             grant.max_added_cost,
@@ -3100,6 +3126,12 @@ def _dependency_closure_successors(
             supply_consumptions=node.supply_consumption_results,
             deadline=deadline,
             cache=cache,
+            target_dependency_id=demand.target_dependency_id,
+            semantic_target_id=(
+                node.active_residual_target.identity.fingerprint
+                if node.active_residual_target is not None
+                else None
+            ),
         )
     elapsed = time.perf_counter() - call_started
     telemetry.dependency_closure_seconds += elapsed
@@ -3121,6 +3153,60 @@ def _dependency_closure_successors(
         dependency_id.startswith("receiver:")
         for dependency_id in result.dependencies_closed
     )
+    for trace in result.buried_source_traces:
+        telemetry.source_buried_attempts += 1
+        telemetry.source_physical_blockers += len(trace.blocker_before.blocker_cards)
+        telemetry.source_copies_considered += len(trace.blocker_before.physical_sources)
+        telemetry.source_copy_substitutions += trace.source_copy_substitutions
+        telemetry.sources_exposed += trace.sources_exposed
+        telemetry.sources_consumed += int(trace.source_consumed)
+        telemetry.closure_legal_candidate_audit_count += len(
+            trace.legal_target_relevant_actions
+        )
+        telemetry.closure_candidates_generated += len(trace.generated_actions)
+        telemetry.closure_candidates_missing_from_generator += len(
+            trace.missing_from_generator
+        )
+        telemetry.closure_beam_retained += sum(item.retained for item in trace.beam_audits)
+        telemetry.closure_beam_discarded += sum(item.discarded for item in trace.beam_audits)
+        telemetry.closure_target_progress_representatives += sum(
+            len(item.retained_progress_kinds) for item in trace.beam_audits
+        )
+        telemetry.closure_failure_diagnoses[trace.failure_diagnosis.value] = (
+            telemetry.closure_failure_diagnoses.get(trace.failure_diagnosis.value, 0) + 1
+        )
+        for audit in trace.candidate_audits:
+            if audit.disposition.value == "ADMITTED":
+                telemetry.closure_candidates_admitted += 1
+            if audit.rejection_reason is not None:
+                reason_key = audit.rejection_reason.value
+                telemetry.closure_candidates_rejected_by_reason[reason_key] = (
+                    telemetry.closure_candidates_rejected_by_reason.get(reason_key, 0) + 1
+                )
+    for step in result.steps:
+        progress = step.progress_evidence
+        lifecycle = step.lifecycle
+        if progress is not None:
+            telemetry.source_depth_reduced += int(
+                progress.source_depth_after < progress.source_depth_before
+            )
+            telemetry.closure_receivers_created += int(progress.receiver_created)
+            telemetry.closure_workspace_created += int(progress.workspace_created)
+            telemetry.closure_workspace_used += int(
+                progress.workspace_created and progress.source_depth_after < progress.source_depth_before
+            )
+        if lifecycle is not None:
+            is_park = lifecycle.placement_class in (
+                PlacementClass.MIXED_SUIT_PARK,
+                PlacementClass.WORKSPACE_PARK,
+            )
+            telemetry.closure_temporary_parks += int(is_park)
+            telemetry.closure_temporary_park_exits += int(
+                is_park and lifecycle.exit_route_bounded
+            )
+            telemetry.closure_stable_runs_broken += len(lifecycle.same_suit_joins_broken)
+            telemetry.closure_stable_runs_restored += len(lifecycle.same_suit_joins_created)
+            telemetry.closure_lifecycle_debt += lifecycle.estimated_rehandling_cost
     if critical_path.entries:
         maximum_unlock = max(
             item.downstream_dependencies_unlocked for item in critical_path.entries

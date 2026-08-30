@@ -11,14 +11,34 @@ from __future__ import annotations
 import hashlib
 import heapq
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Dict, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Dict, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 from spider.cards import Card
 from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
-from spider.move_lifecycle import MoveLifecycleAssessment, PlacementClass, assess_tableau_move
+from spider.move_lifecycle import (
+    BoundedCompensatingBenefit,
+    MoveLifecycleAssessment,
+    PlacementClass,
+    assess_tableau_move,
+)
+from spider.planner.buried_source_closure import (
+    BuriedSourceClosureTrace,
+    ClosureBeamDepthAudit,
+    ClosureCandidateAudit,
+    ClosureCandidateDisposition,
+    ClosureCandidateRejectionReason,
+    ClosureCandidateStage,
+    ClosureFailureDiagnosis,
+    ClosureProgressEvidence,
+    ClosureProgressKind,
+    compare_legal_candidate_coverage,
+    describe_buried_source,
+    no_progress_evidence,
+    source_progress_evidence,
+)
 from spider.planner.analysis_budget import SearchDeadline
 from spider.planner.foundation_campaign import FoundationCampaign
 from spider.planner.foundation_campaign_removal import (
@@ -68,6 +88,8 @@ class DependencyClosureConfig:
     beam_width: int = 192
     permit_stock_transition: bool = False
     require_bounded_park_exit: bool = True
+    enable_legal_candidate_audit: bool = False
+    retain_target_progress_diversity: bool = True
 
     def __post_init__(self) -> None:
         if self.max_added_cost <= 0 or self.max_nodes <= 0 or self.time_limit_s <= 0:
@@ -75,7 +97,7 @@ class DependencyClosureConfig:
         if self.beam_width <= 0:
             raise ValueError("dependency-closure beam width must be positive")
 
-    def fingerprint(self) -> Tuple[int, int, int, int, int, int]:
+    def fingerprint(self) -> Tuple[int, ...]:
         return (
             self.max_added_cost,
             self.max_nodes,
@@ -83,6 +105,8 @@ class DependencyClosureConfig:
             self.beam_width,
             int(self.permit_stock_transition),
             int(self.require_bounded_park_exit),
+            int(self.enable_legal_candidate_audit),
+            int(self.retain_target_progress_diversity),
         )
 
 
@@ -185,6 +209,7 @@ class DependencyClosureStep:
     overlays_before: int
     overlays_after: int
     proof_pruning_allowed: bool = False
+    progress_evidence: Optional[ClosureProgressEvidence] = None
 
 
 @dataclass(frozen=True)
@@ -217,6 +242,9 @@ class DependencyClosureResult:
     independent_replay_verified: bool
     reason: str
     proof_pruning_allowed: bool = False
+    target_dependency_id: Optional[str] = None
+    buried_source_traces: Tuple[BuriedSourceClosureTrace, ...] = ()
+    failure_diagnosis: ClosureFailureDiagnosis = ClosureFailureDiagnosis.LOCAL_BOUNDED_MISS
 
 
 @dataclass(frozen=True)
@@ -225,9 +253,50 @@ class DependencyClosureCacheKey:
     campaign_id: str
     config_fingerprint: Tuple[int, ...]
     supply_fingerprint: Tuple[Tuple[str, Tuple[str, ...]], ...] = ()
+    target_dependency_id: Optional[str] = None
 
 
 DependencyClosureCache = MutableMapping[DependencyClosureCacheKey, DependencyClosureResult]
+
+
+@dataclass(frozen=True)
+class _ClosureChild:
+    priority: Tuple
+    action: Tuple[int, int, int]
+    state: SpiderState
+    g: int
+    actions: Tuple[Action, ...]
+    steps: Tuple[DependencyClosureStep, ...]
+    supplies: Tuple[SupplyConsumptionResult, ...]
+    assessment: DependencyClosureAssessment
+    progress: Optional[ClosureProgressEvidence]
+    lifecycle: Optional[MoveLifecycleAssessment]
+
+
+def retain_target_progress_diversity(
+    children: Sequence[_ClosureChild], beam_width: int
+) -> Tuple[_ClosureChild, ...]:
+    """Keep bounded progress-class representatives without widening the beam."""
+    ordered = sorted(children, key=lambda item: (item.priority, item.action))
+    if len(ordered) <= beam_width:
+        return tuple(ordered)
+    representatives: List[_ClosureChild] = []
+    represented = set()
+    for child in ordered:
+        progress = child.progress
+        if progress is None or not progress.target_relevant:
+            continue
+        key = progress.kind
+        if key not in represented:
+            representatives.append(child)
+            represented.add(key)
+        if len(representatives) >= beam_width:
+            return tuple(representatives)
+    selected_ids = {id(item) for item in representatives}
+    representatives.extend(
+        item for item in ordered if id(item) not in selected_ids
+    )
+    return tuple(representatives[:beam_width])
 
 
 def _face_up_source(
@@ -787,6 +856,10 @@ def _clone_result(result: DependencyClosureResult) -> DependencyClosureResult:
         result.elapsed_seconds,
         result.independent_replay_verified,
         result.reason,
+        result.proof_pruning_allowed,
+        result.target_dependency_id,
+        result.buried_source_traces,
+        result.failure_diagnosis,
     )
 
 
@@ -798,47 +871,77 @@ def realize_campaign_dependency_closure(
     supply_consumptions: Sequence[SupplyConsumptionResult] = (),
     deadline: Optional[SearchDeadline] = None,
     cache: Optional[DependencyClosureCache] = None,
+    target_dependency_id: Optional[str] = None,
+    semantic_target_id: Optional[str] = None,
 ) -> DependencyClosureResult:
-    """Try bounded, campaign-attributable current-epoch work."""
+    """Try bounded, campaign-attributable work for one fresh named dependency."""
     started = time.perf_counter()
     start_graph = build_campaign_dependency_graph(
         state, campaign, supply_consumptions=supply_consumptions
     )
+    named = next(
+        (item for item in start_graph.dependencies if item.dependency_id == target_dependency_id),
+        None,
+    )
+    if target_dependency_id is None:
+        path = build_campaign_critical_path(start_graph)
+        target_dependency_id = path.bottleneck_dependency_id
+        named = next(
+            (item for item in start_graph.dependencies if item.dependency_id == target_dependency_id),
+            None,
+        )
+    source_dependency = (
+        named
+        if named is not None
+        and named.kind == CampaignDependencyType.SOURCE_BURIED
+        and named.card is not None
+        else None
+    )
+    source_card = source_dependency.card if source_dependency is not None else None
+    blocker_before = (
+        describe_buried_source(state, target_dependency_id or "", source_card)
+        if source_card is not None
+        else None
+    )
     key = DependencyClosureCacheKey(
-        canonical_state_key(state),
-        campaign.label,
-        config.fingerprint(),
-        tuple(
-            (
-                item.contract_id,
-                tuple(evidence.stage.value for evidence in item.evidence),
-            )
+        state_key=canonical_state_key(state),
+        campaign_id=campaign.label,
+        config_fingerprint=config.fingerprint(),
+        supply_fingerprint=tuple(
+            (item.contract_id, tuple(e.stage.value for e in item.evidence))
             for item in supply_consumptions
             if item.campaign_id == campaign.label
         ),
+        target_dependency_id=target_dependency_id,
     )
     if cache is not None and key in cache:
         return _clone_result(cache[key])
-    if not any(
-        item.kind != CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE
-        for item in start_graph.dependencies
-    ):
+
+    unresolved = tuple(
+        item for item in start_graph.dependencies
+        if item.kind != CampaignDependencyType.TERMINAL_ASSEMBLY_PREREQUISITE
+    )
+    if not unresolved:
         result = DependencyClosureResult(
-            DependencyClosureStatus.MILESTONE_REACHED,
-            campaign.label,
-            (),
-            0,
-            state.clone(),
-            start_graph,
-            start_graph,
-            (),
-            (),
-            (),
-            tuple(supply_consumptions),
-            0,
-            time.perf_counter() - started,
-            True,
+            DependencyClosureStatus.MILESTONE_REACHED, campaign.label, (), 0,
+            state.clone(), start_graph, start_graph, (), (), (),
+            tuple(supply_consumptions), 0, time.perf_counter() - started, True,
             "named campaign has no unresolved pre-terminal dependencies",
+            target_dependency_id=target_dependency_id,
+            failure_diagnosis=ClosureFailureDiagnosis.NONE,
+        )
+        if cache is not None:
+            cache[key] = result
+        return _clone_result(result)
+
+    if target_dependency_id is not None and named is None:
+        result = DependencyClosureResult(
+            DependencyClosureStatus.INVALIDATED, campaign.label, (), 0,
+            state.clone(), start_graph, start_graph, (), (), (),
+            tuple(supply_consumptions), 0, time.perf_counter() - started, True,
+            f"named dependency {target_dependency_id} is stale in the fresh graph",
+            target_dependency_id=target_dependency_id,
+            failure_diagnosis=ClosureFailureDiagnosis.STRUCTURAL_BLOCKER,
         )
         if cache is not None:
             cache[key] = result
@@ -849,26 +952,42 @@ def realize_campaign_dependency_closure(
     initial_assessment = assess_campaign_dependency_closure(
         state, campaign, supply_consumptions=supply_consumptions
     )
-    initial_priority = _priority(
-        state, initial_assessment, start_foundations=start_foundations, g=0, actions=0
-    )
-    uid = 0
-    frontier = [
-        (
-            initial_priority,
-            uid,
-            state.clone(),
-            0,
-            (),
-            (),
-            tuple(supply_consumptions),
-            initial_assessment,
+
+    def ranked_priority(
+        child_state: SpiderState,
+        assessment: DependencyClosureAssessment,
+        progress: Optional[ClosureProgressEvidence],
+        g: int,
+        action_count: int,
+    ) -> Tuple:
+        target_closed = bool(
+            target_dependency_id
+            and target_dependency_id not in assessment.graph.dependency_ids
         )
-    ]
+        target_prefix = (
+            0 if target_closed else 1,
+            progress.ordering_key if progress is not None else (99, 0, 0, 10**6, 10**6, 10**6),
+        )
+        return target_prefix + _priority(
+            child_state, assessment,
+            start_foundations=start_foundations, g=g, actions=action_count,
+        )
+
+    initial_priority = ranked_priority(state, initial_assessment, None, 0, 0)
+    uid = 0
+    frontier = [(initial_priority, uid, state.clone(), 0, (), (), tuple(supply_consumptions), initial_assessment)]
     best_cost: Dict[CanonicalStateKey, int] = {canonical_state_key(state): 0}
     best = frontier[0]
     nodes = 0
     resource_limited = False
+    audits: List[ClosureCandidateAudit] = []
+    beam_audits: List[ClosureBeamDepthAudit] = []
+    generated_actions = set()
+    legal_target_actions = set()
+
+    def record_audit(audit: ClosureCandidateAudit) -> None:
+        if len(audits) < 2_048:
+            audits.append(audit)
 
     while frontier and nodes < config.max_nodes:
         if time.perf_counter() >= local_end or (deadline is not None and not deadline.checkpoint()):
@@ -878,137 +997,216 @@ def realize_campaign_dependency_closure(
         nodes += 1
         if priority < best[0]:
             best = (priority, _seq, current, g, actions, steps, supplies, assessment)
-        if len(current.foundations) > start_foundations:
+        if len(current.foundations) > start_foundations or (
+            target_dependency_id is not None
+            and target_dependency_id not in assessment.graph.dependency_ids
+        ):
             best = (priority, _seq, current, g, actions, steps, supplies, assessment)
             break
 
-        children = []
+        children: List[_ClosureChild] = []
+        replay_valid_count = 0
         for action in current.enumerate_moves():
-            targeted = _action_targets(current, action, campaign, assessment.graph)
-            if not targeted:
-                continue
             lifecycle = assess_tableau_move(
-                current,
-                action,
-                provisional_reason=f"close named dependencies {targeted}",
+                current, action,
+                provisional_reason=(
+                    f"bounded prerequisite for {target_dependency_id}"
+                    if source_card is not None else None
+                ),
             )
-            if (
-                config.require_bounded_park_exit
-                and lifecycle.placement_class
-                in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK)
-                and not lifecycle.exit_route_bounded
-            ):
-                continue
             child = current.clone()
             paid = child.move(*action, rules=MW_RULES)
-            ng = g + paid
-            if ng > config.max_added_cost:
-                continue
+            replay_valid_count += 1
             child_supplies = advance_supply_consumption_results(
-                current,
-                (action,),
-                existing=supplies,
+                current, (action,), existing=supplies,
             )
             child_assessment = assess_campaign_dependency_closure(
                 child, campaign, supply_consumptions=child_supplies
             )
-            child_priority = _priority(
-                child,
-                child_assessment,
-                start_foundations=start_foundations,
-                g=ng,
-                actions=len(actions) + 1,
-            )
-            child_key = canonical_state_key(child)
-            if best_cost.get(child_key, config.max_added_cost + 1) <= ng:
-                continue
-            best_cost[child_key] = ng
             before_ids = set(assessment.graph.dependency_ids)
             after_ids = set(child_assessment.graph.dependency_ids)
-            step = DependencyClosureStep(
-                action,
-                paid,
-                targeted,
-                f"action is attributable to {', '.join(targeted)}",
-                lifecycle,
-                len(before_ids) - 1,
-                len(after_ids) - 1,
-                len(assessment.graph.mixed_overlays),
-                len(child_assessment.graph.mixed_overlays),
-            )
-            children.append(
-                (
-                    child_priority,
-                    action,
-                    child,
-                    ng,
-                    actions + (action,),
-                    steps + (step,),
-                    child_supplies,
-                    child_assessment,
+            progress = None
+            if source_card is not None and target_dependency_id is not None:
+                progress = source_progress_evidence(
+                    current, child, target_dependency_id, source_card, action, lifecycle,
+                    dependencies_before=max(0, len(before_ids) - 1),
+                    dependencies_after=max(0, len(after_ids) - 1),
+                    dependency_present_after=target_dependency_id in after_ids,
                 )
-            )
+                if progress.target_relevant:
+                    legal_target_actions.add(action)
+            targeted = list(_action_targets(current, action, campaign, assessment.graph))
+            if progress is not None and progress.target_relevant and target_dependency_id not in targeted:
+                targeted.insert(0, target_dependency_id)
+            targeted_tuple = tuple(dict.fromkeys(targeted))
+            if not targeted_tuple:
+                if config.enable_legal_candidate_audit and blocker_before is not None:
+                    record_audit(ClosureCandidateAudit(
+                        action, ClosureCandidateStage.LEGAL_AUDIT,
+                        ClosureCandidateDisposition.LEGAL_ONLY, target_dependency_id or "",
+                        False, True, False,
+                        progress or no_progress_evidence(blocker_before, len(unresolved), "legal but unrelated"),
+                        lifecycle, blocker_before.receiver_rank, False,
+                        lifecycle.placement_class in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK),
+                        lifecycle.future_exit_route, ClosureCandidateRejectionReason.NOT_TARGET_RELEVANT,
+                        "fresh graph and physical source audit found no named-target progress",
+                        None, None, None, None,
+                    ))
+                continue
+            generated_actions.add(action)
 
-        if config.permit_stock_transition and current.can_deal(MW_RULES):
-            child = current.clone()
-            paid = child.deal(MW_RULES)
-            ng = g + paid
-            if ng <= config.max_added_cost:
-                child_supplies = advance_supply_consumption_results(
-                    current, (("deal",),), existing=supplies
-                )
-                child_assessment = assess_campaign_dependency_closure(
-                    child, campaign, supply_consumptions=child_supplies
-                )
-                child_priority = _priority(
-                    child,
-                    child_assessment,
-                    start_foundations=start_foundations,
-                    g=ng,
-                    actions=len(actions) + 1,
-                )
-                children.append(
-                    (
-                        child_priority,
-                        (99, 99, 99),
-                        child,
-                        ng,
-                        actions + (("deal",),),
-                        steps
-                        + (
-                            DependencyClosureStep(
-                                ("deal",),
-                                paid,
-                                (),
-                                "explicitly configured stock transition",
-                                None,
-                                len(assessment.graph.dependencies) - 1,
-                                len(child_assessment.graph.dependencies) - 1,
-                                len(assessment.graph.mixed_overlays),
-                                len(child_assessment.graph.mixed_overlays),
-                            ),
-                        ),
-                        child_supplies,
-                        child_assessment,
+            # A park on the blocker source can have a concrete exit that is
+            # created by exposing the source itself.
+            if (
+                source_card is not None and progress is not None and progress.target_relevant
+                and lifecycle.placement_class in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK)
+                and not lifecycle.exit_route_bounded
+            ):
+                src, dst, count = action
+                after_blocker = describe_buried_source(child, target_dependency_id or "", source_card)
+                route_column = after_blocker.chosen_column
+                if route_column is not None and child.can_move(dst, route_column, count):
+                    saving = lifecycle.estimated_rehandling_cost + 1.0 + len(
+                        set(before_ids) - set(after_ids)
                     )
-                )
-
-        children.sort(key=lambda item: (item[0], item[1]))
-        for child_priority, _action, child, ng, child_actions, child_steps, child_supplies, child_assessment in children[: config.beam_width]:
-            uid += 1
-            heapq.heappush(
-                frontier,
-                (
-                    child_priority,
-                    uid,
-                    child,
-                    ng,
-                    child_actions,
-                    child_steps,
-                    child_supplies,
-                    child_assessment,
-                ),
+                    lifecycle = replace(
+                        lifecycle,
+                        future_exit_route=(
+                            f"after exposing {source_card}, move parked run from "
+                            f"c{dst + 1} to c{route_column + 1}"
+                        ),
+                        exit_route_bounded=True,
+                        compensating_benefit=BoundedCompensatingBenefit(
+                            saving,
+                            progress.rationale,
+                            f"necessary bounded prerequisite for {target_dependency_id}",
+                        ),
+                    )
+            if (
+                config.require_bounded_park_exit
+                and lifecycle.placement_class in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK)
+                and not lifecycle.exit_route_bounded
+            ):
+                record_audit(ClosureCandidateAudit(
+                    action, ClosureCandidateStage.LIFECYCLE_CHECK,
+                    ClosureCandidateDisposition.REJECTED, target_dependency_id or "",
+                    True, True, bool(progress and progress.target_relevant),
+                    progress or no_progress_evidence(blocker_before, len(unresolved), "unbounded park") if blocker_before else progress,
+                    lifecycle, blocker_before.receiver_rank if blocker_before else None,
+                    bool(progress and progress.workspace_created), True,
+                    lifecycle.future_exit_route, ClosureCandidateRejectionReason.TEMPORARY_PARK_NO_EXIT,
+                    "park lacks a concrete exit inside the named source chain",
+                    None, None, None, None,
+                ))
+                continue
+            if lifecycle.same_suit_joins_broken and not (
+                progress is not None and progress.target_relevant and lifecycle.exit_route_bounded
+            ):
+                record_audit(ClosureCandidateAudit(
+                    action, ClosureCandidateStage.LIFECYCLE_CHECK,
+                    ClosureCandidateDisposition.REJECTED, target_dependency_id or "",
+                    True, True, bool(progress and progress.target_relevant), progress,
+                    lifecycle, blocker_before.receiver_rank if blocker_before else None,
+                    bool(progress and progress.workspace_created), False,
+                    lifecycle.future_exit_route,
+                    ClosureCandidateRejectionReason.BREAKS_STABLE_STRUCTURE_UNJUSTIFIED,
+                    "stable structure break has no bounded restore/replace route and target compensation",
+                    None, None, None, None,
+                ))
+                continue
+            ng = g + paid
+            if ng > config.max_added_cost:
+                record_audit(ClosureCandidateAudit(
+                    action, ClosureCandidateStage.ADMISSION,
+                    ClosureCandidateDisposition.REJECTED, target_dependency_id or "",
+                    True, True, bool(progress and progress.target_relevant), progress,
+                    lifecycle, blocker_before.receiver_rank if blocker_before else None,
+                    bool(progress and progress.workspace_created), False,
+                    lifecycle.future_exit_route, ClosureCandidateRejectionReason.RESOURCE_LIMIT,
+                    f"corrected cost {ng} exceeds fixed {config.max_added_cost}",
+                    None, None, None, None,
+                ))
+                continue
+            child_key = canonical_state_key(child)
+            if best_cost.get(child_key, config.max_added_cost + 1) <= ng:
+                record_audit(ClosureCandidateAudit(
+                    action, ClosureCandidateStage.EXACT_DEDUP,
+                    ClosureCandidateDisposition.DEDUPLICATED, target_dependency_id or "",
+                    True, True, bool(progress and progress.target_relevant), progress,
+                    lifecycle, blocker_before.receiver_rank if blocker_before else None,
+                    bool(progress and progress.workspace_created), False,
+                    lifecycle.future_exit_route, ClosureCandidateRejectionReason.DOMINATED_SAME_STATE,
+                    "same exact structural state already has equal/lower corrected g",
+                    None, None, repr(child_key), None,
+                ))
+                continue
+            best_cost[child_key] = ng
+            child_priority = ranked_priority(
+                child, child_assessment, progress, ng, len(actions) + 1
             )
+            step = DependencyClosureStep(
+                action, paid, targeted_tuple,
+                f"fresh target progress: {progress.rationale if progress else targeted_tuple}",
+                lifecycle, max(0, len(before_ids) - 1), max(0, len(after_ids) - 1),
+                len(assessment.graph.mixed_overlays), len(child_assessment.graph.mixed_overlays),
+                False, progress,
+            )
+            children.append(_ClosureChild(
+                child_priority, action, child, ng, actions + (action,), steps + (step,),
+                tuple(child_supplies), child_assessment, progress, lifecycle,
+            ))
+            record_audit(ClosureCandidateAudit(
+                action, ClosureCandidateStage.ADMISSION, ClosureCandidateDisposition.ADMITTED,
+                target_dependency_id or "", True, True,
+                bool(progress and progress.target_relevant), progress,
+                lifecycle, blocker_before.receiver_rank if blocker_before else None,
+                bool(progress and progress.workspace_created),
+                lifecycle.placement_class in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK),
+                lifecycle.future_exit_route, None, "admitted under fresh named-target attribution",
+                len(children), None, None, None,
+            ))
+
+        ordered = tuple(sorted(children, key=lambda item: (item.priority, item.action)))
+        retained = (
+            retain_target_progress_diversity(ordered, config.beam_width)
+            if config.retain_target_progress_diversity
+            else ordered[: config.beam_width]
+        )
+        retained_ids = {id(item) for item in retained}
+        discarded = tuple(item for item in ordered if id(item) not in retained_ids)
+        if len(beam_audits) < 512:
+            beam_audits.append(ClosureBeamDepthAudit(
+                len(actions), len(children), replay_valid_count,
+                sum(bool(item.progress and item.progress.target_relevant) for item in children),
+                sum(bool(item.progress and item.progress.prerequisite_progress) for item in children),
+                len(retained), len(discarded), config.beam_width if discarded else None,
+                discarded[0].action if discarded else None,
+                discarded[0].progress.kind if discarded and discarded[0].progress else None,
+                tuple(dict.fromkeys(
+                    item.progress.kind for item in retained if item.progress is not None
+                )),
+                tuple(item.progress.source_depth_after for item in retained if item.progress is not None),
+                tuple(item.progress.source_depth_after for item in discarded if item.progress is not None),
+            ))
+        for rank, item in enumerate(discarded, start=len(retained) + 1):
+            record_audit(ClosureCandidateAudit(
+                item.action, ClosureCandidateStage.BEAM_SELECTION,
+                ClosureCandidateDisposition.DISCARDED, target_dependency_id or "",
+                True, True, bool(item.progress and item.progress.target_relevant), item.progress,
+                item.lifecycle, blocker_before.receiver_rank if blocker_before else None,
+                bool(item.progress and item.progress.workspace_created),
+                bool(item.lifecycle and item.lifecycle.placement_class in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK)),
+                item.lifecycle.future_exit_route if item.lifecycle else None,
+                ClosureCandidateRejectionReason.BEAM_CUTOFF,
+                "discarded after bounded target-progress diversity retention",
+                None, rank, None, None,
+            ))
+        for item in retained:
+            uid += 1
+            heapq.heappush(frontier, (
+                item.priority, uid, item.state, item.g, item.actions, item.steps,
+                item.supplies, item.assessment,
+            ))
         if len(frontier) > config.beam_width:
             frontier = heapq.nsmallest(config.beam_width, frontier)
             heapq.heapify(frontier)
@@ -1021,12 +1219,10 @@ def realize_campaign_dependency_closure(
     before_ids.discard(start_graph.terminal_dependency_id)
     after_ids.discard(end_assessment.graph.terminal_dependency_id)
     closed = tuple(sorted(before_ids - after_ids))
-    overlays_cleared = tuple(
-        sorted(
-            {item.blocker_id for item in start_graph.mixed_overlays}
-            - {item.blocker_id for item in end_assessment.graph.mixed_overlays}
-        )
-    )
+    overlays_cleared = tuple(sorted(
+        {item.blocker_id for item in start_graph.mixed_overlays}
+        - {item.blocker_id for item in end_assessment.graph.mixed_overlays}
+    ))
     supply_before = sum(item.consumed_count for item in supply_consumptions)
     supply_after = sum(item.consumed_count for item in supplies)
     replay = state.clone()
@@ -1037,59 +1233,63 @@ def realize_campaign_dependency_closure(
         verified = False
 
     if len(end_state.foundations) > start_foundations:
-        status = DependencyClosureStatus.FOUNDATION_REMOVED
-        reason = "campaign-directed closure removed the next foundation"
+        status, reason = DependencyClosureStatus.FOUNDATION_REMOVED, "campaign-directed closure removed the next foundation"
     elif supply_after > supply_before:
-        status = DependencyClosureStatus.SUPPLY_CONSUMED
-        reason = "a delivered campaign supply obligation was actually consumed"
+        status, reason = DependencyClosureStatus.SUPPLY_CONSUMED, "a delivered campaign supply obligation was actually consumed"
     elif closed:
-        status = DependencyClosureStatus.DEPENDENCY_CLOSED
-        reason = "one or more named campaign dependencies were closed"
+        status, reason = DependencyClosureStatus.DEPENDENCY_CLOSED, "one or more named campaign dependencies were closed"
     elif overlays_cleared or end_assessment.movable_same_suit_coverage > initial_assessment.movable_same_suit_coverage:
-        status = DependencyClosureStatus.MILESTONE_REACHED
-        reason = "named overlay/interval structure materially advanced"
+        status, reason = DependencyClosureStatus.MILESTONE_REACHED, "named overlay/interval structure materially advanced"
     elif resource_limited:
-        status = DependencyClosureStatus.RESOURCE_LIMIT
-        reason = "bounded dependency closure exhausted its node/time/deadline envelope"
+        status, reason = DependencyClosureStatus.RESOURCE_LIMIT, "bounded dependency closure exhausted its unchanged node/time/deadline envelope"
     else:
-        status = _failure_status(start_graph)
-        reason = "no campaign-attributable progress was found within the fixed bound"
-
-    successful = status in (
+        status, reason = _failure_status(start_graph), "no campaign-attributable progress was found within the fixed bound"
+    successful = status in {
         DependencyClosureStatus.FOUNDATION_REMOVED,
         DependencyClosureStatus.DEPENDENCY_CLOSED,
         DependencyClosureStatus.SUPPLY_CONSUMED,
         DependencyClosureStatus.MILESTONE_REACHED,
-    )
+    }
     if successful and (not actions or not verified):
         status = DependencyClosureStatus.NO_PROGRESS_WITHIN_BOUND
         reason = "candidate progress did not produce a non-empty independently replayed edge"
-        actions = ()
-        cost = 0
-        end_state = state.clone()
-        end_assessment = initial_assessment
-        closed = ()
-        overlays_cleared = ()
-        steps = ()
-        supplies = tuple(supply_consumptions)
-        verified = True
+        actions, cost, end_state, end_assessment = (), 0, state.clone(), initial_assessment
+        closed, overlays_cleared, steps, supplies, verified = (), (), (), tuple(supply_consumptions), True
+        successful = False
 
+    diagnosis = ClosureFailureDiagnosis.NONE if successful else (
+        ClosureFailureDiagnosis.RESOURCE_BOUND if resource_limited and legal_target_actions
+        else ClosureFailureDiagnosis.STRUCTURAL_BLOCKER if source_card is not None and not legal_target_actions
+        else ClosureFailureDiagnosis.SEARCH_POLICY if any(
+            audit.target_relevant and audit.rejection_reason not in {
+                ClosureCandidateRejectionReason.RESOURCE_LIMIT,
+                ClosureCandidateRejectionReason.DOMINATED_SAME_STATE,
+            }
+            for audit in audits
+        )
+        else ClosureFailureDiagnosis.LOCAL_BOUNDED_MISS
+    )
+    traces: Tuple[BuriedSourceClosureTrace, ...] = ()
+    if source_card is not None and blocker_before is not None and target_dependency_id is not None:
+        blocker_after = describe_buried_source(end_state, target_dependency_id, source_card)
+        coverage = compare_legal_candidate_coverage(
+            target_dependency_id, legal_target_actions, generated_actions
+        )
+        missing = coverage.missing_from_generator
+        traces = (BuriedSourceClosureTrace(
+            campaign.label, semantic_target_id, target_dependency_id,
+            canonical_state_key(state), source_card, blocker_before, blocker_after,
+            tuple(audits), tuple(beam_audits), tuple(sorted(generated_actions)),
+            tuple(sorted(legal_target_actions)), missing,
+            sum(bool(step.progress_evidence and step.progress_evidence.source_copy_substituted) for step in steps),
+            sum(bool(step.progress_evidence and step.progress_evidence.source_exposed) for step in steps),
+            target_dependency_id in closed, diagnosis, status.value,
+        ),)
     result = DependencyClosureResult(
-        status,
-        campaign.label,
-        actions,
-        cost if verified else None,
-        end_state.clone(),
-        start_graph,
-        end_assessment.graph,
-        closed,
-        overlays_cleared,
-        steps,
-        tuple(supplies),
-        nodes,
-        time.perf_counter() - started,
-        verified,
-        reason,
+        status, campaign.label, actions, cost if verified else None, end_state.clone(),
+        start_graph, end_assessment.graph, closed, overlays_cleared, steps,
+        tuple(supplies), nodes, time.perf_counter() - started, verified, reason,
+        False, target_dependency_id, traces, diagnosis,
     )
     if cache is not None:
         cache[key] = result
