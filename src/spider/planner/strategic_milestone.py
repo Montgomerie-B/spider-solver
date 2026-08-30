@@ -251,6 +251,13 @@ class MilestoneRealizationResult:
     target_identity: Optional[MilestoneTargetIdentity] = None
     residual_timeline: Tuple[str, ...] = ()
     blocker_transitions: Tuple[str, ...] = ()
+    closure_completion_timeline: Tuple[str, ...] = ()
+    closure_target_timeline: Tuple[str, ...] = ()
+    advanced_closure_steps: int = 0
+    advanced_fallbacks: int = 0
+    same_target_continuations: int = 0
+    persisted_target_completed: bool = False
+    restore_replace_obligations: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

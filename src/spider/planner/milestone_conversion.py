@@ -32,6 +32,15 @@ class MilestonePrimitiveStep:
     workspace_created: bool = False
     workspace_used: bool = False
     workspace_recovered_or_replaced: bool = False
+    target_dependency_id: Optional[str] = None
+    semantic_target_id: Optional[str] = None
+    closure_completion_class: Optional[str] = None
+    closure_requested_dependency_completed: bool = False
+    closure_advanced_fallback: bool = False
+    closure_source_depth_before: Optional[int] = None
+    closure_source_depth_after: Optional[int] = None
+    closure_primitive_count: int = 0
+    restore_replace_obligation: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -86,6 +95,14 @@ def realize_milestone(
     previous_blockers: Tuple[str, ...] = ()
     reanalyses = 0
     primitive_invocations = 0
+    closure_completion_timeline = []
+    closure_target_timeline = []
+    advanced_closure_steps = 0
+    advanced_fallbacks = 0
+    same_target_continuations = 0
+    persisted_target_completed = False
+    restore_replace_obligations = []
+    pending_advanced_target: Optional[Tuple[Optional[str], Optional[str]]] = None
     status = active.status
     reason = "bounded primitive envelope exhausted"
     for index in range(step_limit):
@@ -109,6 +126,32 @@ def realize_milestone(
         cost += step.corrected_paid_cost
         nodes += step.tactical_nodes
         harvest.extend(step.harvest_events)
+        if step.closure_completion_class is not None:
+            closure_completion_timeline.append(step.closure_completion_class)
+            closure_target_timeline.append(
+                step.semantic_target_id or step.target_dependency_id or "unnamed"
+            )
+            current_target = (step.semantic_target_id, step.target_dependency_id)
+            if pending_advanced_target is not None and (
+                current_target == pending_advanced_target
+                or (
+                    pending_advanced_target[0] is not None
+                    and current_target[0] == pending_advanced_target[0]
+                )
+            ):
+                same_target_continuations += 1
+                persisted_target_completed = bool(
+                    persisted_target_completed
+                    or step.closure_requested_dependency_completed
+                )
+            if step.closure_completion_class == "DEPENDENCY_ADVANCED":
+                advanced_closure_steps += 1
+                pending_advanced_target = current_target
+            elif step.closure_requested_dependency_completed:
+                pending_advanced_target = None
+            advanced_fallbacks += int(step.closure_advanced_fallback)
+            if step.restore_replace_obligation:
+                restore_replace_obligations.append(step.restore_replace_obligation)
         if (
             step.workspace_created
             or step.workspace_used
@@ -201,4 +244,11 @@ def realize_milestone(
         target_identity=milestone_target_identity(active),
         residual_timeline=tuple(residual_timeline),
         blocker_transitions=tuple(blocker_transitions),
+        closure_completion_timeline=tuple(closure_completion_timeline),
+        closure_target_timeline=tuple(closure_target_timeline),
+        advanced_closure_steps=advanced_closure_steps,
+        advanced_fallbacks=advanced_fallbacks,
+        same_target_continuations=same_target_continuations,
+        persisted_target_completed=persisted_target_completed,
+        restore_replace_obligations=tuple(restore_replace_obligations),
     )

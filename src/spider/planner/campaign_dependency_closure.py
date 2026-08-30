@@ -70,6 +70,7 @@ class CampaignDependencyType(str, Enum):
 class DependencyClosureStatus(str, Enum):
     FOUNDATION_REMOVED = "FOUNDATION_REMOVED"
     DEPENDENCY_CLOSED = "DEPENDENCY_CLOSED"
+    DEPENDENCY_ADVANCED = "DEPENDENCY_ADVANCED"
     SUPPLY_CONSUMED = "SUPPLY_CONSUMED"
     MILESTONE_REACHED = "MILESTONE_REACHED"
     NO_PROGRESS_WITHIN_BOUND = "NO_PROGRESS_WITHIN_BOUND"
@@ -78,6 +79,85 @@ class DependencyClosureStatus(str, Enum):
     BLOCKED_BY_OVERLAY = "BLOCKED_BY_OVERLAY"
     RESOURCE_LIMIT = "RESOURCE_LIMIT"
     INVALIDATED = "INVALIDATED"
+
+
+class ClosureCompletionClass(str, Enum):
+    """Semantic outcome for the specifically requested local dependency.
+
+    This is ordering and reporting evidence only.  It is deliberately absent
+    from canonical state identity, the exact TT, and admissible proof bounds.
+    """
+
+    DEPENDENCY_COMPLETED = "DEPENDENCY_COMPLETED"
+    SOURCE_EXPOSED = "SOURCE_EXPOSED"
+    DEPENDENCY_ADVANCED = "DEPENDENCY_ADVANCED"
+    NO_TARGET_PROGRESS = "NO_TARGET_PROGRESS"
+    STRUCTURAL_BLOCKER = "STRUCTURAL_BLOCKER"
+    RESOURCE_BOUND = "RESOURCE_BOUND"
+    TARGET_INVALIDATED = "TARGET_INVALIDATED"
+
+
+@dataclass(frozen=True)
+class ClosureLifecycleSummary:
+    same_suit_joins_created: int = 0
+    same_suit_joins_broken: int = 0
+    stable_joins_restored_or_replaced: int = 0
+    mixed_suit_boundaries_created: int = 0
+    mixed_suit_boundaries_removed: int = 0
+    midpoint_rehandling_debt: float = 0.0
+    final_rehandling_debt: float = 0.0
+    projected_compensation_accepted: int = 0
+    projected_compensation_rejected: int = 0
+    restore_replace_obligation: Optional[str] = None
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class ClosureEndpointAssessment:
+    completion_class: ClosureCompletionClass
+    target_dependency_id: Optional[str]
+    target_kind_before: Optional[CampaignDependencyType]
+    target_kind_after: Optional[CampaignDependencyType]
+    requested_dependency_completed: bool
+    same_semantic_target_valid: bool
+    source_key_before: Optional[str]
+    source_key_after: Optional[str]
+    source_depth_before: int
+    source_depth_after: int
+    blockers_before: int
+    blockers_after: int
+    source_exposed: bool
+    source_actionable: bool
+    source_consumed: bool
+    prerequisite_progress: bool
+    continuation_available: bool
+    primitive_count: int
+    lifecycle: ClosureLifecycleSummary = ClosureLifecycleSummary()
+    proof_pruning_allowed: bool = False
+
+    def ordering_key(self, *, foundation_removed: bool = False) -> Tuple:
+        """Completion-first endpoint ordering for this one targeted call."""
+        rank = {
+            ClosureCompletionClass.DEPENDENCY_COMPLETED: 1,
+            ClosureCompletionClass.SOURCE_EXPOSED: 2,
+            ClosureCompletionClass.DEPENDENCY_ADVANCED: 3,
+            ClosureCompletionClass.RESOURCE_BOUND: 4,
+            ClosureCompletionClass.STRUCTURAL_BLOCKER: 5,
+            ClosureCompletionClass.NO_TARGET_PROGRESS: 6,
+            ClosureCompletionClass.TARGET_INVALIDATED: 7,
+        }[self.completion_class]
+        if foundation_removed:
+            rank = 0
+        return (
+            rank,
+            self.source_depth_after,
+            self.blockers_after,
+            -int(self.source_actionable),
+            -int(self.prerequisite_progress),
+            self.lifecycle.final_rehandling_debt,
+            self.lifecycle.midpoint_rehandling_debt,
+            self.primitive_count,
+        )
 
 
 @dataclass(frozen=True)
@@ -245,6 +325,10 @@ class DependencyClosureResult:
     target_dependency_id: Optional[str] = None
     buried_source_traces: Tuple[BuriedSourceClosureTrace, ...] = ()
     failure_diagnosis: ClosureFailureDiagnosis = ClosureFailureDiagnosis.LOCAL_BOUNDED_MISS
+    completion_class: ClosureCompletionClass = ClosureCompletionClass.NO_TARGET_PROGRESS
+    endpoint_assessment: Optional[ClosureEndpointAssessment] = None
+    advanced_states_continued: int = 0
+    advanced_fallback_returned: bool = False
 
 
 @dataclass(frozen=True)
@@ -839,6 +923,232 @@ def _failure_status(graph: CampaignDependencyGraph) -> DependencyClosureStatus:
     return DependencyClosureStatus.NO_PROGRESS_WITHIN_BOUND
 
 
+def summarize_closure_lifecycle(
+    steps: Sequence[DependencyClosureStep],
+) -> ClosureLifecycleSummary:
+    """Summarize temporary debt and later structural compensation.
+
+    The arithmetic is an ordering heuristic, never an admissible cost bound.
+    """
+    joins_created = 0
+    joins_broken = 0
+    mixed_created = 0
+    mixed_removed = 0
+    restored_or_replaced = 0
+    outstanding_breaks = 0
+    debt = 0.0
+    midpoint = 0.0
+    accepted = 0
+    rejected = 0
+    for step in steps:
+        lifecycle = step.lifecycle
+        if lifecycle is None:
+            continue
+        created = len(lifecycle.same_suit_joins_created)
+        broken = len(lifecycle.same_suit_joins_broken)
+        joins_created += created
+        joins_broken += broken
+        mixed_created += len(lifecycle.mixed_suit_boundaries_created)
+        mixed_removed += len(lifecycle.mixed_suit_boundaries_removed)
+        outstanding_breaks += broken
+        debt += lifecycle.estimated_rehandling_cost
+        if outstanding_breaks and created:
+            compensated = min(outstanding_breaks, created)
+            restored_or_replaced += compensated
+            outstanding_breaks -= compensated
+            debt = max(0.0, debt - float(compensated))
+        benefit = lifecycle.compensating_benefit
+        if benefit is not None:
+            if (
+                lifecycle.exit_route_bounded
+                and benefit.expected_saving > lifecycle.estimated_rehandling_cost
+            ):
+                accepted += 1
+            else:
+                rejected += 1
+        midpoint = max(midpoint, debt)
+    obligation = None
+    if outstanding_breaks:
+        obligation = (
+            f"restore or structurally replace {outstanding_breaks} stable "
+            "same-suit join(s) after completing the named source"
+        )
+    return ClosureLifecycleSummary(
+        same_suit_joins_created=joins_created,
+        same_suit_joins_broken=joins_broken,
+        stable_joins_restored_or_replaced=restored_or_replaced,
+        mixed_suit_boundaries_created=mixed_created,
+        mixed_suit_boundaries_removed=mixed_removed,
+        midpoint_rehandling_debt=midpoint,
+        final_rehandling_debt=debt,
+        projected_compensation_accepted=accepted,
+        projected_compensation_rejected=rejected,
+        restore_replace_obligation=obligation,
+    )
+
+
+def assess_closure_endpoint(
+    start_state: SpiderState,
+    end_state: SpiderState,
+    campaign: FoundationCampaign,
+    graph_before: CampaignDependencyGraph,
+    graph_after: CampaignDependencyGraph,
+    target_dependency_id: Optional[str],
+    steps: Sequence[DependencyClosureStep] = (),
+    *,
+    inspect_continuation: bool = True,
+) -> ClosureEndpointAssessment:
+    """Classify progress against the requested dependency, not graph churn."""
+    before = next(
+        (item for item in graph_before.dependencies if item.dependency_id == target_dependency_id),
+        None,
+    )
+    after = next(
+        (item for item in graph_after.dependencies if item.dependency_id == target_dependency_id),
+        None,
+    )
+    lifecycle = summarize_closure_lifecycle(steps)
+    source_before = source_after = None
+    source_card = before.card if before is not None else None
+    is_buried_source = bool(
+        before is not None
+        and before.kind == CampaignDependencyType.SOURCE_BURIED
+        and source_card is not None
+    )
+    is_source_dependency = bool(
+        before is not None
+        and before.kind in (
+            CampaignDependencyType.SOURCE_BURIED,
+            CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED,
+        )
+        and source_card is not None
+    )
+    if is_source_dependency and source_card is not None:
+        source_before = describe_buried_source(
+            start_state, target_dependency_id or "", source_card
+        ).chosen
+        source_after = describe_buried_source(
+            end_state, target_dependency_id or "", source_card
+        ).chosen
+
+    source_exposed = bool(source_after and source_after.exposed)
+    source_actionable = bool(source_after and source_after.actionable)
+    integrated = False
+    if source_card is not None:
+        integrated = any(
+            band.length >= 2 and band.high_rank >= source_card.rank >= band.low_rank
+            for band in locate_campaign_bands(end_state, campaign.suit)
+        )
+    source_consumed = bool(
+        is_source_dependency
+        and after is None
+        and (integrated or len(end_state.foundations) > len(start_state.foundations))
+    )
+
+    requested_completed = bool(before is not None and after is None)
+    if is_buried_source and source_exposed:
+        # SOURCE_BURIED is satisfied at exposure even if the fresh graph keeps
+        # the same semantic ID as SOURCE_EXPOSED_BUT_BLOCKED.
+        requested_completed = True
+    if (
+        before is not None
+        and before.kind == CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED
+        and source_actionable
+    ):
+        requested_completed = True
+
+    before_depth = source_before.depth if source_before is not None else (before.depth if before else 0)
+    after_depth = source_after.depth if source_after is not None else (after.depth if after else 0)
+    before_blockers = len(source_before.blocker_cards) if source_before is not None else 0
+    after_blockers = len(source_after.blocker_cards) if source_after is not None else 0
+    prerequisite_progress = any(
+        step.progress_evidence is not None
+        and (
+            step.progress_evidence.prerequisite_progress
+            or step.progress_evidence.target_relevant
+        )
+        for step in steps
+    )
+    global_progress = bool(
+        set(graph_before.dependency_ids) - set(graph_after.dependency_ids)
+        or len(graph_after.mixed_overlays) < len(graph_before.mixed_overlays)
+        or lifecycle.same_suit_joins_created
+        or lifecycle.mixed_suit_boundaries_removed
+    )
+    source_progress = bool(
+        is_source_dependency
+        and (
+            after_depth < before_depth
+            or after_blockers < before_blockers
+            or source_actionable
+            or source_exposed
+            or source_consumed
+            or (
+                source_before is not None
+                and source_after is not None
+                and source_before.source_key != source_after.source_key
+            )
+        )
+    )
+    if before is None:
+        completion_class = ClosureCompletionClass.TARGET_INVALIDATED
+    elif is_buried_source and source_exposed:
+        completion_class = ClosureCompletionClass.SOURCE_EXPOSED
+    elif requested_completed:
+        completion_class = ClosureCompletionClass.DEPENDENCY_COMPLETED
+    elif source_progress or prerequisite_progress or global_progress:
+        completion_class = ClosureCompletionClass.DEPENDENCY_ADVANCED
+    else:
+        completion_class = ClosureCompletionClass.NO_TARGET_PROGRESS
+
+    continuation_available = False
+    if inspect_continuation and before is not None and not requested_completed:
+        if is_source_dependency and source_after is not None:
+            blocker = describe_buried_source(
+                end_state, target_dependency_id or "", source_card  # type: ignore[arg-type]
+            )
+            continuation_available = bool(
+                blocker.legal_blocker_moves
+                or (source_after.exposed and not source_after.actionable)
+            )
+        elif after is not None:
+            continuation_available = any(
+                target_dependency_id
+                in _action_targets(end_state, action, campaign, graph_after)
+                for action in end_state.enumerate_moves()
+            )
+
+    same_target_valid = bool(
+        before is not None
+        and (
+            requested_completed
+            or after is not None
+            or (is_source_dependency and source_after is not None)
+        )
+    )
+    return ClosureEndpointAssessment(
+        completion_class=completion_class,
+        target_dependency_id=target_dependency_id,
+        target_kind_before=before.kind if before else None,
+        target_kind_after=after.kind if after else None,
+        requested_dependency_completed=requested_completed,
+        same_semantic_target_valid=same_target_valid,
+        source_key_before=source_before.source_key if source_before else None,
+        source_key_after=source_after.source_key if source_after else None,
+        source_depth_before=before_depth,
+        source_depth_after=after_depth,
+        blockers_before=before_blockers,
+        blockers_after=after_blockers,
+        source_exposed=source_exposed,
+        source_actionable=source_actionable,
+        source_consumed=source_consumed,
+        prerequisite_progress=prerequisite_progress,
+        continuation_available=continuation_available,
+        primitive_count=len(steps),
+        lifecycle=lifecycle,
+    )
+
+
 def _clone_result(result: DependencyClosureResult) -> DependencyClosureResult:
     return DependencyClosureResult(
         result.status,
@@ -860,6 +1170,10 @@ def _clone_result(result: DependencyClosureResult) -> DependencyClosureResult:
         result.target_dependency_id,
         result.buried_source_traces,
         result.failure_diagnosis,
+        result.completion_class,
+        result.endpoint_assessment,
+        result.advanced_states_continued,
+        result.advanced_fallback_returned,
     )
 
 
@@ -876,6 +1190,7 @@ def realize_campaign_dependency_closure(
 ) -> DependencyClosureResult:
     """Try bounded, campaign-attributable work for one fresh named dependency."""
     started = time.perf_counter()
+    explicit_target_requested = target_dependency_id is not None
     start_graph = build_campaign_dependency_graph(
         state, campaign, supply_consumptions=supply_consumptions
     )
@@ -929,6 +1244,7 @@ def realize_campaign_dependency_closure(
             "named campaign has no unresolved pre-terminal dependencies",
             target_dependency_id=target_dependency_id,
             failure_diagnosis=ClosureFailureDiagnosis.NONE,
+            completion_class=ClosureCompletionClass.DEPENDENCY_COMPLETED,
         )
         if cache is not None:
             cache[key] = result
@@ -942,6 +1258,15 @@ def realize_campaign_dependency_closure(
             f"named dependency {target_dependency_id} is stale in the fresh graph",
             target_dependency_id=target_dependency_id,
             failure_diagnosis=ClosureFailureDiagnosis.STRUCTURAL_BLOCKER,
+            completion_class=ClosureCompletionClass.TARGET_INVALIDATED,
+            endpoint_assessment=assess_closure_endpoint(
+                state,
+                state,
+                campaign,
+                start_graph,
+                start_graph,
+                target_dependency_id,
+            ),
         )
         if cache is not None:
             cache[key] = result
@@ -959,13 +1284,21 @@ def realize_campaign_dependency_closure(
         progress: Optional[ClosureProgressEvidence],
         g: int,
         action_count: int,
+        steps: Sequence[DependencyClosureStep],
     ) -> Tuple:
-        target_closed = bool(
-            target_dependency_id
-            and target_dependency_id not in assessment.graph.dependency_ids
+        endpoint = assess_closure_endpoint(
+            state,
+            child_state,
+            campaign,
+            start_graph,
+            assessment.graph,
+            target_dependency_id,
+            steps,
+            inspect_continuation=False,
         )
-        target_prefix = (
-            0 if target_closed else 1,
+        target_prefix = endpoint.ordering_key(
+            foundation_removed=len(child_state.foundations) > start_foundations
+        ) + (
             progress.ordering_key if progress is not None else (99, 0, 0, 10**6, 10**6, 10**6),
         )
         return target_prefix + _priority(
@@ -973,13 +1306,15 @@ def realize_campaign_dependency_closure(
             start_foundations=start_foundations, g=g, actions=action_count,
         )
 
-    initial_priority = ranked_priority(state, initial_assessment, None, 0, 0)
+    initial_priority = ranked_priority(state, initial_assessment, None, 0, 0, ())
     uid = 0
     frontier = [(initial_priority, uid, state.clone(), 0, (), (), tuple(supply_consumptions), initial_assessment)]
     best_cost: Dict[CanonicalStateKey, int] = {canonical_state_key(state): 0}
     best = frontier[0]
     nodes = 0
     resource_limited = False
+    cost_limited = False
+    advanced_states_continued = 0
     audits: List[ClosureCandidateAudit] = []
     beam_audits: List[ClosureBeamDepthAudit] = []
     generated_actions = set()
@@ -997,10 +1332,17 @@ def realize_campaign_dependency_closure(
         nodes += 1
         if priority < best[0]:
             best = (priority, _seq, current, g, actions, steps, supplies, assessment)
-        if len(current.foundations) > start_foundations or (
-            target_dependency_id is not None
-            and target_dependency_id not in assessment.graph.dependency_ids
-        ):
+        current_endpoint = assess_closure_endpoint(
+            state,
+            current,
+            campaign,
+            start_graph,
+            assessment.graph,
+            target_dependency_id,
+            steps,
+            inspect_continuation=False,
+        )
+        if len(current.foundations) > start_foundations or current_endpoint.requested_dependency_completed:
             best = (priority, _seq, current, g, actions, steps, supplies, assessment)
             break
 
@@ -1083,6 +1425,27 @@ def realize_campaign_dependency_closure(
                         ),
                     )
             if (
+                lifecycle.same_suit_joins_broken
+                and progress is not None
+                and progress.target_relevant
+                and lifecycle.exit_route_bounded
+                and lifecycle.compensating_benefit is None
+            ):
+                saving = (
+                    lifecycle.estimated_rehandling_cost
+                    + 1.0
+                    + max(0, progress.source_depth_before - progress.source_depth_after)
+                    + int(progress.source_exposed or progress.source_actionable)
+                )
+                lifecycle = replace(
+                    lifecycle,
+                    compensating_benefit=BoundedCompensatingBenefit(
+                        saving,
+                        progress.rationale,
+                        f"bounded stable-structure compensation for {target_dependency_id}",
+                    ),
+                )
+            if (
                 config.require_bounded_park_exit
                 and lifecycle.placement_class in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK)
                 and not lifecycle.exit_route_bounded
@@ -1116,6 +1479,7 @@ def realize_campaign_dependency_closure(
                 continue
             ng = g + paid
             if ng > config.max_added_cost:
+                cost_limited = True
                 record_audit(ClosureCandidateAudit(
                     action, ClosureCandidateStage.ADMISSION,
                     ClosureCandidateDisposition.REJECTED, target_dependency_id or "",
@@ -1141,9 +1505,6 @@ def realize_campaign_dependency_closure(
                 ))
                 continue
             best_cost[child_key] = ng
-            child_priority = ranked_priority(
-                child, child_assessment, progress, ng, len(actions) + 1
-            )
             step = DependencyClosureStep(
                 action, paid, targeted_tuple,
                 f"fresh target progress: {progress.rationale if progress else targeted_tuple}",
@@ -1151,8 +1512,13 @@ def realize_campaign_dependency_closure(
                 len(assessment.graph.mixed_overlays), len(child_assessment.graph.mixed_overlays),
                 False, progress,
             )
+            child_steps = steps + (step,)
+            child_priority = ranked_priority(
+                child, child_assessment, progress, ng, len(actions) + 1,
+                child_steps,
+            )
             children.append(_ClosureChild(
-                child_priority, action, child, ng, actions + (action,), steps + (step,),
+                child_priority, action, child, ng, actions + (action,), child_steps,
                 tuple(child_supplies), child_assessment, progress, lifecycle,
             ))
             record_audit(ClosureCandidateAudit(
@@ -1174,6 +1540,12 @@ def realize_campaign_dependency_closure(
         )
         retained_ids = {id(item) for item in retained}
         discarded = tuple(item for item in ordered if id(item) not in retained_ids)
+        if (
+            actions
+            and current_endpoint.completion_class == ClosureCompletionClass.DEPENDENCY_ADVANCED
+            and any(item.progress and item.progress.target_relevant for item in retained)
+        ):
+            advanced_states_continued += 1
         if len(beam_audits) < 512:
             beam_audits.append(ClosureBeamDepthAudit(
                 len(actions), len(children), replay_valid_count,
@@ -1225,6 +1597,34 @@ def realize_campaign_dependency_closure(
     ))
     supply_before = sum(item.consumed_count for item in supply_consumptions)
     supply_after = sum(item.consumed_count for item in supplies)
+    endpoint = assess_closure_endpoint(
+        state,
+        end_state,
+        campaign,
+        start_graph,
+        end_assessment.graph,
+        target_dependency_id,
+        steps,
+    )
+    envelope_limited = resource_limited or cost_limited
+    if (
+        endpoint.completion_class == ClosureCompletionClass.NO_TARGET_PROGRESS
+        and source_card is not None
+        and not legal_target_actions
+    ):
+        endpoint = replace(
+            endpoint,
+            completion_class=ClosureCompletionClass.STRUCTURAL_BLOCKER,
+        )
+    elif (
+        endpoint.completion_class == ClosureCompletionClass.NO_TARGET_PROGRESS
+        and envelope_limited
+        and (frontier or cost_limited)
+    ):
+        endpoint = replace(
+            endpoint,
+            completion_class=ClosureCompletionClass.RESOURCE_BOUND,
+        )
     replay = state.clone()
     try:
         replay_cost = replay_actions(replay, list(actions))
@@ -1234,31 +1634,54 @@ def realize_campaign_dependency_closure(
 
     if len(end_state.foundations) > start_foundations:
         status, reason = DependencyClosureStatus.FOUNDATION_REMOVED, "campaign-directed closure removed the next foundation"
-    elif supply_after > supply_before:
+    elif endpoint.requested_dependency_completed and supply_after > supply_before:
         status, reason = DependencyClosureStatus.SUPPLY_CONSUMED, "a delivered campaign supply obligation was actually consumed"
-    elif closed:
-        status, reason = DependencyClosureStatus.DEPENDENCY_CLOSED, "one or more named campaign dependencies were closed"
-    elif overlays_cleared or end_assessment.movable_same_suit_coverage > initial_assessment.movable_same_suit_coverage:
-        status, reason = DependencyClosureStatus.MILESTONE_REACHED, "named overlay/interval structure materially advanced"
-    elif resource_limited:
+    elif endpoint.requested_dependency_completed:
+        status, reason = (
+            DependencyClosureStatus.DEPENDENCY_CLOSED,
+            "the specifically requested campaign dependency was completed",
+        )
+    elif endpoint.completion_class == ClosureCompletionClass.DEPENDENCY_ADVANCED:
+        status, reason = (
+            DependencyClosureStatus.DEPENDENCY_ADVANCED
+            if explicit_target_requested
+            else DependencyClosureStatus.MILESTONE_REACHED,
+            "the requested dependency remains open; returning the best bounded advanced fallback",
+        )
+    elif envelope_limited:
         status, reason = DependencyClosureStatus.RESOURCE_LIMIT, "bounded dependency closure exhausted its unchanged node/time/deadline envelope"
     else:
         status, reason = _failure_status(start_graph), "no campaign-attributable progress was found within the fixed bound"
-    successful = status in {
+    replay_edge = status in {
         DependencyClosureStatus.FOUNDATION_REMOVED,
         DependencyClosureStatus.DEPENDENCY_CLOSED,
+        DependencyClosureStatus.DEPENDENCY_ADVANCED,
         DependencyClosureStatus.SUPPLY_CONSUMED,
         DependencyClosureStatus.MILESTONE_REACHED,
     }
-    if successful and (not actions or not verified):
+    if replay_edge and (not actions or not verified):
         status = DependencyClosureStatus.NO_PROGRESS_WITHIN_BOUND
         reason = "candidate progress did not produce a non-empty independently replayed edge"
         actions, cost, end_state, end_assessment = (), 0, state.clone(), initial_assessment
         closed, overlays_cleared, steps, supplies, verified = (), (), (), tuple(supply_consumptions), True
-        successful = False
+        endpoint = assess_closure_endpoint(
+            state,
+            end_state,
+            campaign,
+            start_graph,
+            initial_assessment.graph,
+            target_dependency_id,
+            (),
+        )
+        replay_edge = False
 
-    diagnosis = ClosureFailureDiagnosis.NONE if successful else (
-        ClosureFailureDiagnosis.RESOURCE_BOUND if resource_limited and legal_target_actions
+    completed = status in {
+        DependencyClosureStatus.FOUNDATION_REMOVED,
+        DependencyClosureStatus.DEPENDENCY_CLOSED,
+        DependencyClosureStatus.SUPPLY_CONSUMED,
+    }
+    diagnosis = ClosureFailureDiagnosis.NONE if completed else (
+        ClosureFailureDiagnosis.RESOURCE_BOUND if envelope_limited and (legal_target_actions or frontier or cost_limited)
         else ClosureFailureDiagnosis.STRUCTURAL_BLOCKER if source_card is not None and not legal_target_actions
         else ClosureFailureDiagnosis.SEARCH_POLICY if any(
             audit.target_relevant and audit.rejection_reason not in {
@@ -1282,14 +1705,16 @@ def realize_campaign_dependency_closure(
             tuple(audits), tuple(beam_audits), tuple(sorted(generated_actions)),
             tuple(sorted(legal_target_actions)), missing,
             sum(bool(step.progress_evidence and step.progress_evidence.source_copy_substituted) for step in steps),
-            sum(bool(step.progress_evidence and step.progress_evidence.source_exposed) for step in steps),
-            target_dependency_id in closed, diagnosis, status.value,
+            int(endpoint.source_exposed),
+            endpoint.source_consumed, diagnosis, status.value,
         ),)
     result = DependencyClosureResult(
         status, campaign.label, actions, cost if verified else None, end_state.clone(),
         start_graph, end_assessment.graph, closed, overlays_cleared, steps,
         tuple(supplies), nodes, time.perf_counter() - started, verified, reason,
         False, target_dependency_id, traces, diagnosis,
+        endpoint.completion_class, endpoint, advanced_states_continued,
+        endpoint.completion_class == ClosureCompletionClass.DEPENDENCY_ADVANCED,
     )
     if cache is not None:
         cache[key] = result

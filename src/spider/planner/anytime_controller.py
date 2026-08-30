@@ -49,6 +49,7 @@ from spider.planner.campaign_dependency_closure import (
     CampaignCriticalPathSummary,
     CampaignDependencyGraph,
     CampaignDependencyType,
+    ClosureCompletionClass,
     DependencyClosureCache,
     DependencyClosureConfig,
     DependencyClosureResult,
@@ -959,6 +960,29 @@ class ControllerTelemetry:
     closure_stable_runs_restored: int = 0
     closure_lifecycle_debt: float = 0.0
     closure_failure_diagnoses: Dict[str, int] = field(default_factory=dict)
+    closure_targeted_calls: int = 0
+    closure_completion_classes: Dict[str, int] = field(default_factory=dict)
+    closure_dependency_completed: int = 0
+    closure_source_exposed: int = 0
+    closure_dependency_advanced: int = 0
+    closure_resource_bound: int = 0
+    closure_structural_blocker: int = 0
+    closure_search_policy: int = 0
+    closure_invalidated: int = 0
+    closure_advanced_states_continued: int = 0
+    closure_advanced_fallbacks: int = 0
+    closure_advanced_persisted_across_expansions: int = 0
+    closure_persisted_targets_completed: int = 0
+    closure_primitives_total: int = 0
+    closure_max_primitive_sequence: int = 0
+    closure_receiver_blocker_exposure_chains: int = 0
+    closure_workspace_blocker_exposure_chains: int = 0
+    closure_park_blocker_exposure_chains: int = 0
+    closure_stable_joins_restored_or_replaced: int = 0
+    closure_midpoint_rehandling_debt: float = 0.0
+    closure_final_rehandling_debt: float = 0.0
+    closure_projected_compensation_accepted: int = 0
+    closure_projected_compensation_rejected: int = 0
     same_suit_construction_opportunities: int = 0
     two_card_construction_joins: int = 0
     larger_construction_merges: int = 0
@@ -3141,6 +3165,108 @@ def _dependency_closure_successors(
     telemetry.dependency_closure_nodes += result.nodes_expanded
     telemetry.tactical_nodes += result.nodes_expanded
     telemetry.dependency_graphs_built += 2
+    telemetry.closure_targeted_calls += int(result.target_dependency_id is not None)
+    completion_name = result.completion_class.value
+    telemetry.closure_completion_classes[completion_name] = (
+        telemetry.closure_completion_classes.get(completion_name, 0) + 1
+    )
+    telemetry.closure_dependency_completed += int(
+        result.completion_class == ClosureCompletionClass.DEPENDENCY_COMPLETED
+    )
+    telemetry.closure_source_exposed += int(
+        result.completion_class == ClosureCompletionClass.SOURCE_EXPOSED
+    )
+    telemetry.closure_dependency_advanced += int(
+        result.completion_class == ClosureCompletionClass.DEPENDENCY_ADVANCED
+    )
+    telemetry.closure_resource_bound += int(
+        result.completion_class == ClosureCompletionClass.RESOURCE_BOUND
+        or result.failure_diagnosis.value == "RESOURCE_BOUND"
+    )
+    telemetry.closure_structural_blocker += int(
+        result.completion_class == ClosureCompletionClass.STRUCTURAL_BLOCKER
+        or result.failure_diagnosis.value == "STRUCTURAL_BLOCKER"
+    )
+    telemetry.closure_search_policy += int(result.failure_diagnosis.value == "SEARCH_POLICY")
+    telemetry.closure_invalidated += int(
+        result.completion_class == ClosureCompletionClass.TARGET_INVALIDATED
+    )
+    telemetry.closure_advanced_states_continued += result.advanced_states_continued
+    telemetry.closure_advanced_fallbacks += int(result.advanced_fallback_returned)
+    primitive_count = len(result.steps)
+    telemetry.closure_primitives_total += primitive_count
+    telemetry.closure_max_primitive_sequence = max(
+        telemetry.closure_max_primitive_sequence, primitive_count
+    )
+    prior_advanced = next(
+        (
+            prior
+            for prior in reversed(node.dependency_closure_history)
+            if prior.target_dependency_id == result.target_dependency_id
+            and prior.completion_class == ClosureCompletionClass.DEPENDENCY_ADVANCED
+        ),
+        None,
+    )
+    if prior_advanced is not None:
+        telemetry.closure_advanced_persisted_across_expansions += 1
+        telemetry.closure_persisted_targets_completed += int(
+            result.completion_class
+            in (
+                ClosureCompletionClass.DEPENDENCY_COMPLETED,
+                ClosureCompletionClass.SOURCE_EXPOSED,
+            )
+        )
+    endpoint = result.endpoint_assessment
+    if endpoint is not None:
+        lifecycle_summary = endpoint.lifecycle
+        telemetry.closure_stable_joins_restored_or_replaced += (
+            lifecycle_summary.stable_joins_restored_or_replaced
+        )
+        telemetry.closure_midpoint_rehandling_debt += (
+            lifecycle_summary.midpoint_rehandling_debt
+        )
+        telemetry.closure_final_rehandling_debt += lifecycle_summary.final_rehandling_debt
+        telemetry.closure_projected_compensation_accepted += (
+            lifecycle_summary.projected_compensation_accepted
+        )
+        telemetry.closure_projected_compensation_rejected += (
+            lifecycle_summary.projected_compensation_rejected
+        )
+        exposed = endpoint.source_exposed
+        blocker_progress = any(
+            step.progress_evidence is not None
+            and step.progress_evidence.source_depth_after
+            < step.progress_evidence.source_depth_before
+            for step in result.steps
+        )
+        telemetry.closure_receiver_blocker_exposure_chains += int(
+            exposed
+            and blocker_progress
+            and any(
+                step.progress_evidence is not None
+                and step.progress_evidence.receiver_created
+                for step in result.steps
+            )
+        )
+        telemetry.closure_workspace_blocker_exposure_chains += int(
+            exposed
+            and blocker_progress
+            and any(
+                step.progress_evidence is not None
+                and step.progress_evidence.workspace_created
+                for step in result.steps
+            )
+        )
+        telemetry.closure_park_blocker_exposure_chains += int(
+            exposed
+            and blocker_progress
+            and any(
+                step.lifecycle is not None
+                and step.lifecycle.placement_class
+                in (PlacementClass.MIXED_SUIT_PARK, PlacementClass.WORKSPACE_PARK)
+                for step in result.steps
+            )
+        )
     critical_path = build_campaign_critical_path(result.graph_before)
     telemetry.critical_paths_built += 1
     for dependency in result.graph_before.dependencies:
@@ -3205,8 +3331,11 @@ def _dependency_closure_successors(
                 is_park and lifecycle.exit_route_bounded
             )
             telemetry.closure_stable_runs_broken += len(lifecycle.same_suit_joins_broken)
-            telemetry.closure_stable_runs_restored += len(lifecycle.same_suit_joins_created)
             telemetry.closure_lifecycle_debt += lifecycle.estimated_rehandling_cost
+    if endpoint is not None:
+        telemetry.closure_stable_runs_restored += (
+            endpoint.lifecycle.stable_joins_restored_or_replaced
+        )
     if critical_path.entries:
         maximum_unlock = max(
             item.downstream_dependencies_unlocked for item in critical_path.entries
@@ -3256,6 +3385,7 @@ def _dependency_closure_successors(
     successful = result.status in (
         DependencyClosureStatus.FOUNDATION_REMOVED,
         DependencyClosureStatus.DEPENDENCY_CLOSED,
+        DependencyClosureStatus.DEPENDENCY_ADVANCED,
         DependencyClosureStatus.SUPPLY_CONSUMED,
         DependencyClosureStatus.MILESTONE_REACHED,
     )
@@ -3614,6 +3744,7 @@ def _foundation_successors(
             in (
                 DependencyClosureStatus.FOUNDATION_REMOVED,
                 DependencyClosureStatus.DEPENDENCY_CLOSED,
+                DependencyClosureStatus.DEPENDENCY_ADVANCED,
                 DependencyClosureStatus.SUPPLY_CONSUMED,
                 DependencyClosureStatus.MILESTONE_REACHED,
             )
@@ -4418,10 +4549,10 @@ def _milestone_conversion_successors(
         workspace_created = False
         workspace_used = False
         workspace_recovered = False
+        closure_result = chosen.dependency_closure_result
         if current.kind == StrategicMilestoneKind.WORKSPACE_LIFECYCLE:
             before_empty = sum(column.is_empty() for column in state.columns)
             after_empty = sum(column.is_empty() for column in chosen.end_state.columns)
-            closure_result = chosen.dependency_closure_result
             closed_workspace = bool(
                 closure_result is not None
                 and any(
@@ -4456,6 +4587,47 @@ def _milestone_conversion_successors(
             workspace_created=workspace_created,
             workspace_used=workspace_used,
             workspace_recovered_or_replaced=workspace_recovered,
+            target_dependency_id=(
+                closure_result.target_dependency_id if closure_result is not None else None
+            ),
+            semantic_target_id=(
+                closure_result.buried_source_traces[0].semantic_target_id
+                if closure_result is not None and closure_result.buried_source_traces
+                else current.target_identity.fingerprint
+                if current.target_identity is not None
+                else None
+            ),
+            closure_completion_class=(
+                closure_result.completion_class.value
+                if closure_result is not None
+                else None
+            ),
+            closure_requested_dependency_completed=bool(
+                closure_result is not None
+                and closure_result.endpoint_assessment is not None
+                and closure_result.endpoint_assessment.requested_dependency_completed
+            ),
+            closure_advanced_fallback=bool(
+                closure_result is not None and closure_result.advanced_fallback_returned
+            ),
+            closure_source_depth_before=(
+                closure_result.endpoint_assessment.source_depth_before
+                if closure_result is not None and closure_result.endpoint_assessment is not None
+                else None
+            ),
+            closure_source_depth_after=(
+                closure_result.endpoint_assessment.source_depth_after
+                if closure_result is not None and closure_result.endpoint_assessment is not None
+                else None
+            ),
+            closure_primitive_count=(
+                len(closure_result.steps) if closure_result is not None else 0
+            ),
+            restore_replace_obligation=(
+                closure_result.endpoint_assessment.lifecycle.restore_replace_obligation
+                if closure_result is not None and closure_result.endpoint_assessment is not None
+                else None
+            ),
         )
 
     result = realize_milestone(
@@ -4476,6 +4648,12 @@ def _milestone_conversion_successors(
     telemetry.milestone_conversion_seconds += result.elapsed_seconds
     telemetry.milestone_conversion_nodes += result.tactical_nodes
     telemetry.milestone_primitive_steps += result.primitive_steps
+    telemetry.closure_advanced_persisted_across_expansions += (
+        result.same_target_continuations
+    )
+    telemetry.closure_persisted_targets_completed += int(
+        result.persisted_target_completed
+    )
     if result.outcome_kind == MilestoneOutcomeKind.PRIMITIVE_RESULT:
         telemetry.primitive_results += 1
     elif result.outcome_kind == MilestoneOutcomeKind.TRANSITION_CHECKPOINT:

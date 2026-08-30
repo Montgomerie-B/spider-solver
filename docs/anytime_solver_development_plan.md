@@ -624,6 +624,47 @@ closure/construction work into a continuous interval-building milestone and
 terminal qualification, without restoring expensive whole-campaign setup or
 increasing any budget. See `docs/anytime_whole_game_controller_v0_8.md`.
 
+### Verified v0.12 status
+
+Controller v0.12 distinguishes completion of the specifically requested
+dependency from useful advancement. A buried source is completed immediately
+when fresh physical analysis exposes it, including the case where the same
+semantic dependency ID survives as `SOURCE_EXPOSED_BUT_BLOCKED`. Advanced
+receiver, workspace, park, depth, stable-rearrangement and copy-substitution
+states continue inside the unchanged closure envelope; the best replay-valid
+advanced endpoint survives as fallback when that envelope ends.
+
+Cumulative completion-first endpoint ordering, explicit midpoint/final
+lifecycle debt, restore/replace obligations, and outer milestone continuation
+metadata are ordering and diagnostics only. Exact TT, admissible bounds,
+Unrestricted Deal ON, raw/Deal/construction coverage, and all controller,
+closure, beam, milestone and allocator limits are unchanged.
+
+All generic capability Gates A-J pass. The focused v0.12 suite adds 73 passing
+cases, and the combined v0.7-v0.12 controller cohort passes 366 tests. Two
+unseen deterministic four-suit smokes retained legal replay; one naturally
+exposed a named source in a three-primitive local chain.
+
+The natural cost-21 Gate K used the exact 90-second/25-expansion/300,000-node/
+frontier-256 envelope and stopped at the expansion ceiling after 22.970
+seconds. Its replay-valid five-action, added-`g=5` suffix retained F1, stock 30
+and 32 face-down cards. Across 38 targeted calls it recorded 35 advanced
+fallbacks, two completed dependencies, 35 inside-call continuations and 11
+outer-boundary persisted targets. It nevertheless converted three natural
+source-depth reductions into zero source exposures/consumptions, zero
+substantial source-chain completions, zero terminal qualifications and no F2.
+Gate L was not authorized. The verified hard-gate verdict is FAIL.
+
+The definitive complete repository suite passed 1,179 ordinary tests with the
+same 37 historical expected-invalid xfails and one inherited warning in
+1,137.10 seconds.
+
+The remaining blocker is natural target completion after persistence, not
+generic completion detection. A later explicitly authorized task should audit
+the exact next-candidate sets for the 11 persisted targets, especially after
+bounded parks and stable breaks, without increasing resources or starting a
+global scheduler. See `docs/anytime_whole_game_controller_v0_12.md`.
+
 ### Verified v0.11 status
 
 Controller v0.11 adds a bounded, typed autopsy for the existing named
