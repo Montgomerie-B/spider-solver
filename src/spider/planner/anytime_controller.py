@@ -229,6 +229,18 @@ from spider.planner.target_grant_lineage import (
     new_target_lineage_entry,
     record_target_grant,
     record_target_outcome,
+    record_lineage_source_completion,
+)
+from spider.planner.source_completion import (
+    SourceCompletionDisposition,
+    SourceCompletionLedger,
+    SourceCompletionLossReason,
+    SourceCompletionPropagationTrace,
+    SourceCompletionStage,
+    SourceExpiryClassification,
+    SourceRequirementSatisfactionState,
+    classify_completion_loss,
+    classify_source_expiry,
 )
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.state_identity import (
@@ -699,6 +711,7 @@ class StrategicSuccessor:
     persistent_target: Optional[StrategicMilestone] = None
     target_grant_entry: Optional[TargetGrantLineageEntry] = None
     target_boundary_trace: Optional[TargetBoundaryTrace] = None
+    source_completion_traces: Tuple[SourceCompletionPropagationTrace, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -734,6 +747,9 @@ class StrategicSearchNode:
     active_residual_target: Optional[ResidualMilestoneTarget] = None
     post_deal_obligations: Tuple[PostDealMilestoneObligation, ...] = ()
     target_grant_lineage: TargetGrantLineage = field(default_factory=TargetGrantLineage)
+    source_completion_ledger: SourceCompletionLedger = field(
+        default_factory=SourceCompletionLedger
+    )
 
 
 @dataclass(frozen=True)
@@ -1117,6 +1133,25 @@ class ControllerTelemetry:
     advanced_descendants_trimmed: int = 0
     same_target_reserved_representatives: int = 0
     mature_targets_lost_to_lower_g: int = 0
+    source_trace_completions: int = 0
+    source_successors_created: int = 0
+    source_controller_admitted_completions: int = 0
+    source_fresh_residual_preserved: int = 0
+    source_lineage_preserved: int = 0
+    source_selected_path_completions: int = 0
+    source_completion_consumptions: int = 0
+    source_completion_integrations: int = 0
+    source_residual_reopenings: int = 0
+    source_copy_reassignments: int = 0
+    source_completion_loss_classifications: Dict[str, int] = field(default_factory=dict)
+    source_expiry_classifications: Dict[str, int] = field(default_factory=dict)
+    source_requirement_expiry_classifications: Dict[str, int] = field(default_factory=dict)
+    source_expiry_rows: List[Tuple[str, SourceExpiryClassification]] = field(default_factory=list)
+    source_completion_by_suit: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    source_completion_traces: List[SourceCompletionPropagationTrace] = field(default_factory=list)
+    source_completion_reanalyses: int = 0
+    source_completion_propagation_seconds: float = 0.0
+    source_expiry_audit_seconds: float = 0.0
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -1154,6 +1189,9 @@ class AnytimeSearchResult:
         default_factory=MilestoneConversionLedger
     )
     target_grant_lineage: TargetGrantLineage = field(default_factory=TargetGrantLineage)
+    source_completion_ledger: SourceCompletionLedger = field(
+        default_factory=SourceCompletionLedger
+    )
 
 
 class StrategicTranspositionTable:
@@ -2844,6 +2882,12 @@ def _target_lineage_after_closure(
             or residual is not None and residual.status == ResidualTargetStatus.COMPLETE
         ),
     )
+    if result.source_completion_events:
+        updated = record_lineage_source_completion(
+            updated,
+            result.source_completion_events,
+            tuple(item.satisfaction for item in result.source_completion_events),
+        )
     candidate_classes = tuple(
         item.blocker.value for item in residual.candidates
     ) if residual is not None else ()
@@ -2947,6 +2991,41 @@ def _publish_target_boundary_telemetry(
     telemetry.target_tier_resets += int(decision.status.value in {"RESET", "INVALIDATED"})
     telemetry.target_tier_demotions += int(decision.status.value == "DEMOTED")
     telemetry.target_tier_expirations += int(decision.status.value == "EXPIRED")
+    if decision.status.value == "EXPIRED":
+        audit_started = time.perf_counter()
+        expiry_id = (
+            f"{entry.lineage_id}:{entry.generation}:{trace.state_after_hash}:"
+            f"{len(telemetry.source_expiry_rows) + 1}"
+        )
+        attribution_lost = any(
+            item.reopening_reason is not None
+            for item in entry.source_satisfactions
+        )
+        classification = classify_source_expiry(
+            completed_before_expiry=any(
+                item.satisfied for item in entry.source_satisfactions
+            ),
+            made_progress=entry.evidence.has_portable_harvest,
+            resource_limited=entry.evidence.has_portable_harvest,
+            target_turnover=bool(
+                entry.previous_blocker_kind
+                and entry.current_blocker_kind
+                and entry.previous_blocker_kind != entry.current_blocker_kind
+                and not entry.evidence.has_portable_harvest
+            ),
+            attribution_lost=attribution_lost,
+            lifecycle_terminated=bool(
+                entry.restore_replace_obligation
+                and not entry.evidence.compensation_credible
+            ),
+            superseded=entry.status.value == "SUPERSEDED",
+        )
+        telemetry.source_expiry_rows.append((expiry_id, classification))
+        name = classification.value
+        telemetry.source_expiry_classifications[name] = (
+            telemetry.source_expiry_classifications.get(name, 0) + 1
+        )
+        telemetry.source_expiry_audit_seconds += time.perf_counter() - audit_started
     if trace.previous_tier is not None:
         name = trace.previous_tier.name
         telemetry.target_grants_before_by_tier[name] = (
@@ -3738,6 +3817,25 @@ def _dependency_closure_successors(
         lineage_decision,
         result,
     )
+    source_completion_traces = []
+    for event in result.source_completion_events:
+        trace = SourceCompletionPropagationTrace(event).advance(
+            SourceCompletionStage.CONTROLLER_SUCCESSOR_CREATED,
+            detail="replay-valid strategic successor carries the typed source event",
+        )
+        if (
+            target_grant_entry is not None
+            and event.event_id in target_grant_entry.source_completion_event_ids
+        ):
+            trace = trace.advance(
+                SourceCompletionStage.LINEAGE_PRESERVED,
+                disposition=SourceCompletionDisposition.PRESERVED,
+                detail="target lineage preserves the completed scoped source requirement",
+            )
+        source_completion_traces.append(trace)
+        _record_source_completion_trace(
+            telemetry, trace, config.max_timeline_entries
+        )
     _publish_target_boundary_telemetry(
         telemetry,
         target_grant_entry,
@@ -3876,6 +3974,7 @@ def _dependency_closure_successors(
             continuation_credit=continuation,
             target_grant_entry=target_grant_entry,
             target_boundary_trace=target_boundary_trace,
+            source_completion_traces=tuple(source_completion_traces),
         )
     ], result
 
@@ -4716,6 +4815,7 @@ def _residual_target_for_milestone(
     analysis: StrategicAnalysisSnapshot,
     milestone: StrategicMilestone,
     config: AnytimeControllerConfig,
+    source_satisfactions=(),
 ) -> ResidualMilestoneTarget:
     graph = next(
         (
@@ -4745,6 +4845,7 @@ def _residual_target_for_milestone(
         construction=analysis.construction,
         availability=availability,
         terminal_qualified=bool(path and path.terminal_qualified),
+        prior_source_satisfactions=source_satisfactions,
     )
 
 
@@ -4800,7 +4901,11 @@ def _milestone_conversion_successors(
     ):
         return []
     initial_residual = node.active_residual_target or _residual_target_for_milestone(
-        node.state, node.analysis, active, config
+        node.state,
+        node.analysis,
+        active,
+        config,
+        node.source_completion_ledger.satisfactions,
     )
     if (
         active.status == StrategicMilestoneStatus.BLOCKED_CURRENT_EPOCH
@@ -4824,9 +4929,10 @@ def _milestone_conversion_successors(
     latest_residual = replace(initial_residual, milestone=active)
     latest_target_grant_entry: Optional[TargetGrantLineageEntry] = None
     latest_target_boundary_trace: Optional[TargetBoundaryTrace] = None
+    latest_source_satisfactions = list(node.source_completion_ledger.satisfactions)
 
     def analyze_fresh(state: SpiderState, prior: StrategicMilestone) -> FreshMilestoneAssessment:
-        nonlocal latest_analysis, latest_residual
+        nonlocal latest_analysis, latest_residual, latest_source_satisfactions
         try:
             latest_analysis = analyze_strategic_state(
                 state,
@@ -4852,7 +4958,15 @@ def _milestone_conversion_successors(
         telemetry.stage1_analyses += 1
         prior_residual = latest_residual
         latest_residual = _residual_target_for_milestone(
-            state, latest_analysis, prior, config
+            state,
+            latest_analysis,
+            prior,
+            config,
+            latest_source_satisfactions,
+        )
+        latest_source_satisfactions = list(latest_residual.source_satisfactions)
+        telemetry.source_completion_reanalyses += int(
+            bool(latest_source_satisfactions)
         )
         telemetry.residual_targets_rebuilt += 1
         progress = latest_residual.progress
@@ -4897,6 +5011,7 @@ def _milestone_conversion_successors(
         seconds_left: float,
     ) -> Optional[MilestonePrimitiveStep]:
         nonlocal latest_target_grant_entry, latest_target_boundary_trace
+        nonlocal latest_source_satisfactions
         temporary = replace(
             node,
             state=state.clone(),
@@ -4909,7 +5024,11 @@ def _milestone_conversion_successors(
         )
         candidates: List[StrategicSuccessor] = []
         residual = _residual_target_for_milestone(
-            state, latest_analysis, current, config
+            state,
+            latest_analysis,
+            current,
+            config,
+            latest_source_satisfactions,
         )
         candidate = residual.next_candidate
         if candidate is not None and candidate.demand.realizer == TacticalRealizerKind.RUN_CONSTRUCTION:
@@ -4973,6 +5092,16 @@ def _milestone_conversion_successors(
         if chosen.target_grant_entry is not None:
             latest_target_grant_entry = chosen.target_grant_entry
             latest_target_boundary_trace = chosen.target_boundary_trace
+        if chosen.source_completion_traces:
+            merged = {
+                item.requirement.identity_key: item
+                for item in latest_source_satisfactions
+            }
+            for trace in chosen.source_completion_traces:
+                merged[trace.event.satisfaction.requirement.identity_key] = (
+                    trace.event.satisfaction
+                )
+            latest_source_satisfactions = list(merged.values())
         workspace_created = False
         workspace_used = False
         workspace_recovered = False
@@ -5055,6 +5184,10 @@ def _milestone_conversion_successors(
                 if closure_result is not None and closure_result.endpoint_assessment is not None
                 else None
             ),
+            source_completion_events=tuple(
+                trace.event for trace in chosen.source_completion_traces
+            ),
+            source_completion_traces=chosen.source_completion_traces,
         )
 
     result = realize_milestone(
@@ -5125,6 +5258,10 @@ def _milestone_conversion_successors(
             if substantial_field is not None:
                 setattr(telemetry, substantial_field, getattr(telemetry, substantial_field) + 1)
     telemetry.blocker_type_transitions += len(result.blocker_transitions)
+    for trace in result.source_completion_traces:
+        _record_source_completion_trace(
+            telemetry, trace, config.max_timeline_entries
+        )
     _append_bounded(
         telemetry.milestone_timeline,
         (
@@ -5163,6 +5300,7 @@ def _milestone_conversion_successors(
             residual_target=latest_residual,
             target_grant_entry=latest_target_grant_entry,
             target_boundary_trace=latest_target_boundary_trace,
+            source_completion_traces=result.source_completion_traces,
         )
     ]
 
@@ -5543,7 +5681,11 @@ def generate_strategic_successors(
             )
         parent_residual = (
             _residual_target_for_milestone(
-                node.state, analysis, persistent_target, config
+                node.state,
+                analysis,
+                persistent_target,
+                config,
+                node.source_completion_ledger.satisfactions,
             )
             if persistent_target is not None
             else None
@@ -6104,6 +6246,122 @@ def _append_bounded(items: List, value, maximum: int) -> None:
         items.append(value)
 
 
+def _record_source_completion_trace(
+    telemetry: ControllerTelemetry,
+    trace: SourceCompletionPropagationTrace,
+    maximum: int,
+) -> None:
+    """Record each event/stage once even when the exact state is reanalysed."""
+
+    propagation_started = time.perf_counter()
+    existing_index = next(
+        (
+            index
+            for index, item in enumerate(telemetry.source_completion_traces)
+            if item.event.event_id == trace.event.event_id
+        ),
+        None,
+    )
+    previous = (
+        telemetry.source_completion_traces[existing_index]
+        if existing_index is not None
+        else None
+    )
+    effective_loss = trace.loss_reason
+    if (
+        effective_loss == SourceCompletionLossReason.STRATEGIC_ADMISSION_LOSS
+        and previous is not None
+        and previous.controller_admitted
+    ):
+        effective_loss = None
+    admission_recovered = bool(
+        previous is not None
+        and previous.loss_reason == SourceCompletionLossReason.STRATEGIC_ADMISSION_LOSS
+        and trace.controller_admitted
+    )
+    if admission_recovered:
+        name = SourceCompletionLossReason.STRATEGIC_ADMISSION_LOSS.value
+        remaining = telemetry.source_completion_loss_classifications.get(name, 0) - 1
+        if remaining > 0:
+            telemetry.source_completion_loss_classifications[name] = remaining
+        else:
+            telemetry.source_completion_loss_classifications.pop(name, None)
+    old_stages = set(previous.stages if previous is not None else ())
+    new_stages = set(trace.stages) - old_stages
+    counters = {
+        SourceCompletionStage.TRACE_COMPLETED: "source_trace_completions",
+        SourceCompletionStage.CONTROLLER_SUCCESSOR_CREATED: "source_successors_created",
+        SourceCompletionStage.CONTROLLER_ADMITTED_COMPLETION: "source_controller_admitted_completions",
+        SourceCompletionStage.FRESH_RESIDUAL_PRESERVED: "source_fresh_residual_preserved",
+        SourceCompletionStage.LINEAGE_PRESERVED: "source_lineage_preserved",
+        SourceCompletionStage.SELECTED_PATH_COMPLETION: "source_selected_path_completions",
+        SourceCompletionStage.SOURCE_CONSUMED: "source_completion_consumptions",
+        SourceCompletionStage.SOURCE_INTEGRATED: "source_completion_integrations",
+    }
+    suit_row = telemetry.source_completion_by_suit.setdefault(
+        trace.event.physical_source.suit, {}
+    )
+    for stage in new_stages:
+        field_name = counters[stage]
+        setattr(telemetry, field_name, getattr(telemetry, field_name) + 1)
+        suit_row[stage.value] = suit_row.get(stage.value, 0) + 1
+    if trace.copy_reassigned and not bool(previous and previous.copy_reassigned):
+        telemetry.source_copy_reassignments += 1
+    if trace.reopening_reason is not None and not bool(
+        previous and previous.reopening_reason is not None
+    ):
+        telemetry.source_residual_reopenings += 1
+    if effective_loss is not None and not bool(
+        previous and previous.loss_reason == effective_loss
+    ):
+        name = effective_loss.value
+        telemetry.source_completion_loss_classifications[name] = (
+            telemetry.source_completion_loss_classifications.get(name, 0) + 1
+        )
+    if previous is not None:
+        merged_stages = previous.stages + tuple(
+            item for item in trace.stages if item not in old_stages
+        )
+        merged = replace(
+            trace,
+            stages=merged_stages,
+            disposition=(
+                previous.disposition
+                if not new_stages
+                and effective_loss is None
+                and trace.reopening_reason is None
+                else trace.disposition
+            ),
+            successor_created=(previous.successor_created or trace.successor_created),
+            controller_admitted=(previous.controller_admitted or trace.controller_admitted),
+            residual_preserved=(previous.residual_preserved or trace.residual_preserved),
+            lineage_preserved=(previous.lineage_preserved or trace.lineage_preserved),
+            selected_path=(previous.selected_path or trace.selected_path),
+            copy_reassigned=(previous.copy_reassigned or trace.copy_reassigned),
+            later_consumed=(previous.later_consumed or trace.later_consumed),
+            later_integrated=(previous.later_integrated or trace.later_integrated),
+            loss_reason=(
+                None
+                if admission_recovered
+                else effective_loss or previous.loss_reason
+            ),
+            reopening_reason=(trace.reopening_reason or previous.reopening_reason),
+            detail=(
+                trace.detail
+                if new_stages
+                or effective_loss is not None
+                or trace.reopening_reason is not None
+                else previous.detail
+            ),
+        )
+        telemetry.source_completion_traces[existing_index] = merged
+    else:
+        _append_bounded(telemetry.source_completion_traces, trace, maximum)
+    telemetry.source_completion_propagation_seconds += (
+        time.perf_counter() - propagation_started
+    )
+
+
 def _trim_frontier_with_checkpoint_diversity(
     frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
     *,
@@ -6531,7 +6789,11 @@ def _refresh_active_milestone(
     if active is None or node.analysis is None or not config.enable_strategic_milestones:
         return node
     residual = _residual_target_for_milestone(
-        node.state, node.analysis, active, config
+        node.state,
+        node.analysis,
+        active,
+        config,
+        node.source_completion_ledger.satisfactions,
     )
     telemetry.residual_targets_rebuilt += 1
     if node.active_residual_target is not None:
@@ -6568,6 +6830,101 @@ def _refresh_active_milestone(
         progress=residual.progress,
         status=status,
     )
+    satisfaction_by_id = {
+        item.requirement.requirement_id: item
+        for item in residual.source_satisfactions
+    }
+    source_ledger = node.source_completion_ledger
+    refreshed_traces = []
+    for trace in source_ledger.traces:
+        satisfaction = satisfaction_by_id.get(
+            trace.event.requirement.requirement_id
+        )
+        updated_trace = trace
+        if satisfaction is not None and satisfaction.fresh_reanalysis_preserved:
+            updated_trace = updated_trace.advance(
+                SourceCompletionStage.FRESH_RESIDUAL_PRESERVED,
+                disposition=SourceCompletionDisposition.PRESERVED,
+                detail="controller fresh residual preserves source satisfaction",
+            )
+            if satisfaction.copy_reassigned:
+                updated_trace = replace(
+                    updated_trace,
+                    disposition=SourceCompletionDisposition.REASSIGNED,
+                    copy_reassigned=True,
+                    detail=(
+                        "fresh exact analysis selected an interchangeable physical "
+                        "copy without erasing semantic satisfaction"
+                    ),
+                )
+            if satisfaction.state == SourceRequirementSatisfactionState.CONSUMED:
+                updated_trace = updated_trace.advance(
+                    SourceCompletionStage.SOURCE_CONSUMED,
+                    detail="fresh exact state consumes the satisfying source",
+                )
+            elif satisfaction.state == SourceRequirementSatisfactionState.INTEGRATED:
+                updated_trace = updated_trace.advance(
+                    SourceCompletionStage.SOURCE_CONSUMED,
+                    detail="fresh exact state consumes the satisfying source",
+                ).advance(
+                    SourceCompletionStage.SOURCE_INTEGRATED,
+                    detail="fresh exact state integrates the source into same-suit structure",
+                )
+        elif satisfaction is not None and satisfaction.reopening_reason is not None:
+            updated_trace = replace(
+                updated_trace,
+                disposition=SourceCompletionDisposition.REOPENED,
+                loss_reason=SourceCompletionLossReason.RESIDUAL_REOPENING,
+                reopening_reason=satisfaction.reopening_reason,
+                detail="fresh residual explicitly reopened a prior source requirement",
+            )
+        refreshed_traces.append(updated_trace)
+        _record_source_completion_trace(
+            telemetry, updated_trace, config.max_timeline_entries
+        )
+    source_ledger = replace(
+        source_ledger,
+        traces=tuple(refreshed_traces),
+        satisfactions=residual.source_satisfactions or source_ledger.satisfactions,
+    )
+    if status == StrategicMilestoneStatus.EXPIRED:
+        audit_started = time.perf_counter()
+        expiry_rows = list(source_ledger.expiry_classifications)
+        existing_expired = {item[0] for item in expiry_rows}
+        for trace in refreshed_traces:
+            if trace.event.event_id in existing_expired:
+                continue
+            satisfaction = satisfaction_by_id.get(
+                trace.event.requirement.requirement_id
+            )
+            classification = classify_source_expiry(
+                completed_before_expiry=bool(
+                    satisfaction is not None and satisfaction.satisfied
+                ),
+                made_progress=trace.residual_preserved,
+                resource_limited=True,
+                attribution_lost=(
+                    trace.loss_reason
+                    == SourceCompletionLossReason.PHYSICAL_SOURCE_ATTRIBUTION_LOSS
+                ),
+                lifecycle_terminated=bool(
+                    node.target_grant_lineage.active_for(
+                        trace.event.semantic_target_fingerprint
+                    )
+                    and node.target_grant_lineage.active_for(
+                        trace.event.semantic_target_fingerprint
+                    ).restore_replace_obligation
+                ),
+            )
+            expiry_rows.append((trace.event.event_id, classification))
+            name = classification.value
+            telemetry.source_requirement_expiry_classifications[name] = (
+                telemetry.source_requirement_expiry_classifications.get(name, 0) + 1
+            )
+        source_ledger = replace(
+            source_ledger, expiry_classifications=tuple(expiry_rows)
+        )
+        telemetry.source_expiry_audit_seconds += time.perf_counter() - audit_started
     completion_result = None
     incoming = node.incoming_edge
     if (
@@ -6707,6 +7064,7 @@ def _refresh_active_milestone(
             if completion_result is not None
             else node.milestone_ledger
         ),
+        source_completion_ledger=source_ledger,
     )
 
 
@@ -7473,6 +7831,16 @@ def solve_anytime(
             ng = node.g + successor.corrected_cost
             if not tt.admit(successor.end_state, ng):
                 telemetry.tt_suppressed += 1
+                for source_trace in successor.source_completion_traces:
+                    lost = replace(
+                        source_trace,
+                        disposition=SourceCompletionDisposition.ADMISSION_LOSS,
+                        loss_reason=SourceCompletionLossReason.STRATEGIC_ADMISSION_LOSS,
+                        detail="exact TT retained an equal/lower-g structural duplicate",
+                    )
+                    _record_source_completion_trace(
+                        telemetry, lost, config.max_timeline_entries
+                    )
                 if successor.kind == StrategicActionKind.CAMPAIGN_CORRIDOR:
                     telemetry.corridors_suppressed_by_tt += 1
                 telemetry.count_suppression("exact state reached at no lower g")
@@ -7855,6 +8223,26 @@ def solve_anytime(
                     child_target_lineage = child_target_lineage.with_trace(
                         successor.target_boundary_trace
                     )
+            child_source_ledger = node.source_completion_ledger
+            for source_trace in successor.source_completion_traces:
+                admitted_trace = source_trace.advance(
+                    SourceCompletionStage.CONTROLLER_ADMITTED_COMPLETION,
+                    detail="exact TT admitted the replay-valid source-completion state",
+                )
+                if source_trace.event.event_id in (
+                    successor.target_grant_entry.source_completion_event_ids
+                    if successor.target_grant_entry is not None
+                    else ()
+                ):
+                    admitted_trace = admitted_trace.advance(
+                        SourceCompletionStage.LINEAGE_PRESERVED,
+                        disposition=SourceCompletionDisposition.PRESERVED,
+                        detail="admitted node retains source harvest in target lineage",
+                    )
+                child_source_ledger = child_source_ledger.with_trace(admitted_trace)
+                _record_source_completion_trace(
+                    telemetry, admitted_trace, config.max_timeline_entries
+                )
             child = StrategicSearchNode(
                 uid,
                 successor.end_state.clone(),
@@ -7887,6 +8275,7 @@ def solve_anytime(
                 child_residual_target,
                 child_obligations,
                 child_target_lineage,
+                child_source_ledger,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -7977,6 +8366,54 @@ def solve_anytime(
         status = AnytimeControllerStatus.RESOURCE_LIMIT
     else:
         status = AnytimeControllerStatus.FRONTIER_EXHAUSTED
+    # Reconcile generated source-completion successors which were removed by
+    # bounded strategic-family selection before reaching the exact-TT loop.
+    # Exact-TT rejections are labelled at their rejection site above; this
+    # final pass covers every other pre-admission loss without changing search.
+    for source_trace in tuple(telemetry.source_completion_traces):
+        if source_trace.successor_created and not source_trace.controller_admitted:
+            lost = replace(
+                source_trace,
+                disposition=SourceCompletionDisposition.ADMISSION_LOSS,
+                loss_reason=SourceCompletionLossReason.STRATEGIC_ADMISSION_LOSS,
+                detail=(
+                    "replay-valid source-completion successor did not survive "
+                    "bounded strategic admission"
+                ),
+            )
+            _record_source_completion_trace(
+                telemetry, lost, config.max_timeline_entries
+            )
+    selected_source_ledger = best_progress_node.source_completion_ledger
+    selected_traces = []
+    for source_trace in selected_source_ledger.traces:
+        selected_trace = source_trace.advance(
+            SourceCompletionStage.SELECTED_PATH_COMPLETION,
+            disposition=SourceCompletionDisposition.PRESERVED,
+            detail="the final best-progress route includes this source completion",
+        )
+        if source_trace.event.consumed:
+            selected_trace = selected_trace.advance(
+                SourceCompletionStage.SOURCE_CONSUMED,
+                detail="selected route consumes the completed source requirement",
+            )
+        if source_trace.event.integrated:
+            selected_trace = selected_trace.advance(
+                SourceCompletionStage.SOURCE_INTEGRATED,
+                detail="selected route integrates the completed source into same-suit structure",
+            )
+        selected_traces.append(selected_trace)
+        _record_source_completion_trace(
+            telemetry, selected_trace, config.max_timeline_entries
+        )
+    selected_source_ledger = replace(
+        selected_source_ledger, traces=tuple(selected_traces)
+    )
+    best_progress_node = replace(
+        best_progress_node, source_completion_ledger=selected_source_ledger
+    )
+    if best_node.node_id == best_progress_node.node_id:
+        best_node = best_progress_node
     return AnytimeSearchResult(
         status=status,
         preflight=preflight,
@@ -8006,4 +8443,5 @@ def solve_anytime(
         tactical_resource_ledger=resource_allocator.ledger,
         milestone_conversion_ledger=most_foundations_node.milestone_ledger,
         target_grant_lineage=best_progress_node.target_grant_lineage,
+        source_completion_ledger=selected_source_ledger,
     )

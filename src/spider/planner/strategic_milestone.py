@@ -29,6 +29,10 @@ from spider.planner.structural_construction import (
     ConstructionDisposition,
     StructuralConstructionAnalysis,
 )
+from spider.planner.source_completion import (
+    SourceCompletionEvent,
+    SourceCompletionPropagationTrace,
+)
 from spider.state_identity import CanonicalStateKey, canonical_state_key
 
 
@@ -258,6 +262,8 @@ class MilestoneRealizationResult:
     same_target_continuations: int = 0
     persisted_target_completed: bool = False
     restore_replace_obligations: Tuple[str, ...] = ()
+    source_completion_events: Tuple[SourceCompletionEvent, ...] = ()
+    source_completion_traces: Tuple[SourceCompletionPropagationTrace, ...] = ()
 
 
 @dataclass(frozen=True)

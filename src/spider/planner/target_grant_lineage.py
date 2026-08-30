@@ -18,6 +18,10 @@ from enum import Enum
 from typing import Optional, Sequence, Tuple
 
 from spider.planner.tactical_resource_allocator import TacticalResourceTier
+from spider.planner.source_completion import (
+    SourceCompletionEvent,
+    SourceRequirementSatisfaction,
+)
 from spider.state_identity import CanonicalStateKey
 
 
@@ -164,6 +168,9 @@ class TargetGrantLineageEntry:
     persistence_limit: int = 3
     realizer: Optional[str] = None
     proof_pruning_allowed: bool = False
+    source_satisfactions: Tuple[SourceRequirementSatisfaction, ...] = ()
+    source_completion_event_ids: Tuple[str, ...] = ()
+    follow_on_source_requirement_ids: Tuple[str, ...] = ()
 
     @property
     def identity_key(self) -> Tuple:
@@ -503,6 +510,50 @@ def record_target_outcome(
         target_valid=target_valid,
         consecutive_misses=misses,
         generation=entry.generation + int(crossed_state),
+    )
+
+
+def record_lineage_source_completion(
+    entry: TargetGrantLineageEntry,
+    events: Sequence[SourceCompletionEvent],
+    satisfactions: Sequence[SourceRequirementSatisfaction] = (),
+) -> TargetGrantLineageEntry:
+    """Attach scoped source harvest without completing the whole target."""
+
+    event_ids = tuple(dict.fromkeys(
+        entry.source_completion_event_ids + tuple(item.event_id for item in events)
+    ))
+    merged = {
+        item.requirement.identity_key: item for item in entry.source_satisfactions
+    }
+    for item in tuple(satisfactions) + tuple(item.satisfaction for item in events):
+        merged[item.requirement.identity_key] = item
+    follow_on = tuple(dict.fromkeys(
+        entry.follow_on_source_requirement_ids
+        + tuple(
+            f"{item.dependency_id}:exposed-blocker"
+            for item in events
+            if item.fresh_dependency_type == "SOURCE_EXPOSED_BUT_BLOCKED"
+        )
+    ))
+    evidence = entry.evidence
+    if events:
+        evidence = replace(
+            evidence,
+            named_harvest=tuple(dict.fromkeys(
+                evidence.named_harvest
+                + tuple(f"SOURCE_REQUIREMENT_SATISFIED:{item.event_id}" for item in events)
+            )),
+            source_exposed=(evidence.source_exposed or any(item.exposed for item in events)),
+            source_consumed=(evidence.source_consumed or any(item.consumed for item in events)),
+            target_relevant=True,
+        )
+    return replace(
+        entry,
+        evidence=evidence,
+        source_satisfactions=tuple(merged.values()),
+        source_completion_event_ids=event_ids,
+        follow_on_source_requirement_ids=follow_on,
     )
 
 

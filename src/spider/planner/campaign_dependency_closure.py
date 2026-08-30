@@ -51,6 +51,13 @@ from spider.planner.supply_consumption import (
     SupplyConsumptionStage,
     advance_supply_consumption_results,
 )
+from spider.planner.source_completion import (
+    SourceCompletionEvent,
+    SourceCompletionScope,
+    physical_source_identity,
+    semantic_source_requirement,
+    source_completion_event,
+)
 from spider.rules import MW_RULES
 from spider.state_identity import CanonicalStateKey, canonical_state_key, states_structurally_equal
 
@@ -329,6 +336,7 @@ class DependencyClosureResult:
     endpoint_assessment: Optional[ClosureEndpointAssessment] = None
     advanced_states_continued: int = 0
     advanced_fallback_returned: bool = False
+    source_completion_events: Tuple[SourceCompletionEvent, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1174,6 +1182,7 @@ def _clone_result(result: DependencyClosureResult) -> DependencyClosureResult:
         result.endpoint_assessment,
         result.advanced_states_continued,
         result.advanced_fallback_returned,
+        result.source_completion_events,
     )
 
 
@@ -1208,7 +1217,10 @@ def realize_campaign_dependency_closure(
     source_dependency = (
         named
         if named is not None
-        and named.kind == CampaignDependencyType.SOURCE_BURIED
+        and named.kind in {
+            CampaignDependencyType.SOURCE_BURIED,
+            CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED,
+        }
         and named.card is not None
         else None
     )
@@ -1693,6 +1705,7 @@ def realize_campaign_dependency_closure(
         else ClosureFailureDiagnosis.LOCAL_BOUNDED_MISS
     )
     traces: Tuple[BuriedSourceClosureTrace, ...] = ()
+    source_completion_events: Tuple[SourceCompletionEvent, ...] = ()
     if source_card is not None and blocker_before is not None and target_dependency_id is not None:
         blocker_after = describe_buried_source(end_state, target_dependency_id, source_card)
         coverage = compare_legal_candidate_coverage(
@@ -1708,6 +1721,101 @@ def realize_campaign_dependency_closure(
             int(endpoint.source_exposed),
             endpoint.source_consumed, diagnosis, status.value,
         ),)
+        original = endpoint.target_kind_before
+        fresh = endpoint.target_kind_after
+        scoped_completion = bool(
+            endpoint.requested_dependency_completed
+            or endpoint.source_exposed
+            or endpoint.source_actionable
+            or endpoint.source_consumed
+        )
+        if original in {
+            CampaignDependencyType.SOURCE_BURIED,
+            CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED,
+        } and scoped_completion:
+            before_source = blocker_before.chosen
+            after_source = blocker_after.chosen
+            candidates = blocker_before.physical_sources
+            ordinal = next(
+                (
+                    index + 1
+                    for index, item in enumerate(candidates)
+                    if before_source is not None
+                    and item.source_key == before_source.source_key
+                ),
+                1,
+            )
+            current_source = after_source or before_source
+            integrated = bool(
+                endpoint.source_consumed
+                and any(
+                    band.length >= 2
+                    and band.high_rank >= source_card.rank >= band.low_rank
+                    for band in locate_campaign_bands(end_state, campaign.suit)
+                )
+            )
+            physical = physical_source_identity(
+                source_card,
+                dependency_id=target_dependency_id,
+                copy_ordinal=ordinal,
+                zone=(
+                    current_source.zone
+                    if current_source is not None
+                    else "foundation"
+                    if len(end_state.foundations) > len(state.foundations)
+                    else "consumed"
+                ),
+                column=(current_source.column if current_source is not None else None),
+                offset=(current_source.index if current_source is not None else None),
+                face_up=bool(current_source and current_source.exposed),
+                blocker_depth=(current_source.depth if current_source is not None else 0),
+                consumed=endpoint.source_consumed,
+                integrated=integrated,
+                foundation_removed=len(end_state.foundations) > len(state.foundations),
+            )
+            fingerprint = (
+                semantic_target_id
+                if isinstance(semantic_target_id, tuple)
+                else (semantic_target_id or campaign.label,)
+            )
+            scope = (
+                SourceCompletionScope.BURIED_PREDICATE
+                if original == CampaignDependencyType.SOURCE_BURIED
+                else SourceCompletionScope.EXPOSED_BLOCKER_PREDICATE
+            )
+            requirement = semantic_source_requirement(
+                fingerprint,
+                target_dependency_id,
+                source_card,
+                scope=scope,
+            )
+            source_completion_events = (source_completion_event(
+                semantic_target_fingerprint=fingerprint,
+                dependency_id=target_dependency_id,
+                original_dependency_type=original.value,
+                fresh_dependency_type=(fresh.value if fresh is not None else None),
+                physical_source=physical,
+                requirement=requirement,
+                state=end_state,
+                actions=actions,
+                completion_class=endpoint.completion_class.value,
+                source_depth_before=endpoint.source_depth_before,
+                source_depth_after=endpoint.source_depth_after,
+                exposed=endpoint.source_exposed,
+                actionable=endpoint.source_actionable,
+                consumed=endpoint.source_consumed,
+                integrated=integrated,
+                evidence_provenance=tuple(
+                    dict.fromkeys(
+                        step.progress_evidence.kind.value
+                        for step in steps
+                        if step.progress_evidence is not None
+                    )
+                ) + (
+                    f"dependency transition {original.value}->{fresh.value if fresh else 'closed'}",
+                    "independently replayed closure endpoint",
+                ),
+            ),)
     result = DependencyClosureResult(
         status, campaign.label, actions, cost if verified else None, end_state.clone(),
         start_graph, end_assessment.graph, closed, overlays_cleared, steps,
@@ -1715,6 +1823,7 @@ def realize_campaign_dependency_closure(
         False, target_dependency_id, traces, diagnosis,
         endpoint.completion_class, endpoint, advanced_states_continued,
         endpoint.completion_class == ClosureCompletionClass.DEPENDENCY_ADVANCED,
+        source_completion_events,
     )
     if cache is not None:
         cache[key] = result

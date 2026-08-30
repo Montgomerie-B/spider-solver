@@ -17,6 +17,13 @@ from spider.planner.strategic_milestone import (
     classify_milestone_outcome,
     milestone_target_identity,
 )
+from spider.planner.source_completion import (
+    SourceCompletionDisposition,
+    SourceCompletionEvent,
+    SourceCompletionPropagationTrace,
+    SourceCompletionStage,
+    SourceRequirementSatisfactionState,
+)
 from spider.state_identity import states_structurally_equal
 
 
@@ -41,6 +48,8 @@ class MilestonePrimitiveStep:
     closure_source_depth_after: Optional[int] = None
     closure_primitive_count: int = 0
     restore_replace_obligation: Optional[str] = None
+    source_completion_events: Tuple[SourceCompletionEvent, ...] = ()
+    source_completion_traces: Tuple[SourceCompletionPropagationTrace, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -102,6 +111,8 @@ def realize_milestone(
     same_target_continuations = 0
     persisted_target_completed = False
     restore_replace_obligations = []
+    source_completion_events = []
+    source_completion_traces = []
     pending_advanced_target: Optional[Tuple[Optional[str], Optional[str]]] = None
     status = active.status
     reason = "bounded primitive envelope exhausted"
@@ -126,6 +137,8 @@ def realize_milestone(
         cost += step.corrected_paid_cost
         nodes += step.tactical_nodes
         harvest.extend(step.harvest_events)
+        source_completion_events.extend(step.source_completion_events)
+        source_completion_traces.extend(step.source_completion_traces)
         if step.closure_completion_class is not None:
             closure_completion_timeline.append(step.closure_completion_class)
             closure_target_timeline.append(
@@ -175,6 +188,66 @@ def realize_milestone(
             )
         fresh = fresh_analyzer(state, active)
         reanalyses += 1
+        preserved_requirement_ids = {
+            item.requirement.requirement_id
+            for item in (
+                fresh.residual_target.source_satisfactions
+                if fresh.residual_target is not None
+                else ()
+            )
+            if item.fresh_reanalysis_preserved
+        }
+        source_completion_traces = [
+            (
+                trace.advance(
+                    SourceCompletionStage.FRESH_RESIDUAL_PRESERVED,
+                    disposition=SourceCompletionDisposition.PRESERVED,
+                    detail="fresh milestone residual preserves scoped source satisfaction",
+                )
+                if trace.event.requirement.requirement_id in preserved_requirement_ids
+                else trace
+            )
+            for trace in source_completion_traces
+        ]
+        satisfaction_by_id = {
+            item.requirement.requirement_id: item
+            for item in (
+                fresh.residual_target.source_satisfactions
+                if fresh.residual_target is not None
+                else ()
+            )
+        }
+        updated_source_traces = []
+        for trace in source_completion_traces:
+            satisfaction = satisfaction_by_id.get(
+                trace.event.requirement.requirement_id
+            )
+            updated = trace
+            if satisfaction is not None and satisfaction.copy_reassigned:
+                updated = replace(
+                    updated,
+                    disposition=SourceCompletionDisposition.REASSIGNED,
+                    copy_reassigned=True,
+                    detail=(
+                        "fresh milestone analysis selected an interchangeable copy "
+                        "while retaining semantic satisfaction"
+                    ),
+                )
+            if satisfaction is not None and satisfaction.state == SourceRequirementSatisfactionState.CONSUMED:
+                updated = updated.advance(
+                    SourceCompletionStage.SOURCE_CONSUMED,
+                    detail="fresh milestone state consumes the satisfying source",
+                )
+            elif satisfaction is not None and satisfaction.state == SourceRequirementSatisfactionState.INTEGRATED:
+                updated = updated.advance(
+                    SourceCompletionStage.SOURCE_CONSUMED,
+                    detail="fresh milestone state consumes the satisfying source",
+                ).advance(
+                    SourceCompletionStage.SOURCE_INTEGRATED,
+                    detail="fresh milestone state integrates the source",
+                )
+            updated_source_traces.append(updated)
+        source_completion_traces = updated_source_traces
         if fresh.residual_target is not None:
             residual_timeline.append(fresh.residual_target.summary)
             blockers = tuple(item.value for item in fresh.residual_target.blockers)
@@ -251,4 +324,6 @@ def realize_milestone(
         same_target_continuations=same_target_continuations,
         persisted_target_completed=persisted_target_completed,
         restore_replace_obligations=tuple(restore_replace_obligations),
+        source_completion_events=tuple({item.event_id: item for item in source_completion_events}.values()),
+        source_completion_traces=tuple({item.event.event_id: item for item in source_completion_traces}.values()),
     )

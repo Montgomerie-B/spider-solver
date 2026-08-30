@@ -1,6 +1,6 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; v0.13 persisted-target grant lineage is verified, but the two-foundation gate remains partial
+**Status:** Forward implementation plan; v0.14 source-completion propagation is verified, but selected-path conversion and the two-foundation gate remain partial
 **Date:** 2026-08-30
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
@@ -623,6 +623,60 @@ authorized sprint should therefore convert harvested primitive
 closure/construction work into a continuous interval-building milestone and
 terminal qualification, without restoring expensive whole-campaign setup or
 increasing any budget. See `docs/anytime_whole_game_controller_v0_8.md`.
+
+### Verified v0.14 status
+
+Controller v0.14 diagnoses and corrects the v0.13 source-completion boundary.
+Fresh closure analysis now emits a typed, exact-state-provenanced
+`SourceCompletionEvent`; the fact crosses dependency closure, milestone
+primitive/residual, strategic successor/node, target lineage and bounded
+telemetry. Physical card identity is separated from location, semantic
+requirements are separated from interchangeable physical copies, and
+`SOURCE_BURIED -> SOURCE_EXPOSED_BUT_BLOCKED` completes the original buried
+predicate while retaining the distinct follow-on blocker. No satisfied
+requirement may silently reopen.
+
+Trace completion, exact-TT controller admission, fresh-residual preservation,
+lineage preservation and selected-path completion are counted separately.
+Repeated analysis merges event stages and cannot double count or erase later
+admission. Exact state remains authoritative; all history is proof-neutral and
+excluded from TT identity. The three-expansion persistence envelope, allocator
+tiers, closure limits, beam, controller limits, unrestricted rules and
+admissible bound are unchanged.
+
+All generic capability Gates A-K pass. The focused v0.14 suite adds 72 passing
+cases. Two unseen deterministic four-suit smokes retained legal replay and
+unrestricted raw/Deal/construction coverage; one naturally produced a typed
+source-completion successor.
+
+Natural Gate O used the exact 90-second/25-expansion/300,000-node/
+frontier-256/beam-192 cost-21 envelope. It reached all 25 expansions and a
+replay-valid total `g=26`, F1, stock 30 and 32 face-down endpoint. Five natural
+trace source completions became five controller-admitted and five
+lineage-preserved completions, with no residual reopening or attribution loss.
+None reached the selected route or source consumption, and F2 remained absent.
+Its 24 expiry boundaries classified as six completed-before-expiry, eight
+legitimate no-progress and ten resource-limit.
+
+That durable controller admission authorized untouched Gate P. Under the exact
+180-second/50-expansion/500,000-node/frontier-256/beam-192 envelope it reached
+two substantial interval milestones but no foundation. One Hearts source
+completion produced a successor and lineage evidence but was rejected at
+strategic admission; the selected replay-valid route ended at corrected
+`g=11`, stock 40 and 38 face-down. The verified verdict is PARTIAL.
+Repeatability, F3 and whole-game runs were not authorized.
+
+The remaining blocker is post-admission selection and next-expansion
+continuity, not missing source metadata. A later explicitly authorized task
+should compare the exact structural economics and priority of admitted
+completion states with their equal/lower-cost competitors and audit a bounded
+completion representative without increasing resources or persistence,
+weakening exact TT, tuning the benchmark or beginning the global scheduler.
+See `docs/anytime_whole_game_controller_v0_14.md`.
+
+The definitive complete repository suite passed 1,316 ordinary tests with the
+same 37 historical expected-invalid xfails and one inherited warning in
+1,110.34 seconds.
 
 ### Verified v0.13 status
 

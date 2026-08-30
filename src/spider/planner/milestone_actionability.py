@@ -37,6 +37,14 @@ from spider.planner.structural_construction import (
     SameSuitConstructionOpportunity,
     StructuralConstructionAnalysis,
 )
+from spider.planner.source_completion import (
+    SourceCompletionScope,
+    SourceRequirementReopeningReason,
+    SourceRequirementSatisfaction,
+    SourceRequirementSatisfactionState,
+    reconcile_source_satisfaction,
+    semantic_source_requirement,
+)
 from spider.planner.tactical_resource_allocator import (
     TacticalDemand,
     TacticalObjectiveKind,
@@ -80,6 +88,7 @@ class ResidualMilestoneRequirement:
     description: str
     satisfied: bool
     blocker: Optional[MilestoneBlockerKind] = None
+    source_satisfaction: Optional[SourceRequirementSatisfaction] = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +113,8 @@ class ResidualMilestoneTarget:
     fresh_state_fingerprint: str
     reason: str
     proof_pruning_allowed: bool = False
+    source_satisfactions: Tuple[SourceRequirementSatisfaction, ...] = ()
+    source_reopenings: Tuple[Tuple[str, SourceRequirementReopeningReason], ...] = ()
 
     @property
     def next_candidate(self) -> Optional[MilestoneActionCandidate]:
@@ -332,6 +343,7 @@ def derive_residual_milestone_target(
     construction: Optional[StructuralConstructionAnalysis] = None,
     availability: Optional[CampaignEpochAvailability] = None,
     terminal_qualified: bool = False,
+    prior_source_satisfactions: Sequence[SourceRequirementSatisfaction] = (),
 ) -> ResidualMilestoneTarget:
     """Re-express the same logical target against the complete fresh state."""
 
@@ -345,6 +357,8 @@ def derive_residual_milestone_target(
         terminal_qualified=terminal_qualified,
     )
     requirements = []
+    source_satisfactions = []
+    source_reopenings = []
     blockers_with_sources = []
     opportunities = _target_construction_opportunities(
         state, milestone, construction, progress
@@ -409,11 +423,77 @@ def derive_residual_milestone_target(
             dependency = current_semantic.get(required)
             satisfied = dependency is None
             blocker = None if satisfied else _DEPENDENCY_BLOCKER[dependency.kind]
+            source_satisfaction = None
+            source_dependency = dependency
+            prior = next(
+                (
+                    item
+                    for item in reversed(tuple(prior_source_satisfactions))
+                    if semantic_dependency_outcome(item.requirement.dependency_id) == required
+                    and item.requirement.semantic_target_fingerprint == identity.fingerprint
+                ),
+                None,
+            )
+            if source_dependency is not None and source_dependency.card is not None and source_dependency.kind in {
+                CampaignDependencyType.SOURCE_BURIED,
+                CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED,
+            }:
+                source_requirement = semantic_source_requirement(
+                    identity.fingerprint,
+                    source_dependency.dependency_id,
+                    source_dependency.card,
+                    scope=(
+                        prior.requirement.scope
+                        if prior is not None
+                        else SourceCompletionScope.BURIED_PREDICATE
+                        if source_dependency.kind == CampaignDependencyType.SOURCE_BURIED
+                        else SourceCompletionScope.EXPOSED_BLOCKER_PREDICATE
+                    ),
+                    copies_required=(prior.requirement.copies_required if prior else 1),
+                )
+                source_satisfaction = reconcile_source_satisfaction(
+                    state,
+                    source_requirement,
+                    prior,
+                    current_dependency_type=source_dependency.kind.value,
+                )
+            elif dependency is None and prior is not None:
+                source_satisfaction = reconcile_source_satisfaction(
+                    state,
+                    prior.requirement,
+                    prior,
+                    current_dependency_type=None,
+                )
+            if source_satisfaction is not None:
+                source_satisfactions.append(source_satisfaction)
+                if source_satisfaction.reopening_reason is not None:
+                    source_reopenings.append((required, source_satisfaction.reopening_reason))
+                # Completing SOURCE_BURIED is durable subrequirement harvest;
+                # SOURCE_EXPOSED_BUT_BLOCKED remains an explicit follow-on.
+                if (
+                    dependency is not None
+                    and dependency.kind == CampaignDependencyType.SOURCE_EXPOSED_BUT_BLOCKED
+                    and source_satisfaction.state in {
+                        SourceRequirementSatisfactionState.EXPOSED,
+                        SourceRequirementSatisfactionState.ACTIONABLE,
+                        SourceRequirementSatisfactionState.CONSUMED,
+                        SourceRequirementSatisfactionState.INTEGRATED,
+                    }
+                ):
+                    satisfied = False
+                    blocker = MilestoneBlockerKind.EXPOSED_BLOCKED
             requirements.append(ResidualMilestoneRequirement(
                 required,
-                f"logical dependency outcome {required} is closed",
+                (
+                    f"logical dependency outcome {required} retains a follow-on blocker; "
+                    "its original buried-source predicate is satisfied"
+                    if source_satisfaction is not None
+                    and blocker == MilestoneBlockerKind.EXPOSED_BLOCKED
+                    else f"logical dependency outcome {required} is closed"
+                ),
                 satisfied,
                 blocker,
+                source_satisfaction,
             ))
             if dependency is not None:
                 blockers_with_sources.append((blocker, dependency))
@@ -520,6 +600,8 @@ def derive_residual_milestone_target(
         remaining_dependency_ids=dependency_ids,
         fresh_state_fingerprint=_state_fingerprint(state),
         reason=reason,
+        source_satisfactions=tuple(source_satisfactions),
+        source_reopenings=tuple(source_reopenings),
     )
 
 
