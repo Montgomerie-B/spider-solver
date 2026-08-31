@@ -499,6 +499,23 @@ The future transition to the whole-deal backward/forward scheduler should occur 
 
 Historical v0.x controller documents remain useful evidence and regression history. New development choices should be evaluated against this whole-deal, deal-independent architecture rather than against any single benchmark route or foundation order.
 
+## Whole-deal receding-horizon scheduling principle
+
+Perfect-information scheduling separates a mostly static blueprint from a
+dynamic exact-state schedule. The blueprint may describe all future stock rows,
+temporal material floors and backward structural fragments. Precise column
+preparation remains next-Deal only. After every selected exact transition the
+dynamic schedule is rebuilt, symmetric duplicate assignments may change, and
+expired receiver targets disappear.
+
+Scheduler objectives are advisory members of the existing strategic
+portfolio. They annotate existing legal realisers, use existing capacity and
+rank otherwise comparable states; they do not execute moves, suppress Deal,
+bypass exact TT or proof-prune. A useful schedule must also recognise marginal
+fragment saturation: another permanent join can be locally good while a known
+epoch transition is globally better. That comparison belongs in transparent
+structural economics, not in a larger search budget or a benchmark constant.
+
 ## v0.10 semantic continuity refinement
 
 Controller v0.10 makes strategic continuity coordinate-free. A live interval,

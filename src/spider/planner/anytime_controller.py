@@ -182,6 +182,21 @@ from spider.planner.supply_consumption import (
     invalidate_supply_result,
     supply_result_for_contract,
 )
+from spider.planner.whole_deal_scheduler import (
+    ScheduleDelta,
+    ScheduleDeltaKind,
+    ScheduleObjectiveFamily,
+    ScheduleObjectiveStatus,
+    ScheduledStructuralObjective,
+    WholeDealBlueprint,
+    WholeDealSchedule,
+    WholeDealSchedulerConfig,
+    build_whole_deal_blueprint,
+    choose_scheduler_annotations,
+    derive_schedule_delta,
+    rebuild_whole_deal_schedule,
+    scheduler_objective_effect,
+)
 from spider.planner.structural_construction import (
     ConstructionDisposition,
     SameSuitConstructionOpportunity,
@@ -404,6 +419,11 @@ class AnytimeControllerConfig:
     milestone_max_strategic_expansions: int = 3
     milestone_max_time_s_per_expansion: float = 4.0
     milestone_max_nodes_per_expansion: int = 12_000
+    enable_whole_deal_scheduler: bool = False
+    whole_deal_scheduler_config: WholeDealSchedulerConfig = field(
+        default_factory=WholeDealSchedulerConfig
+    )
+    max_scheduler_objectives_in_portfolio: int = 1
     deal_timing_config: DealTimingConfig = field(
         default_factory=lambda: DealTimingConfig(
             max_preparation_projects=2,
@@ -427,6 +447,8 @@ class AnytimeControllerConfig:
             raise ValueError("expansion and tactical-node limits must be positive")
         if self.max_frontier_size <= 0 or self.max_successors_per_expansion <= 0:
             raise ValueError("frontier and successor limits must be positive")
+        if not 0 <= self.max_scheduler_objectives_in_portfolio <= self.max_successors_per_expansion:
+            raise ValueError("scheduler objectives must fit inside the existing successor portfolio")
         if not 0 <= int(self.max_credit_level) <= 4:
             raise ValueError("maximum credit level must be in 0..4")
         if len(self.tactical_max_cost_by_credit) != 5:
@@ -726,6 +748,9 @@ class StrategicSuccessor:
     target_grant_entry: Optional[TargetGrantLineageEntry] = None
     target_boundary_trace: Optional[TargetBoundaryTrace] = None
     source_completion_traces: Tuple[SourceCompletionPropagationTrace, ...] = ()
+    scheduled_objective: Optional[ScheduledStructuralObjective] = None
+    scheduler_effect_rank: int = 2
+    schedule_deltas: Tuple[ScheduleDelta, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -767,6 +792,7 @@ class StrategicSearchNode:
     completion_cash_out: Optional[CompletionCashOutOpportunity] = None
     completion_harvest_history: Tuple[CompletionHarvestAssessment, ...] = ()
     completion_cash_out_parent_was_deal: bool = False
+    whole_deal_schedule: Optional[WholeDealSchedule] = None
 
 
 @dataclass(frozen=True)
@@ -1195,6 +1221,27 @@ class ControllerTelemetry:
     completion_harvest_by_suit: Dict[str, Dict[str, int]] = field(default_factory=dict)
     completion_selection_traces: List[CompletionCashOutTrace] = field(default_factory=list)
     completion_harvest_rows: List[CompletionHarvestAssessment] = field(default_factory=list)
+    scheduler_blueprints_built: int = 0
+    scheduler_schedules_rebuilt: int = 0
+    scheduler_objectives_generated: int = 0
+    scheduler_objectives_actionable: int = 0
+    scheduler_objectives_entered_portfolio: int = 0
+    scheduler_objectives_admitted: int = 0
+    scheduler_objectives_selected: int = 0
+    scheduler_objectives_advanced: int = 0
+    scheduler_objectives_satisfied: int = 0
+    scheduler_downstream_harvests: int = 0
+    scheduler_receptions_realized: int = 0
+    scheduler_receptions_missed: int = 0
+    scheduler_objectives_by_family: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    scheduler_delta_counts: Dict[str, int] = field(default_factory=dict)
+    scheduler_timeline: List[Tuple[int, int, str, str]] = field(default_factory=list)
+    scheduler_deal_timeline: List[Tuple[int, int, str, Tuple[str, ...]]] = field(default_factory=list)
+    scheduler_blueprint_seconds: float = 0.0
+    scheduler_schedule_seconds: float = 0.0
+    scheduler_reception_seconds: float = 0.0
+    scheduler_duplicate_assignment_seconds: float = 0.0
+    scheduler_leverage_seconds: float = 0.0
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -2565,16 +2612,25 @@ def deduplicate_strategic_successors(
                 rationale=previous.rationale + successor.rationale,
                 structural_investment=previous.structural_investment,
                 construction_opportunity=previous.construction_opportunity,
+                scheduled_objective=(
+                    previous.scheduled_objective or successor.scheduled_objective
+                ),
+                scheduler_effect_rank=min(
+                    previous.scheduler_effect_rank,
+                    successor.scheduler_effect_rank,
+                ),
             )
         elif (
             successor.corrected_cost,
             len(successor.actions),
+            0 if successor.scheduled_objective is not None else 1,
             0 if successor.milestone_result is not None else 1,
             0 if successor.structural_investment is not None else 1,
             successor.label,
         ) < (
             previous.corrected_cost,
             len(previous.actions),
+            0 if previous.scheduled_objective is not None else 1,
             0 if previous.milestone_result is not None else 1,
             0 if previous.structural_investment is not None else 1,
             previous.label,
@@ -2609,11 +2665,22 @@ def retain_diverse_portfolio(
     retained: List[StrategicSuccessor] = []
     seen: set[int] = set()
     for category in categories:
-        for index, successor in enumerate(successors):
-            if successor.category == category:
-                retained.append(successor)
-                seen.add(index)
-                break
+        choices = [
+            (index, successor)
+            for index, successor in enumerate(successors)
+            if successor.category == category
+        ]
+        if choices:
+            index, successor = min(
+                choices,
+                key=lambda item: (
+                    0 if item[1].scheduled_objective is not None else 1,
+                    item[1].scheduler_effect_rank,
+                    item[0],
+                ),
+            )
+            retained.append(successor)
+            seen.add(index)
         if len(retained) >= maximum:
             return tuple(retained)
     for index, successor in enumerate(successors):
@@ -2623,6 +2690,58 @@ def retain_diverse_portfolio(
         if len(retained) >= maximum:
             break
     return tuple(retained)
+
+
+def _scheduler_stage(
+    telemetry: ControllerTelemetry,
+    objective: ScheduledStructuralObjective,
+    stage: str,
+) -> None:
+    family = telemetry.scheduler_objectives_by_family.setdefault(
+        objective.family.value, {}
+    )
+    family[stage] = family.get(stage, 0) + 1
+
+
+def _annotate_scheduler_successors(
+    node: StrategicSearchNode,
+    candidates: Sequence[StrategicSuccessor],
+    config: AnytimeControllerConfig,
+    telemetry: ControllerTelemetry,
+) -> Tuple[StrategicSuccessor, ...]:
+    """Attach bounded schedule intent to already legal/replayed successors."""
+    if (
+        not config.enable_whole_deal_scheduler
+        or node.whole_deal_schedule is None
+        or not candidates
+        or config.max_scheduler_objectives_in_portfolio == 0
+    ):
+        return tuple(candidates)
+    annotations = choose_scheduler_annotations(
+        node.state,
+        candidates,
+        node.whole_deal_schedule,
+        maximum=config.max_scheduler_objectives_in_portfolio,
+    )
+    annotated = list(candidates)
+    for index, objective, effect_rank in annotations:
+        _rank, notes = scheduler_objective_effect(
+            node.state, annotated[index].end_state, objective
+        )
+        annotated[index] = replace(
+            annotated[index],
+            scheduled_objective=objective,
+            scheduler_effect_rank=effect_rank,
+            rationale=annotated[index].rationale
+            + objective.rationale
+            + notes
+            + (
+                "whole-deal schedule is advisory and absent from exact identity/proof pruning",
+            ),
+        )
+        telemetry.scheduler_objectives_entered_portfolio += 1
+        _scheduler_stage(telemetry, objective, "entered")
+    return tuple(annotated)
 
 
 def retain_obligation_successors(
@@ -6033,7 +6152,13 @@ def generate_strategic_successors(
     if raw_fallback_enabled(node.credit_level):
         raw.extend(_raw_move_successors(node))
 
-    contracted = tuple(_ensure_deal_contracts(node, item, config) for item in raw)
+    scheduler_annotated = _annotate_scheduler_successors(
+        node, raw, config, telemetry
+    )
+    contracted = tuple(
+        _ensure_deal_contracts(node, item, config)
+        for item in scheduler_annotated
+    )
     deduplicated = deduplicate_strategic_successors(contracted)
     retained = retain_diverse_portfolio(
         deduplicated,
@@ -6207,6 +6332,16 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
         and not cash_out.cash_out_spent
         else 1,
     )
+    scheduled = (
+        node.incoming_edge.scheduled_objective
+        if node.incoming_edge is not None else None
+    )
+    scheduler_continuity = (
+        node.incoming_edge.scheduler_effect_rank
+        if scheduled is not None and node.incoming_edge is not None
+        else 3,
+        scheduled.ordering_key() if scheduled is not None else (9,),
+    )
     credit = node.continuation_credit
     continuity = (
         0 if credit is not None and credit.is_live else 1,
@@ -6236,7 +6371,10 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
     # same-target continuation may not outrank a completed purposeful Deal or
     # launder anonymous Deal debt.
     continuity_index = 4 if node.analysis is None else 7
-    return base[:continuity_index] + completion_reservation + milestone_continuity + continuity + base[continuity_index:] + (
+    # Scheduler intent ranks otherwise comparable exact states.  It follows
+    # the established structural, milestone and bounded-continuation order so
+    # that a fresh receding-horizon target cannot become a compulsory script.
+    return base[:continuity_index] + completion_reservation + milestone_continuity + continuity + base[continuity_index:] + scheduler_continuity + (
         int(node.credit_level),
         node.depth,
         node.node_id,
@@ -7829,6 +7967,13 @@ def solve_anytime(
     current_incumbent_cost = initial_incumbent_cost
     current_incumbent = supplied_record
     first_solution: Optional[IncumbentRecord] = None
+    whole_deal_blueprint: Optional[WholeDealBlueprint] = None
+    if config.enable_whole_deal_scheduler:
+        whole_deal_blueprint = build_whole_deal_blueprint(initial_state)
+        telemetry.scheduler_blueprints_built += 1
+        telemetry.scheduler_blueprint_seconds += (
+            whole_deal_blueprint.performance.blueprint_seconds
+        )
     progression: List[int] = []
     analysis_cache: Dict[
         Tuple[CanonicalStateKey, AnalysisConfigFingerprint], StrategicAnalysisFacts
@@ -7867,6 +8012,21 @@ def solve_anytime(
         root_stage0,
         root_analysis.residual.checkpoint if initial_state.foundations else None,
     )
+    if whole_deal_blueprint is not None:
+        root_schedule = rebuild_whole_deal_schedule(
+            initial_state,
+            whole_deal_blueprint,
+            config=config.whole_deal_scheduler_config,
+            generation=0,
+        )
+        root = replace(root, whole_deal_schedule=root_schedule)
+        telemetry.scheduler_schedules_rebuilt += 1
+        telemetry.scheduler_schedule_seconds += root_schedule.performance.schedule_seconds
+        telemetry.scheduler_reception_seconds += root_schedule.performance.reception_seconds
+        telemetry.scheduler_duplicate_assignment_seconds += (
+            root_schedule.performance.duplicate_assignment_seconds
+        )
+        telemetry.scheduler_leverage_seconds += root_schedule.performance.leverage_seconds
     if not initial_state.foundations:
         root_geometry = build_pre_foundation_geometry(
             initial_state,
@@ -8138,6 +8298,80 @@ def solve_anytime(
             )
 
         telemetry.expanded += 1
+        if node.whole_deal_schedule is not None:
+            schedule = node.whole_deal_schedule
+            telemetry.scheduler_objectives_generated += len(schedule.objectives)
+            telemetry.scheduler_objectives_actionable += sum(
+                item.status in (
+                    ScheduleObjectiveStatus.ACTIONABLE,
+                    ScheduleObjectiveStatus.SATISFIED,
+                )
+                for item in schedule.objectives
+            )
+            for objective in schedule.objectives:
+                _scheduler_stage(telemetry, objective, "generated")
+                if objective.status in (
+                    ScheduleObjectiveStatus.ACTIONABLE,
+                    ScheduleObjectiveStatus.SATISFIED,
+                ):
+                    _scheduler_stage(telemetry, objective, "actionable")
+        if (
+            node.incoming_edge is not None
+            and node.incoming_edge.scheduled_objective is not None
+        ):
+            selected = node.incoming_edge.scheduled_objective
+            telemetry.scheduler_objectives_selected += 1
+            _scheduler_stage(telemetry, selected, "selected")
+            for delta in node.incoming_edge.schedule_deltas:
+                telemetry.scheduler_delta_counts[delta.kind.value] = (
+                    telemetry.scheduler_delta_counts.get(delta.kind.value, 0) + 1
+                )
+                if delta.kind == ScheduleDeltaKind.TARGET_ADVANCED:
+                    telemetry.scheduler_objectives_advanced += 1
+                    _scheduler_stage(telemetry, selected, "advanced")
+                elif delta.kind == ScheduleDeltaKind.TARGET_SATISFIED:
+                    telemetry.scheduler_objectives_satisfied += 1
+                    _scheduler_stage(telemetry, selected, "satisfied")
+                elif delta.kind == ScheduleDeltaKind.RECEPTION_REALIZED:
+                    telemetry.scheduler_receptions_realized += 1
+                elif delta.kind == ScheduleDeltaKind.RECEPTION_MISSED:
+                    telemetry.scheduler_receptions_missed += 1
+            schedule_progress_harvest = any(
+                delta.kind in {
+                    ScheduleDeltaKind.TARGET_ADVANCED,
+                    ScheduleDeltaKind.TARGET_SATISFIED,
+                    ScheduleDeltaKind.BRIDGE_CONSUMED,
+                }
+                for delta in node.incoming_edge.schedule_deltas
+            ) and selected.family in {
+                ScheduleObjectiveFamily.BUILD_FRAGMENT,
+                ScheduleObjectiveFamily.CONSUME_BRIDGE_CARD,
+                ScheduleObjectiveFamily.PREPARE_TERMINAL_SEQUENCE,
+            }
+            if (
+                schedule_progress_harvest
+                or (
+                    node.incoming_edge.progress_delta is not None
+                    and (
+                        node.incoming_edge.progress_delta.stable_join_delta > 0
+                        or node.incoming_edge.progress_delta.foundation_delta > 0
+                        or node.incoming_edge.progress_delta.same_suit_mass_delta > 0
+                    )
+                )
+            ):
+                telemetry.scheduler_downstream_harvests += 1
+                _scheduler_stage(telemetry, selected, "downstream_harvest")
+            _append_bounded(
+                telemetry.scheduler_timeline,
+                (
+                    node.g,
+                    node.whole_deal_schedule.epoch if node.whole_deal_schedule else 0,
+                    selected.family.value,
+                    ",".join(item.kind.value for item in node.incoming_edge.schedule_deltas)
+                    or "SELECTED",
+                ),
+                config.max_timeline_entries,
+            )
         maximum_credit_reached = max(maximum_credit_reached, int(node.credit_level))
         telemetry.credit_expansions[int(node.credit_level)] = (
             telemetry.credit_expansions.get(int(node.credit_level), 0) + 1
@@ -8419,6 +8653,41 @@ def solve_anytime(
                 incumbent_cost=current_incumbent_cost,
             )
             telemetry.stage0_analyses += 1
+            child_schedule = None
+            child_schedule_deltas: Tuple[ScheduleDelta, ...] = ()
+            if whole_deal_blueprint is not None:
+                child_schedule = rebuild_whole_deal_schedule(
+                    successor.end_state,
+                    whole_deal_blueprint,
+                    config=config.whole_deal_scheduler_config,
+                    generation=node.depth + 1,
+                )
+                telemetry.scheduler_schedules_rebuilt += 1
+                telemetry.scheduler_schedule_seconds += (
+                    child_schedule.performance.schedule_seconds
+                )
+                telemetry.scheduler_reception_seconds += (
+                    child_schedule.performance.reception_seconds
+                )
+                telemetry.scheduler_duplicate_assignment_seconds += (
+                    child_schedule.performance.duplicate_assignment_seconds
+                )
+                telemetry.scheduler_leverage_seconds += (
+                    child_schedule.performance.leverage_seconds
+                )
+                if node.whole_deal_schedule is not None:
+                    child_schedule_deltas = derive_schedule_delta(
+                        node.state,
+                        successor.end_state,
+                        node.whole_deal_schedule,
+                        child_schedule,
+                        selected_objective=successor.scheduled_objective,
+                    )
+            if successor.scheduled_objective is not None:
+                telemetry.scheduler_objectives_admitted += 1
+                _scheduler_stage(
+                    telemetry, successor.scheduled_objective, "admitted"
+                )
             if len(successor.end_state.foundations) > len(node.state.foundations):
                 telemetry.full_reanalyses_after_foundation += 1
             if len(successor.end_state.stock) < len(node.state.stock):
@@ -8426,6 +8695,7 @@ def solve_anytime(
             child_successor = replace(
                 successor,
                 analysis=None,
+                schedule_deltas=child_schedule_deltas,
             )
             child_audit_history = node.successive_deal_audit_history
             if successor.deal_contracts:
@@ -8932,6 +9202,7 @@ def solve_anytime(
                     active_cash_out is not None
                     and successor.kind in _DEAL_ACTION_KINDS
                 ),
+                child_schedule,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:

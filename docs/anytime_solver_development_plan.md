@@ -1,6 +1,6 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; v0.15 bounded completion cash-out is verified, and local-controller micro-sprints should stop before whole-deal scheduling
+**Status:** Forward implementation plan; whole-deal scheduler v0.1 is verified PARTIAL, with schedule economics now the blocker
 **Date:** 2026-08-31
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
@@ -21,6 +21,31 @@ The intended operating pattern is:
 `analyse -> generate strategic options -> realise tactics -> first solve -> improve -> tighten bounds -> prove`
 
 Deal 4925153 is the development benchmark, not the algorithm. No move, column, suit order, score, command number or hard-coded route from this deal may be embedded in generic strategy logic.
+
+### Verified whole-deal scheduler v0.1 outcome
+
+Scheduler v0.1 now supplies a static exact-stock blueprint and a dynamic
+receding-horizon structural schedule. It derives temporal card availability,
+non-proof per-suit/lane foundation floors, symmetric duplicate assignments,
+backward K-A fragments split at unavailable ranks, next-row reception targets,
+high-leverage bridge/source facts, typed deadlines and a bounded four-objective
+portfolio. The controller annotates existing replay-valid successors only.
+Schedule state remains outside exact identity and proof pruning; Unrestricted
+Deal remains on and all fixed Gate limits are unchanged.
+
+All capability Gates A-M and three deterministic unseen-deal checks pass. The
+benchmark blueprint independently confirms both 3c cards in the final row and
+derives the generic pre-final Club K-4 / 2-A split. Natural Gate S selected and
+advanced eight scheduler targets and recorded eight structural harvests, but
+remained at F1/total corrected `g=26`. The authorized untouched Gate T selected
+and advanced thirteen targets but stayed at epoch zero, F0 and stock 50. No
+repeat, optional whole-game run or solution archive change was authorized.
+
+The verified verdict is PARTIAL, architectural class D: schedule economics.
+The next separately authorized scheduler task should add a transparent
+fragment-saturation / Deal-readiness criterion under the same resource and
+proof limits. Do not resume local-controller micro-sprints or start that task
+automatically. See `docs/whole_deal_backward_forward_scheduler_v0_1.md`.
 
 ## 2. Why the plan changes now
 
