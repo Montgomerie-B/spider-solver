@@ -194,9 +194,10 @@ Capability Gates A-M all pass:
 
 Three deterministic unseen four-suit deals produced five exact future rows,
 eight lane floors, backward fragments, next-row receptions and leverage
-sources. Every smoke admitted scheduler objectives, retained Deal and
-construction families, had raw legal tableau alternatives, independently
-replayed a state transition and produced a distinct fresh schedule.
+sources. Two smokes admitted scheduler objectives; the third correctly retained
+ordinary/Deal play without admitting one. All three retained Deal and raw legal
+tableau alternatives, independently replayed a state transition and produced a
+distinct fresh schedule.
 
 ## Untouched benchmark blueprint
 
