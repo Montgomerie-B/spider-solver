@@ -58,6 +58,20 @@ from spider.planner.campaign_dependency_closure import (
     build_campaign_critical_path,
     realize_campaign_dependency_closure,
 )
+from spider.planner.completion_cash_out import (
+    CompletionCashOutDisposition,
+    CompletionCashOutOpportunity,
+    CompletionCashOutStatus,
+    CompletionCashOutTrace,
+    CompletionHarvestAssessment,
+    CompletionHarvestKind,
+    CompletionStructuralMetrics,
+    assess_completion_harvest,
+    combine_completion_harvest,
+    make_completion_cash_out_opportunity,
+    rank_completion_opportunities,
+    reconstruct_completion_satisfactions,
+)
 from spider.planner.deal_timing import (
     DealCounterfactual,
     DealPreparationCandidate,
@@ -750,6 +764,9 @@ class StrategicSearchNode:
     source_completion_ledger: SourceCompletionLedger = field(
         default_factory=SourceCompletionLedger
     )
+    completion_cash_out: Optional[CompletionCashOutOpportunity] = None
+    completion_harvest_history: Tuple[CompletionHarvestAssessment, ...] = ()
+    completion_cash_out_parent_was_deal: bool = False
 
 
 @dataclass(frozen=True)
@@ -1152,6 +1169,32 @@ class ControllerTelemetry:
     source_completion_reanalyses: int = 0
     source_completion_propagation_seconds: float = 0.0
     source_expiry_audit_seconds: float = 0.0
+    admitted_completion_states: int = 0
+    completion_nonqualifying_admitted: int = 0
+    completion_cash_out_qualified: int = 0
+    completion_representatives_reserved: int = 0
+    completion_representatives_expanded: int = 0
+    completion_representatives_expired_before_expansion: int = 0
+    completion_cash_out_spent: int = 0
+    completion_admitted_not_selected: int = 0
+    completion_exact_duplicate_suppressions: int = 0
+    completion_invalidated_representatives: int = 0
+    completion_representative_displaced_ordinary_slots: int = 0
+    completion_selection_seconds: float = 0.0
+    completion_harvest_assessments: int = 0
+    completion_source_consumed: int = 0
+    completion_source_integrated: int = 0
+    completion_no_downstream_harvest: int = 0
+    completion_ordinary_continuations: int = 0
+    completion_branches_abandoned: int = 0
+    completion_targets_expired: int = 0
+    completion_deals_admitted_after_cash_out: int = 0
+    completion_deals_chosen_after_cash_out: int = 0
+    completion_terminal_paths: int = 0
+    completion_harvest_by_kind: Dict[str, int] = field(default_factory=dict)
+    completion_harvest_by_suit: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    completion_selection_traces: List[CompletionCashOutTrace] = field(default_factory=list)
+    completion_harvest_rows: List[CompletionHarvestAssessment] = field(default_factory=list)
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -6156,6 +6199,14 @@ def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
 
 def _node_priority(node: StrategicSearchNode) -> Tuple:
     base = strategic_progress_order_key(node)
+    cash_out = node.completion_cash_out
+    completion_reservation = (
+        0
+        if cash_out is not None
+        and cash_out.status == CompletionCashOutStatus.RESERVED
+        and not cash_out.cash_out_spent
+        else 1,
+    )
     credit = node.continuation_credit
     continuity = (
         0 if credit is not None and credit.is_live else 1,
@@ -6185,7 +6236,7 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
     # same-target continuation may not outrank a completed purposeful Deal or
     # launder anonymous Deal debt.
     continuity_index = 4 if node.analysis is None else 7
-    return base[:continuity_index] + milestone_continuity + continuity + base[continuity_index:] + (
+    return base[:continuity_index] + completion_reservation + milestone_continuity + continuity + base[continuity_index:] + (
         int(node.credit_level),
         node.depth,
         node.node_id,
@@ -6362,6 +6413,372 @@ def _record_source_completion_trace(
     )
 
 
+def _completion_structural_metrics(
+    node: StrategicSearchNode,
+    successor: StrategicSuccessor,
+    child_stage0: Stage0AnalysisSnapshot,
+    admitted_traces: Sequence[SourceCompletionPropagationTrace],
+    *,
+    corrected_g: int,
+) -> CompletionStructuralMetrics:
+    """Expose completion economics without introducing a completion bonus."""
+
+    events = tuple({item.event.event_id: item.event for item in admitted_traces}.values())
+    delta = successor.progress_delta
+    closure = successor.dependency_closure_result
+    milestone = successor.milestone_result
+    dependency_reduction = max(
+        0,
+        delta.critical_dependencies_removed if delta is not None else 0,
+        len(closure.dependencies_closed) if closure is not None else 0,
+    )
+    receiver_unlocks = max(
+        0,
+        delta.exact_receiver_successes if delta is not None else 0,
+        int(
+            milestone is not None
+            and milestone.milestone.kind == StrategicMilestoneKind.RECEIVER_GEOMETRY
+            and milestone.status == StrategicMilestoneStatus.ACHIEVED
+        ),
+    )
+    terminal_readiness = int(
+        len(successor.end_state.foundations) > len(node.state.foundations)
+        or (
+            milestone is not None
+            and milestone.milestone.kind
+            in {
+                StrategicMilestoneKind.TERMINAL_QUALIFICATION,
+                StrategicMilestoneKind.FOUNDATION_REMOVAL,
+            }
+            and milestone.status == StrategicMilestoneStatus.ACHIEVED
+        )
+    )
+    substantial = int(
+        milestone is not None
+        and milestone.outcome_kind
+        in {
+            MilestoneOutcomeKind.SUBSTANTIAL_STRUCTURAL_MILESTONE,
+            MilestoneOutcomeKind.FOUNDATION,
+        }
+    )
+    return CompletionStructuralMetrics(
+        corrected_g,
+        child_stage0.foundation_count,
+        child_stage0.stable_same_suit_joins,
+        child_stage0.mixed_suit_boundaries,
+        len(events),
+        sum(item.actionable or item.exposed for item in events),
+        sum(item.consumed for item in events),
+        sum(item.integrated for item in events),
+        dependency_reduction,
+        receiver_unlocks,
+        len(child_stage0.empty_columns),
+        child_stage0.face_down_count,
+        max(0, node.stage0.face_down_count - child_stage0.face_down_count)
+        if node.stage0 is not None
+        else 0,
+        child_stage0.stock_count,
+        successor.deal_timing_priority,
+        child_stage0.rehandling_debt,
+        terminal_readiness,
+        substantial,
+        child_stage0.legal_move_count,
+    )
+
+
+def _completion_trace_index(
+    telemetry: ControllerTelemetry, opportunity_id: str
+) -> Optional[int]:
+    return next(
+        (
+            index
+            for index, item in enumerate(telemetry.completion_selection_traces)
+            if item.opportunity_id == opportunity_id
+        ),
+        None,
+    )
+
+
+def _record_completion_opportunity(
+    telemetry: ControllerTelemetry,
+    opportunity: CompletionCashOutOpportunity,
+    maximum: int,
+) -> None:
+    if _completion_trace_index(telemetry, opportunity.opportunity_id) is not None:
+        return
+    trace = CompletionCashOutTrace(
+        opportunity.opportunity_id,
+        opportunity.event_ids,
+        opportunity.semantic_targets,
+        opportunity.exact_state_key,
+        opportunity.exact_state_hash,
+        opportunity.corrected_g,
+        opportunity.successor_family,
+        opportunity.metrics,
+        opportunity.status,
+        opportunity.representative_rank,
+        opportunity.competing_normal_state_hash,
+        opportunity.competing_normal_g,
+        True,
+        False,
+        False,
+        False,
+        CompletionCashOutDisposition.QUALIFIED,
+        opportunity.reason,
+    )
+    _append_bounded(telemetry.completion_selection_traces, trace, maximum)
+
+
+def _update_completion_trace(
+    telemetry: ControllerTelemetry,
+    opportunity: CompletionCashOutOpportunity,
+    **changes,
+) -> None:
+    index = _completion_trace_index(telemetry, opportunity.opportunity_id)
+    if index is None:
+        return
+    telemetry.completion_selection_traces[index] = (
+        telemetry.completion_selection_traces[index].update(
+            opportunity=opportunity,
+            **changes,
+        )
+    )
+
+
+def _reserve_completion_representative(
+    frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
+    *,
+    tt: StrategicTranspositionTable,
+    spent_event_ids: Sequence[str],
+    telemetry: ControllerTelemetry,
+) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
+    """Reserve at most one already-admitted completion inside current width."""
+
+    selection_started = time.perf_counter()
+    eligible_nodes = []
+    superseded_by_id = {}
+    for _priority, _uid, node in frontier:
+        opportunity = node.completion_cash_out
+        if opportunity is None or not opportunity.eligible(spent_event_ids):
+            continue
+        best_g = tt.best_g(opportunity.exact_state_key)
+        if best_g is not None and node.g > best_g:
+            if opportunity.status != CompletionCashOutStatus.SUPERSEDED:
+                superseded = replace(
+                    opportunity,
+                    status=CompletionCashOutStatus.SUPERSEDED,
+                    reason="a lower-g identical exact state superseded this completion arrival",
+                )
+                _update_completion_trace(
+                    telemetry,
+                    superseded,
+                    disposition=CompletionCashOutDisposition.SUPERSEDED_BY_LOWER_G,
+                    reason=superseded.reason,
+                )
+                telemetry.completion_invalidated_representatives += 1
+                superseded_by_id[opportunity.opportunity_id] = superseded
+            continue
+        eligible_nodes.append((node, opportunity))
+    ranked = rank_completion_opportunities(
+        tuple(item[1] for item in eligible_nodes),
+        spent_event_ids=spent_event_ids,
+    )
+    ranked_by_id = {item.opportunity_id: item for item in ranked}
+    chosen = ranked[0] if ranked else None
+    normal = next(
+        (
+            item[2]
+            for item in sorted(frontier)
+            if item[2].completion_cash_out is None
+            or not item[2].completion_cash_out.eligible(spent_event_ids)
+        ),
+        None,
+    )
+    rebuilt = []
+    for _priority, uid, node in frontier:
+        opportunity = node.completion_cash_out
+        if (
+            opportunity is not None
+            and opportunity.opportunity_id in superseded_by_id
+        ):
+            updated_node = replace(
+                node,
+                completion_cash_out=superseded_by_id[opportunity.opportunity_id],
+            )
+            rebuilt.append((_node_priority(updated_node), uid, updated_node))
+            continue
+        if opportunity is None or opportunity.opportunity_id not in ranked_by_id:
+            rebuilt.append((_node_priority(node), uid, node))
+            continue
+        ranked_opportunity = ranked_by_id[opportunity.opportunity_id]
+        is_chosen = bool(
+            chosen is not None
+            and ranked_opportunity.opportunity_id == chosen.opportunity_id
+        )
+        status = (
+            CompletionCashOutStatus.RESERVED
+            if is_chosen
+            else CompletionCashOutStatus.QUALIFIED
+        )
+        updated = replace(
+            ranked_opportunity,
+            status=status,
+            competing_normal_state_hash=(
+                _state_hash(normal.state) if normal is not None else None
+            ),
+            competing_normal_g=(normal.g if normal is not None else None),
+            reason=(
+                "strongest qualifying completion reserved for one ordinary fresh expansion"
+                if is_chosen
+                else "another qualifying completion has the stronger bounded representative rank"
+            ),
+        )
+        if is_chosen and opportunity.status != CompletionCashOutStatus.RESERVED:
+            telemetry.completion_representatives_reserved += 1
+        _update_completion_trace(
+            telemetry,
+            updated,
+            disposition=(
+                CompletionCashOutDisposition.REPRESENTATIVE_RESERVED
+                if is_chosen
+                else CompletionCashOutDisposition.QUALIFIED
+            ),
+            reason=updated.reason,
+        )
+        updated_node = replace(node, completion_cash_out=updated)
+        rebuilt.append((_node_priority(updated_node), uid, updated_node))
+    heapq.heapify(rebuilt)
+    telemetry.completion_selection_seconds += time.perf_counter() - selection_started
+    return rebuilt
+
+
+def _completion_harvest_assessment(
+    opportunity: CompletionCashOutOpportunity,
+    node: StrategicSearchNode,
+    successor: StrategicSuccessor,
+    *,
+    admitted: bool,
+) -> CompletionHarvestAssessment:
+    milestone = successor.milestone_result
+    closure = successor.dependency_closure_result
+    completed_dependency_ids = {
+        event.dependency_id for event in opportunity.events
+    }
+    matching_source_milestone = bool(
+        milestone is not None
+        and milestone.milestone.kind == StrategicMilestoneKind.SOURCE_CHAIN
+        and milestone.milestone.target_identity is not None
+        and milestone.milestone.target_identity.fingerprint
+        in opportunity.semantic_targets
+    )
+    dependency_advance = bool(
+        (
+            closure is not None
+            and closure.target_dependency_id in completed_dependency_ids
+            and (closure.dependencies_closed or closure.advanced_states_continued)
+        )
+        or (
+            matching_source_milestone
+            and milestone.status
+            in {StrategicMilestoneStatus.ADVANCED, StrategicMilestoneStatus.ACHIEVED}
+        )
+    )
+    receiver_unlock = bool(
+        (successor.progress_delta is not None and successor.progress_delta.exact_receiver_successes)
+        or (
+            milestone is not None
+            and milestone.milestone.kind == StrategicMilestoneKind.RECEIVER_GEOMETRY
+            and milestone.status == StrategicMilestoneStatus.ACHIEVED
+        )
+    )
+    terminal = bool(
+        len(successor.end_state.foundations) > len(node.state.foundations)
+        or (
+            milestone is not None
+            and milestone.milestone.kind == StrategicMilestoneKind.TERMINAL_QUALIFICATION
+            and milestone.status == StrategicMilestoneStatus.ACHIEVED
+        )
+    )
+    epoch_prepared = bool(
+        milestone is not None
+        and milestone.milestone.kind == StrategicMilestoneKind.PRE_DEAL_PREPARATION
+        and milestone.status == StrategicMilestoneStatus.ACHIEVED
+    )
+    captured_kinds = {
+        StrategicMilestoneKind.SOURCE_CHAIN,
+        StrategicMilestoneKind.RECEIVER_GEOMETRY,
+        StrategicMilestoneKind.PRE_DEAL_PREPARATION,
+        StrategicMilestoneKind.TERMINAL_QUALIFICATION,
+        StrategicMilestoneKind.FOUNDATION_REMOVAL,
+    }
+    other_named = bool(
+        milestone is not None
+        and milestone.outcome_kind == MilestoneOutcomeKind.SUBSTANTIAL_STRUCTURAL_MILESTONE
+        and milestone.milestone.kind not in captured_kinds
+    )
+    return assess_completion_harvest(
+        opportunity,
+        node.state,
+        successor.end_state,
+        downstream_successor_generated=True,
+        downstream_successor_admitted=admitted,
+        dependency_chain_advanced=dependency_advance,
+        receiver_unlocked=receiver_unlock,
+        terminal_qualified=terminal,
+        epoch_prepared=epoch_prepared,
+        other_named_harvest=other_named,
+        action_is_deal=any(action == ("deal",) for action in successor.actions),
+    )
+
+
+def _record_completion_harvest(
+    telemetry: ControllerTelemetry,
+    opportunity: CompletionCashOutOpportunity,
+    assessment: CompletionHarvestAssessment,
+    maximum: int,
+) -> None:
+    telemetry.completion_harvest_assessments += 1
+    telemetry.completion_source_consumed += len(assessment.source_consumed_event_ids)
+    telemetry.completion_source_integrated += len(assessment.source_integrated_event_ids)
+    telemetry.completion_no_downstream_harvest += int(not assessment.meaningful)
+    for kind in assessment.harvest_kinds:
+        telemetry.completion_harvest_by_kind[kind.value] = (
+            telemetry.completion_harvest_by_kind.get(kind.value, 0) + 1
+        )
+    for suit in {item.physical_source.suit for item in opportunity.events}:
+        row = telemetry.completion_harvest_by_suit.setdefault(suit, {})
+        for kind in assessment.harvest_kinds:
+            row[kind.value] = row.get(kind.value, 0) + 1
+    telemetry.completion_ordinary_continuations += int(
+        assessment.downstream_successor_admitted
+    )
+    telemetry.completion_branches_abandoned += int(
+        not assessment.downstream_successor_admitted
+    )
+    telemetry.completion_terminal_paths += int(
+        CompletionHarvestKind.TERMINAL_QUALIFICATION in assessment.harvest_kinds
+        or CompletionHarvestKind.FOUNDATION_REMOVAL in assessment.harvest_kinds
+    )
+    _append_bounded(telemetry.completion_harvest_rows, assessment, maximum)
+    spent = replace(
+        opportunity,
+        status=CompletionCashOutStatus.SPENT,
+        cash_out_spent=True,
+        reason=(
+            "one bounded cash-out expansion completed; ordinary economics resume"
+        ),
+    )
+    _update_completion_trace(
+        telemetry,
+        spent,
+        disposition=CompletionCashOutDisposition.CASH_OUT_SPENT,
+        reason=spent.reason,
+        selected_for_expansion=True,
+        cash_out_spent=True,
+        downstream_result=assessment.harvest_kinds,
+    )
+
+
 def _trim_frontier_with_checkpoint_diversity(
     frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
     *,
@@ -6376,6 +6793,43 @@ def _trim_frontier_with_checkpoint_diversity(
     kept = []
     kept_ids = set()
     represented = set()
+    # One already-admitted completion representative occupies an existing
+    # frontier slot.  It receives no width, resource, or expansion increase.
+    completion_item = next(
+        (
+            item
+            for item in ordered
+            if item[2].completion_cash_out is not None
+            and item[2].completion_cash_out.status
+            == CompletionCashOutStatus.RESERVED
+            and not item[2].completion_cash_out.cash_out_spent
+        ),
+        None,
+    )
+    if completion_item is not None:
+        if telemetry is not None:
+            ordinary_order = sorted(
+                frontier,
+                key=lambda item: _node_priority(
+                    replace(
+                        item[2],
+                        completion_cash_out=replace(
+                            item[2].completion_cash_out,
+                            status=CompletionCashOutStatus.QUALIFIED,
+                        )
+                        if item[2].completion_cash_out is not None
+                        else None,
+                    )
+                ),
+            )
+            if completion_item[1] not in {
+                item[1] for item in ordinary_order[:maximum]
+            }:
+                telemetry.completion_representative_displaced_ordinary_slots += 1
+        kept.append(completion_item)
+        kept_ids.add(completion_item[1])
+        if len(kept) >= maximum:
+            return kept
     # Protect only the strongest live same-campaign continuation globally;
     # continuity is bounded and cannot monopolise the frontier.
     continuity_item = next(
@@ -7446,6 +7900,10 @@ def solve_anytime(
     lowest_dependency_node = root
     tt = StrategicTranspositionTable()
     tt.admit(root.state, 0)
+    completion_context_by_state: Dict[CanonicalStateKey, SourceCompletionLedger] = {
+        canonical_state_key(root.state): root.source_completion_ledger
+    }
+    cash_out_spent_event_ids: set[str] = set()
     frontier: List[Tuple[Tuple, int, StrategicSearchNode]] = []
     uid = 0
     heapq.heappush(frontier, (_node_priority(root), uid, root))
@@ -7471,7 +7929,31 @@ def solve_anytime(
             stop_reason = "tactical node limit"
             break
 
+        frontier = _reserve_completion_representative(
+            frontier,
+            tt=tt,
+            spent_event_ids=tuple(cash_out_spent_event_ids),
+            telemetry=telemetry,
+        )
         _priority, _sequence, node = heapq.heappop(frontier)
+        if node.completion_cash_out_parent_was_deal:
+            telemetry.completion_deals_chosen_after_cash_out += 1
+            node = replace(node, completion_cash_out_parent_was_deal=False)
+        reconstructed = completion_context_by_state.get(canonical_state_key(node.state))
+        if reconstructed is not None and reconstructed.satisfactions:
+            merged_satisfactions = {
+                item.requirement.identity_key: item
+                for item in node.source_completion_ledger.satisfactions
+            }
+            for item in reconstructed.satisfactions:
+                merged_satisfactions[item.requirement.identity_key] = item
+            node = replace(
+                node,
+                source_completion_ledger=replace(
+                    node.source_completion_ledger,
+                    satisfactions=tuple(merged_satisfactions.values()),
+                ),
+            )
         if node.stage0 is None:
             node = replace(
                 node,
@@ -7627,6 +8109,33 @@ def solve_anytime(
                 best_node = node
             most_foundations_node = node
             continue
+
+        active_cash_out = None
+        if (
+            node.completion_cash_out is not None
+            and node.completion_cash_out.status == CompletionCashOutStatus.RESERVED
+            and node.completion_cash_out.eligible(cash_out_spent_event_ids)
+        ):
+            active_cash_out = replace(
+                node.completion_cash_out,
+                status=CompletionCashOutStatus.EXPANDED,
+                cash_out_spent=True,
+                reason=(
+                    "reserved admitted completion is receiving its one normal fresh expansion"
+                ),
+            )
+            cash_out_spent_event_ids.update(active_cash_out.event_ids)
+            node = replace(node, completion_cash_out=active_cash_out)
+            telemetry.completion_representatives_expanded += 1
+            telemetry.completion_cash_out_spent += 1
+            _update_completion_trace(
+                telemetry,
+                active_cash_out,
+                disposition=CompletionCashOutDisposition.REPRESENTATIVE_EXPANDED,
+                reason=active_cash_out.reason,
+                selected_for_expansion=True,
+                cash_out_spent=True,
+            )
 
         telemetry.expanded += 1
         maximum_credit_reached = max(maximum_credit_reached, int(node.credit_level))
@@ -7793,6 +8302,8 @@ def solve_anytime(
         )
         telemetry.generated += len(successors)
         _trace_expansion(node, successors, telemetry, config, current_incumbent_cost)
+        cash_out_assessments: List[CompletionHarvestAssessment] = []
+        cash_out_deal_admitted = False
 
         protected_successor = next(
             (
@@ -7831,6 +8342,12 @@ def solve_anytime(
             ng = node.g + successor.corrected_cost
             if not tt.admit(successor.end_state, ng):
                 telemetry.tt_suppressed += 1
+                if active_cash_out is not None:
+                    cash_out_assessments.append(
+                        _completion_harvest_assessment(
+                            active_cash_out, node, successor, admitted=False
+                        )
+                    )
                 for source_trace in successor.source_completion_traces:
                     lost = replace(
                         source_trace,
@@ -7841,10 +8358,37 @@ def solve_anytime(
                     _record_source_completion_trace(
                         telemetry, lost, config.max_timeline_entries
                     )
+                if successor.source_completion_traces:
+                    telemetry.completion_exact_duplicate_suppressions += 1
+                    key = canonical_state_key(successor.end_state)
+                    context = completion_context_by_state.get(
+                        key, SourceCompletionLedger()
+                    )
+                    satisfactions = {
+                        item.requirement.identity_key: item
+                        for item in context.satisfactions
+                    }
+                    for item in reconstruct_completion_satisfactions(
+                        successor.end_state, successor.source_completion_traces
+                    ):
+                        satisfactions[item.requirement.identity_key] = item
+                    completion_context_by_state[key] = replace(
+                        context, satisfactions=tuple(satisfactions.values())
+                    )
                 if successor.kind == StrategicActionKind.CAMPAIGN_CORRIDOR:
                     telemetry.corridors_suppressed_by_tt += 1
                 telemetry.count_suppression("exact state reached at no lower g")
                 continue
+            cash_out_assessment = None
+            if active_cash_out is not None:
+                cash_out_assessment = _completion_harvest_assessment(
+                    active_cash_out, node, successor, admitted=True
+                )
+                cash_out_assessments.append(cash_out_assessment)
+                cash_out_deal_admitted = bool(
+                    cash_out_deal_admitted
+                    or successor.kind in _DEAL_ACTION_KINDS
+                )
             if contextual_completion:
                 result = successor.milestone_result
                 assert result is not None
@@ -8224,6 +8768,7 @@ def solve_anytime(
                         successor.target_boundary_trace
                     )
             child_source_ledger = node.source_completion_ledger
+            admitted_source_traces = []
             for source_trace in successor.source_completion_traces:
                 admitted_trace = source_trace.advance(
                     SourceCompletionStage.CONTROLLER_ADMITTED_COMPLETION,
@@ -8239,10 +8784,114 @@ def solve_anytime(
                         disposition=SourceCompletionDisposition.PRESERVED,
                         detail="admitted node retains source harvest in target lineage",
                     )
+                admitted_source_traces.append(admitted_trace)
                 child_source_ledger = child_source_ledger.with_trace(admitted_trace)
                 _record_source_completion_trace(
                     telemetry, admitted_trace, config.max_timeline_entries
                 )
+            if cash_out_assessment is not None:
+                updated_traces = []
+                consumed_ids = set(cash_out_assessment.source_consumed_event_ids)
+                integrated_ids = set(cash_out_assessment.source_integrated_event_ids)
+                for source_trace in child_source_ledger.traces:
+                    updated_trace = source_trace
+                    if source_trace.event.event_id in consumed_ids:
+                        updated_trace = updated_trace.advance(
+                            SourceCompletionStage.SOURCE_CONSUMED,
+                            detail="cash-out descendant consumes the completed source",
+                        )
+                    if source_trace.event.event_id in integrated_ids:
+                        updated_trace = updated_trace.advance(
+                            SourceCompletionStage.SOURCE_INTEGRATED,
+                            detail="cash-out descendant integrates the source into same-suit structure",
+                        )
+                    updated_traces.append(updated_trace)
+                    if updated_trace.stages != source_trace.stages:
+                        _record_source_completion_trace(
+                            telemetry, updated_trace, config.max_timeline_entries
+                        )
+                child_source_ledger = replace(
+                    child_source_ledger, traces=tuple(updated_traces)
+                )
+            child_completion_cash_out = None
+            if admitted_source_traces:
+                telemetry.admitted_completion_states += 1
+                metrics = _completion_structural_metrics(
+                    node,
+                    successor,
+                    child_stage0,
+                    admitted_source_traces,
+                    corrected_g=ng,
+                )
+                child_completion_cash_out = make_completion_cash_out_opportunity(
+                    successor.end_state,
+                    corrected_g=ng,
+                    traces=admitted_source_traces,
+                    successor_family=successor.category,
+                    metrics=metrics,
+                    exact_tt_admitted=True,
+                    independently_replay_verified=successor.independent_replay_verified,
+                    spent_event_ids=cash_out_spent_event_ids,
+                )
+                if child_completion_cash_out is not None:
+                    telemetry.completion_cash_out_qualified += 1
+                    _record_completion_opportunity(
+                        telemetry,
+                        child_completion_cash_out,
+                        config.max_timeline_entries,
+                    )
+                else:
+                    telemetry.completion_nonqualifying_admitted += 1
+                    event_ids = tuple(
+                        dict.fromkeys(
+                            item.event.event_id for item in admitted_source_traces
+                        )
+                    )
+                    target_ids = tuple(
+                        dict.fromkeys(
+                            item.event.semantic_target_fingerprint
+                            for item in admitted_source_traces
+                        )
+                    )
+                    trace_id = hashlib.sha256(
+                        repr(
+                            (
+                                canonical_state_key(successor.end_state),
+                                event_ids,
+                                "nonqualifying-admitted-completion",
+                            )
+                        ).encode("utf-8")
+                    ).hexdigest()[:16]
+                    _append_bounded(
+                        telemetry.completion_selection_traces,
+                        CompletionCashOutTrace(
+                            trace_id,
+                            event_ids,
+                            target_ids,
+                            canonical_state_key(successor.end_state),
+                            _state_hash(successor.end_state),
+                            ng,
+                            successor.category,
+                            metrics,
+                            CompletionCashOutStatus.INVALIDATED,
+                            None,
+                            None,
+                            None,
+                            True,
+                            False,
+                            False,
+                            False,
+                            CompletionCashOutDisposition.INVALIDATED_BY_FRESH_FACT,
+                            (
+                                "fresh exact admitted state did not preserve a new, "
+                                "strong, unspent completion context"
+                            ),
+                        ),
+                        config.max_timeline_entries,
+                    )
+            completion_context_by_state[
+                canonical_state_key(successor.end_state)
+            ] = child_source_ledger
             child = StrategicSearchNode(
                 uid,
                 successor.end_state.clone(),
@@ -8276,6 +8925,13 @@ def solve_anytime(
                 child_obligations,
                 child_target_lineage,
                 child_source_ledger,
+                child_completion_cash_out,
+                node.completion_harvest_history
+                + ((cash_out_assessment,) if cash_out_assessment is not None else ()),
+                bool(
+                    active_cash_out is not None
+                    and successor.kind in _DEAL_ACTION_KINDS
+                ),
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -8307,6 +8963,20 @@ def solve_anytime(
                 elapsed_seconds=time.perf_counter() - started,
             )
 
+        if active_cash_out is not None:
+            harvest = combine_completion_harvest(
+                active_cash_out, cash_out_assessments
+            )
+            _record_completion_harvest(
+                telemetry,
+                active_cash_out,
+                harvest,
+                config.max_timeline_entries,
+            )
+            telemetry.completion_deals_admitted_after_cash_out += int(
+                cash_out_deal_admitted
+            )
+
         # Revisit the same exact state at a broader credit.  This bypasses TT
         # admission deliberately: TT dominates state arrival, not expansion
         # coverage.  Each (state, credit) expands at most once.
@@ -8318,6 +8988,12 @@ def solve_anytime(
                 widened = replace(node, node_id=uid, credit_level=next_credit)
                 heapq.heappush(frontier, (_node_priority(widened), uid, widened))
 
+        frontier = _reserve_completion_representative(
+            frontier,
+            tt=tt,
+            spent_event_ids=tuple(cash_out_spent_event_ids),
+            telemetry=telemetry,
+        )
         if len(frontier) > config.max_frontier_size:
             mature_before = {
                 item[1]: item[2]
@@ -8383,6 +9059,43 @@ def solve_anytime(
             )
             _record_source_completion_trace(
                 telemetry, lost, config.max_timeline_entries
+            )
+    resource_ended = stop_reason in {
+        "wall-clock limit",
+        "strategic expansion limit",
+        "tactical node limit",
+        "deadline before fresh Stage-1 expansion analysis",
+    }
+    for index, trace in enumerate(tuple(telemetry.completion_selection_traces)):
+        if trace.cash_out_spent or trace.disposition in {
+            CompletionCashOutDisposition.CASH_OUT_SPENT,
+            CompletionCashOutDisposition.SUPERSEDED_BY_LOWER_G,
+            CompletionCashOutDisposition.INVALIDATED_BY_FRESH_FACT,
+            CompletionCashOutDisposition.EXACT_DUPLICATE_SUPPRESSED,
+        }:
+            continue
+        if resource_ended:
+            telemetry.completion_representatives_expired_before_expansion += 1
+            telemetry.completion_selection_traces[index] = replace(
+                trace,
+                qualifying_status=CompletionCashOutStatus.EXPIRED,
+                disposition=CompletionCashOutDisposition.EXPIRED_BEFORE_EXPANSION,
+                reason=(
+                    "global deadline/expansion ceiling ended before the admitted "
+                    "completion could receive its reserved expansion"
+                ),
+            )
+        else:
+            telemetry.completion_admitted_not_selected += 1
+            telemetry.completion_selection_traces[index] = replace(
+                trace,
+                disposition=(
+                    CompletionCashOutDisposition.COMPLETION_ADMITTED_NOT_SELECTED
+                ),
+                reason=(
+                    "admitted qualifying completion left the frontier without its "
+                    "bounded representative expansion"
+                ),
             )
     selected_source_ledger = best_progress_node.source_completion_ledger
     selected_traces = []

@@ -1,7 +1,7 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; v0.14 source-completion propagation is verified, but selected-path conversion and the two-foundation gate remain partial
-**Date:** 2026-08-30
+**Status:** Forward implementation plan; v0.15 bounded completion cash-out is verified, and local-controller micro-sprints should stop before whole-deal scheduling
+**Date:** 2026-08-31
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
 
@@ -623,6 +623,70 @@ authorized sprint should therefore convert harvested primitive
 closure/construction work into a continuous interval-building milestone and
 terminal qualification, without restoring expensive whole-campaign setup or
 increasing any budget. See `docs/anytime_whole_game_controller_v0_8.md`.
+
+### Verified v0.15 status
+
+Controller v0.15 adds a proof-neutral `CompletionCashOutOpportunity` after
+exact-TT admission. Across the live frontier it reserves at most one strongest
+qualifying completion inside existing capacity. That state receives exactly
+one ordinary fresh strategic expansion, then becomes spent; descendants return
+to ordinary economics. There is no completion bonus, extra expansion,
+tactical grant, carried resource, terminal tier or persistence. Lower-`g`
+exact dominance and admissible proof bounds are unchanged.
+
+Fresh descendants are compared with the post-completion starting state and
+classified as source consumption/integration, same-suit construction,
+matching dependency advance, receiver/workspace/reveal, terminal/foundation,
+epoch preparation, another named structural harvest or no harvest. Original
+exposure is not counted again, and Deal is never harvest. Source facts can be
+reconstructed on a cheaper identical exact state; contradictory fresh facts
+invalidate qualification. Structural representative ranking exposes corrected
+`g`, stable joins, mixed boundaries, source actionability, dependency,
+receiver/workspace/reveal, stock timing, rehandling, terminal and milestone
+facts without proof authority.
+
+All generic capability Gates A-L pass. The focused v0.15 suite adds 62 passing
+cases; v0.15 plus v0.14 passes 134. The requested broad controller and
+structural cohort passes 787 tests with the unchanged 37 expected historical
+xfails. Two unseen deterministic four-suit smokes retained Unrestricted Deal,
+legal replay and bounded construction/Deal alternatives.
+
+Natural cost-21 Gate Q used the exact 90-second/25-expansion/300,000-node/
+frontier-256/beam-192/persistence-three envelope. It reached all 25 expansions
+in 27.338 seconds and selected the established replay-valid five-action,
+added-`g=5` endpoint at total `g=26`, F1, stock 30 and 32 face-down cards.
+Five controller-admitted completion events occupied four exact states. All
+four states qualified, were reserved, expanded and spent; none expired before
+expansion or remained admitted-but-unselected. All four produced fresh
+same-suit construction and one Hearts representative also advanced its
+matching dependency chain. Source consumption/integration, substantial
+source-chain milestones, terminal qualification and F2 remained absent.
+
+This natural correction and dependency advance authorized untouched Gate R.
+Under the exact 180-second/50-expansion/500,000-node/frontier-256/beam-192
+envelope it reached all 50 expansions in 54.603 seconds. Its selected
+replay-valid route remained corrected `g=11`, one Deal, stock 40, 38 face-down
+cards and F0. It produced two substantial interval milestones. One Hearts
+source-completion successor again failed exact strategic admission, so the
+untouched run had no admitted cash-out state, source-chain harvest, terminal
+qualification, F1 or F2. Repeatability, F3 and whole-game runs were not
+authorized. The verified verdict is PARTIAL.
+
+The definitive complete repository suite passed 1,378 ordinary tests with the
+same 37 historical expected-invalid xfails and one inherited warning in
+1,099.00 seconds.
+
+The local execution question is nevertheless answered: admitted completion
+now receives one bounded fresh expansion and can produce genuine downstream
+structural harvest without sunk-cost continuation. The remaining blocker is
+whole-deal coordination under ordinary economics, not another missing local
+cash-out mechanism. Architecture decision B therefore applies: stop local
+controller micro-sprints. A later explicitly authorized task should design and
+implement the generic whole-deal backward/forward structural scheduler over
+earliest foundation epochs, pre-Deal construction, known-stock reception,
+free joins, source leverage, duplicate assignment, useful late-suit partial
+runs and forward realisation. Do not start that scheduler automatically. See
+`docs/anytime_whole_game_controller_v0_15.md`.
 
 ### Verified v0.14 status
 
