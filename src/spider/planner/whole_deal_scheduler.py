@@ -12,13 +12,15 @@ from __future__ import annotations
 import hashlib
 import time
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Iterable, Optional, Sequence, Tuple
 
 from spider.cards import Card
 from spider.engine import SpiderState
 from spider.planner.epoch_progression import current_stock_epoch, future_stock_rows
+from spider.rules import MW_RULES
+from spider.state_identity import CanonicalStateKey, canonical_state_key
 
 
 SUITS: Tuple[str, ...] = ("c", "d", "h", "s")
@@ -91,6 +93,52 @@ class ScheduleDeltaKind(str, Enum):
     NEW_HIGH_LEVERAGE_SOURCE = "NEW_HIGH_LEVERAGE_SOURCE"
 
 
+class PreDealOpportunityClass(str, Enum):
+    """Marginal value of completing an objective before the exact next Deal."""
+
+    MUST_PRE_DEAL = "MUST_PRE_DEAL"
+    ADVANTAGE_PRE_DEAL = "ADVANTAGE_PRE_DEAL"
+    DEFERRABLE = "DEFERRABLE"
+    FUTURE_SUPPLIED = "FUTURE_SUPPLIED"
+    NON_ECONOMIC = "NON_ECONOMIC"
+    INVALID = "INVALID"
+
+
+class EpochSaturationStatus(str, Enum):
+    PREPARATION_REQUIRED = "PREPARATION_REQUIRED"
+    PREPARATION_ADVANTAGE = "PREPARATION_ADVANTAGE"
+    DEAL_READY = "DEAL_READY"
+    STOCK_EMPTY = "STOCK_EMPTY"
+
+
+class EpochTransitionRepresentativeStatus(str, Enum):
+    QUALIFIED = "QUALIFIED"
+    RESERVED = "RESERVED"
+    EXPANDED = "EXPANDED"
+    SPENT = "SPENT"
+    SUPERSEDED = "SUPERSEDED"
+    EXPIRED = "EXPIRED"
+
+
+class SchedulerDealKind(str, Enum):
+    DEAL_NOW = "DEAL_NOW"
+    PREPARED_DEAL = "PREPARED_DEAL"
+    FALLBACK_DEAL = "FALLBACK_DEAL"
+
+
+class EpochTransitionHarvestKind(str, Enum):
+    REALIZED_FREE_JOIN = "REALIZED_FREE_JOIN"
+    REALIZED_FOUNDATION_TRIGGER = "REALIZED_FOUNDATION_TRIGGER"
+    REALIZED_BRIDGE_ARRIVAL = "REALIZED_BRIDGE_ARRIVAL"
+    HIGH_LEVERAGE_SOURCE_ARRIVED = "HIGH_LEVERAGE_SOURCE_ARRIVED"
+    USEFUL_ISOLATION = "USEFUL_ISOLATION"
+    NEW_WORKSPACE_EFFECT = "NEW_WORKSPACE_EFFECT"
+    NEW_FRAGMENT_OPPORTUNITY = "NEW_FRAGMENT_OPPORTUNITY"
+    EXPECTED_NEUTRAL_TRANSITION = "EXPECTED_NEUTRAL_TRANSITION"
+    HARMFUL_RECEPTION = "HARMFUL_RECEPTION"
+    OTHER_NAMED_EPOCH_HARVEST = "OTHER_NAMED_EPOCH_HARVEST"
+
+
 @dataclass(frozen=True)
 class SchedulerPerformance:
     blueprint_seconds: float = field(default=0.0, compare=False)
@@ -98,6 +146,9 @@ class SchedulerPerformance:
     reception_seconds: float = field(default=0.0, compare=False)
     duplicate_assignment_seconds: float = field(default=0.0, compare=False)
     leverage_seconds: float = field(default=0.0, compare=False)
+    deal_now_preview_seconds: float = field(default=0.0, compare=False)
+    prepare_then_deal_seconds: float = field(default=0.0, compare=False)
+    saturation_seconds: float = field(default=0.0, compare=False)
 
 
 @dataclass(frozen=True)
@@ -273,6 +324,181 @@ class ScheduledStructuralObjective:
 
 
 @dataclass(frozen=True)
+class PreDealOpportunity:
+    objective: ScheduledStructuralObjective
+    classification: PreDealOpportunityClass
+    deadline_distance: Optional[int]
+    survives_after_deal: bool
+    source_actionable_before: bool
+    source_actionable_after: bool
+    blocker_work_before: int
+    blocker_work_after: int
+    estimated_marginal_benefit: int
+    estimated_preparation_cost: int
+    automatically_supplied: bool
+    rationale: Tuple[str, ...]
+    proof_pruning_allowed: bool = False
+
+    def ordering_key(self) -> Tuple:
+        class_order = {
+            PreDealOpportunityClass.MUST_PRE_DEAL: 0,
+            PreDealOpportunityClass.ADVANTAGE_PRE_DEAL: 1,
+            PreDealOpportunityClass.DEFERRABLE: 2,
+            PreDealOpportunityClass.FUTURE_SUPPLIED: 3,
+            PreDealOpportunityClass.NON_ECONOMIC: 4,
+            PreDealOpportunityClass.INVALID: 5,
+        }
+        return (
+            class_order[self.classification],
+            self.deadline_distance if self.deadline_distance is not None else 99,
+            -self.estimated_marginal_benefit,
+            self.estimated_preparation_cost,
+            self.blocker_work_after - self.blocker_work_before,
+            self.objective.ordering_key(),
+        )
+
+
+@dataclass(frozen=True)
+class EpochSaturationAssessment:
+    status: EpochSaturationStatus
+    epoch: int
+    opportunities: Tuple[PreDealOpportunity, ...]
+    selected_preparation: Optional[PreDealOpportunity]
+    must_count: int
+    advantage_count: int
+    deferrable_count: int
+    future_supplied_count: int
+    non_economic_count: int
+    invalid_count: int
+    reason: str
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class DealNowCounterfactual:
+    source_exact_state_key: CanonicalStateKey
+    source_state_fingerprint: str
+    source_epoch: int
+    incoming_row: Tuple[Card, ...]
+    deal_cost: int
+    post_deal_state: SpiderState = field(compare=False, repr=False)
+    post_deal_state_fingerprint: str = ""
+    post_deal_schedule: Optional["WholeDealSchedule"] = field(
+        default=None, compare=False, repr=False
+    )
+    objective_ids_before: Tuple[str, ...] = ()
+    objective_ids_after: Tuple[str, ...] = ()
+    preview_seconds: float = field(default=0.0, compare=False)
+    entered_tt: bool = False
+    strategic_expansions: int = 0
+    tactical_nodes: int = 0
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class PrepareThenDealComparison:
+    objective_id: str
+    candidate_actions: Tuple[Tuple, ...]
+    preparation_cost: int
+    deal_now_state_fingerprint: str
+    prepared_deal_state: SpiderState = field(compare=False, repr=False)
+    prepared_deal_state_fingerprint: str = ""
+    objective_progress_after_deal: ScheduleObjectiveStatus = (
+        ScheduleObjectiveStatus.PLANNED
+    )
+    same_suit_edge_delta: int = 0
+    foundation_delta: int = 0
+    face_down_delta: int = 0
+    harmful_boundary_delta: int = 0
+    demonstrably_better: bool = False
+    rationale: Tuple[str, ...] = ()
+    comparison_seconds: float = field(default=0.0, compare=False)
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class EpochTransitionHarvest:
+    kind: EpochTransitionHarvestKind
+    detail: str
+    column: Optional[int] = None
+    card: Optional[Card] = None
+    predicted: bool = False
+    realized: bool = True
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class EpochTransitionOpportunity:
+    opportunity_id: str
+    source_exact_state_key: CanonicalStateKey
+    source_state_fingerprint: str
+    source_epoch: int
+    incoming_row: Tuple[Card, ...]
+    corrected_g_after_deal: int
+    saturation: EpochSaturationAssessment
+    deal_kind: SchedulerDealKind
+    stable_structure_after: int
+    rehandling_debt_after: float
+    next_epoch_opportunity_count: int
+    harvests: Tuple[EpochTransitionHarvest, ...]
+    status: EpochTransitionRepresentativeStatus = (
+        EpochTransitionRepresentativeStatus.QUALIFIED
+    )
+    exact_tt_admitted: bool = True
+    independently_replay_verified: bool = True
+    proof_pruning_allowed: bool = False
+
+    def ordering_key(self) -> Tuple:
+        return (
+            self.corrected_g_after_deal,
+            self.saturation.must_count,
+            self.saturation.advantage_count,
+            self.rehandling_debt_after,
+            -self.stable_structure_after,
+            -self.next_epoch_opportunity_count,
+            self.source_epoch,
+            self.source_state_fingerprint,
+            self.opportunity_id,
+        )
+
+    def eligible(self, spent_ids: Iterable[str] = ()) -> bool:
+        return bool(
+            self.status
+            in {
+                EpochTransitionRepresentativeStatus.QUALIFIED,
+                EpochTransitionRepresentativeStatus.RESERVED,
+            }
+            and self.opportunity_id not in set(spent_ids)
+            and self.exact_tt_admitted
+            and self.independently_replay_verified
+        )
+
+
+@dataclass(frozen=True)
+class EpochTransitionTrace:
+    opportunity_id: str
+    source_state_fingerprint: str
+    corrected_g_before: int
+    corrected_g_after: int
+    epoch_before: int
+    epoch_after: int
+    saturation_status: EpochSaturationStatus
+    must_objective_ids: Tuple[str, ...]
+    advantage_objective_ids: Tuple[str, ...]
+    deferrable_objective_ids: Tuple[str, ...]
+    future_supplied_objective_ids: Tuple[str, ...]
+    selected_preparation_id: Optional[str]
+    deal_kind: SchedulerDealKind
+    incoming_row: Tuple[Card, ...]
+    admitted: bool
+    reserved: bool
+    expanded: bool
+    harvests: Tuple[EpochTransitionHarvest, ...]
+    next_objective_ids: Tuple[str, ...]
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
 class WholeDealBlueprint:
     blueprint_id: str
     origin_epoch: int
@@ -303,6 +529,11 @@ class WholeDealSchedule:
     leverage_cards: Tuple[UnlockCardAssessment, ...]
     objectives: Tuple[ScheduledStructuralObjective, ...]
     deal_now_preferred: bool
+    pre_deal_opportunities: Tuple[PreDealOpportunity, ...] = ()
+    saturation: Optional[EpochSaturationAssessment] = None
+    deal_now_counterfactual: Optional[DealNowCounterfactual] = field(
+        default=None, compare=False, repr=False
+    )
     generation: int = 0
     proof_pruning_allowed: bool = False
     performance: SchedulerPerformance = field(default_factory=SchedulerPerformance)
@@ -937,9 +1168,20 @@ def _build_objectives(
                 (
                     ScheduleDeadlineKind.ON_SOURCE_ARRIVAL
                     if source.temporal_kind == TemporalAvailabilityKind.FUTURE_STOCK
+                    else ScheduleDeadlineKind.BEFORE_NEXT_DEAL
+                    if any(
+                        item.column == source.column
+                        and item.kind == StockReceptionKind.HARMFUL_RECEPTION
+                        for item in receptions
+                    )
                     else ScheduleDeadlineKind.BY_EPOCH_N
                 ),
-                source.estimated_structural_work,
+                (
+                    max(1, len(target_fragment.missing_edges))
+                    if source.temporal_kind == TemporalAvailabilityKind.FUTURE_STOCK
+                    and target_fragment is not None
+                    else source.estimated_structural_work
+                ),
                 0,
                 (
                     target_fragment.edge_count
@@ -1025,7 +1267,7 @@ def _build_objectives(
                 None,
                 None,
                 None,
-                fragment.target_epoch,
+                floor if floor is not None else fragment.target_epoch,
                 (
                     ScheduleDeadlineKind.BY_EPOCH_N
                     if floor is not None and floor > epoch
@@ -1073,12 +1315,476 @@ def _build_objectives(
     return tuple(sorted(unique.values(), key=lambda item: item.ordering_key()))
 
 
+def _deadline_distance(
+    objective: ScheduledStructuralObjective,
+    *,
+    epoch: int,
+    remaining_deals: int,
+) -> Optional[int]:
+    if objective.deadline == ScheduleDeadlineKind.BEFORE_NEXT_DEAL:
+        return 0
+    if objective.deadline in {
+        ScheduleDeadlineKind.BY_EPOCH_N,
+        ScheduleDeadlineKind.ON_SOURCE_ARRIVAL,
+    }:
+        return max(0, (objective.target_epoch or epoch) - epoch)
+    if objective.deadline == ScheduleDeadlineKind.BEFORE_STOCK_EMPTY:
+        return remaining_deals
+    return None
+
+
+def _objective_edges(
+    objective: ScheduledStructuralObjective,
+) -> set[Tuple[int, int]]:
+    if (
+        objective.high_rank is None
+        or objective.low_rank is None
+        or objective.high_rank <= objective.low_rank
+    ):
+        return set()
+    return {
+        (rank, rank - 1)
+        for rank in range(objective.high_rank, objective.low_rank, -1)
+    }
+
+
+def _source_facts(
+    state: SpiderState,
+    objective: ScheduledStructuralObjective,
+) -> Tuple[bool, bool, int]:
+    refs = enumerate_temporal_cards(state)
+    exact = next(
+        (
+            item
+            for item in refs
+            if objective.source_ref_id is not None
+            and item.ref_id == objective.source_ref_id
+        ),
+        None,
+    )
+    if exact is None and objective.source_card is not None:
+        exact = min(
+            (
+                item
+                for item in refs
+                if item.card == objective.source_card
+                and item.temporal_kind
+                != TemporalAvailabilityKind.REMOVED_TO_FOUNDATION
+            ),
+            key=lambda item: (
+                item.availability_epoch,
+                item.depth,
+                item.column if item.column is not None else 99,
+            ),
+            default=None,
+        )
+    if exact is None:
+        return False, False, 99
+    actionable = exact.temporal_kind == TemporalAvailabilityKind.CURRENT_EXPOSED
+    return True, actionable, exact.depth
+
+
+def _matching_reception(
+    schedule: Optional[WholeDealSchedule],
+    objective: ScheduledStructuralObjective,
+) -> Optional[StockReceptionOpportunity]:
+    if schedule is None:
+        return None
+    return next(
+        (
+            item
+            for item in schedule.receptions
+            if item.column == objective.target_column
+            and item.incoming == objective.source_card
+        ),
+        None,
+    )
+
+
+def _objective_is_valid(
+    state: SpiderState,
+    objective: ScheduledStructuralObjective,
+    schedule: Optional[WholeDealSchedule],
+) -> bool:
+    if objective.status in {
+        ScheduleObjectiveStatus.INVALIDATED,
+        ScheduleObjectiveStatus.EXPIRED,
+    }:
+        return False
+    if objective.family == ScheduleObjectiveFamily.PREPARE_EPOCH_TRANSITION:
+        return bool(state.stock and state.can_deal(MW_RULES))
+    if objective.family == ScheduleObjectiveFamily.PREPARE_STOCK_RECEPTION:
+        rows = future_stock_rows(state)
+        return bool(
+            rows
+            and objective.target_column is not None
+            and 0 <= objective.target_column < len(rows[0])
+            and rows[0][objective.target_column] == objective.source_card
+            and _matching_reception(schedule, objective) is not None
+        )
+    if objective.source_ref_id is not None:
+        return any(
+            item.ref_id == objective.source_ref_id
+            for item in enumerate_temporal_cards(state)
+        )
+    return bool(objective.suit is not None or objective.source_card is not None)
+
+
+def classify_pre_deal_objective(
+    state: SpiderState,
+    objective: ScheduledStructuralObjective,
+    deal_now: Optional[DealNowCounterfactual],
+    *,
+    current_schedule: Optional[WholeDealSchedule] = None,
+) -> PreDealOpportunity:
+    """Classify marginal pre-Deal value from exact current/post-Deal facts.
+
+    The result is planning evidence only.  In particular, merely adding one
+    stock card above a current top is not treated as material loss.
+    """
+
+    epoch = current_stock_epoch(state)
+    remaining_deals = len(state.stock) // 10
+    distance = _deadline_distance(
+        objective, epoch=epoch, remaining_deals=remaining_deals
+    )
+    valid = _objective_is_valid(state, objective, current_schedule)
+    before_exists, before_actionable, before_depth = _source_facts(state, objective)
+    after_state = deal_now.post_deal_state if deal_now is not None else state
+    after_exists, after_actionable, after_depth = _source_facts(after_state, objective)
+    target_edges = _objective_edges(objective)
+    before_edges = _stable_edges(state, objective.suit) if objective.suit else set()
+    after_edges = (
+        _stable_edges(after_state, objective.suit) if objective.suit else set()
+    )
+    missing_before = target_edges - before_edges
+    missing_after = target_edges - after_edges
+    reception_realized = False
+    if (
+        deal_now is not None
+        and objective.family == ScheduleObjectiveFamily.PREPARE_STOCK_RECEPTION
+        and objective.target_column is not None
+        and objective.source_card is not None
+    ):
+        column = after_state.columns[objective.target_column]
+        desired = (
+            Card(objective.source_card.suit, objective.source_card.rank + 1)
+            if objective.source_card.rank < 13
+            else None
+        )
+        reception_realized = bool(
+            desired is not None
+            and len(column.face_up) >= 2
+            and column.face_up[-1] == objective.source_card
+            and column.face_up[-2] == desired
+        )
+    automatically_supplied = bool(
+        deal_now is not None
+        and (
+            reception_realized
+            or (
+                objective.family
+                != ScheduleObjectiveFamily.PREPARE_STOCK_RECEPTION
+                and (
+                    (
+                        bool(missing_before)
+                        and len(missing_after) < len(missing_before)
+                    )
+                    or objective_progress(state, after_state, objective)
+                    == ScheduleObjectiveStatus.SATISFIED
+                )
+            )
+        )
+    )
+    survives = bool(
+        deal_now is not None
+        and objective.family != ScheduleObjectiveFamily.PREPARE_STOCK_RECEPTION
+        and (
+            bool(missing_after)
+            or (
+                objective.source_card is not None
+                and after_exists
+                and objective_progress(state, after_state, objective)
+                != ScheduleObjectiveStatus.SATISFIED
+            )
+        )
+    )
+    benefit = max(
+        objective.permanent_edges,
+        objective.leverage_edges + objective.fragments_joined,
+    )
+    cost = objective.estimated_paid_cost + objective.estimated_rehandling_cost
+    rationale = []
+
+    if not valid:
+        classification = PreDealOpportunityClass.INVALID
+        rationale.append("fresh exact state no longer supports the objective")
+    elif automatically_supplied:
+        classification = PreDealOpportunityClass.FUTURE_SUPPLIED
+        rationale.append("the exact next Deal supplies or completes the target")
+    elif objective.family == ScheduleObjectiveFamily.PREPARE_STOCK_RECEPTION:
+        reception = _matching_reception(current_schedule, objective)
+        if reception is None or not reception.feasible:
+            classification = PreDealOpportunityClass.INVALID
+            rationale.append("the fixed-column receiver is no longer feasible")
+        elif reception.receiver_satisfied:
+            classification = PreDealOpportunityClass.FUTURE_SUPPLIED
+            automatically_supplied = True
+            rationale.append("the receiver is already prepared; Deal realizes the join")
+        elif not reception.worthwhile_preparation or cost > benefit:
+            classification = PreDealOpportunityClass.NON_ECONOMIC
+            rationale.append("receiver preparation costs more than its typed structural return")
+        elif reception.estimated_preparation_cost <= 1 and cost < benefit:
+            classification = PreDealOpportunityClass.MUST_PRE_DEAL
+            rationale.append("the fixed next-row reception is lost if Deal occurs first")
+        else:
+            classification = PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+            rationale.append("cheap receiver preparation improves the exact post-Deal structure")
+    elif objective.family == ScheduleObjectiveFamily.PREPARE_TERMINAL_SEQUENCE:
+        if distance is not None and distance <= 1 and cost <= max(1, benefit):
+            classification = PreDealOpportunityClass.MUST_PRE_DEAL
+            rationale.append("near-terminal work should be cashed out before stock coverage")
+        elif distance is not None and distance > 1:
+            classification = PreDealOpportunityClass.DEFERRABLE
+            rationale.append("terminal material has a later typed epoch deadline")
+        elif cost <= max(1, benefit) and after_depth > before_depth:
+            classification = PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+            rationale.append("bounded terminal preparation is cheaper before the next row")
+        else:
+            classification = PreDealOpportunityClass.DEFERRABLE
+            rationale.append("no current terminal loss relative to Deal Now is demonstrated")
+    elif objective.family in {
+        ScheduleObjectiveFamily.EXPOSE_UNLOCK_CARD,
+        ScheduleObjectiveFamily.CONSUME_BRIDGE_CARD,
+    }:
+        materially_harder = bool(
+            before_exists
+            and after_exists
+            and after_depth > before_depth
+            and objective.deadline == ScheduleDeadlineKind.BEFORE_NEXT_DEAL
+            and (objective.fragments_joined > 0 or objective.leverage_edges >= 2)
+        )
+        lost = bool(before_exists and not after_exists)
+        if (lost or materially_harder) and cost < max(1, benefit):
+            classification = PreDealOpportunityClass.MUST_PRE_DEAL
+            rationale.append("a high-leverage current source becomes materially harder after Deal")
+        elif (lost or materially_harder) and cost <= max(1, benefit):
+            classification = PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+            rationale.append("the source remains possible but is cheaper to exploit now")
+        elif survives or after_exists:
+            classification = PreDealOpportunityClass.DEFERRABLE
+            rationale.append("the source remains comparably available after Deal")
+        else:
+            classification = PreDealOpportunityClass.NON_ECONOMIC
+            rationale.append("no credible pre-Deal leverage return exceeds current work")
+    elif distance is not None and distance > 1:
+        classification = PreDealOpportunityClass.DEFERRABLE
+        rationale.append("the objective remains useful but its typed deadline is not this Deal")
+    elif survives:
+        classification = PreDealOpportunityClass.DEFERRABLE
+        rationale.append("equivalent structural work remains available after Deal")
+    elif distance == 0 and benefit > cost:
+        classification = PreDealOpportunityClass.MUST_PRE_DEAL
+        rationale.append("a positive deadline-bound opportunity is absent after Deal")
+    elif distance is not None and distance <= 1 and benefit >= cost and benefit > 0:
+        classification = PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+        rationale.append("near-deadline construction produces a better exact next epoch")
+    elif benefit <= 0 or cost > max(1, benefit * 2):
+        classification = PreDealOpportunityClass.NON_ECONOMIC
+        rationale.append("credible structural benefit does not cover preparation and rehandling")
+    else:
+        classification = PreDealOpportunityClass.DEFERRABLE
+        rationale.append("useful construction alone does not justify delaying this Deal")
+
+    if after_depth == before_depth + 1 and classification == PreDealOpportunityClass.DEFERRABLE:
+        rationale.append("ordinary stock coverage alone is not material opportunity loss")
+    return PreDealOpportunity(
+        objective,
+        classification,
+        distance,
+        survives,
+        before_actionable,
+        after_actionable,
+        before_depth,
+        after_depth,
+        benefit,
+        cost,
+        automatically_supplied,
+        tuple(rationale),
+    )
+
+
+def assess_epoch_saturation(
+    state: SpiderState,
+    opportunities: Sequence[PreDealOpportunity],
+) -> EpochSaturationAssessment:
+    started = time.perf_counter()
+    del started  # timing is collected by the caller without entering identity
+    epoch = current_stock_epoch(state)
+    ordered = tuple(sorted(opportunities, key=lambda item: item.ordering_key()))
+    counts = Counter(item.classification for item in ordered)
+    must = tuple(
+        item
+        for item in ordered
+        if item.classification == PreDealOpportunityClass.MUST_PRE_DEAL
+    )
+    advantage = tuple(
+        item
+        for item in ordered
+        if item.classification == PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+    )
+    if not state.stock:
+        status = EpochSaturationStatus.STOCK_EMPTY
+        selected = None
+        reason = "stock is empty; normal construction and foundation play continue"
+    elif must:
+        status = EpochSaturationStatus.PREPARATION_REQUIRED
+        selected = must[0]
+        reason = "at least one actionable opportunity is materially lost by the next Deal"
+    elif advantage:
+        status = EpochSaturationStatus.PREPARATION_ADVANTAGE
+        selected = advantage[0]
+        reason = "one strongest bounded preparation may compete before fresh reassessment"
+    else:
+        status = EpochSaturationStatus.DEAL_READY
+        selected = None
+        reason = "no bounded current preparation has greater marginal value than Deal Now"
+    return EpochSaturationAssessment(
+        status,
+        epoch,
+        ordered,
+        selected,
+        counts[PreDealOpportunityClass.MUST_PRE_DEAL],
+        counts[PreDealOpportunityClass.ADVANTAGE_PRE_DEAL],
+        counts[PreDealOpportunityClass.DEFERRABLE],
+        counts[PreDealOpportunityClass.FUTURE_SUPPLIED],
+        counts[PreDealOpportunityClass.NON_ECONOMIC],
+        counts[PreDealOpportunityClass.INVALID],
+        reason,
+    )
+
+
+def preview_deal_now(
+    state: SpiderState,
+    blueprint: WholeDealBlueprint,
+    *,
+    config: WholeDealSchedulerConfig = WholeDealSchedulerConfig(),
+    generation: int = 0,
+) -> Optional[DealNowCounterfactual]:
+    """Apply one real engine Deal and build one non-recursive fresh schedule."""
+
+    if not state.stock or not state.can_deal(MW_RULES):
+        return None
+    started = time.perf_counter()
+    row = tuple(future_stock_rows(state)[0])
+    post = state.clone()
+    cost = post.deal(MW_RULES)
+    post_schedule = rebuild_whole_deal_schedule(
+        post,
+        blueprint,
+        config=config,
+        generation=generation + 1,
+        _include_deal_preview=False,
+    )
+    elapsed = time.perf_counter() - started
+    return DealNowCounterfactual(
+        canonical_state_key(state),
+        _state_fingerprint(state),
+        current_stock_epoch(state),
+        row,
+        cost,
+        post,
+        _state_fingerprint(post),
+        post_schedule,
+        (),
+        tuple(item.objective_id for item in post_schedule.objectives),
+        elapsed,
+    )
+
+
+def _same_suit_edge_count(state: SpiderState) -> int:
+    return sum(len(_stable_edges(state, suit)) for suit in SUITS)
+
+
+def _harmful_boundary_count(state: SpiderState) -> int:
+    return sum(
+        lower.rank - 1 == upper.rank and lower.suit != upper.suit
+        for column in state.columns
+        for lower, upper in zip(column.face_up, column.face_up[1:])
+    )
+
+
+def compare_prepare_then_deal(
+    before: SpiderState,
+    candidate_end_state: SpiderState,
+    objective: ScheduledStructuralObjective,
+    deal_now: DealNowCounterfactual,
+    *,
+    candidate_actions: Sequence[Tuple] = (),
+    preparation_cost: int = 0,
+) -> Optional[PrepareThenDealComparison]:
+    """Compare an already-generated legal candidate followed by one exact Deal."""
+
+    if not candidate_end_state.stock or not candidate_end_state.can_deal(MW_RULES):
+        return None
+    started = time.perf_counter()
+    prepared = candidate_end_state.clone()
+    prepared.deal(MW_RULES)
+    direct = deal_now.post_deal_state
+    edge_delta = _same_suit_edge_count(prepared) - _same_suit_edge_count(direct)
+    foundation_delta = len(prepared.foundations) - len(direct.foundations)
+    face_down_delta = sum(len(c.face_down) for c in direct.columns) - sum(
+        len(c.face_down) for c in prepared.columns
+    )
+    harmful_delta = _harmful_boundary_count(direct) - _harmful_boundary_count(prepared)
+    progress = objective_progress(direct, prepared, objective)
+    structural_return = (
+        max(0, edge_delta)
+        + max(0, foundation_delta) * 12
+        + max(0, face_down_delta)
+        + max(0, harmful_delta)
+    )
+    demonstrably_better = bool(
+        foundation_delta > 0
+        or progress in {
+            ScheduleObjectiveStatus.SATISFIED,
+            ScheduleObjectiveStatus.ADVANCED,
+        }
+        or (structural_return > 0 and structural_return >= preparation_cost)
+    )
+    rationale = (
+        "comparison uses only an existing replay-valid successor and one engine Deal",
+        f"same_suit_edge_delta={edge_delta}",
+        f"foundation_delta={foundation_delta}",
+        f"face_down_improvement={face_down_delta}",
+        f"harmful_boundary_reduction={harmful_delta}",
+        f"preparation_cost={preparation_cost}",
+    )
+    return PrepareThenDealComparison(
+        objective.objective_id,
+        tuple(candidate_actions),
+        preparation_cost,
+        deal_now.post_deal_state_fingerprint,
+        prepared,
+        _state_fingerprint(prepared),
+        progress,
+        edge_delta,
+        foundation_delta,
+        face_down_delta,
+        harmful_delta,
+        demonstrably_better,
+        rationale,
+        time.perf_counter() - started,
+    )
+
+
 def rebuild_whole_deal_schedule(
     state: SpiderState,
     blueprint: WholeDealBlueprint,
     *,
     config: WholeDealSchedulerConfig = WholeDealSchedulerConfig(),
     generation: int = 0,
+    _include_deal_preview: bool = True,
 ) -> WholeDealSchedule:
     """Rebuild a receding-horizon schedule from the current exact state."""
     started = time.perf_counter()
@@ -1202,33 +1908,127 @@ def rebuild_whole_deal_schedule(
         selected_ids.add(candidate.objective_id)
         if len(selected_objectives) >= config.max_objectives:
             break
-    objectives = tuple(
+    fallback_objectives = tuple(
         sorted(
             selected_objectives[: config.max_objectives],
             key=lambda item: item.ordering_key(),
         )
     )
-    worthwhile_prep = any(
-        item.family == ScheduleObjectiveFamily.PREPARE_STOCK_RECEPTION
-        and item.status != ScheduleObjectiveStatus.SATISFIED
-        for item in objectives
-    )
-    schedule_seconds = time.perf_counter() - started
-    return WholeDealSchedule(
+    base = WholeDealSchedule(
         blueprint.blueprint_id,
         _state_fingerprint(state),
         epoch,
         tuple(suit_plans),
         receptions,
         leverage,
-        objectives,
-        bool(state.can_deal() and not worthwhile_prep),
-        generation,
+        all_objectives,
+        False,
+        generation=generation,
+        performance=SchedulerPerformance(
+            reception_seconds=reception_seconds,
+            duplicate_assignment_seconds=assignment_seconds,
+            leverage_seconds=leverage_seconds,
+        ),
+    )
+    preview = (
+        preview_deal_now(
+            state,
+            blueprint,
+            config=config,
+            generation=generation,
+        )
+        if _include_deal_preview
+        else None
+    )
+    saturation_started = time.perf_counter()
+    all_opportunities = tuple(
+        classify_pre_deal_objective(
+            state,
+            objective,
+            preview,
+            current_schedule=base,
+        )
+        for objective in all_objectives
+        if objective.family != ScheduleObjectiveFamily.PREPARE_EPOCH_TRANSITION
+    )
+    typed_by_id = {
+        item.objective.objective_id: item for item in all_opportunities
+    }
+    typed_priority = tuple(
+        sorted(all_opportunities, key=lambda item: item.ordering_key())
+    )
+    final_objectives = []
+    final_ids = set()
+
+    def retain(objective: ScheduledStructuralObjective) -> None:
+        if (
+            len(final_objectives) < config.max_objectives
+            and objective.objective_id not in final_ids
+        ):
+            final_objectives.append(objective)
+            final_ids.add(objective.objective_id)
+
+    for item in typed_priority:
+        if item.classification == PreDealOpportunityClass.MUST_PRE_DEAL:
+            retain(item.objective)
+    best_advantage = next(
+        (
+            item
+            for item in typed_priority
+            if item.classification
+            == PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+        ),
+        None,
+    )
+    if best_advantage is not None:
+        retain(best_advantage.objective)
+    for objective in fallback_objectives:
+        typed = typed_by_id.get(objective.objective_id)
+        if (
+            typed is not None
+            and typed.classification
+            == PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+            and objective.objective_id
+            != (
+                best_advantage.objective.objective_id
+                if best_advantage is not None
+                else None
+            )
+        ):
+            continue
+        retain(objective)
+    for objective in all_objectives:
+        retain(objective)
+    objectives = tuple(sorted(final_objectives, key=lambda item: item.ordering_key()))
+    if preview is not None:
+        preview = replace(
+            preview,
+            objective_ids_before=tuple(item.objective_id for item in objectives),
+        )
+    opportunities = tuple(
+        item for item in all_opportunities
+        if item.objective.objective_id in final_ids
+    )
+    saturation = assess_epoch_saturation(state, opportunities)
+    saturation_seconds = time.perf_counter() - saturation_started
+    schedule_seconds = time.perf_counter() - started
+    return replace(
+        base,
+        objectives=objectives,
+        deal_now_preferred=(
+            saturation.status == EpochSaturationStatus.DEAL_READY
+            and state.can_deal(MW_RULES)
+        ),
+        pre_deal_opportunities=opportunities,
+        saturation=saturation,
+        deal_now_counterfactual=preview,
         performance=SchedulerPerformance(
             schedule_seconds=schedule_seconds,
             reception_seconds=reception_seconds,
             duplicate_assignment_seconds=assignment_seconds,
             leverage_seconds=leverage_seconds,
+            deal_now_preview_seconds=(preview.preview_seconds if preview else 0.0),
+            saturation_seconds=saturation_seconds,
         ),
     )
 
@@ -1529,6 +2329,283 @@ def scheduler_objective_effect(
     return 2, ()
 
 
+def pre_deal_opportunity_for_objective(
+    schedule: WholeDealSchedule,
+    objective: ScheduledStructuralObjective,
+) -> Optional[PreDealOpportunity]:
+    return next(
+        (
+            item
+            for item in schedule.pre_deal_opportunities
+            if item.objective.objective_id == objective.objective_id
+        ),
+        None,
+    )
+
+
+def epoch_transition_objective(
+    state: SpiderState,
+    schedule: WholeDealSchedule,
+) -> Optional[ScheduledStructuralObjective]:
+    saturation = schedule.saturation
+    rows = future_stock_rows(state)
+    if (
+        saturation is None
+        or saturation.status != EpochSaturationStatus.DEAL_READY
+        or not rows
+        or not state.can_deal(MW_RULES)
+    ):
+        return None
+    row = tuple((card.suit, card.rank) for card in rows[0])
+    return ScheduledStructuralObjective(
+        _objective_id(
+            (
+                ScheduleObjectiveFamily.PREPARE_EPOCH_TRANSITION.value,
+                schedule.exact_state_fingerprint,
+                schedule.epoch,
+                row,
+            )
+        ),
+        ScheduleObjectiveFamily.PREPARE_EPOCH_TRANSITION,
+        ScheduleObjectiveStatus.ACTIONABLE,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        schedule.epoch + 1,
+        ScheduleDeadlineKind.NO_HARD_DEADLINE,
+        1,
+        0,
+        0,
+        0,
+        0,
+        (
+            "fresh marginal analysis classifies the current epoch Deal-ready",
+            "the existing legal Deal may receive one post-TT representative",
+            "this is bounded coverage, not a Deal score bonus",
+        ),
+    )
+
+
+def classify_epoch_transition_harvest(
+    before_state: SpiderState,
+    after_state: SpiderState,
+    before: WholeDealSchedule,
+    after: WholeDealSchedule,
+) -> Tuple[EpochTransitionHarvest, ...]:
+    """Describe actual structural consequences; the Deal itself is not harvest."""
+
+    result = []
+    for reception in before.receptions:
+        column = after_state.columns[reception.column]
+        incoming_present = bool(column.face_up and column.face_up[-1] == reception.incoming)
+        realized_join = bool(
+            len(column.face_up) >= 2
+            and column.face_up[-1] == reception.incoming
+            and reception.desired_receiver is not None
+            and column.face_up[-2] == reception.desired_receiver
+        )
+        if realized_join:
+            kind = (
+                EpochTransitionHarvestKind.REALIZED_FOUNDATION_TRIGGER
+                if reception.kind == StockReceptionKind.FOUNDATION_TRIGGER
+                else EpochTransitionHarvestKind.REALIZED_FREE_JOIN
+            )
+            result.append(
+                EpochTransitionHarvest(
+                    kind,
+                    "the exact incoming card realized its predicted same-suit reception",
+                    reception.column,
+                    reception.incoming,
+                    predicted=True,
+                )
+            )
+        elif reception.kind == StockReceptionKind.USEFUL_ISOLATION and incoming_present:
+            result.append(
+                EpochTransitionHarvest(
+                    EpochTransitionHarvestKind.USEFUL_ISOLATION,
+                    "the incoming source landed in the predicted isolated column",
+                    reception.column,
+                    reception.incoming,
+                    predicted=True,
+                )
+            )
+        elif reception.kind == StockReceptionKind.HARMFUL_RECEPTION and incoming_present:
+            result.append(
+                EpochTransitionHarvest(
+                    EpochTransitionHarvestKind.HARMFUL_RECEPTION,
+                    "the exact incoming row covered a stable current fragment",
+                    reception.column,
+                    reception.incoming,
+                    predicted=True,
+                )
+            )
+    if len(after_state.foundations) > len(before_state.foundations) and not any(
+        item.kind == EpochTransitionHarvestKind.REALIZED_FOUNDATION_TRIGGER
+        for item in result
+    ):
+        result.append(
+            EpochTransitionHarvest(
+                EpochTransitionHarvestKind.REALIZED_FOUNDATION_TRIGGER,
+                "automatic removal occurred during the exact Deal transition",
+                predicted=False,
+            )
+        )
+    next_epoch = before.epoch + 1
+    next_cards = {
+        (item.column, item.card)
+        for item in before.leverage_cards
+        if item.temporal_kind == TemporalAvailabilityKind.FUTURE_STOCK
+        and item.availability_epoch == next_epoch
+        and item.is_bridge
+    }
+    for column, card in sorted(
+        next_cards,
+        key=lambda item: (item[0] if item[0] is not None else 99, item[1].suit, item[1].rank),
+    ):
+        if column is not None and card in after_state.columns[column].face_up:
+            result.append(
+                EpochTransitionHarvest(
+                    EpochTransitionHarvestKind.REALIZED_BRIDGE_ARRIVAL,
+                    "a known two-sided bridge entered the tableau on schedule",
+                    column,
+                    card,
+                    predicted=True,
+                )
+            )
+            result.append(
+                EpochTransitionHarvest(
+                    EpochTransitionHarvestKind.HIGH_LEVERAGE_SOURCE_ARRIVED,
+                    "fresh next-epoch analysis can now act on the arrived source",
+                    column,
+                    card,
+                    predicted=True,
+                )
+            )
+    before_ids = {item.objective_id for item in before.objectives}
+    new_objectives = tuple(
+        item for item in after.objectives if item.objective_id not in before_ids
+    )
+    if new_objectives:
+        result.append(
+            EpochTransitionHarvest(
+                EpochTransitionHarvestKind.NEW_FRAGMENT_OPPORTUNITY,
+                f"fresh epoch schedule produced {len(new_objectives)} new bounded objectives",
+                predicted=False,
+            )
+        )
+    if not result:
+        result.append(
+            EpochTransitionHarvest(
+                EpochTransitionHarvestKind.EXPECTED_NEUTRAL_TRANSITION,
+                "the mandatory epoch transition produced no named immediate harvest",
+                predicted=True,
+            )
+        )
+    unique = {}
+    for item in result:
+        unique[(item.kind, item.column, item.card)] = item
+    return tuple(unique.values())
+
+
+def make_epoch_transition_opportunity(
+    source_state: SpiderState,
+    child_state: SpiderState,
+    source_schedule: WholeDealSchedule,
+    child_schedule: WholeDealSchedule,
+    *,
+    corrected_g_after_deal: int,
+    stable_structure_after: int,
+    rehandling_debt_after: float,
+    deal_kind: SchedulerDealKind = SchedulerDealKind.DEAL_NOW,
+    exact_tt_admitted: bool,
+    independently_replay_verified: bool,
+) -> Optional[EpochTransitionOpportunity]:
+    saturation = source_schedule.saturation
+    rows = future_stock_rows(source_state)
+    if (
+        saturation is None
+        or saturation.status != EpochSaturationStatus.DEAL_READY
+        or not rows
+        or current_stock_epoch(child_state) != source_schedule.epoch + 1
+        or not exact_tt_admitted
+        or not independently_replay_verified
+    ):
+        return None
+    source_key = canonical_state_key(source_state)
+    row = tuple(rows[0])
+    identity = (
+        source_key,
+        source_schedule.epoch,
+        tuple((card.suit, card.rank) for card in row),
+    )
+    opportunity_id = hashlib.sha256(repr(identity).encode("utf-8")).hexdigest()[:16]
+    return EpochTransitionOpportunity(
+        opportunity_id,
+        source_key,
+        source_schedule.exact_state_fingerprint,
+        source_schedule.epoch,
+        row,
+        corrected_g_after_deal,
+        saturation,
+        deal_kind,
+        stable_structure_after,
+        rehandling_debt_after,
+        len(child_schedule.objectives),
+        classify_epoch_transition_harvest(
+            source_state,
+            child_state,
+            source_schedule,
+            child_schedule,
+        ),
+        exact_tt_admitted=exact_tt_admitted,
+        independently_replay_verified=independently_replay_verified,
+    )
+
+
+def build_epoch_transition_trace(
+    opportunity: EpochTransitionOpportunity,
+    *,
+    corrected_g_before: int,
+    epoch_after: int,
+    next_schedule: WholeDealSchedule,
+    expanded: bool,
+) -> EpochTransitionTrace:
+    saturation = opportunity.saturation
+    selected = saturation.selected_preparation
+    by_class = {
+        classification: tuple(
+            item.objective.objective_id
+            for item in saturation.opportunities
+            if item.classification == classification
+        )
+        for classification in PreDealOpportunityClass
+    }
+    return EpochTransitionTrace(
+        opportunity.opportunity_id,
+        opportunity.source_state_fingerprint,
+        corrected_g_before,
+        opportunity.corrected_g_after_deal,
+        opportunity.source_epoch,
+        epoch_after,
+        saturation.status,
+        by_class[PreDealOpportunityClass.MUST_PRE_DEAL],
+        by_class[PreDealOpportunityClass.ADVANTAGE_PRE_DEAL],
+        by_class[PreDealOpportunityClass.DEFERRABLE],
+        by_class[PreDealOpportunityClass.FUTURE_SUPPLIED],
+        selected.objective.objective_id if selected is not None else None,
+        opportunity.deal_kind,
+        opportunity.incoming_row,
+        opportunity.exact_tt_admitted,
+        opportunity.status == EpochTransitionRepresentativeStatus.RESERVED,
+        expanded,
+        opportunity.harvests,
+        tuple(item.objective_id for item in next_schedule.objectives),
+    )
+
+
 def choose_scheduler_annotations(
     before: SpiderState,
     successors: Sequence[object],
@@ -1542,8 +2619,32 @@ def choose_scheduler_annotations(
     module intentionally knows nothing about controller action classes and
     never creates or executes an action.
     """
+    saturation = schedule.saturation
+    if saturation is None:
+        eligible_objectives = schedule.objectives
+    elif saturation.status in {
+        EpochSaturationStatus.PREPARATION_REQUIRED,
+        EpochSaturationStatus.PREPARATION_ADVANTAGE,
+    }:
+        selected = saturation.selected_preparation
+        eligible_objectives = (
+            (selected.objective,) if selected is not None else ()
+        )
+    elif saturation.status == EpochSaturationStatus.DEAL_READY:
+        transition = epoch_transition_objective(before, schedule)
+        has_direct_deal = any(
+            tuple(getattr(successor, "actions", ())) == (("deal",),)
+            for successor in successors
+        )
+        eligible_objectives = (
+            (transition,)
+            if transition is not None and has_direct_deal
+            else schedule.objectives
+        )
+    else:
+        eligible_objectives = schedule.objectives
     matches = []
-    for objective in schedule.objectives:
+    for objective in eligible_objectives:
         for index, successor in enumerate(successors):
             end_state = getattr(successor, "end_state", None)
             if end_state is None:
@@ -1551,9 +2652,18 @@ def choose_scheduler_annotations(
             effect_rank, _notes = scheduler_objective_effect(before, end_state, objective)
             kind_value = getattr(getattr(successor, "kind", None), "value", "")
             if objective.family == ScheduleObjectiveFamily.PREPARE_EPOCH_TRANSITION:
-                compatible = "DEAL" in kind_value
+                compatible = bool(
+                    "DEAL" in kind_value
+                    and tuple(getattr(successor, "actions", ())) == (("deal",),)
+                )
             else:
-                compatible = effect_rank < 2
+                compatible = bool(
+                    effect_rank < 2
+                    and not any(
+                        action == ("deal",)
+                        for action in tuple(getattr(successor, "actions", ()))
+                    )
+                )
             if compatible:
                 matches.append((objective.ordering_key(), effect_rank, index, objective))
     matches.sort(key=lambda item: (item[1], item[0], item[2]))

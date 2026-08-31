@@ -516,6 +516,16 @@ fragment saturation: another permanent join can be locally good while a known
 epoch transition is globally better. That comparison belongs in transparent
 structural economics, not in a larger search budget or a benchmark constant.
 
+When a freshly saturated state justifies a legal Deal, exact TT admission alone
+does not guarantee that the child will receive search time in a global mixed
+frontier. A general bounded-coverage pattern is to reserve at most one
+post-admission epoch-transition representative, expand it once under the normal
+resource limits, then mark that exact source/epoch/row transition spent. This is
+neither a scalar Deal bonus nor a proof preference. The post-Deal schedule must
+be rebuilt from the exact child; useful arrivals should become typed conversion
+obligations before another Deal is considered, rather than becoming repeated
+reward for transition itself.
+
 ## v0.10 semantic continuity refinement
 
 Controller v0.10 makes strategic continuity coordinate-free. A live interval,

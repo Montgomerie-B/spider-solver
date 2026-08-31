@@ -1,6 +1,6 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; whole-deal scheduler v0.1 is verified PARTIAL, with schedule economics now the blocker
+**Status:** Forward implementation plan; whole-deal scheduler v0.2 is verified PARTIAL, with multi-epoch arrival-to-foundation economics now the blocker
 **Date:** 2026-08-31
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
@@ -22,7 +22,38 @@ The intended operating pattern is:
 
 Deal 4925153 is the development benchmark, not the algorithm. No move, column, suit order, score, command number or hard-coded route from this deal may be embedded in generic strategy logic.
 
-### Verified whole-deal scheduler v0.1 outcome
+### Verified whole-deal scheduler v0.2 outcome
+
+Scheduler v0.2 fixes the v0.1 Deal-starvation mechanism without increasing any
+configured search resource. Exact one-step Deal counterfactuals, typed marginal
+pre-Deal classifications, explicit epoch saturation and one post-TT
+epoch-transition representative now turn a fresh `DEAL_READY` decision into
+bounded search coverage. The representative occupies the existing frontier,
+receives one ordinary strategic expansion and is then spent. It adds no Deal
+bonus, tactical grant, persistence extension, identity field or proof rule.
+
+All capability Gates A-O and the 65-test focused matrix pass. Natural untouched
+Gate U advances from epoch 0 to epoch 1 in one exact TT-admitted transition.
+Gate V starts from the replayed cost-21 Spades F1 checkpoint and expands five
+scheduler-guided epoch-4 transitions, but remains F1. Authorized untouched Gate
+W expands a continuous one-shot chain through epochs 0→1→2→3→4, realizing nine
+bridge arrivals, nine high-leverage source arrivals and four new fragment
+opportunities. It remains F0 under the unchanged 50-expansion envelope, so no
+repeat or optional whole-game run is authorized.
+
+Final verification is 1,540 passed, 37 expected xfails and the one inherited
+warning. The focused v0.2/v0.1/v0.15 matrix is 224 passed.
+
+The verified verdict is PARTIAL, architectural class D: multi-epoch economics.
+Deal selection is no longer the blocker. Fresh replans recognize useful stock
+arrivals but do not convert them into durable preparation and foundation
+progress on the same continuous branch before the next Deal. A separately
+authorized scheduler v0.3 should focus on typed arrival-consumption and
+foundation-conversion obligations under the same resource and proof limits. Do
+not start it automatically. See
+`docs/whole_deal_backward_forward_scheduler_v0_2.md`.
+
+### Historical whole-deal scheduler v0.1 outcome
 
 Scheduler v0.1 now supplies a static exact-stock blueprint and a dynamic
 receding-horizon structural schedule. It derives temporal card availability,

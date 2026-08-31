@@ -183,6 +183,13 @@ from spider.planner.supply_consumption import (
     supply_result_for_contract,
 )
 from spider.planner.whole_deal_scheduler import (
+    EpochSaturationStatus,
+    EpochTransitionOpportunity,
+    EpochTransitionRepresentativeStatus,
+    EpochTransitionTrace,
+    PreDealOpportunityClass,
+    PrepareThenDealComparison,
+    SchedulerDealKind,
     ScheduleDelta,
     ScheduleDeltaKind,
     ScheduleObjectiveFamily,
@@ -192,8 +199,13 @@ from spider.planner.whole_deal_scheduler import (
     WholeDealSchedule,
     WholeDealSchedulerConfig,
     build_whole_deal_blueprint,
+    build_epoch_transition_trace,
     choose_scheduler_annotations,
+    compare_prepare_then_deal,
     derive_schedule_delta,
+    epoch_transition_objective,
+    make_epoch_transition_opportunity,
+    pre_deal_opportunity_for_objective,
     rebuild_whole_deal_schedule,
     scheduler_objective_effect,
 )
@@ -751,6 +763,9 @@ class StrategicSuccessor:
     scheduled_objective: Optional[ScheduledStructuralObjective] = None
     scheduler_effect_rank: int = 2
     schedule_deltas: Tuple[ScheduleDelta, ...] = ()
+    scheduler_pre_deal_comparison: Optional[PrepareThenDealComparison] = None
+    scheduler_pre_deal_classification: Optional[PreDealOpportunityClass] = None
+    scheduler_effective_deal_ready: bool = False
 
 
 @dataclass(frozen=True)
@@ -793,6 +808,7 @@ class StrategicSearchNode:
     completion_harvest_history: Tuple[CompletionHarvestAssessment, ...] = ()
     completion_cash_out_parent_was_deal: bool = False
     whole_deal_schedule: Optional[WholeDealSchedule] = None
+    epoch_transition_opportunity: Optional[EpochTransitionOpportunity] = None
 
 
 @dataclass(frozen=True)
@@ -1242,6 +1258,32 @@ class ControllerTelemetry:
     scheduler_reception_seconds: float = 0.0
     scheduler_duplicate_assignment_seconds: float = 0.0
     scheduler_leverage_seconds: float = 0.0
+    scheduler_deal_now_previews: int = 0
+    scheduler_deal_now_preview_seconds: float = 0.0
+    scheduler_prepare_then_deal_previews: int = 0
+    scheduler_prepare_then_deal_seconds: float = 0.0
+    scheduler_saturation_seconds: float = 0.0
+    scheduler_saturation_counts: Dict[str, int] = field(default_factory=dict)
+    scheduler_pre_deal_classifications: Dict[str, int] = field(default_factory=dict)
+    scheduler_selected_pre_deal_classifications: Dict[str, int] = field(
+        default_factory=dict
+    )
+    scheduler_deal_ready_states: int = 0
+    scheduler_effective_deal_ready_states: int = 0
+    scheduler_deal_ready_legal_successors: int = 0
+    scheduler_deal_ready_tt_admitted: int = 0
+    scheduler_transition_qualified: int = 0
+    scheduler_transition_representatives_reserved: int = 0
+    scheduler_transition_representatives_expanded: int = 0
+    scheduler_transition_opportunities_spent: int = 0
+    scheduler_transition_duplicate_reservations_suppressed: int = 0
+    scheduler_transition_superseded: int = 0
+    scheduler_transition_displaced_ordinary_slots: int = 0
+    scheduler_transition_completion_conflicts: int = 0
+    scheduler_transition_selection_seconds: float = 0.0
+    scheduler_transition_harvest_counts: Dict[str, int] = field(default_factory=dict)
+    scheduler_epoch_traces: List[EpochTransitionTrace] = field(default_factory=list)
+    scheduler_proof_prunes: int = 0
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -2619,6 +2661,18 @@ def deduplicate_strategic_successors(
                     previous.scheduler_effect_rank,
                     successor.scheduler_effect_rank,
                 ),
+                scheduler_pre_deal_comparison=(
+                    previous.scheduler_pre_deal_comparison
+                    or successor.scheduler_pre_deal_comparison
+                ),
+                scheduler_pre_deal_classification=(
+                    previous.scheduler_pre_deal_classification
+                    or successor.scheduler_pre_deal_classification
+                ),
+                scheduler_effective_deal_ready=(
+                    previous.scheduler_effective_deal_ready
+                    or successor.scheduler_effective_deal_ready
+                ),
             )
         elif (
             successor.corrected_cost,
@@ -2703,6 +2757,26 @@ def _scheduler_stage(
     family[stage] = family.get(stage, 0) + 1
 
 
+def _record_scheduler_rebuild(
+    telemetry: ControllerTelemetry,
+    schedule: WholeDealSchedule,
+) -> None:
+    telemetry.scheduler_schedules_rebuilt += 1
+    telemetry.scheduler_schedule_seconds += schedule.performance.schedule_seconds
+    telemetry.scheduler_reception_seconds += schedule.performance.reception_seconds
+    telemetry.scheduler_duplicate_assignment_seconds += (
+        schedule.performance.duplicate_assignment_seconds
+    )
+    telemetry.scheduler_leverage_seconds += schedule.performance.leverage_seconds
+    telemetry.scheduler_deal_now_preview_seconds += (
+        schedule.performance.deal_now_preview_seconds
+    )
+    telemetry.scheduler_saturation_seconds += schedule.performance.saturation_seconds
+    telemetry.scheduler_deal_now_previews += int(
+        schedule.deal_now_counterfactual is not None
+    )
+
+
 def _annotate_scheduler_successors(
     node: StrategicSearchNode,
     candidates: Sequence[StrategicSuccessor],
@@ -2717,6 +2791,15 @@ def _annotate_scheduler_successors(
         or config.max_scheduler_objectives_in_portfolio == 0
     ):
         return tuple(candidates)
+    if (
+        node.whole_deal_schedule.saturation is not None
+        and node.whole_deal_schedule.saturation.status
+        == EpochSaturationStatus.DEAL_READY
+    ):
+        telemetry.scheduler_deal_ready_legal_successors += sum(
+            any(action == ("deal",) for action in item.actions)
+            for item in candidates
+        )
     annotations = choose_scheduler_annotations(
         node.state,
         candidates,
@@ -2724,7 +2807,41 @@ def _annotate_scheduler_successors(
         maximum=config.max_scheduler_objectives_in_portfolio,
     )
     annotated = list(candidates)
+    accepted = 0
     for index, objective, effect_rank in annotations:
+        comparison = None
+        opportunity = pre_deal_opportunity_for_objective(
+            node.whole_deal_schedule, objective
+        )
+        if (
+            opportunity is not None
+            and opportunity.classification
+            in {
+                PreDealOpportunityClass.MUST_PRE_DEAL,
+                PreDealOpportunityClass.ADVANTAGE_PRE_DEAL,
+            }
+            and node.whole_deal_schedule.deal_now_counterfactual is not None
+            and not any(action == ("deal",) for action in annotated[index].actions)
+        ):
+            comparison = compare_prepare_then_deal(
+                node.state,
+                annotated[index].end_state,
+                objective,
+                node.whole_deal_schedule.deal_now_counterfactual,
+                candidate_actions=annotated[index].actions,
+                preparation_cost=annotated[index].corrected_cost,
+            )
+            if comparison is not None:
+                telemetry.scheduler_prepare_then_deal_previews += 1
+                telemetry.scheduler_prepare_then_deal_seconds += (
+                    comparison.comparison_seconds
+                )
+            if (
+                opportunity.classification
+                == PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+                and (comparison is None or not comparison.demonstrably_better)
+            ):
+                continue
         _rank, notes = scheduler_objective_effect(
             node.state, annotated[index].end_state, objective
         )
@@ -2738,9 +2855,66 @@ def _annotate_scheduler_successors(
             + (
                 "whole-deal schedule is advisory and absent from exact identity/proof pruning",
             ),
+            scheduler_pre_deal_comparison=comparison,
+            scheduler_pre_deal_classification=(
+                opportunity.classification if opportunity is not None else None
+            ),
         )
         telemetry.scheduler_objectives_entered_portfolio += 1
         _scheduler_stage(telemetry, objective, "entered")
+        accepted += 1
+    saturation = node.whole_deal_schedule.saturation
+    if (
+        accepted == 0
+        and saturation is not None
+        and saturation.status == EpochSaturationStatus.PREPARATION_ADVANTAGE
+    ):
+        effective_saturation = replace(
+            saturation,
+            status=EpochSaturationStatus.DEAL_READY,
+            selected_preparation=None,
+            reason=(
+                "no already-generated legal successor demonstrated the bounded "
+                "advantage over Deal Now"
+            ),
+        )
+        effective_schedule = replace(
+            node.whole_deal_schedule,
+            saturation=effective_saturation,
+            deal_now_preferred=True,
+        )
+        transition = epoch_transition_objective(node.state, effective_schedule)
+        if transition is not None:
+            direct = next(
+                (
+                    (index, item)
+                    for index, item in enumerate(annotated)
+                    if item.actions == (("deal",),)
+                ),
+                None,
+            )
+            if direct is not None:
+                index, successor = direct
+                _rank, notes = scheduler_objective_effect(
+                    node.state, successor.end_state, transition
+                )
+                annotated[index] = replace(
+                    successor,
+                    scheduled_objective=transition,
+                    scheduler_effect_rank=0,
+                    scheduler_effective_deal_ready=True,
+                    rationale=successor.rationale
+                    + transition.rationale
+                    + notes
+                    + (
+                        "bounded advantage had no demonstrated generated realiser; "
+                        "fresh Deal readiness is effective for this successor only",
+                    ),
+                )
+                telemetry.scheduler_deal_ready_legal_successors += 1
+                telemetry.scheduler_effective_deal_ready_states += 1
+                telemetry.scheduler_objectives_entered_portfolio += 1
+                _scheduler_stage(telemetry, transition, "entered")
     return tuple(annotated)
 
 
@@ -6332,6 +6506,20 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
         and not cash_out.cash_out_spent
         else 1,
     )
+    epoch_transition = node.epoch_transition_opportunity
+    epoch_transition_reservation = (
+        0
+        if epoch_transition is not None
+        and epoch_transition.status == EpochTransitionRepresentativeStatus.RESERVED
+        else 1,
+    )
+    bounded_representative = (
+        0
+        if completion_reservation == (0,)
+        else 1
+        if epoch_transition_reservation == (0,)
+        else 2,
+    )
     scheduled = (
         node.incoming_edge.scheduled_objective
         if node.incoming_edge is not None else None
@@ -6363,18 +6551,20 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
         0 if milestone is not None and milestone_is_substantial(milestone) else 1,
         milestone.ordering_key() if milestone is not None else (1, 1, 1, 0, 0, 0, "", ""),
     )
-    # Preserve solved/foundation precedence, then give a freshly harvested
-    # child its promised bounded next-step opportunity.  Lazy Stage-0 nodes
-    # expose foundation count as their first component; full analyses expose
-    # solved/realized/removal/foundation as their first four.
+    # Preserve solved/foundation precedence, then give at most one typed
+    # completion or epoch-transition representative its promised ordinary
+    # expansion. Completion wins a direct representative conflict. Lazy
+    # Stage-0 nodes expose foundation count first; full analyses expose
+    # solved/realized/removal/foundation first.
     # Foundation precedence and milestone checkpoint audit come first. A live
     # same-target continuation may not outrank a completed purposeful Deal or
     # launder anonymous Deal debt.
     continuity_index = 4 if node.analysis is None else 7
+    representative_index = 1 if node.analysis is None else 4
     # Scheduler intent ranks otherwise comparable exact states.  It follows
     # the established structural, milestone and bounded-continuation order so
     # that a fresh receding-horizon target cannot become a compulsory script.
-    return base[:continuity_index] + completion_reservation + milestone_continuity + continuity + base[continuity_index:] + scheduler_continuity + (
+    return base[:representative_index] + bounded_representative + base[representative_index:continuity_index] + milestone_continuity + continuity + base[continuity_index:] + scheduler_continuity + (
         int(node.credit_level),
         node.depth,
         node.node_id,
@@ -6790,6 +6980,78 @@ def _reserve_completion_representative(
     return rebuilt
 
 
+def _reserve_epoch_transition_representative(
+    frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
+    *,
+    tt: StrategicTranspositionTable,
+    spent_opportunity_ids: Sequence[str],
+    telemetry: ControllerTelemetry,
+) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
+    """Reserve one exact-TT-admitted Deal child inside existing capacity."""
+
+    started = time.perf_counter()
+    spent = set(spent_opportunity_ids)
+    eligible = []
+    superseded = {}
+    for _priority, _uid, node in frontier:
+        opportunity = node.epoch_transition_opportunity
+        if opportunity is None or not opportunity.eligible(spent):
+            continue
+        best_g = tt.best_g(node.state)
+        if best_g is not None and node.g > best_g:
+            superseded[opportunity.opportunity_id] = replace(
+                opportunity,
+                status=EpochTransitionRepresentativeStatus.SUPERSEDED,
+            )
+            telemetry.scheduler_transition_superseded += 1
+            continue
+        eligible.append((node, opportunity))
+    eligible.sort(key=lambda item: item[1].ordering_key())
+    chosen = eligible[0][1] if eligible else None
+    eligible_ids = {item[1].opportunity_id for item in eligible}
+    previously_reserved = {
+        item[2].epoch_transition_opportunity.opportunity_id
+        for item in frontier
+        if item[2].epoch_transition_opportunity is not None
+        and item[2].epoch_transition_opportunity.status
+        == EpochTransitionRepresentativeStatus.RESERVED
+    }
+    rebuilt = []
+    for _priority, uid, node in frontier:
+        opportunity = node.epoch_transition_opportunity
+        if opportunity is None:
+            rebuilt.append((_node_priority(node), uid, node))
+            continue
+        if opportunity.opportunity_id in superseded:
+            updated_node = replace(
+                node,
+                epoch_transition_opportunity=superseded[opportunity.opportunity_id],
+            )
+            rebuilt.append((_node_priority(updated_node), uid, updated_node))
+            continue
+        if opportunity.opportunity_id not in eligible_ids:
+            rebuilt.append((_node_priority(node), uid, node))
+            continue
+        is_chosen = bool(
+            chosen is not None and opportunity.opportunity_id == chosen.opportunity_id
+        )
+        updated = replace(
+            opportunity,
+            status=(
+                EpochTransitionRepresentativeStatus.RESERVED
+                if is_chosen
+                else EpochTransitionRepresentativeStatus.QUALIFIED
+            ),
+        )
+        if is_chosen and opportunity.opportunity_id not in previously_reserved:
+            telemetry.scheduler_transition_representatives_reserved += 1
+        updated_node = replace(node, epoch_transition_opportunity=updated)
+        rebuilt.append((_node_priority(updated_node), uid, updated_node))
+    heapq.heapify(rebuilt)
+    telemetry.scheduler_transition_selection_seconds += time.perf_counter() - started
+    return rebuilt
+
+
 def _completion_harvest_assessment(
     opportunity: CompletionCashOutOpportunity,
     node: StrategicSearchNode,
@@ -6966,6 +7228,39 @@ def _trim_frontier_with_checkpoint_diversity(
                 telemetry.completion_representative_displaced_ordinary_slots += 1
         kept.append(completion_item)
         kept_ids.add(completion_item[1])
+        if telemetry is not None and any(
+            item[2].epoch_transition_opportunity is not None
+            and item[2].epoch_transition_opportunity.status
+            == EpochTransitionRepresentativeStatus.RESERVED
+            and item[1] != completion_item[1]
+            for item in ordered
+        ):
+            telemetry.scheduler_transition_completion_conflicts += 1
+        if len(kept) >= maximum:
+            return kept
+    transition_item = next(
+        (
+            item
+            for item in ordered
+            if item[1] not in kept_ids
+            and item[2].epoch_transition_opportunity is not None
+            and item[2].epoch_transition_opportunity.status
+            == EpochTransitionRepresentativeStatus.RESERVED
+        ),
+        None,
+    )
+    if transition_item is not None:
+        if telemetry is not None:
+            ordinary = sorted(
+                frontier,
+                key=lambda item: _node_priority(
+                    replace(item[2], epoch_transition_opportunity=None)
+                ),
+            )
+            if transition_item[1] not in {item[1] for item in ordinary[:maximum]}:
+                telemetry.scheduler_transition_displaced_ordinary_slots += 1
+        kept.append(transition_item)
+        kept_ids.add(transition_item[1])
         if len(kept) >= maximum:
             return kept
     # Protect only the strongest live same-campaign continuation globally;
@@ -8020,13 +8315,7 @@ def solve_anytime(
             generation=0,
         )
         root = replace(root, whole_deal_schedule=root_schedule)
-        telemetry.scheduler_schedules_rebuilt += 1
-        telemetry.scheduler_schedule_seconds += root_schedule.performance.schedule_seconds
-        telemetry.scheduler_reception_seconds += root_schedule.performance.reception_seconds
-        telemetry.scheduler_duplicate_assignment_seconds += (
-            root_schedule.performance.duplicate_assignment_seconds
-        )
-        telemetry.scheduler_leverage_seconds += root_schedule.performance.leverage_seconds
+        _record_scheduler_rebuild(telemetry, root_schedule)
     if not initial_state.foundations:
         root_geometry = build_pre_foundation_geometry(
             initial_state,
@@ -8064,6 +8353,7 @@ def solve_anytime(
         canonical_state_key(root.state): root.source_completion_ledger
     }
     cash_out_spent_event_ids: set[str] = set()
+    epoch_transition_spent_ids: set[str] = set()
     frontier: List[Tuple[Tuple, int, StrategicSearchNode]] = []
     uid = 0
     heapq.heappush(frontier, (_node_priority(root), uid, root))
@@ -8093,6 +8383,12 @@ def solve_anytime(
             frontier,
             tt=tt,
             spent_event_ids=tuple(cash_out_spent_event_ids),
+            telemetry=telemetry,
+        )
+        frontier = _reserve_epoch_transition_representative(
+            frontier,
+            tt=tt,
+            spent_opportunity_ids=tuple(epoch_transition_spent_ids),
             telemetry=telemetry,
         )
         _priority, _sequence, node = heapq.heappop(frontier)
@@ -8297,9 +8593,64 @@ def solve_anytime(
                 cash_out_spent=True,
             )
 
+        active_epoch_transition = None
+        if (
+            node.epoch_transition_opportunity is not None
+            and node.epoch_transition_opportunity.status
+            == EpochTransitionRepresentativeStatus.RESERVED
+            and node.epoch_transition_opportunity.eligible(epoch_transition_spent_ids)
+            and node.whole_deal_schedule is not None
+        ):
+            active_epoch_transition = node.epoch_transition_opportunity
+            epoch_transition_spent_ids.add(active_epoch_transition.opportunity_id)
+            trace = build_epoch_transition_trace(
+                active_epoch_transition,
+                corrected_g_before=max(
+                    0,
+                    active_epoch_transition.corrected_g_after_deal - 1,
+                ),
+                epoch_after=node.whole_deal_schedule.epoch,
+                next_schedule=node.whole_deal_schedule,
+                expanded=True,
+            )
+            _append_bounded(
+                telemetry.scheduler_epoch_traces,
+                trace,
+                config.max_timeline_entries,
+            )
+            for harvest in active_epoch_transition.harvests:
+                telemetry.scheduler_transition_harvest_counts[harvest.kind.value] = (
+                    telemetry.scheduler_transition_harvest_counts.get(
+                        harvest.kind.value, 0
+                    )
+                    + 1
+                )
+            node = replace(
+                node,
+                epoch_transition_opportunity=replace(
+                    active_epoch_transition,
+                    status=EpochTransitionRepresentativeStatus.SPENT,
+                ),
+            )
+            telemetry.scheduler_transition_representatives_expanded += 1
+            telemetry.scheduler_transition_opportunities_spent += 1
+
         telemetry.expanded += 1
         if node.whole_deal_schedule is not None:
             schedule = node.whole_deal_schedule
+            if schedule.saturation is not None:
+                saturation_name = schedule.saturation.status.value
+                telemetry.scheduler_saturation_counts[saturation_name] = (
+                    telemetry.scheduler_saturation_counts.get(saturation_name, 0) + 1
+                )
+                telemetry.scheduler_deal_ready_states += int(
+                    schedule.saturation.status == EpochSaturationStatus.DEAL_READY
+                )
+                for opportunity in schedule.pre_deal_opportunities:
+                    name = opportunity.classification.value
+                    telemetry.scheduler_pre_deal_classifications[name] = (
+                        telemetry.scheduler_pre_deal_classifications.get(name, 0) + 1
+                    )
             telemetry.scheduler_objectives_generated += len(schedule.objectives)
             telemetry.scheduler_objectives_actionable += sum(
                 item.status in (
@@ -8322,6 +8673,16 @@ def solve_anytime(
             selected = node.incoming_edge.scheduled_objective
             telemetry.scheduler_objectives_selected += 1
             _scheduler_stage(telemetry, selected, "selected")
+            selected_class = node.incoming_edge.scheduler_pre_deal_classification
+            if selected_class is not None:
+                telemetry.scheduler_selected_pre_deal_classifications[
+                    selected_class.value
+                ] = (
+                    telemetry.scheduler_selected_pre_deal_classifications.get(
+                        selected_class.value, 0
+                    )
+                    + 1
+                )
             for delta in node.incoming_edge.schedule_deltas:
                 telemetry.scheduler_delta_counts[delta.kind.value] = (
                     telemetry.scheduler_delta_counts.get(delta.kind.value, 0) + 1
@@ -8349,13 +8710,16 @@ def solve_anytime(
                 ScheduleObjectiveFamily.PREPARE_TERMINAL_SEQUENCE,
             }
             if (
-                schedule_progress_harvest
-                or (
-                    node.incoming_edge.progress_delta is not None
-                    and (
-                        node.incoming_edge.progress_delta.stable_join_delta > 0
-                        or node.incoming_edge.progress_delta.foundation_delta > 0
-                        or node.incoming_edge.progress_delta.same_suit_mass_delta > 0
+                selected.family != ScheduleObjectiveFamily.PREPARE_EPOCH_TRANSITION
+                and (
+                    schedule_progress_harvest
+                    or (
+                        node.incoming_edge.progress_delta is not None
+                        and (
+                            node.incoming_edge.progress_delta.stable_join_delta > 0
+                            or node.incoming_edge.progress_delta.foundation_delta > 0
+                            or node.incoming_edge.progress_delta.same_suit_mass_delta > 0
+                        )
                     )
                 )
             ):
@@ -8576,6 +8940,14 @@ def solve_anytime(
             ng = node.g + successor.corrected_cost
             if not tt.admit(successor.end_state, ng):
                 telemetry.tt_suppressed += 1
+                if (
+                    successor.actions == (("deal",),)
+                    and node.whole_deal_schedule is not None
+                    and node.whole_deal_schedule.saturation is not None
+                    and node.whole_deal_schedule.saturation.status
+                    == EpochSaturationStatus.DEAL_READY
+                ):
+                    telemetry.scheduler_transition_duplicate_reservations_suppressed += 1
                 if active_cash_out is not None:
                     cash_out_assessments.append(
                         _completion_harvest_assessment(
@@ -8655,6 +9027,7 @@ def solve_anytime(
             telemetry.stage0_analyses += 1
             child_schedule = None
             child_schedule_deltas: Tuple[ScheduleDelta, ...] = ()
+            child_epoch_transition = None
             if whole_deal_blueprint is not None:
                 child_schedule = rebuild_whole_deal_schedule(
                     successor.end_state,
@@ -8662,19 +9035,7 @@ def solve_anytime(
                     config=config.whole_deal_scheduler_config,
                     generation=node.depth + 1,
                 )
-                telemetry.scheduler_schedules_rebuilt += 1
-                telemetry.scheduler_schedule_seconds += (
-                    child_schedule.performance.schedule_seconds
-                )
-                telemetry.scheduler_reception_seconds += (
-                    child_schedule.performance.reception_seconds
-                )
-                telemetry.scheduler_duplicate_assignment_seconds += (
-                    child_schedule.performance.duplicate_assignment_seconds
-                )
-                telemetry.scheduler_leverage_seconds += (
-                    child_schedule.performance.leverage_seconds
-                )
+                _record_scheduler_rebuild(telemetry, child_schedule)
                 if node.whole_deal_schedule is not None:
                     child_schedule_deltas = derive_schedule_delta(
                         node.state,
@@ -8683,6 +9044,56 @@ def solve_anytime(
                         child_schedule,
                         selected_objective=successor.scheduled_objective,
                     )
+                if (
+                    node.whole_deal_schedule is not None
+                    and child_schedule is not None
+                    and successor.actions == (("deal",),)
+                ):
+                    prepared = bool(
+                        node.incoming_edge is not None
+                        and node.incoming_edge.scheduler_pre_deal_classification
+                        in {
+                            PreDealOpportunityClass.MUST_PRE_DEAL,
+                            PreDealOpportunityClass.ADVANTAGE_PRE_DEAL,
+                        }
+                    )
+                    source_schedule = node.whole_deal_schedule
+                    if (
+                        successor.scheduler_effective_deal_ready
+                        and source_schedule.saturation is not None
+                    ):
+                        source_schedule = replace(
+                            source_schedule,
+                            deal_now_preferred=True,
+                            saturation=replace(
+                                source_schedule.saturation,
+                                status=EpochSaturationStatus.DEAL_READY,
+                                selected_preparation=None,
+                                reason=(
+                                    "bounded advantage had no demonstrated "
+                                    "already-generated realiser"
+                                ),
+                            ),
+                        )
+                    child_epoch_transition = make_epoch_transition_opportunity(
+                        node.state,
+                        successor.end_state,
+                        source_schedule,
+                        child_schedule,
+                        corrected_g_after_deal=ng,
+                        stable_structure_after=child_stage0.stable_same_suit_joins,
+                        rehandling_debt_after=child_stage0.rehandling_debt,
+                        deal_kind=(
+                            SchedulerDealKind.PREPARED_DEAL
+                            if prepared
+                            else SchedulerDealKind.DEAL_NOW
+                        ),
+                        exact_tt_admitted=True,
+                        independently_replay_verified=successor.independent_replay_verified,
+                    )
+                    if child_epoch_transition is not None:
+                        telemetry.scheduler_deal_ready_tt_admitted += 1
+                        telemetry.scheduler_transition_qualified += 1
             if successor.scheduled_objective is not None:
                 telemetry.scheduler_objectives_admitted += 1
                 _scheduler_stage(
@@ -9203,6 +9614,7 @@ def solve_anytime(
                     and successor.kind in _DEAL_ACTION_KINDS
                 ),
                 child_schedule,
+                child_epoch_transition,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -9263,6 +9675,12 @@ def solve_anytime(
             frontier,
             tt=tt,
             spent_event_ids=tuple(cash_out_spent_event_ids),
+            telemetry=telemetry,
+        )
+        frontier = _reserve_epoch_transition_representative(
+            frontier,
+            tt=tt,
+            spent_opportunity_ids=tuple(epoch_transition_spent_ids),
             telemetry=telemetry,
         )
         if len(frontier) > config.max_frontier_size:
