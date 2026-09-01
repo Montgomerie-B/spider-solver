@@ -210,6 +210,43 @@ class FoundationLaneConversionState(str, Enum):
     LANE_REMOVED = "LANE_REMOVED"
 
 
+class FoundationLaneMaturationState(str, Enum):
+    """Current-state, proof-neutral proximity to structural cash-out."""
+
+    FUTURE_GATED = "FUTURE_GATED"
+    FRAGMENT_BUILDING = "FRAGMENT_BUILDING"
+    BRIDGE_READY = "BRIDGE_READY"
+    MERGE_READY = "MERGE_READY"
+    NEAR_TERMINAL = "NEAR_TERMINAL"
+    TERMINAL_READY = "TERMINAL_READY"
+    REMOVED = "REMOVED"
+
+
+class FoundationLaneBlockerKind(str, Enum):
+    FUTURE_MATERIAL = "FUTURE_MATERIAL"
+    BURIED_SOURCE = "BURIED_SOURCE"
+    RECEIVER = "RECEIVER"
+    WORKSPACE = "WORKSPACE"
+    STABLE_BREAK = "STABLE_BREAK"
+    REHANDLING = "REHANDLING"
+    TERMINAL_GAP = "TERMINAL_GAP"
+
+
+class FoundationLaneProgressKind(str, Enum):
+    FRAGMENT_COUNT_REDUCED = "FRAGMENT_COUNT_REDUCED"
+    MISSING_EDGE_REDUCED = "MISSING_EDGE_REDUCED"
+    BRIDGE_BECAME_ACTIONABLE = "BRIDGE_BECAME_ACTIONABLE"
+    BRIDGE_INTEGRATED = "BRIDGE_INTEGRATED"
+    BLOCKER_WORK_REDUCED = "BLOCKER_WORK_REDUCED"
+    FLOOR_REACHED = "FLOOR_REACHED"
+    MERGE_READY_ENTERED = "MERGE_READY_ENTERED"
+    NEAR_TERMINAL_ENTERED = "NEAR_TERMINAL_ENTERED"
+    TERMINAL_READY_ENTERED = "TERMINAL_READY_ENTERED"
+    FOUNDATION_REMOVED = "FOUNDATION_REMOVED"
+    MATURATION_REGRESSED = "MATURATION_REGRESSED"
+    LANE_REASSIGNED = "LANE_REASSIGNED"
+
+
 @dataclass(frozen=True)
 class SchedulerPerformance:
     blueprint_seconds: float = field(default=0.0, compare=False)
@@ -224,6 +261,11 @@ class SchedulerPerformance:
     arrival_matching_seconds: float = field(default=0.0, compare=False)
     prepare_then_consume_seconds: float = field(default=0.0, compare=False)
     foundation_lane_seconds: float = field(default=0.0, compare=False)
+    lane_maturation_seconds: float = field(default=0.0, compare=False)
+    cash_out_comparison_seconds: float = field(default=0.0, compare=False)
+    maturation_objective_seconds: float = field(default=0.0, compare=False)
+    lane_compression_seconds: float = field(default=0.0, compare=False)
+    maturation_representative_seconds: float = field(default=0.0, compare=False)
 
 
 @dataclass(frozen=True)
@@ -534,6 +576,201 @@ FoundationConversionOpportunity = FoundationLaneConversion
 
 
 @dataclass(frozen=True)
+class FoundationLaneBlocker:
+    kind: FoundationLaneBlockerKind
+    work: int
+    detail: str
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class FoundationLaneActionEvidence:
+    """One already-legal tableau successor that advances a semantic lane."""
+
+    actions: Tuple[Tuple, ...]
+    added_edges: Tuple[Tuple[int, int], ...]
+    removed_edges: Tuple[Tuple[int, int], ...]
+    fragment_reduction: int
+    blocker_reduction: int
+    foundation_delta: int
+    workspace_delta: int
+    corrected_cost: int
+    proof_pruning_allowed: bool = False
+
+    def ordering_key(self) -> Tuple:
+        return (
+            -self.foundation_delta,
+            -self.fragment_reduction,
+            -len(self.added_edges),
+            -self.blocker_reduction,
+            len(self.removed_edges),
+            self.corrected_cost,
+            self.actions,
+        )
+
+
+@dataclass(frozen=True)
+class FoundationLaneCashOutEstimate:
+    """Typed heuristic work estimate; explicitly never an admissible bound."""
+
+    future_gate_count: int
+    fragment_merge_count: int
+    actionable_bridge_count: int
+    actionable_merge_count: int
+    blocker_work: int
+    workspace_work: int
+    stable_break_debt: int
+    rehandling_debt: int
+    terminal_gap: int
+    removal_workspace_payoff: int
+    proof_pruning_allowed: bool = False
+
+    def ordering_key(self) -> Tuple:
+        return (
+            self.future_gate_count,
+            self.terminal_gap,
+            self.blocker_work,
+            self.workspace_work,
+            self.stable_break_debt,
+            self.rehandling_debt,
+            self.fragment_merge_count,
+            -self.actionable_merge_count,
+            -self.actionable_bridge_count,
+            -self.removal_workspace_payoff,
+        )
+
+
+@dataclass(frozen=True)
+class FoundationLaneMaturationAssessment:
+    suit: str
+    lane: int
+    lane_fingerprint: str
+    state: FoundationLaneMaturationState
+    availability_floor: Optional[int]
+    floor_reached: bool
+    fragments: Tuple[Tuple[int, int, int], ...]
+    target_edges: Tuple[Tuple[int, int], ...]
+    satisfied_edges: Tuple[Tuple[int, int], ...]
+    missing_edges: Tuple[Tuple[int, int], ...]
+    future_gated_edges: Tuple[Tuple[int, int], ...]
+    actionable_bridge_edges: Tuple[Tuple[int, int], ...]
+    actionable_merges: Tuple[FoundationLaneActionEvidence, ...]
+    blockers: Tuple[FoundationLaneBlocker, ...]
+    cash_out_estimate: FoundationLaneCashOutEstimate
+    next_bridge: Optional[Card]
+    terminal_qualified: bool
+    rationale: Tuple[str, ...]
+    proof_pruning_allowed: bool = False
+
+    @property
+    def fragment_count(self) -> int:
+        return len(self.fragments)
+
+    @property
+    def strong_current_maturation(self) -> bool:
+        return self.state in {
+            FoundationLaneMaturationState.BRIDGE_READY,
+            FoundationLaneMaturationState.MERGE_READY,
+            FoundationLaneMaturationState.NEAR_TERMINAL,
+            FoundationLaneMaturationState.TERMINAL_READY,
+        }
+
+    def ordering_key(self) -> Tuple:
+        state_order = {
+            FoundationLaneMaturationState.TERMINAL_READY: 0,
+            FoundationLaneMaturationState.NEAR_TERMINAL: 1,
+            FoundationLaneMaturationState.MERGE_READY: 2,
+            FoundationLaneMaturationState.BRIDGE_READY: 3,
+            FoundationLaneMaturationState.FRAGMENT_BUILDING: 4,
+            FoundationLaneMaturationState.FUTURE_GATED: 5,
+            FoundationLaneMaturationState.REMOVED: 6,
+        }
+        return (
+            state_order[self.state],
+            self.cash_out_estimate.ordering_key(),
+            -len(self.satisfied_edges),
+            self.suit,
+            tuple((high, low) for high, low, _column in self.fragments),
+            self.lane_fingerprint,
+        )
+
+
+@dataclass(frozen=True)
+class FoundationLaneSequencePriority:
+    ordered: Tuple[FoundationLaneMaturationAssessment, ...]
+    lead: Optional[FoundationLaneMaturationAssessment]
+    runner_up: Optional[FoundationLaneMaturationAssessment]
+    rationale: Tuple[str, ...]
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class FoundationLanePortfolioDecision:
+    lead_lane_fingerprint: Optional[str]
+    runner_up_fingerprint: Optional[str]
+    maturation_objective_ids: Tuple[str, ...]
+    compressed_lane_count: int
+    rationale: Tuple[str, ...]
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class FoundationLaneProgressDelta:
+    suit: str
+    before_lane_fingerprint: Optional[str]
+    after_lane_fingerprint: Optional[str]
+    state_before: Optional[FoundationLaneMaturationState]
+    state_after: Optional[FoundationLaneMaturationState]
+    kinds: Tuple[FoundationLaneProgressKind, ...]
+    fragment_count_before: int
+    fragment_count_after: int
+    missing_edge_count_before: int
+    missing_edge_count_after: int
+    blocker_work_before: int
+    blocker_work_after: int
+    actions: Tuple[Tuple, ...] = ()
+    foundation_delta: int = 0
+    proof_pruning_allowed: bool = False
+
+    @property
+    def substantial(self) -> bool:
+        return bool(
+            set(self.kinds)
+            & {
+                FoundationLaneProgressKind.FRAGMENT_COUNT_REDUCED,
+                FoundationLaneProgressKind.BRIDGE_INTEGRATED,
+                FoundationLaneProgressKind.MERGE_READY_ENTERED,
+                FoundationLaneProgressKind.NEAR_TERMINAL_ENTERED,
+                FoundationLaneProgressKind.TERMINAL_READY_ENTERED,
+                FoundationLaneProgressKind.FOUNDATION_REMOVED,
+            }
+        )
+
+
+@dataclass(frozen=True)
+class FoundationLaneMaturationTrace:
+    trace_id: str
+    objective_id: str
+    suit: str
+    lane_fingerprint: str
+    source_state_fingerprint: str
+    child_state_fingerprint: str
+    actions: Tuple[Tuple, ...]
+    delta: FoundationLaneProgressDelta
+    successor_generated: bool
+    exact_tt_admitted: bool
+    selected: bool
+    expanded: bool
+    stop_reason: Optional[str] = None
+    proof_pruning_allowed: bool = False
+    source_epoch: int = 0
+    child_epoch: int = 0
+    arrival_conversion_opportunity_id: Optional[str] = None
+    corrected_g_after: Optional[int] = None
+    parent_node_id: Optional[int] = None
+
+
+@dataclass(frozen=True)
 class ArrivalConversionOpportunity:
     opportunity_id: str
     originating_transition_id: str
@@ -812,6 +1049,11 @@ class WholeDealSchedule:
     arrival_conversion_ledger: Optional[PostDealConversionLedger] = field(
         default=None, compare=False, repr=False
     )
+    lane_maturation_assessments: Tuple[
+        FoundationLaneMaturationAssessment, ...
+    ] = ()
+    lane_sequence_priority: Optional[FoundationLaneSequencePriority] = None
+    lane_portfolio_decision: Optional[FoundationLanePortfolioDecision] = None
 
 
 WholeDealScheduleSnapshot = WholeDealSchedule
@@ -1190,6 +1432,528 @@ def foundation_lane_conversions(
     # allowing timing to affect the returned structural facts.
     _ = time.perf_counter() - started
     return tuple(result)
+
+
+def _stable_edge_counts(state: SpiderState, suit: str) -> Counter:
+    counts: Counter = Counter()
+    for column in state.columns:
+        for high, low in zip(column.face_up, column.face_up[1:]):
+            if high.suit == suit == low.suit and high.rank - 1 == low.rank:
+                counts[(high.rank, low.rank)] += 1
+    return counts
+
+
+def _lane_edges_from_fragments(
+    fragments: Sequence[Tuple[int, int, int]],
+) -> Tuple[Tuple[int, int], ...]:
+    return tuple(
+        sorted(
+            {
+                (rank, rank - 1)
+                for high, low, _column in fragments
+                for rank in range(high, low, -1)
+            },
+            reverse=True,
+        )
+    )
+
+
+def _maturation_lane_fingerprint(
+    suit: str,
+    fragments: Sequence[Tuple[int, int, int]],
+    availability_floor: Optional[int],
+) -> str:
+    """Structural fingerprint; lane ordinals and history are deliberately absent."""
+
+    identity = (
+        suit,
+        tuple(sorted(fragments)),
+        availability_floor,
+    )
+    return hashlib.sha256(repr(identity).encode("utf-8")).hexdigest()[:16]
+
+
+def _maturation_action_evidence(
+    state: SpiderState,
+) -> Tuple[Tuple[str, FoundationLaneActionEvidence], ...]:
+    """Inspect ordinary legal one-move outcomes once; never recurse."""
+
+    before_edges = {suit: _stable_edge_counts(state, suit) for suit in SUITS}
+    before_fragments = {
+        suit: len(_stable_fragments(state, suit)) for suit in SUITS
+    }
+    before_foundations = Counter(
+        run[0].suit for run in state.foundations if run and len(run) == 13
+    )
+    before_workspace = sum(column.is_empty() for column in state.columns)
+    before_face_down = sum(len(column.face_down) for column in state.columns)
+    result = []
+    for action in state.enumerate_moves():
+        end = state.clone()
+        cost = end.move(*action, rules=MW_RULES)
+        after_foundations = Counter(
+            run[0].suit for run in end.foundations if run and len(run) == 13
+        )
+        after_workspace = sum(column.is_empty() for column in end.columns)
+        after_face_down = sum(len(column.face_down) for column in end.columns)
+        for suit in SUITS:
+            after_edges = _stable_edge_counts(end, suit)
+            added = tuple(
+                sorted(
+                    (
+                        edge
+                        for edge, count in after_edges.items()
+                        if count > before_edges[suit][edge]
+                    ),
+                    reverse=True,
+                )
+            )
+            removed = tuple(
+                sorted(
+                    (
+                        edge
+                        for edge, count in before_edges[suit].items()
+                        if count > after_edges[edge]
+                    ),
+                    reverse=True,
+                )
+            )
+            foundation_delta = after_foundations[suit] - before_foundations[suit]
+            fragment_reduction = max(
+                0,
+                before_fragments[suit] - len(_stable_fragments(end, suit)),
+            )
+            if not added and foundation_delta <= 0 and fragment_reduction <= 0:
+                continue
+            result.append(
+                (
+                    suit,
+                    FoundationLaneActionEvidence(
+                        (tuple(action),),
+                        added,
+                        removed,
+                        fragment_reduction,
+                        max(0, before_face_down - after_face_down),
+                        foundation_delta,
+                        after_workspace - before_workspace,
+                        cost,
+                    ),
+                )
+            )
+    return tuple(result)
+
+
+def assess_foundation_lane_maturation(
+    state: SpiderState,
+    schedule: WholeDealSchedule,
+) -> Tuple[FoundationLaneMaturationAssessment, ...]:
+    """Assess structural cash-out from the current exact state only."""
+
+    started = time.perf_counter()
+    refs = enumerate_temporal_cards(state)
+    action_evidence = _maturation_action_evidence(state)
+    assessments = []
+    removed = _removed_by_suit(state)
+    for suit in SUITS:
+        for removed_index in range(removed[suit]):
+            fingerprint = _objective_id(("removed-maturation-lane", suit, removed_index))
+            estimate = FoundationLaneCashOutEstimate(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+            assessments.append(
+                FoundationLaneMaturationAssessment(
+                    suit,
+                    removed_index + 1,
+                    fingerprint,
+                    FoundationLaneMaturationState.REMOVED,
+                    schedule.epoch,
+                    True,
+                    (),
+                    tuple((rank, rank - 1) for rank in range(13, 1, -1)),
+                    tuple((rank, rank - 1) for rank in range(13, 1, -1)),
+                    (),
+                    (),
+                    (),
+                    (),
+                    (),
+                    estimate,
+                    None,
+                    True,
+                    ("foundation lane is already removed",),
+                )
+            )
+    for suit_plan in schedule.suit_plans:
+        lane_suit = suit_plan.suit
+        for lane in suit_plan.lanes:
+            target_edges = tuple((rank, rank - 1) for rank in range(13, 1, -1))
+            fragments = tuple(sorted(lane.assignment_signature))
+            satisfied = _lane_edges_from_fragments(fragments)
+            satisfied_set = set(satisfied)
+            future = tuple(
+                (item.high_rank, item.low_rank)
+                for item in lane.adjacencies
+                if item.status == AdjacencyStatus.FUTURE_GATED
+                and (item.high_rank, item.low_rank) not in satisfied_set
+            )
+            missing = tuple(edge for edge in target_edges if edge not in satisfied_set)
+            relevant_evidence = tuple(
+                sorted(
+                    (
+                        evidence
+                        for evidence_suit, evidence in action_evidence
+                        if evidence_suit == lane_suit
+                        and (
+                            evidence.foundation_delta > 0
+                            or bool(set(evidence.added_edges) & set(missing))
+                        )
+                    ),
+                    key=lambda item: item.ordering_key(),
+                )
+            )
+            actionable_edges = tuple(
+                sorted(
+                    {
+                        edge
+                        for evidence in relevant_evidence
+                        for edge in evidence.added_edges
+                        if edge in set(missing)
+                    },
+                    reverse=True,
+                )
+            )
+            actionable_merges = tuple(
+                item
+                for item in relevant_evidence
+                if item.fragment_reduction > 0 or item.foundation_delta > 0
+            )
+            current_missing = tuple(edge for edge in missing if edge not in set(future))
+            depths = []
+            for edge in current_missing:
+                rank_depths = []
+                for rank in edge:
+                    copies = [
+                        item.depth
+                        for item in refs
+                        if item.card.suit == lane_suit
+                        and item.card.rank == rank
+                        and item.temporal_kind
+                        != TemporalAvailabilityKind.FUTURE_STOCK
+                    ]
+                    if copies:
+                        rank_depths.append(min(copies))
+                if rank_depths:
+                    depths.append(max(rank_depths))
+            blocker_work = max(depths, default=0)
+            empty_columns = sum(column.is_empty() for column in state.columns)
+            workspace_work = int(bool(missing and not actionable_edges and empty_columns == 0))
+            stable_break_debt = min(
+                (len(item.removed_edges) for item in relevant_evidence),
+                default=0,
+            )
+            rehandling_debt = min(
+                (
+                    max(0, item.corrected_cost - len(item.added_edges))
+                    for item in relevant_evidence
+                ),
+                default=blocker_work,
+            )
+            removal_workspace_payoff = max(
+                (item.workspace_delta for item in relevant_evidence if item.foundation_delta > 0),
+                default=0,
+            )
+            floor_reached = bool(
+                lane.availability_floor is not None
+                and lane.availability_floor <= schedule.epoch
+            )
+            terminal_ready = bool(
+                floor_reached
+                and any(item.foundation_delta > 0 for item in relevant_evidence)
+            )
+            terminal_gap = len(missing)
+            if terminal_ready:
+                maturity_state = FoundationLaneMaturationState.TERMINAL_READY
+            elif (
+                floor_reached
+                and not future
+                and terminal_gap <= 3
+                and (actionable_edges or blocker_work <= 1)
+            ):
+                maturity_state = FoundationLaneMaturationState.NEAR_TERMINAL
+            elif actionable_merges:
+                maturity_state = FoundationLaneMaturationState.MERGE_READY
+            elif actionable_edges:
+                maturity_state = FoundationLaneMaturationState.BRIDGE_READY
+            elif future:
+                maturity_state = FoundationLaneMaturationState.FUTURE_GATED
+            else:
+                maturity_state = FoundationLaneMaturationState.FRAGMENT_BUILDING
+            blockers = []
+            if future:
+                blockers.append(
+                    FoundationLaneBlocker(
+                        FoundationLaneBlockerKind.FUTURE_MATERIAL,
+                        len(future),
+                        f"{len(future)} target edge(s) remain temporally gated",
+                    )
+                )
+            if blocker_work:
+                blockers.append(
+                    FoundationLaneBlocker(
+                        FoundationLaneBlockerKind.BURIED_SOURCE,
+                        blocker_work,
+                        "current required material remains below a tableau top",
+                    )
+                )
+            if workspace_work:
+                blockers.append(
+                    FoundationLaneBlocker(
+                        FoundationLaneBlockerKind.WORKSPACE,
+                        workspace_work,
+                        "no empty workspace supports an immediate merge",
+                    )
+                )
+            if stable_break_debt:
+                blockers.append(
+                    FoundationLaneBlocker(
+                        FoundationLaneBlockerKind.STABLE_BREAK,
+                        stable_break_debt,
+                        "best one-step evidence breaks stable same-suit structure",
+                    )
+                )
+            if terminal_gap:
+                blockers.append(
+                    FoundationLaneBlocker(
+                        FoundationLaneBlockerKind.TERMINAL_GAP,
+                        terminal_gap,
+                        f"{terminal_gap} physical lane edge(s) remain missing",
+                    )
+                )
+            estimate = FoundationLaneCashOutEstimate(
+                len(future),
+                max(0, len(fragments) - 1),
+                len(actionable_edges),
+                len(actionable_merges),
+                blocker_work,
+                workspace_work,
+                stable_break_debt,
+                rehandling_debt,
+                terminal_gap,
+                removal_workspace_payoff,
+            )
+            next_bridge = next(
+                (
+                    item.card
+                    for item in schedule.leverage_cards
+                    if item.card.suit == lane_suit
+                    and item.temporal_kind == TemporalAvailabilityKind.CURRENT_EXPOSED
+                    and item.is_bridge
+                    and any(item.card.rank in edge for edge in missing)
+                ),
+                None,
+            )
+            fingerprint = _maturation_lane_fingerprint(
+                lane_suit, fragments, lane.availability_floor
+            )
+            assessments.append(
+                FoundationLaneMaturationAssessment(
+                    lane_suit,
+                    lane.lane,
+                    fingerprint,
+                    maturity_state,
+                    lane.availability_floor,
+                    floor_reached,
+                    fragments,
+                    target_edges,
+                    satisfied,
+                    missing,
+                    future,
+                    actionable_edges,
+                    actionable_merges,
+                    tuple(blockers),
+                    estimate,
+                    next_bridge,
+                    terminal_ready,
+                    (
+                        "assessment derives only from the current exact tableau",
+                        f"maturity_state={maturity_state.value}",
+                        f"floor_reached={floor_reached}",
+                        f"fragment_count={len(fragments)}",
+                        f"terminal_gap={terminal_gap}",
+                        "historical expenditure is absent",
+                    ),
+                )
+            )
+    _ = time.perf_counter() - started
+    return tuple(sorted(assessments, key=lambda item: (item.suit, item.ordering_key())))
+
+
+def sequence_foundation_lanes(
+    assessments: Sequence[FoundationLaneMaturationAssessment],
+) -> FoundationLaneSequencePriority:
+    """Choose a deterministic current-state lead without suit or sunk-cost bias."""
+
+    active = tuple(
+        sorted(
+            (
+                item
+                for item in assessments
+                if item.state != FoundationLaneMaturationState.REMOVED
+            ),
+            key=lambda item: item.ordering_key(),
+        )
+    )
+    lead = active[0] if active else None
+    runner_up = active[1] if len(active) > 1 else None
+    rationale = (
+        "lead lane is recomputed from current typed cash-out economics",
+        "lane number, suit precedence, and historical expenditure are absent",
+        (
+            f"lead={lead.suit}:{lead.lane_fingerprint}:{lead.state.value}"
+            if lead is not None
+            else "no remaining lane"
+        ),
+        (
+            f"runner_up={runner_up.suit}:{runner_up.lane_fingerprint}:{runner_up.state.value}"
+            if runner_up is not None
+            else "no runner-up"
+        ),
+    )
+    return FoundationLaneSequencePriority(active, lead, runner_up, rationale)
+
+
+def _maturation_objective(
+    schedule: WholeDealSchedule,
+    assessment: FoundationLaneMaturationAssessment,
+) -> Optional[ScheduledStructuralObjective]:
+    if assessment.state in {
+        FoundationLaneMaturationState.REMOVED,
+        FoundationLaneMaturationState.FUTURE_GATED,
+    }:
+        return None
+    if not assessment.strong_current_maturation and not (
+        assessment.floor_reached
+        and assessment.fragment_count <= 4
+        and assessment.cash_out_estimate.blocker_work <= 2
+    ):
+        return None
+    evidence = assessment.actionable_merges[0] if assessment.actionable_merges else None
+    target_edge = next(iter(assessment.actionable_bridge_edges), None)
+    if target_edge is None and assessment.missing_edges:
+        target_edge = assessment.missing_edges[0]
+    if assessment.state in {
+        FoundationLaneMaturationState.TERMINAL_READY,
+        FoundationLaneMaturationState.NEAR_TERMINAL,
+    }:
+        family = ScheduleObjectiveFamily.PREPARE_TERMINAL_SEQUENCE
+    elif assessment.actionable_bridge_edges:
+        family = ScheduleObjectiveFamily.CONSUME_BRIDGE_CARD
+    elif assessment.cash_out_estimate.blocker_work:
+        family = ScheduleObjectiveFamily.EXPOSE_UNLOCK_CARD
+    else:
+        family = ScheduleObjectiveFamily.BUILD_FRAGMENT
+    next_bridge = assessment.next_bridge
+    leverage = next(
+        (
+            item
+            for item in schedule.leverage_cards
+            if next_bridge is not None
+            and item.card == next_bridge
+            and item.temporal_kind == TemporalAvailabilityKind.CURRENT_EXPOSED
+        ),
+        None,
+    )
+    objective_id = _objective_id(
+        (
+            "foundation-lane-maturation",
+            assessment.suit,
+            assessment.lane_fingerprint,
+            assessment.state.value,
+            target_edge,
+        )
+    )
+    deadline = (
+        ScheduleDeadlineKind.BEFORE_NEXT_DEAL
+        if assessment.strong_current_maturation
+        else ScheduleDeadlineKind.BEFORE_STOCK_EMPTY
+    )
+    return ScheduledStructuralObjective(
+        objective_id,
+        family,
+        ScheduleObjectiveStatus.ACTIONABLE,
+        assessment.suit,
+        target_edge[0] if target_edge is not None else 13,
+        target_edge[1] if target_edge is not None else 1,
+        next_bridge,
+        leverage.source_id if leverage is not None else None,
+        None,
+        assessment.availability_floor,
+        deadline,
+        evidence.corrected_cost if evidence is not None else max(
+            1, assessment.cash_out_estimate.blocker_work
+        ),
+        assessment.cash_out_estimate.rehandling_debt
+        + assessment.cash_out_estimate.stable_break_debt,
+        max(1, len(assessment.satisfied_edges)),
+        len(assessment.actionable_bridge_edges),
+        int(bool(assessment.actionable_merges)),
+        assessment.rationale
+        + (
+            "one compressed current-state foundation-lane maturation objective",
+            f"lane_fingerprint={assessment.lane_fingerprint}",
+            "existing controller and tactical realisers choose how",
+        ),
+    )
+
+
+def build_foundation_lane_maturation_portfolio(
+    schedule: WholeDealSchedule,
+    priority: FoundationLaneSequencePriority,
+) -> Tuple[Tuple[ScheduledStructuralObjective, ...], FoundationLanePortfolioDecision]:
+    """Compress all lane signals into at most one lead maturation objective."""
+
+    started = time.perf_counter()
+    objective = (
+        _maturation_objective(schedule, priority.lead)
+        if priority.lead is not None
+        else None
+    )
+    objectives = (objective,) if objective is not None else ()
+    decision = _foundation_lane_portfolio_decision(priority, objectives)
+    _ = time.perf_counter() - started
+    return objectives, decision
+
+
+def _foundation_lane_portfolio_decision(
+    priority: FoundationLaneSequencePriority,
+    objectives: Sequence[ScheduledStructuralObjective],
+) -> FoundationLanePortfolioDecision:
+    return FoundationLanePortfolioDecision(
+        priority.lead.lane_fingerprint if priority.lead is not None else None,
+        priority.runner_up.lane_fingerprint
+        if priority.runner_up is not None
+        else None,
+        tuple(item.objective_id for item in objectives),
+        len(priority.ordered),
+        priority.rationale
+        + (
+            f"compressed {len(priority.ordered)} current lanes into {len(objectives)} maturation objective(s)",
+            "the scheduler portfolio remains capped by its inherited configuration",
+        ),
+    )
+
+
+def maturation_assessment_for_objective(
+    schedule: WholeDealSchedule,
+    objective_id: Optional[str],
+) -> Optional[FoundationLaneMaturationAssessment]:
+    decision = schedule.lane_portfolio_decision
+    priority = schedule.lane_sequence_priority
+    if (
+        objective_id is None
+        or decision is None
+        or priority is None
+        or objective_id not in decision.maturation_objective_ids
+    ):
+        return None
+    return priority.lead
 
 
 def _lane_for_arrival(
@@ -1878,6 +2642,61 @@ def _matching_reception(
     )
 
 
+def _matching_maturation_lane(
+    before: FoundationLaneMaturationAssessment,
+    schedule: Optional[WholeDealSchedule],
+) -> Optional[FoundationLaneMaturationAssessment]:
+    """Freshly match a semantic lane without treating its ordinal as identity."""
+
+    if schedule is None:
+        return None
+    exact = next(
+        (
+            item
+            for item in schedule.lane_maturation_assessments
+            if item.lane_fingerprint == before.lane_fingerprint
+        ),
+        None,
+    )
+    if exact is not None:
+        return exact
+    candidates = tuple(
+        item
+        for item in schedule.lane_maturation_assessments
+        if item.suit == before.suit
+    )
+    if not candidates:
+        return None
+    before_edges = set(before.satisfied_edges)
+    return min(
+        candidates,
+        key=lambda item: (
+            -len(before_edges & set(item.satisfied_edges)),
+            item.ordering_key(),
+        ),
+    )
+
+
+def _maturation_economics_key(
+    assessment: FoundationLaneMaturationAssessment,
+) -> Tuple:
+    state_order = {
+        FoundationLaneMaturationState.TERMINAL_READY: 0,
+        FoundationLaneMaturationState.NEAR_TERMINAL: 1,
+        FoundationLaneMaturationState.MERGE_READY: 2,
+        FoundationLaneMaturationState.BRIDGE_READY: 3,
+        FoundationLaneMaturationState.FRAGMENT_BUILDING: 4,
+        FoundationLaneMaturationState.FUTURE_GATED: 5,
+        FoundationLaneMaturationState.REMOVED: 0,
+    }
+    return (
+        state_order[assessment.state],
+        assessment.cash_out_estimate.ordering_key(),
+        -len(assessment.satisfied_edges),
+        assessment.fragment_count,
+    )
+
+
 def _objective_is_valid(
     state: SpiderState,
     objective: ScheduledStructuralObjective,
@@ -1992,6 +2811,21 @@ def classify_pre_deal_objective(
     )
     cost = objective.estimated_paid_cost + objective.estimated_rehandling_cost
     rationale = []
+    maturation_before = (
+        maturation_assessment_for_objective(
+            current_schedule, objective.objective_id
+        )
+        if current_schedule is not None
+        else None
+    )
+    maturation_after = (
+        _matching_maturation_lane(
+            maturation_before,
+            deal_now.post_deal_schedule if deal_now is not None else None,
+        )
+        if maturation_before is not None
+        else None
+    )
 
     if not valid:
         classification = PreDealOpportunityClass.INVALID
@@ -1999,6 +2833,80 @@ def classify_pre_deal_objective(
     elif automatically_supplied:
         classification = PreDealOpportunityClass.FUTURE_SUPPLIED
         rationale.append("the exact next Deal supplies or completes the target")
+    elif maturation_before is not None:
+        current_return = (
+            maturation_before.cash_out_estimate.actionable_merge_count * 2
+            + maturation_before.cash_out_estimate.actionable_bridge_count
+            + maturation_before.cash_out_estimate.removal_workspace_payoff
+            + int(maturation_before.terminal_qualified) * 12
+        )
+        deal_preserves = bool(
+            maturation_after is not None
+            and _maturation_economics_key(maturation_after)
+            <= _maturation_economics_key(maturation_before)
+        )
+        deal_worsens = bool(
+            maturation_after is None
+            or _maturation_economics_key(maturation_after)
+            > _maturation_economics_key(maturation_before)
+        )
+        if (
+            maturation_before.state
+            == FoundationLaneMaturationState.TERMINAL_READY
+            and deal_worsens
+        ):
+            classification = PreDealOpportunityClass.MUST_PRE_DEAL
+            rationale.append(
+                "a current legal foundation cash-out is strictly ahead of Deal Now"
+            )
+        elif (
+            maturation_before.state
+            in {
+                FoundationLaneMaturationState.NEAR_TERMINAL,
+                FoundationLaneMaturationState.MERGE_READY,
+            }
+            and deal_worsens
+            and current_return >= cost
+        ):
+            classification = PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+            rationale.append(
+                "typed current lane maturation is cheaper than its exact post-Deal counterpart"
+            )
+        elif deal_preserves:
+            classification = PreDealOpportunityClass.DEFERRABLE
+            survives = True
+            rationale.append(
+                "Deal Now preserves comparable or better typed lane cash-out economics"
+            )
+        elif (
+            current_return <= 0
+            or cost
+            > max(
+                1,
+                current_return
+                + maturation_before.cash_out_estimate.removal_workspace_payoff,
+            )
+        ):
+            classification = PreDealOpportunityClass.NON_ECONOMIC
+            rationale.append(
+                "current merge, blocker, and rehandling work exceeds typed cash-out return"
+            )
+        else:
+            classification = PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+            rationale.append(
+                "current-state maturation has positive marginal value over Deal Now"
+            )
+        rationale.extend(
+            (
+                f"maturation_before={maturation_before.state.value}",
+                (
+                    f"maturation_after={maturation_after.state.value}"
+                    if maturation_after is not None
+                    else "maturation_after=unmatched"
+                ),
+                "comparison excludes historical expenditure and proof pruning",
+            )
+        )
     elif objective.family == ScheduleObjectiveFamily.PREPARE_STOCK_RECEPTION:
         reception = _matching_reception(current_schedule, objective)
         if reception is None or not reception.feasible:
@@ -2343,7 +3251,57 @@ def rebuild_whole_deal_schedule(
         maximum_preparation_cost=config.maximum_reception_prep_cost,
     )
     reception_seconds = time.perf_counter() - reception_started
-    all_objectives = _build_objectives(state, epoch, suit_plans, receptions, leverage)
+    raw_objectives = _build_objectives(
+        state, epoch, suit_plans, receptions, leverage
+    )
+    preliminary = WholeDealSchedule(
+        blueprint.blueprint_id,
+        _state_fingerprint(state),
+        epoch,
+        tuple(suit_plans),
+        receptions,
+        leverage,
+        raw_objectives,
+        False,
+        generation=generation,
+        performance=SchedulerPerformance(
+            reception_seconds=reception_seconds,
+            duplicate_assignment_seconds=assignment_seconds,
+            leverage_seconds=leverage_seconds,
+        ),
+    )
+    maturation_started = time.perf_counter()
+    maturation_assessments = assess_foundation_lane_maturation(
+        state, preliminary
+    )
+    lane_maturation_seconds = time.perf_counter() - maturation_started
+    sequence_started = time.perf_counter()
+    lane_priority = sequence_foundation_lanes(maturation_assessments)
+    lane_maturation_seconds += time.perf_counter() - sequence_started
+    objective_started = time.perf_counter()
+    lead_objective = (
+        _maturation_objective(preliminary, lane_priority.lead)
+        if lane_priority.lead is not None
+        else None
+    )
+    maturation_objectives = (
+        (lead_objective,) if lead_objective is not None else ()
+    )
+    maturation_objective_seconds = time.perf_counter() - objective_started
+    compression_started = time.perf_counter()
+    lane_decision = _foundation_lane_portfolio_decision(
+        lane_priority, maturation_objectives
+    )
+    lane_compression_seconds = time.perf_counter() - compression_started
+    all_objectives = tuple(
+        sorted(
+            {
+                item.objective_id: item
+                for item in raw_objectives + maturation_objectives
+            }.values(),
+            key=lambda item: item.ordering_key(),
+        )
+    )
     selected_objectives = []
     selected_ids = set()
     # Four-suit planning needs campaign diversity: when the configured bound
@@ -2391,20 +3349,16 @@ def rebuild_whole_deal_schedule(
             key=lambda item: item.ordering_key(),
         )
     )
-    base = WholeDealSchedule(
-        blueprint.blueprint_id,
-        _state_fingerprint(state),
-        epoch,
-        tuple(suit_plans),
-        receptions,
-        leverage,
-        all_objectives,
-        False,
-        generation=generation,
-        performance=SchedulerPerformance(
-            reception_seconds=reception_seconds,
-            duplicate_assignment_seconds=assignment_seconds,
-            leverage_seconds=leverage_seconds,
+    base = replace(
+        preliminary,
+        objectives=all_objectives,
+        lane_maturation_assessments=maturation_assessments,
+        lane_sequence_priority=lane_priority,
+        lane_portfolio_decision=lane_decision,
+        performance=replace(
+            preliminary.performance,
+            lane_maturation_seconds=lane_maturation_seconds,
+            maturation_objective_seconds=maturation_objective_seconds,
         ),
     )
     preview = (
@@ -2418,6 +3372,7 @@ def rebuild_whole_deal_schedule(
         else None
     )
     saturation_started = time.perf_counter()
+    cashout_started = time.perf_counter()
     all_opportunities = tuple(
         classify_pre_deal_objective(
             state,
@@ -2428,6 +3383,7 @@ def rebuild_whole_deal_schedule(
         for objective in all_objectives
         if objective.family != ScheduleObjectiveFamily.PREPARE_EPOCH_TRANSITION
     )
+    cash_out_comparison_seconds = time.perf_counter() - cashout_started
     typed_by_id = {
         item.objective.objective_id: item for item in all_opportunities
     }
@@ -2445,8 +3401,15 @@ def rebuild_whole_deal_schedule(
             final_objectives.append(objective)
             final_ids.add(objective.objective_id)
 
+    maturation_ids = {item.objective_id for item in maturation_objectives}
+    maturation_suits = {item.suit for item in maturation_objectives}
     for item in typed_priority:
         if item.classification == PreDealOpportunityClass.MUST_PRE_DEAL:
+            if (
+                item.objective.suit in maturation_suits
+                and item.objective.objective_id not in maturation_ids
+            ):
+                continue
             retain(item.objective)
     best_advantage = next(
         (
@@ -2459,12 +3422,27 @@ def rebuild_whole_deal_schedule(
     )
     if best_advantage is not None:
         retain(best_advantage.objective)
+    # All current lanes are compressed into at most one lead objective.  Give
+    # that one semantic signal an explicit portfolio opportunity without
+    # changing the inherited four-objective cap.
+    for objective in maturation_objectives:
+        retain(objective)
     for objective in fallback_objectives:
+        if (
+            objective.suit in maturation_suits
+            and objective.objective_id not in maturation_ids
+        ):
+            continue
         typed = typed_by_id.get(objective.objective_id)
         if (
             typed is not None
             and typed.classification
             == PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+            and not (
+                objective.family == ScheduleObjectiveFamily.BUILD_FRAGMENT
+                and objective.target_epoch is not None
+                and objective.target_epoch > epoch
+            )
             and objective.objective_id
             != (
                 best_advantage.objective.objective_id
@@ -2506,7 +3484,14 @@ def rebuild_whole_deal_schedule(
             leverage_seconds=leverage_seconds,
             deal_now_preview_seconds=(preview.preview_seconds if preview else 0.0),
             saturation_seconds=saturation_seconds,
+            lane_maturation_seconds=lane_maturation_seconds,
+            cash_out_comparison_seconds=cash_out_comparison_seconds,
+            maturation_objective_seconds=maturation_objective_seconds,
+            lane_compression_seconds=lane_compression_seconds,
         ),
+        lane_maturation_assessments=maturation_assessments,
+        lane_sequence_priority=lane_priority,
+        lane_portfolio_decision=lane_decision,
     )
 
 
@@ -2786,6 +3771,146 @@ def derive_schedule_delta(
             )
         )
     return tuple(result)
+
+
+def derive_foundation_lane_progress(
+    before_state: SpiderState,
+    after_state: SpiderState,
+    before_schedule: WholeDealSchedule,
+    after_schedule: WholeDealSchedule,
+    assessment: FoundationLaneMaturationAssessment,
+    *,
+    actions: Sequence[Tuple] = (),
+) -> FoundationLaneProgressDelta:
+    """Describe fresh physical maturation; continued lane presence is no progress."""
+
+    after = _matching_maturation_lane(assessment, after_schedule)
+    physical_before = len(_stable_fragments(before_state, assessment.suit))
+    physical_after = len(_stable_fragments(after_state, assessment.suit))
+    missing_before = len(assessment.missing_edges)
+    missing_after = len(after.missing_edges) if after is not None else missing_before
+    blocker_before = assessment.cash_out_estimate.blocker_work
+    blocker_after = (
+        after.cash_out_estimate.blocker_work if after is not None else blocker_before
+    )
+    before_foundations = _removed_by_suit(before_state)[assessment.suit]
+    after_foundations = _removed_by_suit(after_state)[assessment.suit]
+    foundation_delta = max(0, after_foundations - before_foundations)
+    kinds = []
+    if physical_after < physical_before:
+        kinds.append(FoundationLaneProgressKind.FRAGMENT_COUNT_REDUCED)
+    if missing_after < missing_before:
+        kinds.append(FoundationLaneProgressKind.MISSING_EDGE_REDUCED)
+    if (
+        not assessment.actionable_bridge_edges
+        and after is not None
+        and after.actionable_bridge_edges
+    ):
+        kinds.append(FoundationLaneProgressKind.BRIDGE_BECAME_ACTIONABLE)
+    added_edges = _stable_edges(after_state, assessment.suit) - _stable_edges(
+        before_state, assessment.suit
+    )
+    if added_edges & set(assessment.actionable_bridge_edges):
+        kinds.append(FoundationLaneProgressKind.BRIDGE_INTEGRATED)
+    if blocker_after < blocker_before:
+        kinds.append(FoundationLaneProgressKind.BLOCKER_WORK_REDUCED)
+    if (
+        not assessment.floor_reached
+        and after is not None
+        and after.floor_reached
+    ):
+        kinds.append(FoundationLaneProgressKind.FLOOR_REACHED)
+    if after is not None:
+        entered = {
+            FoundationLaneMaturationState.MERGE_READY:
+                FoundationLaneProgressKind.MERGE_READY_ENTERED,
+            FoundationLaneMaturationState.NEAR_TERMINAL:
+                FoundationLaneProgressKind.NEAR_TERMINAL_ENTERED,
+            FoundationLaneMaturationState.TERMINAL_READY:
+                FoundationLaneProgressKind.TERMINAL_READY_ENTERED,
+        }
+        progress_kind = entered.get(after.state)
+        if progress_kind is not None and after.state != assessment.state:
+            kinds.append(progress_kind)
+    if foundation_delta:
+        kinds.append(FoundationLaneProgressKind.FOUNDATION_REMOVED)
+    elif (
+        after is not None
+        and after.lane_fingerprint != assessment.lane_fingerprint
+    ):
+        kinds.append(FoundationLaneProgressKind.LANE_REASSIGNED)
+    state_rank = {
+        FoundationLaneMaturationState.TERMINAL_READY: 0,
+        FoundationLaneMaturationState.NEAR_TERMINAL: 1,
+        FoundationLaneMaturationState.MERGE_READY: 2,
+        FoundationLaneMaturationState.BRIDGE_READY: 3,
+        FoundationLaneMaturationState.FRAGMENT_BUILDING: 4,
+        FoundationLaneMaturationState.FUTURE_GATED: 5,
+        FoundationLaneMaturationState.REMOVED: 0,
+    }
+    if (
+        after is not None
+        and state_rank[after.state] > state_rank[assessment.state]
+        and not foundation_delta
+        and physical_after >= physical_before
+        and missing_after >= missing_before
+    ):
+        kinds.append(FoundationLaneProgressKind.MATURATION_REGRESSED)
+    return FoundationLaneProgressDelta(
+        assessment.suit,
+        assessment.lane_fingerprint,
+        after.lane_fingerprint if after is not None else None,
+        assessment.state,
+        after.state if after is not None else None,
+        tuple(dict.fromkeys(kinds)),
+        physical_before,
+        physical_after,
+        missing_before,
+        missing_after,
+        blocker_before,
+        blocker_after,
+        tuple(actions),
+        foundation_delta,
+    )
+
+
+def make_foundation_lane_maturation_trace(
+    objective: ScheduledStructuralObjective,
+    assessment: FoundationLaneMaturationAssessment,
+    before_schedule: WholeDealSchedule,
+    after_schedule: WholeDealSchedule,
+    actions: Sequence[Tuple],
+    delta: FoundationLaneProgressDelta,
+    *,
+    exact_tt_admitted: bool,
+    selected: bool,
+    expanded: bool = False,
+    stop_reason: Optional[str] = None,
+) -> FoundationLaneMaturationTrace:
+    identity = (
+        objective.objective_id,
+        before_schedule.exact_state_fingerprint,
+        after_schedule.exact_state_fingerprint,
+        tuple(actions),
+    )
+    return FoundationLaneMaturationTrace(
+        _objective_id(("foundation-lane-maturation-trace", identity)),
+        objective.objective_id,
+        assessment.suit,
+        assessment.lane_fingerprint,
+        before_schedule.exact_state_fingerprint,
+        after_schedule.exact_state_fingerprint,
+        tuple(actions),
+        delta,
+        True,
+        exact_tt_admitted,
+        selected,
+        expanded,
+        stop_reason,
+        False,
+        before_schedule.epoch,
+        after_schedule.epoch,
+    )
 
 
 def scheduler_objective_effect(
@@ -3486,15 +4611,49 @@ def integrate_arrival_conversion_ledger(
         for item in ledger.obligations
         if item.active() and item.objective_id is not None
     )
-    retained = []
-    retained_ids = set()
-    for _obligation, objective in sorted(
+    # Multiple causal arrival records can describe the same freshly rebuilt
+    # suit lane.  Preserve the strongest typed obligation for that semantic
+    # lane so the bounded portfolio also has room for its maturation child.
+    grouped_arrivals = {}
+    for pair in sorted(
         arrival_pairs, key=lambda item: item[0].opportunity.ordering_key()
     ):
-        if len(retained) >= config.max_objectives:
-            break
+        opportunity = pair[0].opportunity
+        key = (
+            opportunity.suit,
+            opportunity.lane,
+        ) if opportunity.suit is not None and opportunity.lane is not None else (
+            opportunity.opportunity_id,
+        )
+        grouped_arrivals.setdefault(key, pair)
+    ordered_arrivals = tuple(grouped_arrivals.values())
+    maturation_ids = set(
+        schedule.lane_portfolio_decision.maturation_objective_ids
+        if schedule.lane_portfolio_decision is not None
+        else ()
+    )
+    maturation_objectives = tuple(
+        item for item in schedule.objectives
+        if item.objective_id in maturation_ids
+    )
+    retained = []
+    retained_ids = set()
+    if ordered_arrivals:
+        objective = ordered_arrivals[0][1]
         retained.append(objective)
         retained_ids.add(objective.objective_id)
+    for objective in maturation_objectives:
+        if len(retained) >= config.max_objectives:
+            break
+        if objective.objective_id not in retained_ids:
+            retained.append(objective)
+            retained_ids.add(objective.objective_id)
+    for _obligation, objective in ordered_arrivals[1:]:
+        if len(retained) >= config.max_objectives:
+            break
+        if objective.objective_id not in retained_ids:
+            retained.append(objective)
+            retained_ids.add(objective.objective_id)
     for objective in schedule.objectives:
         if len(retained) >= config.max_objectives:
             break

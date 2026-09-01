@@ -379,3 +379,20 @@ effects, a stable same-suit join dominates a mixed-suit park. Mixed-suit parking
 retains its exit route and estimated rehandling debt and requires a concrete
 forward benefit to override the permanent join. These lifecycle estimates may
 order the frontier but never proof-prune it.
+
+## Current-state foundation-lane cash-out
+
+Scheduler v0.4 establishes a general sequencing principle for the global
+planner: compare foundation lanes by the remaining structural work and exact
+current cash-out consequences, never by historical investment. A lane's
+current fragment partition alone is insufficient. Temporal gates, actionable
+bridges and merges, buried-source work, workspace need, stable-break debt,
+rehandling debt, terminal gap, and the exact workspace effect of a legal
+foundation completion all participate in typed lexicographic ordering.
+
+Only one lead lane becomes a compressed maturation objective in the bounded
+scheduler portfolio. Duplicate physical copies remain symmetric, and the lead
+is rebuilt after every admitted state. A previous lead receives no persistence
+credit merely because work was already spent on it. This cash-out model is
+planning evidence only: it is excluded from exact state identity, exact-TT
+dominance, admissible bounds, and proof pruning.

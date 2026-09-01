@@ -1118,6 +1118,39 @@ We can answer, for any deal and any stock epoch:
 
 After this gate, implement reveal graph and space lifecycle next, then combine them into the first full `StrategicAnalysis` object.
 
+### Verified whole-deal scheduler v0.4 status
+
+Scheduler v0.4 adds current-state foundation-lane cash-out assessment and
+cross-lane sequencing above v0.3's Deal-causal arrival conversion. It derives
+future-gated, fragment-building, bridge-ready, merge-ready, near-terminal,
+terminal-ready, and removed lane states; chooses one deterministic lead without
+sunk-cost or suit preference; and compresses that intent into at most one of
+the inherited four scheduler objectives. Exact TT, proof bounds, MobilityWare
+rules, frontier width, tactical resources, closure limits, and persistence are
+unchanged. The pre-policy audit did not authorize a maturation representative,
+and none was added.
+
+Natural cost-21 Gate Z completed 25 expansions in 32.227 seconds at F1, total
+corrected `g=26`, stock 30, and 32 face-down cards. One Diamond maturation
+successor was generated, exact-TT admitted, and selected, reducing both the
+physical fragment partition and missing-edge count and integrating a bridge.
+The untouched Gate AA completed 50 expansions in 60.345 seconds at selected
+`g=6`, F0, stock 50, and 39 face-down cards. It exact-TT admitted, selected,
+and expanded two ordinary Spade maturation successors; both reduced fragments,
+missing-edge and blocker work and integrated a bridge. V0.3 arrival conversion
+remained healthy with 12 selected/integrated partition reductions in Gate AA.
+
+No continuous integrated-arrival → same-lane maturation chain, terminal
+transition, or new foundation occurred. The strict verified verdict is FAIL
+and the next blocker is class G, cross-lane portfolio handoff. Do not start
+v0.5 automatically. If separately authorized, audit the fresh post-conversion
+lane table and explain why the affected semantic lane loses the lead/objective
+handoff before considering coverage, realiser, or resource changes. See
+`docs/whole_deal_backward_forward_scheduler_v0_4.md`.
+
+The final complete repository suite passed 1,678 ordinary tests with the
+unchanged 37 expected xfails and one inherited warning in 1,256.31 seconds.
+
 ## 8. Development discipline
 
 - Keep changes modular and reviewable.

@@ -192,6 +192,10 @@ from spider.planner.whole_deal_scheduler import (
     EpochTransitionOpportunity,
     EpochTransitionRepresentativeStatus,
     EpochTransitionTrace,
+    FoundationLaneMaturationState,
+    FoundationLaneMaturationTrace,
+    FoundationLaneProgressDelta,
+    FoundationLaneProgressKind,
     PreDealOpportunityClass,
     PrepareThenDealComparison,
     PostDealConversionLedger,
@@ -212,10 +216,13 @@ from spider.planner.whole_deal_scheduler import (
     arrival_conversion_traces,
     choose_scheduler_annotations,
     compare_prepare_then_deal,
+    derive_foundation_lane_progress,
     derive_schedule_delta,
     epoch_transition_objective,
     integrate_arrival_conversion_ledger,
+    make_foundation_lane_maturation_trace,
     make_epoch_transition_opportunity,
+    maturation_assessment_for_objective,
     pre_deal_opportunity_for_objective,
     record_arrival_conversion_candidates,
     rebuild_whole_deal_schedule,
@@ -781,6 +788,10 @@ class StrategicSuccessor:
     arrival_conversion_opportunity_id: Optional[str] = None
     arrival_conversion_class: Optional[ArrivalConversionClass] = None
     arrival_conversion_stage: Optional[ArrivalActionabilityStage] = None
+    maturation_lane_fingerprint: Optional[str] = None
+    maturation_state: Optional[FoundationLaneMaturationState] = None
+    maturation_progress_delta: Optional[FoundationLaneProgressDelta] = None
+    maturation_trace_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -1324,6 +1335,35 @@ class ControllerTelemetry:
     arrival_conversion_representatives_reserved: int = 0
     arrival_conversion_representatives_expanded: int = 0
     arrival_conversion_traces: List[ArrivalConversionTrace] = field(
+        default_factory=list
+    )
+    lane_maturation_assessments: int = 0
+    lane_maturation_lead_selections: int = 0
+    lane_maturation_objectives_generated: int = 0
+    lane_maturation_objectives_entered_portfolio: int = 0
+    lane_maturation_successors_generated: int = 0
+    lane_maturation_successors_admitted: int = 0
+    lane_maturation_successors_selected: int = 0
+    lane_maturation_successors_expanded: int = 0
+    lane_maturation_fragment_reductions: int = 0
+    lane_maturation_bridge_integrations: int = 0
+    lane_maturation_merge_ready_transitions: int = 0
+    lane_maturation_near_terminal_transitions: int = 0
+    lane_maturation_terminal_ready_transitions: int = 0
+    lane_maturation_foundations_removed: int = 0
+    lane_maturation_lead_changes: int = 0
+    lane_maturation_representatives_required: int = 0
+    lane_maturation_representatives_reserved: int = 0
+    lane_maturation_representatives_expanded: int = 0
+    lane_maturation_assessment_seconds: float = 0.0
+    lane_maturation_cash_out_seconds: float = 0.0
+    lane_maturation_objective_seconds: float = 0.0
+    lane_maturation_compression_seconds: float = 0.0
+    lane_maturation_representative_seconds: float = 0.0
+    lane_maturation_timeline: List[
+        Tuple[int, str, str, str, Tuple[str, ...]]
+    ] = field(default_factory=list)
+    lane_maturation_traces: List[FoundationLaneMaturationTrace] = field(
         default_factory=list
     )
 
@@ -2727,6 +2767,21 @@ def deduplicate_strategic_successors(
                     previous.arrival_conversion_stage
                     or successor.arrival_conversion_stage
                 ),
+                maturation_lane_fingerprint=(
+                    previous.maturation_lane_fingerprint
+                    or successor.maturation_lane_fingerprint
+                ),
+                maturation_state=(
+                    previous.maturation_state or successor.maturation_state
+                ),
+                maturation_progress_delta=(
+                    previous.maturation_progress_delta
+                    or successor.maturation_progress_delta
+                ),
+                maturation_trace_id=(
+                    previous.maturation_trace_id
+                    or successor.maturation_trace_id
+                ),
             )
         elif (
             successor.corrected_cost,
@@ -2814,6 +2869,8 @@ def _scheduler_stage(
 def _record_scheduler_rebuild(
     telemetry: ControllerTelemetry,
     schedule: WholeDealSchedule,
+    *,
+    maximum: Optional[int] = None,
 ) -> None:
     telemetry.scheduler_schedules_rebuilt += 1
     telemetry.scheduler_schedule_seconds += schedule.performance.schedule_seconds
@@ -2829,6 +2886,59 @@ def _record_scheduler_rebuild(
     telemetry.scheduler_deal_now_previews += int(
         schedule.deal_now_counterfactual is not None
     )
+    telemetry.lane_maturation_assessments += len(
+        schedule.lane_maturation_assessments
+    )
+    telemetry.lane_maturation_assessment_seconds += (
+        schedule.performance.lane_maturation_seconds
+    )
+    telemetry.lane_maturation_cash_out_seconds += (
+        schedule.performance.cash_out_comparison_seconds
+    )
+    telemetry.lane_maturation_objective_seconds += (
+        schedule.performance.maturation_objective_seconds
+    )
+    telemetry.lane_maturation_compression_seconds += (
+        schedule.performance.lane_compression_seconds
+    )
+    telemetry.lane_maturation_representative_seconds += (
+        schedule.performance.maturation_representative_seconds
+    )
+    priority = schedule.lane_sequence_priority
+    decision = schedule.lane_portfolio_decision
+    if priority is not None and priority.lead is not None:
+        telemetry.lane_maturation_lead_selections += 1
+        previous_fingerprint = (
+            telemetry.lane_maturation_timeline[-1][1]
+            if telemetry.lane_maturation_timeline
+            else None
+        )
+        telemetry.lane_maturation_lead_changes += int(
+            previous_fingerprint is not None
+            and previous_fingerprint != priority.lead.lane_fingerprint
+        )
+        event = (
+            schedule.epoch,
+            priority.lead.lane_fingerprint,
+            priority.lead.suit,
+            priority.lead.state.value,
+            priority.rationale,
+        )
+        if maximum is None:
+            telemetry.lane_maturation_timeline.append(event)
+        else:
+            _append_bounded(
+                telemetry.lane_maturation_timeline, event, maximum
+            )
+    if decision is not None:
+        telemetry.lane_maturation_objectives_generated += len(
+            decision.maturation_objective_ids
+        )
+        objective_ids = {item.objective_id for item in schedule.objectives}
+        telemetry.lane_maturation_objectives_entered_portfolio += sum(
+            item in objective_ids
+            for item in decision.maturation_objective_ids
+        )
 
 
 def _record_arrival_conversion_ledger(
@@ -2949,6 +3059,29 @@ def _record_arrival_conversion_ledger(
             telemetry.arrival_conversion_traces.append(trace)
 
 
+def _record_lane_maturation_progress(
+    telemetry: ControllerTelemetry,
+    delta: FoundationLaneProgressDelta,
+) -> None:
+    kinds = set(delta.kinds)
+    telemetry.lane_maturation_fragment_reductions += max(
+        0, delta.fragment_count_before - delta.fragment_count_after
+    )
+    telemetry.lane_maturation_bridge_integrations += int(
+        FoundationLaneProgressKind.BRIDGE_INTEGRATED in kinds
+    )
+    telemetry.lane_maturation_merge_ready_transitions += int(
+        FoundationLaneProgressKind.MERGE_READY_ENTERED in kinds
+    )
+    telemetry.lane_maturation_near_terminal_transitions += int(
+        FoundationLaneProgressKind.NEAR_TERMINAL_ENTERED in kinds
+    )
+    telemetry.lane_maturation_terminal_ready_transitions += int(
+        FoundationLaneProgressKind.TERMINAL_READY_ENTERED in kinds
+    )
+    telemetry.lane_maturation_foundations_removed += delta.foundation_delta
+
+
 def _annotate_scheduler_successors(
     node: StrategicSearchNode,
     candidates: Sequence[StrategicSuccessor],
@@ -3035,6 +3168,9 @@ def _annotate_scheduler_successors(
     accepted = 0
     for index, objective, effect_rank in annotations:
         comparison = None
+        maturation = maturation_assessment_for_objective(
+            node.whole_deal_schedule, objective.objective_id
+        )
         opportunity = pre_deal_opportunity_for_objective(
             node.whole_deal_schedule, objective
         )
@@ -3099,7 +3235,17 @@ def _annotate_scheduler_successors(
                 if index in matched_arrivals
                 else None
             ),
+            maturation_lane_fingerprint=(
+                maturation.lane_fingerprint
+                if maturation is not None
+                else None
+            ),
+            maturation_state=(
+                maturation.state if maturation is not None else None
+            ),
         )
+        if maturation is not None:
+            telemetry.lane_maturation_successors_generated += 1
         telemetry.scheduler_objectives_entered_portfolio += 1
         _scheduler_stage(telemetry, objective, "entered")
         accepted += 1
@@ -6760,6 +6906,50 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
         if epoch_transition_reservation == (0,)
         else 2,
     )
+    maturation_delta = (
+        node.incoming_edge.maturation_progress_delta
+        if node.incoming_edge is not None
+        else None
+    )
+    maturation_state = (
+        node.incoming_edge.maturation_state
+        if node.incoming_edge is not None
+        else None
+    )
+    maturation_continuity = (
+        0
+        if maturation_delta is not None and maturation_delta.substantial
+        else 1
+        if maturation_delta is not None
+        and (
+            maturation_delta.missing_edge_count_after
+            < maturation_delta.missing_edge_count_before
+            or maturation_delta.blocker_work_after
+            < maturation_delta.blocker_work_before
+        )
+        else 2
+        if maturation_state in {
+            FoundationLaneMaturationState.MERGE_READY,
+            FoundationLaneMaturationState.NEAR_TERMINAL,
+            FoundationLaneMaturationState.TERMINAL_READY,
+        }
+        else 3,
+        (
+            maturation_delta.missing_edge_count_after
+            if maturation_delta is not None
+            else 99
+        ),
+        (
+            maturation_delta.blocker_work_after
+            if maturation_delta is not None
+            else 99
+        ),
+        (
+            maturation_delta.after_lane_fingerprint or ""
+            if maturation_delta is not None
+            else ""
+        ),
+    )
     scheduled = (
         node.incoming_edge.scheduled_objective
         if node.incoming_edge is not None else None
@@ -6804,7 +6994,7 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
     # Scheduler intent ranks otherwise comparable exact states.  It follows
     # the established structural, milestone and bounded-continuation order so
     # that a fresh receding-horizon target cannot become a compulsory script.
-    return base[:representative_index] + bounded_representative + base[representative_index:continuity_index] + milestone_continuity + continuity + base[continuity_index:] + scheduler_continuity + (
+    return base[:representative_index] + bounded_representative + maturation_continuity + base[representative_index:continuity_index] + milestone_continuity + continuity + base[continuity_index:] + scheduler_continuity + (
         int(node.credit_level),
         node.depth,
         node.node_id,
@@ -8555,7 +8745,11 @@ def solve_anytime(
             generation=0,
         )
         root = replace(root, whole_deal_schedule=root_schedule)
-        _record_scheduler_rebuild(telemetry, root_schedule)
+        _record_scheduler_rebuild(
+            telemetry,
+            root_schedule,
+            maximum=config.max_timeline_entries,
+        )
     if not initial_state.foundations:
         root_geometry = build_pre_foundation_geometry(
             initial_state,
@@ -8876,6 +9070,19 @@ def solve_anytime(
             telemetry.scheduler_transition_opportunities_spent += 1
 
         telemetry.expanded += 1
+        if (
+            node.incoming_edge is not None
+            and node.incoming_edge.maturation_trace_id is not None
+        ):
+            telemetry.lane_maturation_successors_expanded += 1
+            for trace_index, trace in enumerate(
+                telemetry.lane_maturation_traces
+            ):
+                if trace.trace_id == node.incoming_edge.maturation_trace_id:
+                    telemetry.lane_maturation_traces[trace_index] = replace(
+                        trace, expanded=True
+                    )
+                    break
         if node.whole_deal_schedule is not None:
             schedule = node.whole_deal_schedule
             if schedule.saturation is not None:
@@ -9329,7 +9536,11 @@ def solve_anytime(
                                 successor.arrival_conversion_opportunity_id
                             ),
                         )
-                _record_scheduler_rebuild(telemetry, child_schedule)
+                _record_scheduler_rebuild(
+                    telemetry,
+                    child_schedule,
+                    maximum=config.max_timeline_entries,
+                )
                 if node.whole_deal_schedule is not None:
                     child_schedule_deltas = derive_schedule_delta(
                         node.state,
@@ -9388,6 +9599,78 @@ def solve_anytime(
                     if child_epoch_transition is not None:
                         telemetry.scheduler_deal_ready_tt_admitted += 1
                         telemetry.scheduler_transition_qualified += 1
+            child_maturation_delta = None
+            maturation_trace = None
+            if (
+                node.whole_deal_schedule is not None
+                and child_schedule is not None
+                and successor.scheduled_objective is not None
+            ):
+                maturation = maturation_assessment_for_objective(
+                    node.whole_deal_schedule,
+                    successor.scheduled_objective.objective_id,
+                )
+                if maturation is not None:
+                    causal_arrival_id = (
+                        successor.arrival_conversion_opportunity_id
+                    )
+                    if (
+                        causal_arrival_id is None
+                        and node.post_deal_conversion_ledger is not None
+                    ):
+                        causal_arrival_id = next(
+                            (
+                                obligation.opportunity.opportunity_id
+                                for obligation in reversed(
+                                    node.post_deal_conversion_ledger.obligations
+                                )
+                                if obligation.opportunity.suit
+                                == maturation.suit
+                                and obligation.status
+                                in {
+                                    ArrivalConversionStatus.CONSUMED,
+                                    ArrivalConversionStatus.INTEGRATED,
+                                    ArrivalConversionStatus.SPENT,
+                                }
+                            ),
+                            None,
+                        )
+                    child_maturation_delta = derive_foundation_lane_progress(
+                        node.state,
+                        successor.end_state,
+                        node.whole_deal_schedule,
+                        child_schedule,
+                        maturation,
+                        actions=successor.actions,
+                    )
+                    maturation_trace = make_foundation_lane_maturation_trace(
+                        successor.scheduled_objective,
+                        maturation,
+                        node.whole_deal_schedule,
+                        child_schedule,
+                        successor.actions,
+                        child_maturation_delta,
+                        exact_tt_admitted=True,
+                        selected=True,
+                    )
+                    maturation_trace = replace(
+                        maturation_trace,
+                        arrival_conversion_opportunity_id=(
+                            causal_arrival_id
+                        ),
+                        corrected_g_after=ng,
+                        parent_node_id=node.node_id,
+                    )
+                    telemetry.lane_maturation_successors_admitted += 1
+                    telemetry.lane_maturation_successors_selected += 1
+                    _record_lane_maturation_progress(
+                        telemetry, child_maturation_delta
+                    )
+                    _append_bounded(
+                        telemetry.lane_maturation_traces,
+                        maturation_trace,
+                        config.max_timeline_entries,
+                    )
             if successor.scheduled_objective is not None:
                 telemetry.scheduler_objectives_admitted += 1
                 _scheduler_stage(
@@ -9401,6 +9684,12 @@ def solve_anytime(
                 successor,
                 analysis=None,
                 schedule_deltas=child_schedule_deltas,
+                maturation_progress_delta=child_maturation_delta,
+                maturation_trace_id=(
+                    maturation_trace.trace_id
+                    if maturation_trace is not None
+                    else None
+                ),
             )
             child_audit_history = node.successive_deal_audit_history
             if successor.deal_contracts:
