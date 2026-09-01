@@ -139,6 +139,77 @@ class EpochTransitionHarvestKind(str, Enum):
     OTHER_NAMED_EPOCH_HARVEST = "OTHER_NAMED_EPOCH_HARVEST"
 
 
+class ArrivalCauseKind(str, Enum):
+    """Exact epoch-transition fact responsible for a conversion opportunity."""
+
+    PHYSICAL_STOCK_ARRIVAL = "PHYSICAL_STOCK_ARRIVAL"
+    REALIZED_RECEPTION = "REALIZED_RECEPTION"
+    BRIDGE_ACTIVATED = "BRIDGE_ACTIVATED"
+    RECEIVER_ENABLED = "RECEIVER_ENABLED"
+    DUPLICATE_LANE_REASSIGNED = "DUPLICATE_LANE_REASSIGNED"
+    FOUNDATION_FLOOR_CROSSED = "FOUNDATION_FLOOR_CROSSED"
+    INDIRECT_SOURCE_UNLOCKED = "INDIRECT_SOURCE_UNLOCKED"
+
+
+class ArrivalActionabilityStage(str, Enum):
+    """Monotone descriptive stages; they never enter exact state identity."""
+
+    PLANNED_FUTURE_SOURCE = "PLANNED_FUTURE_SOURCE"
+    ARRIVED = "ARRIVED"
+    EXPOSED = "EXPOSED"
+    ACTIONABLE = "ACTIONABLE"
+    CONSUMABLE = "CONSUMABLE"
+    CONSUMED = "CONSUMED"
+    INTEGRATED = "INTEGRATED"
+    FOUNDATION_CONVERTIBLE = "FOUNDATION_CONVERTIBLE"
+    TERMINAL = "TERMINAL"
+    REMOVED = "REMOVED"
+
+
+class ArrivalConversionClass(str, Enum):
+    CONSUME_NOW = "CONSUME_NOW"
+    PREPARE_THEN_CONSUME = "PREPARE_THEN_CONSUME"
+    FOUNDATION_CONVERT_NOW = "FOUNDATION_CONVERT_NOW"
+    DEFERRABLE_ARRIVAL = "DEFERRABLE_ARRIVAL"
+    NO_CURRENT_CONVERSION = "NO_CURRENT_CONVERSION"
+    INVALIDATED_ARRIVAL = "INVALIDATED_ARRIVAL"
+
+
+class ArrivalConversionStatus(str, Enum):
+    IDENTIFIED = "IDENTIFIED"
+    ACTIONABLE = "ACTIONABLE"
+    CANDIDATE_GENERATED = "CANDIDATE_GENERATED"
+    SELECTED = "SELECTED"
+    CONSUMED = "CONSUMED"
+    INTEGRATED = "INTEGRATED"
+    DEFERRED = "DEFERRED"
+    INVALIDATED = "INVALIDATED"
+    SPENT = "SPENT"
+
+
+class ArrivalConversionHarvestKind(str, Enum):
+    ARRIVAL_SOURCE_CONSUMED = "ARRIVAL_SOURCE_CONSUMED"
+    ARRIVAL_SOURCE_INTEGRATED = "ARRIVAL_SOURCE_INTEGRATED"
+    BRIDGE_MERGE = "BRIDGE_MERGE"
+    FRAGMENT_EXTENSION = "FRAGMENT_EXTENSION"
+    FRAGMENTS_JOINED = "FRAGMENTS_JOINED"
+    LANE_COMPLETED = "LANE_COMPLETED"
+    TERMINAL_QUALIFIED = "TERMINAL_QUALIFIED"
+    FOUNDATION_REMOVED = "FOUNDATION_REMOVED"
+    WORKSPACE_UNLOCKED = "WORKSPACE_UNLOCKED"
+    NEW_REVEAL = "NEW_REVEAL"
+    DEPENDENCY_CHAIN_ADVANCE = "DEPENDENCY_CHAIN_ADVANCE"
+    NO_CONVERSION_HARVEST = "NO_CONVERSION_HARVEST"
+
+
+class FoundationLaneConversionState(str, Enum):
+    LANE_FRAGMENTED = "LANE_FRAGMENTED"
+    LANE_BRIDGE_READY = "LANE_BRIDGE_READY"
+    LANE_MERGE_READY = "LANE_MERGE_READY"
+    LANE_TERMINAL_READY = "LANE_TERMINAL_READY"
+    LANE_REMOVED = "LANE_REMOVED"
+
+
 @dataclass(frozen=True)
 class SchedulerPerformance:
     blueprint_seconds: float = field(default=0.0, compare=False)
@@ -149,6 +220,10 @@ class SchedulerPerformance:
     deal_now_preview_seconds: float = field(default=0.0, compare=False)
     prepare_then_deal_seconds: float = field(default=0.0, compare=False)
     saturation_seconds: float = field(default=0.0, compare=False)
+    arrival_analysis_seconds: float = field(default=0.0, compare=False)
+    arrival_matching_seconds: float = field(default=0.0, compare=False)
+    prepare_then_consume_seconds: float = field(default=0.0, compare=False)
+    foundation_lane_seconds: float = field(default=0.0, compare=False)
 
 
 @dataclass(frozen=True)
@@ -417,6 +492,203 @@ class PrepareThenDealComparison:
 
 
 @dataclass(frozen=True)
+class ArrivalStructuralDelta:
+    stable_edges_added: Tuple[Tuple[int, int], ...] = ()
+    stable_edges_removed: Tuple[Tuple[int, int], ...] = ()
+    fragment_count_before: int = 0
+    fragment_count_after: int = 0
+    foundations_added: int = 0
+    face_down_revealed: int = 0
+    workspace_delta: int = 0
+    floor_crossed: bool = False
+    proof_pruning_allowed: bool = False
+
+    @property
+    def fragment_reduction(self) -> int:
+        return max(0, self.fragment_count_before - self.fragment_count_after)
+
+
+@dataclass(frozen=True)
+class FoundationLaneConversion:
+    suit: str
+    lane: int
+    availability_floor: Optional[int]
+    floor_reached: bool
+    target_edges: Tuple[Tuple[int, int], ...]
+    satisfied_edges: Tuple[Tuple[int, int], ...]
+    missing_edges: Tuple[Tuple[int, int], ...]
+    fragment_partition: Tuple[Tuple[int, int, int], ...]
+    fragment_count: int
+    estimated_merge_work: int
+    terminal_qualified: bool
+    next_missing_bridge: Optional[Card]
+    state: FoundationLaneConversionState
+    proof_pruning_allowed: bool = False
+
+    @property
+    def identity_key(self) -> Tuple[str, int]:
+        return self.suit, self.lane
+
+
+FoundationConversionOpportunity = FoundationLaneConversion
+
+
+@dataclass(frozen=True)
+class ArrivalConversionOpportunity:
+    opportunity_id: str
+    originating_transition_id: str
+    source_epoch: int
+    arrival_epoch: int
+    deal_row: Tuple[Card, ...]
+    incoming_card: Optional[Card]
+    destination_column: Optional[int]
+    cause: ArrivalCauseKind
+    suit: Optional[str]
+    lane: Optional[int]
+    pre_deal_requirement: Tuple[Tuple[int, int], ...]
+    target_adjacencies: Tuple[Tuple[int, int], ...]
+    actionability_stage: ArrivalActionabilityStage
+    conversion_class: ArrivalConversionClass
+    immediate_actions: Tuple[Tuple[int, int, int], ...]
+    preparation_actions: Tuple[Tuple[int, int, int], ...]
+    structural_benefit: int
+    rehandling_cost: int
+    deadline: ScheduleDeadlineKind
+    deadline_epoch: Optional[int]
+    lane_before: Optional[FoundationLaneConversion]
+    lane_after: Optional[FoundationLaneConversion]
+    deal_delta: ArrivalStructuralDelta
+    rationale: Tuple[str, ...]
+    proof_pruning_allowed: bool = False
+
+    def ordering_key(self) -> Tuple:
+        class_order = {
+            ArrivalConversionClass.FOUNDATION_CONVERT_NOW: 0,
+            ArrivalConversionClass.CONSUME_NOW: 1,
+            ArrivalConversionClass.PREPARE_THEN_CONSUME: 2,
+            ArrivalConversionClass.DEFERRABLE_ARRIVAL: 3,
+            ArrivalConversionClass.NO_CURRENT_CONVERSION: 4,
+            ArrivalConversionClass.INVALIDATED_ARRIVAL: 5,
+        }
+        return (
+            class_order[self.conversion_class],
+            -self.structural_benefit,
+            self.rehandling_cost,
+            self.deadline_epoch if self.deadline_epoch is not None else 99,
+            self.suit or "",
+            self.lane if self.lane is not None else 99,
+            -(self.incoming_card.rank if self.incoming_card is not None else 0),
+            self.destination_column if self.destination_column is not None else 99,
+            self.opportunity_id,
+        )
+
+
+@dataclass(frozen=True)
+class ArrivalConversionAssessment:
+    opportunity_id: str
+    conversion_class: ArrivalConversionClass
+    actionability_stage: ArrivalActionabilityStage
+    current_conversion_value: int
+    next_deal_value: int
+    stable_run_debt: int
+    credible_current_conversion: bool
+    generated_successor_actions: Tuple[Tuple[Tuple, ...], ...] = ()
+    selected_successor_actions: Optional[Tuple[Tuple, ...]] = None
+    rationale: Tuple[str, ...] = ()
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class ArrivalConversionObligation:
+    obligation_id: str
+    opportunity: ArrivalConversionOpportunity
+    objective_id: Optional[str]
+    status: ArrivalConversionStatus
+    actionability_stage: ArrivalActionabilityStage
+    created_generation: int
+    expires_after_epoch: Optional[int]
+    generated_successor_actions: Tuple[Tuple[Tuple, ...], ...] = ()
+    selected_successor_actions: Optional[Tuple[Tuple, ...]] = None
+    expiry_reason: Optional[str] = None
+    proof_pruning_allowed: bool = False
+
+    def active(self) -> bool:
+        return self.status in {
+            ArrivalConversionStatus.IDENTIFIED,
+            ArrivalConversionStatus.ACTIONABLE,
+            ArrivalConversionStatus.CANDIDATE_GENERATED,
+            ArrivalConversionStatus.SELECTED,
+        }
+
+
+@dataclass(frozen=True)
+class ArrivalConversionHarvest:
+    kind: ArrivalConversionHarvestKind
+    opportunity_id: str
+    obligation_id: str
+    detail: str
+    structural_delta: ArrivalStructuralDelta = field(
+        default_factory=ArrivalStructuralDelta
+    )
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class ArrivalConversionTrace:
+    transition_id: str
+    opportunity_id: str
+    obligation_id: str
+    source_epoch: int
+    arrival_epoch: int
+    incoming_card: Optional[Card]
+    destination_column: Optional[int]
+    conversion_class: ArrivalConversionClass
+    stages: Tuple[ArrivalActionabilityStage, ...]
+    status: ArrivalConversionStatus
+    successor_generated: bool
+    exact_tt_admitted: bool
+    selected: bool
+    harvests: Tuple[ArrivalConversionHarvest, ...]
+    lane_before: Optional[FoundationLaneConversion]
+    lane_after: Optional[FoundationLaneConversion]
+    stop_reason: Optional[str]
+    proof_pruning_allowed: bool = False
+
+
+@dataclass(frozen=True)
+class PostDealConversionLedger:
+    transition_id: str
+    source_epoch: int
+    arrival_epoch: int
+    deal_row: Tuple[Card, ...]
+    opportunities: Tuple[ArrivalConversionOpportunity, ...]
+    obligations: Tuple[ArrivalConversionObligation, ...]
+    assessments: Tuple[ArrivalConversionAssessment, ...]
+    lane_conversions_before: Tuple[FoundationLaneConversion, ...]
+    lane_conversions_after: Tuple[FoundationLaneConversion, ...]
+    floor_crossings: Tuple[Tuple[str, int], ...]
+    harvests: Tuple[ArrivalConversionHarvest, ...] = ()
+    generation: int = 0
+    analysis_seconds: float = field(default=0.0, compare=False)
+    matching_seconds: float = field(default=0.0, compare=False)
+    prepare_then_consume_seconds: float = field(default=0.0, compare=False)
+    foundation_lane_seconds: float = field(default=0.0, compare=False)
+    proof_pruning_allowed: bool = False
+
+    def obligation_for_objective(
+        self, objective_id: Optional[str]
+    ) -> Optional[ArrivalConversionObligation]:
+        return next(
+            (
+                item
+                for item in self.obligations
+                if objective_id is not None and item.objective_id == objective_id
+            ),
+            None,
+        )
+
+
+@dataclass(frozen=True)
 class EpochTransitionHarvest:
     kind: EpochTransitionHarvestKind
     detail: str
@@ -537,6 +809,9 @@ class WholeDealSchedule:
     generation: int = 0
     proof_pruning_allowed: bool = False
     performance: SchedulerPerformance = field(default_factory=SchedulerPerformance)
+    arrival_conversion_ledger: Optional[PostDealConversionLedger] = field(
+        default=None, compare=False, repr=False
+    )
 
 
 WholeDealScheduleSnapshot = WholeDealSchedule
@@ -845,6 +1120,208 @@ def _stable_edges(state: SpiderState, suit: str) -> set[Tuple[int, int]]:
             if high.suit == suit == low.suit and high.rank - 1 == low.rank:
                 edges.add((high.rank, low.rank))
     return edges
+
+
+def foundation_lane_conversions(
+    schedule: WholeDealSchedule,
+) -> Tuple[FoundationLaneConversion, ...]:
+    """Return an exact, deterministic planning view of every remaining lane."""
+
+    started = time.perf_counter()
+    result = []
+    for plan in schedule.suit_plans:
+        current_bridges = tuple(
+            item
+            for item in schedule.leverage_cards
+            if item.card.suit == plan.suit
+            and item.temporal_kind == TemporalAvailabilityKind.CURRENT_EXPOSED
+            and item.is_bridge
+        )
+        for lane in plan.lanes:
+            target = tuple(
+                (item.high_rank, item.low_rank) for item in lane.adjacencies
+            )
+            satisfied = tuple(
+                (item.high_rank, item.low_rank)
+                for item in lane.adjacencies
+                if item.status == AdjacencyStatus.SATISFIED
+            )
+            missing = tuple(item for item in target if item not in set(satisfied))
+            partition = tuple(sorted(lane.assignment_signature))
+            terminal = any(high == 13 and low == 1 for high, low, _ in partition)
+            bridge = next(
+                (
+                    item.card
+                    for item in current_bridges
+                    if any(item.card.rank in edge for edge in missing)
+                ),
+                None,
+            )
+            floor_reached = bool(
+                lane.availability_floor is not None
+                and lane.availability_floor <= schedule.epoch
+            )
+            if terminal:
+                conversion_state = FoundationLaneConversionState.LANE_TERMINAL_READY
+            elif bridge is not None and floor_reached:
+                conversion_state = FoundationLaneConversionState.LANE_BRIDGE_READY
+            elif floor_reached and partition and missing:
+                conversion_state = FoundationLaneConversionState.LANE_MERGE_READY
+            else:
+                conversion_state = FoundationLaneConversionState.LANE_FRAGMENTED
+            result.append(
+                FoundationLaneConversion(
+                    plan.suit,
+                    lane.lane,
+                    lane.availability_floor,
+                    floor_reached,
+                    target,
+                    satisfied,
+                    missing,
+                    partition,
+                    len(partition),
+                    max(0, len(partition) - 1),
+                    terminal,
+                    bridge,
+                    conversion_state,
+                )
+            )
+    # Keep the local timer visible to callers that collect lane timing without
+    # allowing timing to affect the returned structural facts.
+    _ = time.perf_counter() - started
+    return tuple(result)
+
+
+def _lane_for_arrival(
+    lanes: Sequence[FoundationLaneConversion],
+    card: Card,
+    column: int,
+) -> Optional[FoundationLaneConversion]:
+    matching = tuple(item for item in lanes if item.suit == card.suit)
+    physical = next(
+        (
+            item
+            for item in matching
+            if any(
+                fragment_column == column and high >= card.rank >= low
+                for high, low, fragment_column in item.fragment_partition
+            )
+        ),
+        None,
+    )
+    if physical is not None:
+        return physical
+    return min(
+        matching,
+        key=lambda item: (
+            sum(card.rank not in edge for edge in item.missing_edges),
+            item.fragment_count,
+            item.lane,
+        ),
+        default=None,
+    )
+
+
+def _terminal_fragment_present(state: SpiderState, suit: str) -> bool:
+    return any(
+        high == 13 and low == 1
+        for high, low, _column in _stable_fragments(state, suit)
+    )
+
+
+def _stable_edge_total(state: SpiderState) -> int:
+    return sum(len(_stable_edges(state, suit)) for suit in SUITS)
+
+
+def _current_material_count(state: SpiderState, card: Card) -> int:
+    return sum(
+        item == card
+        for column in state.columns
+        for item in column.face_down + column.face_up
+    ) + sum(item == card for foundation in state.foundations for item in foundation)
+
+
+def _arrival_consumption_actions(
+    state: SpiderState,
+    column: int,
+    card: Card,
+) -> Tuple[Tuple[Tuple[int, int, int], Tuple[Tuple[int, int], ...], int, int, int], ...]:
+    """Inspect legal one-move conversions without creating a scheduler search."""
+
+    before_edges = _stable_edges(state, card.suit)
+    before_total = _stable_edge_total(state)
+    before_fragments = len(_stable_fragments(state, card.suit))
+    ranked = []
+    for action in state.enumerate_moves():
+        if action[0] != column and action[1] != column:
+            continue
+        end = state.clone()
+        end.move(*action, rules=MW_RULES)
+        added = tuple(
+            sorted(
+                edge
+                for edge in _stable_edges(end, card.suit) - before_edges
+                if card.rank in edge
+            )
+        )
+        debt = max(0, before_total - _stable_edge_total(end))
+        reduction = max(
+            0, before_fragments - len(_stable_fragments(end, card.suit))
+        )
+        foundation_delta = len(end.foundations) - len(state.foundations)
+        if not added and foundation_delta > 0:
+            added = tuple(
+                edge
+                for edge in (
+                    (card.rank + 1, card.rank),
+                    (card.rank, card.rank - 1),
+                )
+                if 13 >= edge[0] > edge[1] >= 1
+            )
+        if not added:
+            continue
+        ranked.append((action, added, debt, reduction, foundation_delta))
+    ranked.sort(
+        key=lambda item: (
+            -item[4],
+            -len(item[1]),
+            -item[3],
+            item[2],
+            item[0],
+        )
+    )
+    return tuple(ranked)
+
+
+def _arrival_preparation_actions(
+    state: SpiderState,
+    column: int,
+    card: Card,
+    *,
+    structural_benefit: int,
+) -> Tuple[Tuple[int, int, int], ...]:
+    """Find one legal preparation only; consumption remains controller work."""
+
+    before_total = _stable_edge_total(state)
+    candidates = []
+    for preparation in state.enumerate_moves():
+        # Keeping the physical arrival fixed makes the causal comparison exact
+        # and prevents this single-ply probe becoming a conversion search.
+        if preparation[0] == column:
+            continue
+        prepared = state.clone()
+        prepared.move(*preparation, rules=MW_RULES)
+        conversions = _arrival_consumption_actions(prepared, column, card)
+        if not conversions:
+            continue
+        debt = max(0, before_total - _stable_edge_total(prepared))
+        best = conversions[0]
+        value = len(best[1]) + best[3] + 2 * int(best[4] > 0)
+        if debt > max(structural_benefit, value):
+            continue
+        candidates.append((debt, -value, preparation))
+    candidates.sort()
+    return tuple(item[2] for item in candidates)
 
 
 def _assignment_signatures(
@@ -2508,6 +2985,1044 @@ def classify_epoch_transition_harvest(
     for item in result:
         unique[(item.kind, item.column, item.card)] = item
     return tuple(unique.values())
+
+
+def analyze_post_deal_arrival_conversions(
+    before_state: SpiderState,
+    after_state: SpiderState,
+    before: WholeDealSchedule,
+    after: WholeDealSchedule,
+    *,
+    generation: int = 0,
+) -> PostDealConversionLedger:
+    """Build causal conversion obligations from one exact, legal Deal edge.
+
+    The inspection is deliberately bounded to immediate legal moves and one
+    legal preparation.  It emits semantic planning metadata and never executes
+    a selected move, grants tactical resources, or changes proof identity.
+    """
+
+    started = time.perf_counter()
+    rows = future_stock_rows(before_state)
+    row = tuple(rows[0]) if rows else ()
+    source_key = canonical_state_key(before_state)
+    transition_identity = (
+        source_key,
+        before.epoch,
+        tuple((card.suit, card.rank) for card in row),
+    )
+    transition_id = hashlib.sha256(
+        repr(transition_identity).encode("utf-8")
+    ).hexdigest()[:16]
+    lane_started = time.perf_counter()
+    lanes_before = foundation_lane_conversions(before)
+    lanes_after = foundation_lane_conversions(after)
+    lane_seconds = time.perf_counter() - lane_started
+    before_lane_by_id = {item.identity_key: item for item in lanes_before}
+    after_lane_by_id = {item.identity_key: item for item in lanes_after}
+    after_lane_threshold = {
+        (plan.suit, lane.lane): lane.copy_threshold
+        for plan in after.suit_plans
+        for lane in plan.lanes
+    }
+    floor_crossings = tuple(
+        sorted(
+            identity
+            for identity, current in after_lane_by_id.items()
+            if current.floor_reached
+            and not bool(
+                before_lane_by_id.get(identity)
+                and before_lane_by_id[identity].floor_reached
+            )
+        )
+    )
+    predicted = {
+        (item.column, item.card): item
+        for item in before.leverage_cards
+        if item.temporal_kind == TemporalAvailabilityKind.FUTURE_STOCK
+        and item.availability_epoch == before.epoch + 1
+        and item.column is not None
+        and item.desired_edges_enabled > 0
+    }
+    receptions = {
+        (item.column, item.incoming): item for item in before.receptions
+    }
+    opportunities = []
+    assessments = []
+    matching_started = time.perf_counter()
+    preparation_seconds = 0.0
+    for column, card in enumerate(row):
+        predicted_source = predicted.get((column, card))
+        reception = receptions.get((column, card))
+        reception_relevant = bool(
+            reception is not None
+            and reception.kind
+            in {
+                StockReceptionKind.SAME_SUIT_FREE_JOIN,
+                StockReceptionKind.FOUNDATION_TRIGGER,
+                StockReceptionKind.BRIDGE_RECEPTION,
+                StockReceptionKind.USEFUL_ISOLATION,
+            }
+        )
+        lane_after = _lane_for_arrival(lanes_after, card, column)
+        lane_before = (
+            before_lane_by_id.get(lane_after.identity_key)
+            if lane_after is not None
+            else None
+        )
+        caused_floor = bool(
+            lane_after is not None
+            and lane_after.identity_key in floor_crossings
+            and _current_material_count(before_state, card)
+            < after_lane_threshold.get(lane_after.identity_key, lane_after.lane)
+            <= _current_material_count(after_state, card)
+        )
+        if predicted_source is None and not reception_relevant and not caused_floor:
+            continue
+        present = bool(card in after_state.columns[column].face_up)
+        exposed = bool(after_state.columns[column].top() == card)
+        target_edges = tuple(
+            edge
+            for edge in ((card.rank + 1, card.rank), (card.rank, card.rank - 1))
+            if 13 >= edge[0] > edge[1] >= 1
+        )
+        requirement = tuple(
+            edge
+            for edge in target_edges
+            if lane_before is None or edge in lane_before.missing_edges
+        )
+        if reception_relevant and reception is not None and reception.receiver_satisfied:
+            cause = ArrivalCauseKind.REALIZED_RECEPTION
+        elif caused_floor:
+            cause = ArrivalCauseKind.FOUNDATION_FLOOR_CROSSED
+        elif predicted_source is not None and predicted_source.is_bridge:
+            cause = ArrivalCauseKind.BRIDGE_ACTIVATED
+        else:
+            cause = ArrivalCauseKind.PHYSICAL_STOCK_ARRIVAL
+        before_edges = _stable_edges(before_state, card.suit)
+        after_edges = _stable_edges(after_state, card.suit)
+        deal_added = tuple(sorted(after_edges - before_edges))
+        deal_removed = tuple(sorted(before_edges - after_edges))
+        before_fragments = lane_before.fragment_count if lane_before else 0
+        after_fragments = lane_after.fragment_count if lane_after else 0
+        deal_delta = ArrivalStructuralDelta(
+            deal_added,
+            deal_removed,
+            before_fragments,
+            after_fragments,
+            len(after_state.foundations) - len(before_state.foundations),
+            max(
+                0,
+                sum(len(item.face_down) for item in before_state.columns)
+                - sum(len(item.face_down) for item in after_state.columns),
+            ),
+            sum(item.is_empty() for item in after_state.columns)
+            - sum(item.is_empty() for item in before_state.columns),
+            caused_floor,
+        )
+        leverage_edges = (
+            predicted_source.desired_edges_enabled
+            if predicted_source is not None
+            else len(target_edges)
+        )
+        fragments_joined = (
+            predicted_source.fragments_joined
+            if predicted_source is not None
+            else int(len(target_edges) == 2)
+        )
+        structural_benefit = max(
+            1,
+            leverage_edges + fragments_joined,
+            deal_delta.fragment_reduction,
+        )
+        direct = (
+            _arrival_consumption_actions(after_state, column, card)
+            if exposed
+            else ()
+        )
+        for action, added_edges, _debt, reduction, foundation_delta in direct:
+            converted = after_state.clone()
+            converted.move(*action, rules=MW_RULES)
+            completed_boundaries = len(
+                set(target_edges) & _stable_edges(converted, card.suit)
+            )
+            if foundation_delta > 0:
+                completed_boundaries = len(target_edges)
+            structural_benefit = max(
+                structural_benefit,
+                completed_boundaries + reduction + 2 * int(foundation_delta > 0),
+                len(added_edges) + reduction,
+            )
+        prepare_started = time.perf_counter()
+        preparations = (
+            _arrival_preparation_actions(
+                after_state,
+                column,
+                card,
+                structural_benefit=structural_benefit,
+            )
+            if exposed and not direct
+            else ()
+        )
+        preparation_seconds += time.perf_counter() - prepare_started
+        terminal_conversion = False
+        for action, _edges, _debt, _reduction, foundation_delta in direct:
+            converted = after_state.clone()
+            converted.move(*action, rules=MW_RULES)
+            if foundation_delta > 0 or _terminal_fragment_present(converted, card.suit):
+                terminal_conversion = True
+                break
+        if not present:
+            conversion_class = ArrivalConversionClass.INVALIDATED_ARRIVAL
+            stage = ArrivalActionabilityStage.REMOVED if deal_delta.foundations_added else ArrivalActionabilityStage.PLANNED_FUTURE_SOURCE
+            status = ArrivalConversionStatus.INVALIDATED
+            rationale = ("the exact incoming card is absent from its Deal destination",)
+        elif terminal_conversion:
+            conversion_class = ArrivalConversionClass.FOUNDATION_CONVERT_NOW
+            stage = ArrivalActionabilityStage.ACTIONABLE
+            status = ArrivalConversionStatus.ACTIONABLE
+            rationale = (
+                "an immediate legal conversion reaches the existing terminal/foundation predicate",
+            )
+        elif direct:
+            conversion_class = ArrivalConversionClass.CONSUME_NOW
+            stage = ArrivalActionabilityStage.ACTIONABLE
+            status = ArrivalConversionStatus.ACTIONABLE
+            rationale = (
+                "an immediate legal tableau successor integrates an adjacency involving the arrival",
+            )
+        elif preparations:
+            conversion_class = ArrivalConversionClass.PREPARE_THEN_CONSUME
+            stage = ArrivalActionabilityStage.EXPOSED
+            status = ArrivalConversionStatus.ACTIONABLE
+            rationale = (
+                "one legal preparation creates an immediate arrival conversion; no recursive search was used",
+            )
+        elif lane_after is not None and not lane_after.floor_reached:
+            conversion_class = ArrivalConversionClass.DEFERRABLE_ARRIVAL
+            stage = ArrivalActionabilityStage.EXPOSED if exposed else ArrivalActionabilityStage.ARRIVED
+            status = ArrivalConversionStatus.DEFERRED
+            rationale = (
+                "the source remains structurally relevant but its lane retains a future temporal gate",
+            )
+        else:
+            conversion_class = ArrivalConversionClass.NO_CURRENT_CONVERSION
+            stage = ArrivalActionabilityStage.EXPOSED if exposed else ArrivalActionabilityStage.ARRIVED
+            status = ArrivalConversionStatus.DEFERRED
+            rationale = (
+                "leverage is present but no immediate or one-preparation legal conversion exists",
+            )
+        urgent = bool(
+            after_state.can_deal(MW_RULES)
+            and conversion_class
+            in {
+                ArrivalConversionClass.CONSUME_NOW,
+                ArrivalConversionClass.PREPARE_THEN_CONSUME,
+                ArrivalConversionClass.FOUNDATION_CONVERT_NOW,
+            }
+        )
+        if urgent:
+            deadline = ScheduleDeadlineKind.BEFORE_NEXT_DEAL
+            deadline_epoch = after.epoch
+        elif lane_after is not None and not lane_after.floor_reached:
+            deadline = ScheduleDeadlineKind.BY_EPOCH_N
+            deadline_epoch = lane_after.availability_floor
+        else:
+            deadline = ScheduleDeadlineKind.NO_HARD_DEADLINE
+            deadline_epoch = None
+        immediate_actions = tuple(item[0] for item in direct)
+        rehandling = min((item[2] for item in direct), default=0)
+        identity = (
+            transition_id,
+            column,
+            card.suit,
+            card.rank,
+            lane_after.lane if lane_after is not None else None,
+        )
+        opportunity_id = hashlib.sha256(
+            repr(identity).encode("utf-8")
+        ).hexdigest()[:16]
+        opportunity = ArrivalConversionOpportunity(
+            opportunity_id,
+            transition_id,
+            before.epoch,
+            after.epoch,
+            row,
+            card,
+            column,
+            cause,
+            card.suit,
+            lane_after.lane if lane_after is not None else None,
+            requirement,
+            target_edges,
+            stage,
+            conversion_class,
+            immediate_actions,
+            preparations,
+            structural_benefit,
+            rehandling,
+            deadline,
+            deadline_epoch,
+            lane_before,
+            lane_after,
+            deal_delta,
+            rationale
+            + (
+                f"originating Deal E{before.epoch}->E{after.epoch}, column {column + 1}",
+            ),
+        )
+        objective_id = (
+            f"arrival:{opportunity_id}"
+            if conversion_class
+            in {
+                ArrivalConversionClass.CONSUME_NOW,
+                ArrivalConversionClass.PREPARE_THEN_CONSUME,
+                ArrivalConversionClass.FOUNDATION_CONVERT_NOW,
+            }
+            else None
+        )
+        obligation_id = hashlib.sha256(
+            repr((opportunity_id, "conversion-obligation")).encode("utf-8")
+        ).hexdigest()[:16]
+        opportunities.append(opportunity)
+        assessments.append(
+            ArrivalConversionAssessment(
+                opportunity_id,
+                conversion_class,
+                stage,
+                structural_benefit - rehandling,
+                0 if urgent else structural_benefit,
+                rehandling,
+                bool(direct or preparations),
+                rationale=rationale,
+            )
+        )
+    opportunities = sorted(opportunities, key=lambda item: item.ordering_key())
+    obligation_by_opportunity = {
+        item.opportunity_id: ArrivalConversionObligation(
+            hashlib.sha256(
+                repr((item.opportunity_id, "conversion-obligation")).encode("utf-8")
+            ).hexdigest()[:16],
+            item,
+            (
+                f"arrival:{item.opportunity_id}"
+                if item.conversion_class
+                in {
+                    ArrivalConversionClass.CONSUME_NOW,
+                    ArrivalConversionClass.PREPARE_THEN_CONSUME,
+                    ArrivalConversionClass.FOUNDATION_CONVERT_NOW,
+                }
+                else None
+            ),
+            (
+                ArrivalConversionStatus.INVALIDATED
+                if item.conversion_class == ArrivalConversionClass.INVALIDATED_ARRIVAL
+                else ArrivalConversionStatus.DEFERRED
+                if item.conversion_class
+                in {
+                    ArrivalConversionClass.DEFERRABLE_ARRIVAL,
+                    ArrivalConversionClass.NO_CURRENT_CONVERSION,
+                }
+                else ArrivalConversionStatus.ACTIONABLE
+            ),
+            item.actionability_stage,
+            generation,
+            item.deadline_epoch,
+        )
+        for item in opportunities
+    }
+    elapsed = time.perf_counter() - started
+    return PostDealConversionLedger(
+        transition_id,
+        before.epoch,
+        after.epoch,
+        row,
+        tuple(opportunities),
+        tuple(obligation_by_opportunity[item.opportunity_id] for item in opportunities),
+        tuple(
+            sorted(
+                assessments,
+                key=lambda item: next(
+                    opportunity.ordering_key()
+                    for opportunity in opportunities
+                    if opportunity.opportunity_id == item.opportunity_id
+                ),
+            )
+        ),
+        lanes_before,
+        lanes_after,
+        floor_crossings,
+        generation=generation,
+        analysis_seconds=elapsed,
+        matching_seconds=max(0.0, elapsed - preparation_seconds - lane_seconds),
+        prepare_then_consume_seconds=preparation_seconds,
+        foundation_lane_seconds=lane_seconds,
+    )
+
+
+def _arrival_objective(
+    schedule: WholeDealSchedule,
+    obligation: ArrivalConversionObligation,
+) -> ScheduledStructuralObjective:
+    opportunity = obligation.opportunity
+    card = opportunity.incoming_card
+    leverage = next(
+        (
+            item
+            for item in schedule.leverage_cards
+            if card is not None
+            and item.card == card
+            and item.column == opportunity.destination_column
+            and item.temporal_kind == TemporalAvailabilityKind.CURRENT_EXPOSED
+        ),
+        None,
+    )
+    family = (
+        ScheduleObjectiveFamily.PREPARE_TERMINAL_SEQUENCE
+        if opportunity.conversion_class
+        == ArrivalConversionClass.FOUNDATION_CONVERT_NOW
+        else ScheduleObjectiveFamily.CONSUME_BRIDGE_CARD
+    )
+    rank = card.rank if card is not None else 1
+    return ScheduledStructuralObjective(
+        obligation.objective_id or f"arrival:{opportunity.opportunity_id}",
+        family,
+        ScheduleObjectiveStatus.ACTIONABLE,
+        opportunity.suit,
+        min(13, rank + 1),
+        max(1, rank - 1),
+        card,
+        leverage.source_id if leverage is not None else None,
+        opportunity.destination_column,
+        opportunity.arrival_epoch,
+        opportunity.deadline,
+        1 if opportunity.immediate_actions else 2,
+        opportunity.rehandling_cost,
+        max(1, len(opportunity.target_adjacencies)),
+        len(opportunity.target_adjacencies),
+        int(len(opportunity.target_adjacencies) == 2),
+        opportunity.rationale
+        + (
+            f"typed arrival conversion {opportunity.conversion_class.value}",
+            "the controller remains responsible for choosing a generated legal realiser",
+        ),
+    )
+
+
+def _arrival_pre_deal_opportunity(
+    state: SpiderState,
+    objective: ScheduledStructuralObjective,
+    obligation: ArrivalConversionObligation,
+) -> PreDealOpportunity:
+    opportunity = obligation.opportunity
+    conversion = opportunity.conversion_class
+    benefit = opportunity.structural_benefit
+    cost = objective.estimated_paid_cost + objective.estimated_rehandling_cost
+    if conversion in {
+        ArrivalConversionClass.CONSUME_NOW,
+        ArrivalConversionClass.FOUNDATION_CONVERT_NOW,
+    }:
+        classification = (
+            PreDealOpportunityClass.MUST_PRE_DEAL
+            if opportunity.deadline == ScheduleDeadlineKind.BEFORE_NEXT_DEAL
+            and benefit >= cost
+            else PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+        )
+    elif conversion == ArrivalConversionClass.PREPARE_THEN_CONSUME:
+        classification = (
+            PreDealOpportunityClass.MUST_PRE_DEAL
+            if opportunity.deadline == ScheduleDeadlineKind.BEFORE_NEXT_DEAL
+            and benefit > opportunity.rehandling_cost
+            else PreDealOpportunityClass.ADVANTAGE_PRE_DEAL
+        )
+    elif conversion == ArrivalConversionClass.DEFERRABLE_ARRIVAL:
+        classification = PreDealOpportunityClass.DEFERRABLE
+    elif conversion == ArrivalConversionClass.NO_CURRENT_CONVERSION:
+        classification = PreDealOpportunityClass.NON_ECONOMIC
+    else:
+        classification = PreDealOpportunityClass.INVALID
+    distance = (
+        max(0, (opportunity.deadline_epoch or schedule_epoch(state)) - schedule_epoch(state))
+        if opportunity.deadline != ScheduleDeadlineKind.NO_HARD_DEADLINE
+        else None
+    )
+    return PreDealOpportunity(
+        objective,
+        classification,
+        distance,
+        conversion == ArrivalConversionClass.DEFERRABLE_ARRIVAL,
+        opportunity.actionability_stage
+        in {
+            ArrivalActionabilityStage.ACTIONABLE,
+            ArrivalActionabilityStage.CONSUMABLE,
+        },
+        False,
+        0,
+        1 if state.can_deal(MW_RULES) else 0,
+        benefit,
+        cost,
+        False,
+        opportunity.rationale,
+    )
+
+
+def schedule_epoch(state: SpiderState) -> int:
+    """Small public spelling used by typed deadline comparisons."""
+
+    return current_stock_epoch(state)
+
+
+def integrate_arrival_conversion_ledger(
+    state: SpiderState,
+    schedule: WholeDealSchedule,
+    ledger: PostDealConversionLedger,
+    *,
+    config: WholeDealSchedulerConfig = WholeDealSchedulerConfig(),
+) -> WholeDealSchedule:
+    """Map active arrival obligations onto the existing bounded portfolio."""
+
+    arrival_pairs = tuple(
+        (item, _arrival_objective(schedule, item))
+        for item in ledger.obligations
+        if item.active() and item.objective_id is not None
+    )
+    retained = []
+    retained_ids = set()
+    for _obligation, objective in sorted(
+        arrival_pairs, key=lambda item: item[0].opportunity.ordering_key()
+    ):
+        if len(retained) >= config.max_objectives:
+            break
+        retained.append(objective)
+        retained_ids.add(objective.objective_id)
+    for objective in schedule.objectives:
+        if len(retained) >= config.max_objectives:
+            break
+        if objective.objective_id not in retained_ids:
+            retained.append(objective)
+            retained_ids.add(objective.objective_id)
+    objectives = tuple(sorted(retained, key=lambda item: item.ordering_key()))
+    existing = {
+        item.objective.objective_id: item
+        for item in schedule.pre_deal_opportunities
+    }
+    arrival_by_id = {
+        objective.objective_id: (obligation, objective)
+        for obligation, objective in arrival_pairs
+    }
+    opportunities = []
+    for objective in objectives:
+        pair = arrival_by_id.get(objective.objective_id)
+        if pair is not None:
+            opportunities.append(
+                _arrival_pre_deal_opportunity(state, pair[1], pair[0])
+            )
+        elif objective.objective_id in existing:
+            opportunities.append(existing[objective.objective_id])
+        else:
+            opportunities.append(
+                classify_pre_deal_objective(
+                    state,
+                    objective,
+                    schedule.deal_now_counterfactual,
+                    current_schedule=schedule,
+                )
+            )
+    saturation = assess_epoch_saturation(state, opportunities)
+    performance = replace(
+        schedule.performance,
+        arrival_analysis_seconds=(
+            schedule.performance.arrival_analysis_seconds + ledger.analysis_seconds
+        ),
+        arrival_matching_seconds=(
+            schedule.performance.arrival_matching_seconds + ledger.matching_seconds
+        ),
+        prepare_then_consume_seconds=(
+            schedule.performance.prepare_then_consume_seconds
+            + ledger.prepare_then_consume_seconds
+        ),
+        foundation_lane_seconds=(
+            schedule.performance.foundation_lane_seconds
+            + ledger.foundation_lane_seconds
+        ),
+    )
+    return replace(
+        schedule,
+        objectives=objectives,
+        pre_deal_opportunities=tuple(opportunities),
+        saturation=saturation,
+        deal_now_preferred=bool(
+            saturation.status == EpochSaturationStatus.DEAL_READY
+            and state.can_deal(MW_RULES)
+        ),
+        performance=performance,
+        arrival_conversion_ledger=ledger,
+    )
+
+
+def arrival_candidate_obligation(
+    before_state: SpiderState,
+    ledger: Optional[PostDealConversionLedger],
+    candidate_actions: Sequence[Tuple],
+    candidate_end_state: SpiderState,
+) -> Optional[ArrivalConversionObligation]:
+    """Match one already-generated legal successor to a typed obligation."""
+
+    if ledger is None:
+        return None
+    frozen_actions = tuple(candidate_actions)
+    for obligation in ledger.obligations:
+        if not obligation.active():
+            continue
+        opportunity = obligation.opportunity
+        card = opportunity.incoming_card
+        column = opportunity.destination_column
+        if card is None or column is None:
+            continue
+        if any(frozen_actions == (action,) for action in opportunity.preparation_actions):
+            return obligation
+        added = _stable_edges(candidate_end_state, card.suit) - _stable_edges(
+            before_state, card.suit
+        )
+        involving = {edge for edge in added if card.rank in edge}
+        touches = any(
+            len(action) >= 3 and (action[0] == column or action[1] == column)
+            for action in frozen_actions
+            if action != ("deal",)
+        )
+        if involving and touches:
+            return obligation
+        if len(candidate_end_state.foundations) > len(before_state.foundations):
+            if opportunity.conversion_class == ArrivalConversionClass.FOUNDATION_CONVERT_NOW:
+                return obligation
+    return None
+
+
+def record_arrival_conversion_candidates(
+    state: SpiderState,
+    ledger: Optional[PostDealConversionLedger],
+    candidates: Sequence[object],
+) -> Optional[PostDealConversionLedger]:
+    """Record generated legal realisers without adding or searching successors."""
+
+    if ledger is None:
+        return None
+    generated = {item.opportunity_id: [] for item in ledger.opportunities}
+    for candidate in candidates:
+        obligation = arrival_candidate_obligation(
+            state,
+            ledger,
+            getattr(candidate, "actions"),
+            getattr(candidate, "end_state"),
+        )
+        if obligation is not None:
+            generated[obligation.opportunity.opportunity_id].append(
+                tuple(getattr(candidate, "actions"))
+            )
+    obligations = []
+    assessments = []
+    assessment_by_id = {item.opportunity_id: item for item in ledger.assessments}
+    for obligation in ledger.obligations:
+        opportunity_id = obligation.opportunity.opportunity_id
+        actions = tuple(dict.fromkeys(generated[opportunity_id]))
+        updated = obligation
+        if actions:
+            updated = replace(
+                obligation,
+                status=ArrivalConversionStatus.CANDIDATE_GENERATED,
+                actionability_stage=ArrivalActionabilityStage.CONSUMABLE,
+                generated_successor_actions=actions,
+            )
+        obligations.append(updated)
+        assessment = assessment_by_id[opportunity_id]
+        assessments.append(
+            replace(
+                assessment,
+                actionability_stage=(
+                    ArrivalActionabilityStage.CONSUMABLE
+                    if actions
+                    else assessment.actionability_stage
+                ),
+                generated_successor_actions=actions,
+            )
+        )
+    return replace(
+        ledger,
+        obligations=tuple(obligations),
+        assessments=tuple(assessments),
+    )
+
+
+def classify_arrival_conversion_harvest(
+    before_state: SpiderState,
+    after_state: SpiderState,
+    obligation: ArrivalConversionObligation,
+    *,
+    before_schedule: Optional[WholeDealSchedule] = None,
+    after_schedule: Optional[WholeDealSchedule] = None,
+) -> Tuple[ArrivalConversionHarvest, ...]:
+    """Classify fresh structural consequences; continued presence is no harvest."""
+
+    opportunity = obligation.opportunity
+    card = opportunity.incoming_card
+    if card is None:
+        return (
+            ArrivalConversionHarvest(
+                ArrivalConversionHarvestKind.NO_CONVERSION_HARVEST,
+                opportunity.opportunity_id,
+                obligation.obligation_id,
+                "the causal event has no physical arrival source",
+            ),
+        )
+    before_edges = _stable_edges(before_state, card.suit)
+    after_edges = _stable_edges(after_state, card.suit)
+    added = tuple(sorted(after_edges - before_edges))
+    removed = tuple(sorted(before_edges - after_edges))
+    involving = tuple(edge for edge in added if card.rank in edge)
+    before_lanes = (
+        foundation_lane_conversions(before_schedule)
+        if before_schedule is not None
+        else ()
+    )
+    after_lanes = (
+        foundation_lane_conversions(after_schedule)
+        if after_schedule is not None
+        else ()
+    )
+    lane_identity = (
+        (card.suit, opportunity.lane) if opportunity.lane is not None else None
+    )
+    lane_before = next(
+        (item for item in before_lanes if item.identity_key == lane_identity),
+        opportunity.lane_after,
+    )
+    lane_after = next(
+        (item for item in after_lanes if item.identity_key == lane_identity),
+        lane_before,
+    )
+    lane_fragment_before = lane_before.fragment_count if lane_before is not None else 0
+    lane_fragment_after = lane_after.fragment_count if lane_after is not None else 0
+    physical_fragment_before = len(_stable_fragments(before_state, card.suit))
+    physical_fragment_after = len(_stable_fragments(after_state, card.suit))
+    if (
+        physical_fragment_before - physical_fragment_after
+        > lane_fragment_before - lane_fragment_after
+    ):
+        lane_fragment_before = physical_fragment_before
+        lane_fragment_after = physical_fragment_after
+    delta = ArrivalStructuralDelta(
+        added,
+        removed,
+        lane_fragment_before,
+        lane_fragment_after,
+        len(after_state.foundations) - len(before_state.foundations),
+        max(
+            0,
+            sum(len(item.face_down) for item in before_state.columns)
+            - sum(len(item.face_down) for item in after_state.columns),
+        ),
+        sum(item.is_empty() for item in after_state.columns)
+        - sum(item.is_empty() for item in before_state.columns),
+        False,
+    )
+    result = []
+
+    def add(kind: ArrivalConversionHarvestKind, detail: str) -> None:
+        result.append(
+            ArrivalConversionHarvest(
+                kind,
+                opportunity.opportunity_id,
+                obligation.obligation_id,
+                detail,
+                delta,
+            )
+        )
+
+    if involving:
+        add(
+            ArrivalConversionHarvestKind.ARRIVAL_SOURCE_CONSUMED,
+            "a new stable adjacency involving the causal arrival was created",
+        )
+        add(
+            ArrivalConversionHarvestKind.ARRIVAL_SOURCE_INTEGRATED,
+            "the arrival entered durable same-suit structure",
+        )
+        add(
+            ArrivalConversionHarvestKind.FRAGMENT_EXTENSION,
+            f"{len(involving)} arrival adjacency edge(s) were added",
+        )
+    target_after = set(opportunity.target_adjacencies) & after_edges
+    target_before = set(opportunity.target_adjacencies) & before_edges
+    if len(target_after) >= 2 and len(target_after) > len(target_before):
+        add(
+            ArrivalConversionHarvestKind.BRIDGE_MERGE,
+            "one arrival joined both its upper and lower same-suit boundaries",
+        )
+    if delta.fragment_reduction > 0:
+        add(
+            ArrivalConversionHarvestKind.FRAGMENTS_JOINED,
+            f"foundation-lane partition fell by {delta.fragment_reduction}",
+        )
+    if lane_after is not None and lane_after.terminal_qualified and not bool(
+        lane_before and lane_before.terminal_qualified
+    ):
+        add(
+            ArrivalConversionHarvestKind.LANE_COMPLETED,
+            "the exact lane partition now contains a K-A terminal fragment",
+        )
+        add(
+            ArrivalConversionHarvestKind.TERMINAL_QUALIFIED,
+            "the inherited terminal predicate became true",
+        )
+    if delta.foundations_added > 0:
+        add(
+            ArrivalConversionHarvestKind.FOUNDATION_REMOVED,
+            "the existing engine removed a legal complete sequence",
+        )
+    if delta.workspace_delta > 0:
+        add(
+            ArrivalConversionHarvestKind.WORKSPACE_UNLOCKED,
+            "conversion created an empty tableau workspace",
+        )
+    if delta.face_down_revealed > 0:
+        add(
+            ArrivalConversionHarvestKind.NEW_REVEAL,
+            "conversion exposed new face-down information",
+        )
+    if not result:
+        add(
+            ArrivalConversionHarvestKind.NO_CONVERSION_HARVEST,
+            "the successor produced no fresh typed arrival conversion harvest",
+        )
+    return tuple(result)
+
+
+def advance_post_deal_conversion_ledger(
+    before_state: SpiderState,
+    after_state: SpiderState,
+    before_schedule: WholeDealSchedule,
+    after_schedule: WholeDealSchedule,
+    ledger: Optional[PostDealConversionLedger],
+    *,
+    selected_opportunity_id: Optional[str] = None,
+    selected_actions: Sequence[Tuple] = (),
+) -> Optional[PostDealConversionLedger]:
+    """Advance one Deal-scoped ledger through an ordinary admitted edge."""
+
+    if ledger is None:
+        return None
+    dealt = any(action == ("deal",) for action in selected_actions)
+    updated_obligations = []
+    updated_opportunities = []
+    new_harvests = []
+    lanes_after = foundation_lane_conversions(after_schedule)
+    for obligation in ledger.obligations:
+        opportunity = obligation.opportunity
+        updated_opportunity = opportunity
+        updated_obligation = obligation
+        if not obligation.active():
+            updated_opportunities.append(updated_opportunity)
+            updated_obligations.append(updated_obligation)
+            continue
+        selected = opportunity.opportunity_id == selected_opportunity_id
+        harvests = (
+            classify_arrival_conversion_harvest(
+                before_state,
+                after_state,
+                obligation,
+                before_schedule=before_schedule,
+                after_schedule=after_schedule,
+            )
+            if selected
+            else ()
+        )
+        meaningful = tuple(
+            item
+            for item in harvests
+            if item.kind != ArrivalConversionHarvestKind.NO_CONVERSION_HARVEST
+        )
+        integrated = any(
+            item.kind == ArrivalConversionHarvestKind.ARRIVAL_SOURCE_INTEGRATED
+            for item in meaningful
+        )
+        removed = any(
+            item.kind == ArrivalConversionHarvestKind.FOUNDATION_REMOVED
+            for item in meaningful
+        )
+        if integrated or removed:
+            stage = (
+                ArrivalActionabilityStage.REMOVED
+                if removed
+                else ArrivalActionabilityStage.INTEGRATED
+            )
+            updated_obligation = replace(
+                obligation,
+                status=ArrivalConversionStatus.SPENT,
+                actionability_stage=stage,
+                selected_successor_actions=tuple(selected_actions),
+            )
+            new_harvests.extend(meaningful)
+        elif selected and not dealt:
+            card = opportunity.incoming_card
+            column = opportunity.destination_column
+            present = bool(
+                card is not None
+                and column is not None
+                and card in after_state.columns[column].face_up
+            )
+            direct = (
+                _arrival_consumption_actions(after_state, column, card)
+                if present
+                and after_state.columns[column].top() == card
+                and card is not None
+                and column is not None
+                else ()
+            )
+            if direct:
+                updated_opportunity = replace(
+                    opportunity,
+                    actionability_stage=ArrivalActionabilityStage.ACTIONABLE,
+                    conversion_class=ArrivalConversionClass.CONSUME_NOW,
+                    immediate_actions=tuple(item[0] for item in direct),
+                    preparation_actions=(),
+                    rationale=opportunity.rationale
+                    + ("the admitted preparation made immediate consumption legal",),
+                )
+                updated_obligation = replace(
+                    obligation,
+                    opportunity=updated_opportunity,
+                    status=ArrivalConversionStatus.ACTIONABLE,
+                    actionability_stage=ArrivalActionabilityStage.ACTIONABLE,
+                    selected_successor_actions=tuple(selected_actions),
+                )
+                new_harvests.append(
+                    ArrivalConversionHarvest(
+                        ArrivalConversionHarvestKind.DEPENDENCY_CHAIN_ADVANCE,
+                        opportunity.opportunity_id,
+                        obligation.obligation_id,
+                        "one admitted preparation made the causal arrival consumable",
+                    )
+                )
+            elif not present:
+                updated_obligation = replace(
+                    obligation,
+                    status=ArrivalConversionStatus.INVALIDATED,
+                    actionability_stage=ArrivalActionabilityStage.ARRIVED,
+                    selected_successor_actions=tuple(selected_actions),
+                    expiry_reason="fresh exact state no longer preserves the causal source",
+                )
+            else:
+                updated_obligation = replace(
+                    obligation,
+                    status=ArrivalConversionStatus.SPENT,
+                    selected_successor_actions=tuple(selected_actions),
+                    expiry_reason="one-shot conversion attempt produced no structural harvest",
+                )
+        elif dealt:
+            updated_obligation = replace(
+                obligation,
+                status=(
+                    ArrivalConversionStatus.DEFERRED
+                    if opportunity.conversion_class
+                    in {
+                        ArrivalConversionClass.DEFERRABLE_ARRIVAL,
+                        ArrivalConversionClass.NO_CURRENT_CONVERSION,
+                    }
+                    else ArrivalConversionStatus.INVALIDATED
+                ),
+                expiry_reason="a later Deal ended this Deal-scoped conversion window",
+            )
+        updated_opportunities.append(updated_opportunity)
+        updated_obligations.append(updated_obligation)
+    return replace(
+        ledger,
+        opportunities=tuple(updated_opportunities),
+        obligations=tuple(updated_obligations),
+        lane_conversions_after=lanes_after,
+        harvests=ledger.harvests + tuple(new_harvests),
+        generation=ledger.generation + 1,
+    )
+
+
+def arrival_conversion_traces(
+    ledger: Optional[PostDealConversionLedger],
+    *,
+    exact_tt_admitted: bool = False,
+) -> Tuple[ArrivalConversionTrace, ...]:
+    if ledger is None:
+        return ()
+    result = []
+    for obligation in ledger.obligations:
+        opportunity = obligation.opportunity
+        harvests = tuple(
+            item
+            for item in ledger.harvests
+            if item.opportunity_id == opportunity.opportunity_id
+        )
+        harvest_kinds = {item.kind for item in harvests}
+        stages = [
+            ArrivalActionabilityStage.PLANNED_FUTURE_SOURCE,
+            ArrivalActionabilityStage.ARRIVED,
+        ]
+        if opportunity.actionability_stage not in {
+            ArrivalActionabilityStage.PLANNED_FUTURE_SOURCE,
+            ArrivalActionabilityStage.ARRIVED,
+            ArrivalActionabilityStage.REMOVED,
+        }:
+            stages.append(ArrivalActionabilityStage.EXPOSED)
+        if obligation.status in {
+            ArrivalConversionStatus.ACTIONABLE,
+            ArrivalConversionStatus.CANDIDATE_GENERATED,
+            ArrivalConversionStatus.SELECTED,
+            ArrivalConversionStatus.CONSUMED,
+            ArrivalConversionStatus.INTEGRATED,
+            ArrivalConversionStatus.SPENT,
+        }:
+            stages.append(ArrivalActionabilityStage.ACTIONABLE)
+        if obligation.generated_successor_actions or obligation.selected_successor_actions:
+            stages.append(ArrivalActionabilityStage.CONSUMABLE)
+        if ArrivalConversionHarvestKind.ARRIVAL_SOURCE_CONSUMED in harvest_kinds:
+            stages.append(ArrivalActionabilityStage.CONSUMED)
+        if ArrivalConversionHarvestKind.ARRIVAL_SOURCE_INTEGRATED in harvest_kinds:
+            stages.append(ArrivalActionabilityStage.INTEGRATED)
+        if opportunity.conversion_class == ArrivalConversionClass.FOUNDATION_CONVERT_NOW:
+            stages.append(ArrivalActionabilityStage.FOUNDATION_CONVERTIBLE)
+        if ArrivalConversionHarvestKind.TERMINAL_QUALIFIED in harvest_kinds:
+            stages.append(ArrivalActionabilityStage.TERMINAL)
+        if ArrivalConversionHarvestKind.FOUNDATION_REMOVED in harvest_kinds:
+            stages.append(ArrivalActionabilityStage.REMOVED)
+        if obligation.actionability_stage not in stages:
+            stages.append(obligation.actionability_stage)
+        result.append(
+            ArrivalConversionTrace(
+                ledger.transition_id,
+                opportunity.opportunity_id,
+                obligation.obligation_id,
+                ledger.source_epoch,
+                ledger.arrival_epoch,
+                opportunity.incoming_card,
+                opportunity.destination_column,
+                opportunity.conversion_class,
+                tuple(dict.fromkeys(stages)),
+                obligation.status,
+                bool(obligation.generated_successor_actions),
+                exact_tt_admitted,
+                obligation.selected_successor_actions is not None,
+                harvests,
+                opportunity.lane_before,
+                next(
+                    (
+                        item
+                        for item in ledger.lane_conversions_after
+                        if item.suit == opportunity.suit
+                        and item.lane == opportunity.lane
+                    ),
+                    opportunity.lane_after,
+                ),
+                obligation.expiry_reason,
+            )
+        )
+    return tuple(result)
 
 
 def make_epoch_transition_opportunity(

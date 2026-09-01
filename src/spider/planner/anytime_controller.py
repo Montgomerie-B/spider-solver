@@ -183,12 +183,18 @@ from spider.planner.supply_consumption import (
     supply_result_for_contract,
 )
 from spider.planner.whole_deal_scheduler import (
+    ArrivalActionabilityStage,
+    ArrivalConversionClass,
+    ArrivalConversionHarvestKind,
+    ArrivalConversionStatus,
+    ArrivalConversionTrace,
     EpochSaturationStatus,
     EpochTransitionOpportunity,
     EpochTransitionRepresentativeStatus,
     EpochTransitionTrace,
     PreDealOpportunityClass,
     PrepareThenDealComparison,
+    PostDealConversionLedger,
     SchedulerDealKind,
     ScheduleDelta,
     ScheduleDeltaKind,
@@ -200,12 +206,18 @@ from spider.planner.whole_deal_scheduler import (
     WholeDealSchedulerConfig,
     build_whole_deal_blueprint,
     build_epoch_transition_trace,
+    advance_post_deal_conversion_ledger,
+    analyze_post_deal_arrival_conversions,
+    arrival_candidate_obligation,
+    arrival_conversion_traces,
     choose_scheduler_annotations,
     compare_prepare_then_deal,
     derive_schedule_delta,
     epoch_transition_objective,
+    integrate_arrival_conversion_ledger,
     make_epoch_transition_opportunity,
     pre_deal_opportunity_for_objective,
+    record_arrival_conversion_candidates,
     rebuild_whole_deal_schedule,
     scheduler_objective_effect,
 )
@@ -766,6 +778,9 @@ class StrategicSuccessor:
     scheduler_pre_deal_comparison: Optional[PrepareThenDealComparison] = None
     scheduler_pre_deal_classification: Optional[PreDealOpportunityClass] = None
     scheduler_effective_deal_ready: bool = False
+    arrival_conversion_opportunity_id: Optional[str] = None
+    arrival_conversion_class: Optional[ArrivalConversionClass] = None
+    arrival_conversion_stage: Optional[ArrivalActionabilityStage] = None
 
 
 @dataclass(frozen=True)
@@ -809,6 +824,7 @@ class StrategicSearchNode:
     completion_cash_out_parent_was_deal: bool = False
     whole_deal_schedule: Optional[WholeDealSchedule] = None
     epoch_transition_opportunity: Optional[EpochTransitionOpportunity] = None
+    post_deal_conversion_ledger: Optional[PostDealConversionLedger] = None
 
 
 @dataclass(frozen=True)
@@ -1284,6 +1300,32 @@ class ControllerTelemetry:
     scheduler_transition_harvest_counts: Dict[str, int] = field(default_factory=dict)
     scheduler_epoch_traces: List[EpochTransitionTrace] = field(default_factory=list)
     scheduler_proof_prunes: int = 0
+    arrival_analysis_count: int = 0
+    arrival_analysis_seconds: float = 0.0
+    arrival_matching_seconds: float = 0.0
+    arrival_prepare_then_consume_seconds: float = 0.0
+    arrival_foundation_lane_seconds: float = 0.0
+    arrival_important_sources: int = 0
+    arrival_conversion_opportunities: int = 0
+    arrival_conversion_by_class: Dict[str, int] = field(default_factory=dict)
+    arrival_conversion_successors_generated: int = 0
+    arrival_conversion_successors_admitted: int = 0
+    arrival_conversions_selected: int = 0
+    arrival_sources_consumed: int = 0
+    arrival_sources_integrated: int = 0
+    arrival_bridge_merges: int = 0
+    arrival_fragments_joined: int = 0
+    arrival_lane_fragment_reductions: int = 0
+    arrival_terminal_qualifications: int = 0
+    arrival_foundations_removed: int = 0
+    arrival_foundation_floor_crossings: int = 0
+    arrival_no_conversion_harvests: int = 0
+    arrival_conversion_representatives_required: int = 0
+    arrival_conversion_representatives_reserved: int = 0
+    arrival_conversion_representatives_expanded: int = 0
+    arrival_conversion_traces: List[ArrivalConversionTrace] = field(
+        default_factory=list
+    )
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -2673,6 +2715,18 @@ def deduplicate_strategic_successors(
                     previous.scheduler_effective_deal_ready
                     or successor.scheduler_effective_deal_ready
                 ),
+                arrival_conversion_opportunity_id=(
+                    previous.arrival_conversion_opportunity_id
+                    or successor.arrival_conversion_opportunity_id
+                ),
+                arrival_conversion_class=(
+                    previous.arrival_conversion_class
+                    or successor.arrival_conversion_class
+                ),
+                arrival_conversion_stage=(
+                    previous.arrival_conversion_stage
+                    or successor.arrival_conversion_stage
+                ),
             )
         elif (
             successor.corrected_cost,
@@ -2777,6 +2831,124 @@ def _record_scheduler_rebuild(
     )
 
 
+def _record_arrival_conversion_ledger(
+    telemetry: ControllerTelemetry,
+    ledger: Optional[PostDealConversionLedger],
+    *,
+    maximum: int,
+    exact_tt_admitted: bool = False,
+    exact_tt_admitted_opportunity_id: Optional[str] = None,
+) -> None:
+    """Merge lifecycle evidence once per causal obligation."""
+
+    if ledger is None:
+        return
+    existing_by_id = {
+        item.obligation_id: index
+        for index, item in enumerate(telemetry.arrival_conversion_traces)
+    }
+    traces = arrival_conversion_traces(
+        ledger, exact_tt_admitted=exact_tt_admitted
+    )
+    if exact_tt_admitted_opportunity_id is not None:
+        traces = tuple(
+            replace(
+                trace,
+                exact_tt_admitted=(
+                    trace.opportunity_id == exact_tt_admitted_opportunity_id
+                ),
+            )
+            for trace in traces
+        )
+    new_ledger = not any(
+        trace.transition_id == ledger.transition_id
+        for trace in telemetry.arrival_conversion_traces
+    )
+    if new_ledger:
+        telemetry.arrival_analysis_count += 1
+        telemetry.arrival_analysis_seconds += ledger.analysis_seconds
+        telemetry.arrival_matching_seconds += ledger.matching_seconds
+        telemetry.arrival_prepare_then_consume_seconds += (
+            ledger.prepare_then_consume_seconds
+        )
+        telemetry.arrival_foundation_lane_seconds += ledger.foundation_lane_seconds
+        telemetry.arrival_important_sources += len(ledger.opportunities)
+        telemetry.arrival_conversion_opportunities += len(ledger.opportunities)
+        telemetry.arrival_foundation_floor_crossings += len(ledger.floor_crossings)
+        for opportunity in ledger.opportunities:
+            name = opportunity.conversion_class.value
+            telemetry.arrival_conversion_by_class[name] = (
+                telemetry.arrival_conversion_by_class.get(name, 0) + 1
+            )
+    harvest_counters = {
+        ArrivalConversionHarvestKind.ARRIVAL_SOURCE_CONSUMED: "arrival_sources_consumed",
+        ArrivalConversionHarvestKind.ARRIVAL_SOURCE_INTEGRATED: "arrival_sources_integrated",
+        ArrivalConversionHarvestKind.BRIDGE_MERGE: "arrival_bridge_merges",
+        ArrivalConversionHarvestKind.FRAGMENTS_JOINED: "arrival_fragments_joined",
+        ArrivalConversionHarvestKind.TERMINAL_QUALIFIED: "arrival_terminal_qualifications",
+        ArrivalConversionHarvestKind.FOUNDATION_REMOVED: "arrival_foundations_removed",
+        ArrivalConversionHarvestKind.NO_CONVERSION_HARVEST: "arrival_no_conversion_harvests",
+    }
+    for trace in traces:
+        index = existing_by_id.get(trace.obligation_id)
+        previous = (
+            telemetry.arrival_conversion_traces[index]
+            if index is not None
+            else None
+        )
+        if trace.successor_generated and not bool(
+            previous and previous.successor_generated
+        ):
+            telemetry.arrival_conversion_successors_generated += 1
+        if trace.exact_tt_admitted and not bool(
+            previous and previous.exact_tt_admitted
+        ):
+            telemetry.arrival_conversion_successors_admitted += 1
+        if trace.selected and not bool(previous and previous.selected):
+            telemetry.arrival_conversions_selected += 1
+        old_harvests = {
+            (item.kind, item.detail) for item in (previous.harvests if previous else ())
+        }
+        for harvest in trace.harvests:
+            if (harvest.kind, harvest.detail) in old_harvests:
+                continue
+            field_name = harvest_counters.get(harvest.kind)
+            if field_name is not None:
+                setattr(telemetry, field_name, getattr(telemetry, field_name) + 1)
+            if harvest.kind == ArrivalConversionHarvestKind.FRAGMENTS_JOINED:
+                telemetry.arrival_lane_fragment_reductions += (
+                    harvest.structural_delta.fragment_reduction
+                )
+        if previous is not None:
+            terminal_statuses = {
+                ArrivalConversionStatus.CONSUMED,
+                ArrivalConversionStatus.INTEGRATED,
+                ArrivalConversionStatus.SPENT,
+            }
+            telemetry.arrival_conversion_traces[index] = replace(
+                trace,
+                stages=tuple(dict.fromkeys(previous.stages + trace.stages)),
+                successor_generated=(
+                    previous.successor_generated or trace.successor_generated
+                ),
+                exact_tt_admitted=(
+                    previous.exact_tt_admitted or trace.exact_tt_admitted
+                ),
+                selected=previous.selected or trace.selected,
+                harvests=tuple(
+                    dict.fromkeys(previous.harvests + trace.harvests)
+                ),
+                status=(
+                    previous.status
+                    if previous.status in terminal_statuses
+                    else trace.status
+                ),
+                stop_reason=trace.stop_reason or previous.stop_reason,
+            )
+        elif len(telemetry.arrival_conversion_traces) < maximum:
+            telemetry.arrival_conversion_traces.append(trace)
+
+
 def _annotate_scheduler_successors(
     node: StrategicSearchNode,
     candidates: Sequence[StrategicSuccessor],
@@ -2800,12 +2972,65 @@ def _annotate_scheduler_successors(
             any(action == ("deal",) for action in item.actions)
             for item in candidates
         )
-    annotations = choose_scheduler_annotations(
+    refined_arrivals = record_arrival_conversion_candidates(
+        node.state, node.post_deal_conversion_ledger, candidates
+    )
+    _record_arrival_conversion_ledger(
+        telemetry,
+        refined_arrivals,
+        maximum=config.max_timeline_entries,
+    )
+    annotations = list(choose_scheduler_annotations(
         node.state,
         candidates,
         node.whole_deal_schedule,
         maximum=config.max_scheduler_objectives_in_portfolio,
+    ))
+    matched_arrivals = {}
+    for index, candidate in enumerate(candidates):
+        obligation = arrival_candidate_obligation(
+            node.state,
+            refined_arrivals,
+            candidate.actions,
+            candidate.end_state,
+        )
+        if obligation is not None:
+            matched_arrivals[index] = obligation
+    selected_arrival_objective = (
+        node.whole_deal_schedule.saturation.selected_preparation.objective
+        if node.whole_deal_schedule.saturation is not None
+        and node.whole_deal_schedule.saturation.selected_preparation is not None
+        else None
     )
+    if (
+        selected_arrival_objective is not None
+        and refined_arrivals is not None
+        and refined_arrivals.obligation_for_objective(
+            selected_arrival_objective.objective_id
+        )
+        is not None
+        and not annotations
+    ):
+        matching = next(
+            (
+                (index, obligation)
+                for index, obligation in matched_arrivals.items()
+                if obligation.objective_id == selected_arrival_objective.objective_id
+            ),
+            None,
+        )
+        if matching is not None:
+            index, obligation = matching
+            effect_rank = (
+                1
+                if tuple(candidates[index].actions)
+                in {
+                    (action,)
+                    for action in obligation.opportunity.preparation_actions
+                }
+                else 0
+            )
+            annotations.append((index, selected_arrival_objective, effect_rank))
     annotated = list(candidates)
     accepted = 0
     for index, objective, effect_rank in annotations:
@@ -2858,6 +3083,21 @@ def _annotate_scheduler_successors(
             scheduler_pre_deal_comparison=comparison,
             scheduler_pre_deal_classification=(
                 opportunity.classification if opportunity is not None else None
+            ),
+            arrival_conversion_opportunity_id=(
+                matched_arrivals[index].opportunity.opportunity_id
+                if index in matched_arrivals
+                else None
+            ),
+            arrival_conversion_class=(
+                matched_arrivals[index].opportunity.conversion_class
+                if index in matched_arrivals
+                else None
+            ),
+            arrival_conversion_stage=(
+                ArrivalActionabilityStage.CONSUMABLE
+                if index in matched_arrivals
+                else None
             ),
         )
         telemetry.scheduler_objectives_entered_portfolio += 1
@@ -9028,6 +9268,7 @@ def solve_anytime(
             child_schedule = None
             child_schedule_deltas: Tuple[ScheduleDelta, ...] = ()
             child_epoch_transition = None
+            child_arrival_ledger = None
             if whole_deal_blueprint is not None:
                 child_schedule = rebuild_whole_deal_schedule(
                     successor.end_state,
@@ -9035,6 +9276,59 @@ def solve_anytime(
                     config=config.whole_deal_scheduler_config,
                     generation=node.depth + 1,
                 )
+                if node.whole_deal_schedule is not None:
+                    if successor.actions == (("deal",),):
+                        if node.post_deal_conversion_ledger is not None:
+                            expired_arrivals = advance_post_deal_conversion_ledger(
+                                node.state,
+                                successor.end_state,
+                                node.whole_deal_schedule,
+                                child_schedule,
+                                node.post_deal_conversion_ledger,
+                                selected_actions=successor.actions,
+                            )
+                            _record_arrival_conversion_ledger(
+                                telemetry,
+                                expired_arrivals,
+                                maximum=config.max_timeline_entries,
+                            )
+                        child_arrival_ledger = analyze_post_deal_arrival_conversions(
+                            node.state,
+                            successor.end_state,
+                            node.whole_deal_schedule,
+                            child_schedule,
+                            generation=node.depth + 1,
+                        )
+                    elif node.post_deal_conversion_ledger is not None:
+                        child_arrival_ledger = advance_post_deal_conversion_ledger(
+                            node.state,
+                            successor.end_state,
+                            node.whole_deal_schedule,
+                            child_schedule,
+                            node.post_deal_conversion_ledger,
+                            selected_opportunity_id=(
+                                successor.arrival_conversion_opportunity_id
+                            ),
+                            selected_actions=successor.actions,
+                        )
+                    if child_arrival_ledger is not None:
+                        child_schedule = integrate_arrival_conversion_ledger(
+                            successor.end_state,
+                            child_schedule,
+                            child_arrival_ledger,
+                            config=config.whole_deal_scheduler_config,
+                        )
+                        _record_arrival_conversion_ledger(
+                            telemetry,
+                            child_arrival_ledger,
+                            maximum=config.max_timeline_entries,
+                            exact_tt_admitted=bool(
+                                successor.arrival_conversion_opportunity_id
+                            ),
+                            exact_tt_admitted_opportunity_id=(
+                                successor.arrival_conversion_opportunity_id
+                            ),
+                        )
                 _record_scheduler_rebuild(telemetry, child_schedule)
                 if node.whole_deal_schedule is not None:
                     child_schedule_deltas = derive_schedule_delta(
@@ -9615,6 +9909,7 @@ def solve_anytime(
                 ),
                 child_schedule,
                 child_epoch_transition,
+                child_arrival_ledger,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:

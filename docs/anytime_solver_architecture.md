@@ -526,6 +526,30 @@ be rebuilt from the exact child; useful arrivals should become typed conversion
 obligations before another Deal is considered, rather than becoming repeated
 reward for transition itself.
 
+## Deal-causal arrival conversion principle
+
+A post-Deal schedule must distinguish a card that is merely useful now from
+structure made possible by this exact epoch transition. A proof-neutral causal
+ledger links the source epoch, exact row, physical/value arrival, destination,
+pre-Deal requirement and freshly affected semantic lane. It classifies direct
+conversion, one generated legal preparation, foundation conversion, safe
+deferral, no current path and invalidation.
+
+Arrival actionability is staged: arrival and exposure do not imply a legal
+receiver; a legal role does not imply that the controller generated its
+realiser; generated consumption does not imply durable integration. Urgent
+conversion participates in the existing marginal pre-Deal saturation model
+and fixed objective capacity. Deferrable or pathless leverage does not suppress
+Deal.
+
+After a conversion, the exact schedule rebuilds symmetric duplicate assignment
+and foundation-lane fragments. Consumption, fragment merge, terminal
+qualification and foundation removal are typed consequences of one structural
+event, not stackable scalar bonuses. Arrival/obligation/lane history remains
+outside canonical identity and proof pruning. A scheduler may inspect immediate
+legal moves and one already-generated preparation, but it neither executes
+cards nor starts a recursive tactical search.
+
 ## v0.10 semantic continuity refinement
 
 Controller v0.10 makes strategic continuity coordinate-free. A live interval,

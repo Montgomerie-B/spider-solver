@@ -1,7 +1,7 @@
 # Anytime Spider Solver Development Plan
 
-**Status:** Forward implementation plan; whole-deal scheduler v0.2 is verified PARTIAL, with multi-epoch arrival-to-foundation economics now the blocker
-**Date:** 2026-08-31
+**Status:** Forward implementation plan; whole-deal scheduler v0.3 establishes natural Deal-causal conversion, with cross-epoch converted-descendant maturation now the blocker
+**Date:** 2026-09-01
 **Architecture:** `docs/anytime_solver_architecture.md`  
 **Primary benchmark:** MobilityWare 4-suit deal stored as `4925153` in the repository (leaderboard screenshot labels the same deal `492515`)  
 
@@ -22,7 +22,41 @@ The intended operating pattern is:
 
 Deal 4925153 is the development benchmark, not the algorithm. No move, column, suit order, score, command number or hard-coded route from this deal may be embedded in generic strategy logic.
 
-### Verified whole-deal scheduler v0.2 outcome
+### Whole-deal scheduler v0.3 outcome
+
+Scheduler v0.3 adds a proof-neutral Deal-causal arrival ledger, explicit
+conversion classes, immediate/one-preparation actionability, conversion
+harvest and exact foundation-lane reassessment. Urgent conversion replaces a
+lower-ranked objective inside the inherited four-objective portfolio and maps
+onto v0.2's existing MUST/ADVANTAGE saturation. The scheduler still annotates
+already-generated legal successors; it does not execute moves or create a new
+tactical search.
+
+The required pre-policy Gate-W audit reproduced nine bridge arrivals and found
+all nine omitted before successor generation. Zero correct conversion
+successors were exact-TT admitted and then starved, so no arrival-conversion
+representative was authorized or implemented.
+
+The fixed cost-21 Gate X remains F1 but naturally selects five exact-TT-
+admitted arrival conversions; all five consume and integrate their sources and
+reduce fragment partitions. The authorized untouched Gate Y selects and
+integrates one E1 arrival after a scheduler-guided Deal, but the converted
+branch does not reach a later Deal or F1/F2 within 50 expansions. The task
+verdict is PASS under the multiple-natural-conversion criterion, with
+architectural class F: multi-epoch sequencing failure.
+
+Final verification is 1,608 passed, 37 expected xfails and the one inherited
+warning. Exact TT dominance, the admissible bound and scheduler proof-prune
+count remain unchanged.
+
+A future scheduler v0.4 is justified only if separately authorized. Its scope
+should be cross-epoch foundation-lane ordering and ordinary maturation of
+converted descendants inside the existing frontier. Do not add resources,
+change proof semantics, return to a local-controller micro-sprint or start the
+next task automatically. See
+`docs/whole_deal_backward_forward_scheduler_v0_3.md`.
+
+### Historical whole-deal scheduler v0.2 outcome
 
 Scheduler v0.2 fixes the v0.1 Deal-starvation mechanism without increasing any
 configured search resource. Exact one-step Deal counterfactuals, typed marginal
