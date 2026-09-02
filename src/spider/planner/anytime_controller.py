@@ -838,6 +838,7 @@ class StrategicSearchNode:
     whole_deal_schedule: Optional[WholeDealSchedule] = None
     epoch_transition_opportunity: Optional[EpochTransitionOpportunity] = None
     post_deal_conversion_ledger: Optional[PostDealConversionLedger] = None
+    authorised_epoch_transition_ids: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -7024,7 +7025,8 @@ def _milestone_checkpoint_order(node: StrategicSearchNode) -> Tuple[int, int, in
         for item in node.milestone_ledger.results
     )
     deals = sum(action == ("deal",) for action in node.actions)
-    anonymous_deal_debt = max(0, deals - epoch_checkpoints)
+    authorised = len(node.authorised_epoch_transition_ids)
+    anonymous_deal_debt = max(0, deals - epoch_checkpoints - authorised)
     structural_achievements = sum(
         item.outcome_kind in {
             MilestoneOutcomeKind.SUBSTANTIAL_STRUCTURAL_MILESTONE,
@@ -7154,6 +7156,56 @@ def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
     return combined[:4] + _milestone_checkpoint_order(node) + combined[4:]
 
 
+# Worse than REMOVED (6) so a node with no current lead loses to any rebuilt lane.
+_NO_CURRENT_LEAD_ORDER: Tuple = (
+    7,
+    (99, 99, 99, 99, 99, 99, 99, 0, 0, 0),
+    0,
+    "z",
+    (),
+    "~",
+)
+
+
+def _current_lead_ordering_key(node: StrategicSearchNode) -> Tuple:
+    """Standing frontier key from the already-attached current scheduler lead."""
+
+    schedule = node.whole_deal_schedule
+    if (
+        schedule is None
+        or schedule.lane_sequence_priority is None
+        or schedule.lane_sequence_priority.lead is None
+    ):
+        return _NO_CURRENT_LEAD_ORDER
+    return schedule.lane_sequence_priority.lead.ordering_key()
+
+
+def _with_authorised_epoch_transition(
+    ids: Tuple[str, ...],
+    opportunity: Optional[EpochTransitionOpportunity],
+) -> Tuple[str, ...]:
+    """Record one RESERVED/SPENT epoch transition; QUALIFIED and None stay out."""
+
+    if (
+        opportunity is None
+        or opportunity.status
+        not in {
+            EpochTransitionRepresentativeStatus.RESERVED,
+            EpochTransitionRepresentativeStatus.SPENT,
+        }
+        or opportunity.opportunity_id in ids
+    ):
+        return ids
+    return ids + (opportunity.opportunity_id,)
+
+
+def _authorised_ids_for_child(parent: StrategicSearchNode) -> Tuple[str, ...]:
+    return _with_authorised_epoch_transition(
+        parent.authorised_epoch_transition_ids,
+        parent.epoch_transition_opportunity,
+    )
+
+
 def _node_priority(node: StrategicSearchNode) -> Tuple:
     base = strategic_progress_order_key(node)
     cash_out = node.completion_cash_out
@@ -7178,50 +7230,10 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
         if epoch_transition_reservation == (0,)
         else 2,
     )
-    maturation_delta = (
-        node.incoming_edge.maturation_progress_delta
-        if node.incoming_edge is not None
-        else None
-    )
-    maturation_state = (
-        node.incoming_edge.maturation_state
-        if node.incoming_edge is not None
-        else None
-    )
-    maturation_continuity = (
-        0
-        if maturation_delta is not None and maturation_delta.substantial
-        else 1
-        if maturation_delta is not None
-        and (
-            maturation_delta.missing_edge_count_after
-            < maturation_delta.missing_edge_count_before
-            or maturation_delta.blocker_work_after
-            < maturation_delta.blocker_work_before
-        )
-        else 2
-        if maturation_state in {
-            FoundationLaneMaturationState.MERGE_READY,
-            FoundationLaneMaturationState.NEAR_TERMINAL,
-            FoundationLaneMaturationState.TERMINAL_READY,
-        }
-        else 3,
-        (
-            maturation_delta.missing_edge_count_after
-            if maturation_delta is not None
-            else 99
-        ),
-        (
-            maturation_delta.blocker_work_after
-            if maturation_delta is not None
-            else 99
-        ),
-        (
-            maturation_delta.after_lane_fingerprint or ""
-            if maturation_delta is not None
-            else ""
-        ),
-    )
+    # Incoming maturation delta/state remain on the edge for telemetry.  Standing
+    # frontier order uses the already-attached current lead, the same key
+    # sequence_foundation_lanes uses to pick that lead.
+    maturation_continuity = (_current_lead_ordering_key(node),)
     scheduled = (
         node.incoming_edge.scheduled_objective
         if node.incoming_edge is not None else None
@@ -7747,7 +7759,14 @@ def _reserve_epoch_transition_representative(
         )
         if is_chosen and opportunity.opportunity_id not in previously_reserved:
             telemetry.scheduler_transition_representatives_reserved += 1
-        updated_node = replace(node, epoch_transition_opportunity=updated)
+        updated_node = replace(
+            node,
+            epoch_transition_opportunity=updated,
+            authorised_epoch_transition_ids=_with_authorised_epoch_transition(
+                node.authorised_epoch_transition_ids,
+                updated,
+            ),
+        )
         rebuilt.append((_node_priority(updated_node), uid, updated_node))
     heapq.heapify(rebuilt)
     telemetry.scheduler_transition_selection_seconds += time.perf_counter() - started
@@ -9331,11 +9350,16 @@ def solve_anytime(
                     )
                     + 1
                 )
+            spent = replace(
+                active_epoch_transition,
+                status=EpochTransitionRepresentativeStatus.SPENT,
+            )
             node = replace(
                 node,
-                epoch_transition_opportunity=replace(
-                    active_epoch_transition,
-                    status=EpochTransitionRepresentativeStatus.SPENT,
+                epoch_transition_opportunity=spent,
+                authorised_epoch_transition_ids=_with_authorised_epoch_transition(
+                    node.authorised_epoch_transition_ids,
+                    spent,
                 ),
             )
             telemetry.scheduler_transition_representatives_expanded += 1
@@ -10509,6 +10533,7 @@ def solve_anytime(
                 child_schedule,
                 child_epoch_transition,
                 child_arrival_ledger,
+                _authorised_ids_for_child(node),
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
