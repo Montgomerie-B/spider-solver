@@ -870,6 +870,143 @@ class ArrivalConversionHarvest:
     proof_pruning_allowed: bool = False
 
 
+class ArrivalConversionCoverageStatus(str, Enum):
+    """One-shot expansion coverage for an already-admitted conversion child."""
+
+    QUALIFIED = "QUALIFIED"
+    RESERVED = "RESERVED"
+    SPENT = "SPENT"
+    SUPERSEDED = "SUPERSEDED"
+
+
+_ARRIVAL_INTEGRATION_HARVESTS = frozenset(
+    {
+        ArrivalConversionHarvestKind.ARRIVAL_SOURCE_CONSUMED,
+        ArrivalConversionHarvestKind.ARRIVAL_SOURCE_INTEGRATED,
+    }
+)
+_ARRIVAL_STRUCTURAL_HARVESTS = frozenset(
+    {
+        ArrivalConversionHarvestKind.BRIDGE_MERGE,
+        ArrivalConversionHarvestKind.FRAGMENT_EXTENSION,
+        ArrivalConversionHarvestKind.FRAGMENTS_JOINED,
+        ArrivalConversionHarvestKind.LANE_COMPLETED,
+        ArrivalConversionHarvestKind.TERMINAL_QUALIFIED,
+        ArrivalConversionHarvestKind.FOUNDATION_REMOVED,
+        ArrivalConversionHarvestKind.WORKSPACE_UNLOCKED,
+    }
+)
+
+
+@dataclass(frozen=True)
+class ArrivalConversionCoverage:
+    """Existing-capacity coverage so one converted child can expand once.
+
+    This is not a suit/lane commitment, not extra frontier width, and not a
+    proof object.  After the one expansion, ordinary cash-out resumes.
+    """
+
+    opportunity_id: str
+    obligation_id: str
+    exact_state_key: CanonicalStateKey
+    corrected_g: int
+    harvests: Tuple[ArrivalConversionHarvest, ...]
+    fragment_reduction: int
+    status: ArrivalConversionCoverageStatus = (
+        ArrivalConversionCoverageStatus.QUALIFIED
+    )
+    exact_tt_admitted: bool = True
+    independently_replay_verified: bool = True
+    proof_pruning_allowed: bool = False
+
+    def ordering_key(self) -> Tuple:
+        kinds = {item.kind for item in self.harvests}
+        return (
+            0 if ArrivalConversionHarvestKind.FOUNDATION_REMOVED in kinds else 1,
+            0 if ArrivalConversionHarvestKind.TERMINAL_QUALIFIED in kinds else 1,
+            0 if ArrivalConversionHarvestKind.FRAGMENTS_JOINED in kinds else 1,
+            0 if ArrivalConversionHarvestKind.BRIDGE_MERGE in kinds else 1,
+            -self.fragment_reduction,
+            self.corrected_g,
+            self.opportunity_id,
+        )
+
+    def eligible(self, spent_ids: Iterable[str] = ()) -> bool:
+        return bool(
+            self.status
+            in {
+                ArrivalConversionCoverageStatus.QUALIFIED,
+                ArrivalConversionCoverageStatus.RESERVED,
+            }
+            and self.opportunity_id not in set(spent_ids)
+            and self.exact_tt_admitted
+            and self.independently_replay_verified
+            and not self.proof_pruning_allowed
+        )
+
+    @property
+    def has_integration(self) -> bool:
+        return bool(
+            {item.kind for item in self.harvests} & _ARRIVAL_INTEGRATION_HARVESTS
+        )
+
+    @property
+    def has_structural_harvest(self) -> bool:
+        kinds = {item.kind for item in self.harvests}
+        return bool(kinds & _ARRIVAL_STRUCTURAL_HARVESTS) or self.fragment_reduction > 0
+
+
+def qualify_arrival_conversion_coverage(
+    ledger: Optional[PostDealConversionLedger],
+    *,
+    opportunity_id: Optional[str],
+    end_state: SpiderState,
+    corrected_g: int,
+    independently_replay_verified: bool,
+) -> Optional[ArrivalConversionCoverage]:
+    """Qualify one already-admitted integrated conversion child for coverage."""
+
+    if (
+        ledger is None
+        or opportunity_id is None
+        or not independently_replay_verified
+    ):
+        return None
+    harvests = tuple(
+        item for item in ledger.harvests if item.opportunity_id == opportunity_id
+    )
+    kinds = {item.kind for item in harvests}
+    if not (kinds & _ARRIVAL_INTEGRATION_HARVESTS):
+        return None
+    fragment_reduction = sum(
+        item.structural_delta.fragment_reduction for item in harvests
+    )
+    if not ((kinds & _ARRIVAL_STRUCTURAL_HARVESTS) or fragment_reduction > 0):
+        return None
+    obligation = next(
+        (
+            item
+            for item in ledger.obligations
+            if item.opportunity.opportunity_id == opportunity_id
+        ),
+        None,
+    )
+    if obligation is None or obligation.status not in {
+        ArrivalConversionStatus.CONSUMED,
+        ArrivalConversionStatus.INTEGRATED,
+        ArrivalConversionStatus.SPENT,
+    }:
+        return None
+    return ArrivalConversionCoverage(
+        opportunity_id,
+        obligation.obligation_id,
+        canonical_state_key(end_state),
+        corrected_g,
+        harvests,
+        fragment_reduction,
+    )
+
+
 @dataclass(frozen=True)
 class ArrivalConversionTrace:
     transition_id: str
