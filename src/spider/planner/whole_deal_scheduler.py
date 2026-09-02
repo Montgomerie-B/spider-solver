@@ -1940,6 +1940,117 @@ def _foundation_lane_portfolio_decision(
     )
 
 
+@dataclass(frozen=True)
+class FoundationLaneCashOutShift:
+    """Diagnostic comparison of one matched semantic lane across a conversion."""
+
+    suit: str
+    before_fingerprint: Optional[str]
+    after_fingerprint: Optional[str]
+    state_before: Optional[str]
+    state_after: Optional[str]
+    fragment_count_before: int
+    fragment_count_after: int
+    cash_out_before: Tuple
+    cash_out_after: Tuple
+    rehandling_before: int
+    rehandling_after: int
+    workspace_before: int
+    workspace_after: int
+    blocker_before: int
+    blocker_after: int
+    fragment_merges_before: int
+    fragment_merges_after: int
+    partition_improved: bool
+    estimate_worsened: bool
+    proof_pruning_allowed: bool = False
+
+
+def lead_maturation_legal_step(
+    schedule: WholeDealSchedule,
+) -> Optional[
+    Tuple[
+        ScheduledStructuralObjective,
+        FoundationLaneMaturationAssessment,
+        FoundationLaneActionEvidence,
+    ]
+]:
+    """Return the already-inspected legal one-step for the lead maturation objective.
+
+    The scheduler still does not create or execute moves.  It only exposes the
+    one-step that lane assessment already recorded from ordinary engine moves.
+    """
+
+    priority = schedule.lane_sequence_priority
+    decision = schedule.lane_portfolio_decision
+    if priority is None or priority.lead is None or decision is None:
+        return None
+    lead = priority.lead
+    objective = _maturation_objective(schedule, lead)
+    if objective is None:
+        return None
+    portfolio_ids = {item.objective_id for item in schedule.objectives}
+    if (
+        objective.objective_id not in decision.maturation_objective_ids
+        or objective.objective_id not in portfolio_ids
+    ):
+        return None
+    if not lead.actionable_merges:
+        return None
+    evidence = min(lead.actionable_merges, key=lambda item: item.ordering_key())
+    return objective, lead, evidence
+
+
+def converted_lane_cash_out_shift(
+    before_schedule: WholeDealSchedule,
+    after_schedule: WholeDealSchedule,
+    suit: str,
+) -> Optional[FoundationLaneCashOutShift]:
+    """Compare matched-fingerprint cash-out; never forces a lead."""
+
+    befores = tuple(
+        item
+        for item in before_schedule.lane_maturation_assessments
+        if item.suit == suit
+    )
+    if not befores:
+        return None
+    before = min(befores, key=lambda item: item.ordering_key())
+    after = _matching_maturation_lane(before, after_schedule)
+    if after is None:
+        return None
+    partition_improved = after.fragment_count < before.fragment_count or (
+        len(after.satisfied_edges) > len(before.satisfied_edges)
+    )
+    estimate_worsened = (
+        after.cash_out_estimate.rehandling_debt
+        > before.cash_out_estimate.rehandling_debt
+        or after.cash_out_estimate.workspace_work
+        > before.cash_out_estimate.workspace_work
+    )
+    return FoundationLaneCashOutShift(
+        suit,
+        before.lane_fingerprint,
+        after.lane_fingerprint,
+        before.state.value,
+        after.state.value,
+        before.fragment_count,
+        after.fragment_count,
+        before.cash_out_estimate.ordering_key(),
+        after.cash_out_estimate.ordering_key(),
+        before.cash_out_estimate.rehandling_debt,
+        after.cash_out_estimate.rehandling_debt,
+        before.cash_out_estimate.workspace_work,
+        after.cash_out_estimate.workspace_work,
+        before.cash_out_estimate.blocker_work,
+        after.cash_out_estimate.blocker_work,
+        before.cash_out_estimate.fragment_merge_count,
+        after.cash_out_estimate.fragment_merge_count,
+        partition_improved,
+        estimate_worsened and partition_improved,
+    )
+
+
 def maturation_assessment_for_objective(
     schedule: WholeDealSchedule,
     objective_id: Optional[str],
@@ -3507,6 +3618,22 @@ def objective_progress(
             if current_stock_epoch(after) > current_stock_epoch(before)
             else ScheduleObjectiveStatus.PLANNED
         )
+    if (
+        objective.family == ScheduleObjectiveFamily.PREPARE_TERMINAL_SEQUENCE
+        and objective.suit is not None
+    ):
+        before_removed = _removed_by_suit(before)[objective.suit]
+        after_removed = _removed_by_suit(after)[objective.suit]
+        if after_removed > before_removed:
+            return ScheduleObjectiveStatus.SATISFIED
+        before_edges = _stable_edges(before, objective.suit)
+        after_edges = _stable_edges(after, objective.suit)
+        if len(after_edges) > len(before_edges):
+            return ScheduleObjectiveStatus.ADVANCED
+        if len(_stable_fragments(after, objective.suit)) < len(
+            _stable_fragments(before, objective.suit)
+        ):
+            return ScheduleObjectiveStatus.ADVANCED
     if objective.family == ScheduleObjectiveFamily.PREPARE_STOCK_RECEPTION:
         if current_stock_epoch(after) > current_stock_epoch(before):
             return ScheduleObjectiveStatus.SATISFIED

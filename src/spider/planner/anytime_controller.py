@@ -215,11 +215,13 @@ from spider.planner.whole_deal_scheduler import (
     arrival_candidate_obligation,
     arrival_conversion_traces,
     choose_scheduler_annotations,
+    converted_lane_cash_out_shift,
     compare_prepare_then_deal,
     derive_foundation_lane_progress,
     derive_schedule_delta,
     epoch_transition_objective,
     integrate_arrival_conversion_ledger,
+    lead_maturation_legal_step,
     make_foundation_lane_maturation_trace,
     make_epoch_transition_opportunity,
     maturation_assessment_for_objective,
@@ -1366,6 +1368,10 @@ class ControllerTelemetry:
     lane_maturation_traces: List[FoundationLaneMaturationTrace] = field(
         default_factory=list
     )
+    conversion_cash_out_shifts: List[object] = field(default_factory=list)
+    conversion_join_with_worsened_rehandling: int = 0
+    conversion_join_with_worsened_workspace: int = 0
+    conversion_join_with_worsened_blocker: int = 0
 
     def count_suppression(self, reason: str) -> None:
         self.suppression_reasons[reason] = self.suppression_reasons.get(reason, 0) + 1
@@ -3082,6 +3088,224 @@ def _record_lane_maturation_progress(
     telemetry.lane_maturation_foundations_removed += delta.foundation_delta
 
 
+def _incoming_action_suit(node: StrategicSearchNode) -> Optional[str]:
+    """Best-effort suit of the incoming conversion move on this child."""
+
+    edge = node.incoming_edge
+    if edge is None:
+        return None
+    for action in edge.actions:
+        if not isinstance(action, tuple) or action == ("deal",) or len(action) != 3:
+            continue
+        _src, dst, count = action
+        if 0 <= dst < len(node.state.columns):
+            column = node.state.columns[dst]
+            if count > 0 and len(column.face_up) >= count:
+                return column.face_up[-count].suit
+        for run in reversed(node.state.foundations):
+            if run:
+                return run[0].suit
+    return None
+
+
+def _integrated_conversion_obligation(node: StrategicSearchNode):
+    edge_id = (
+        node.incoming_edge.arrival_conversion_opportunity_id
+        if node.incoming_edge is not None
+        else None
+    )
+    ledger = node.post_deal_conversion_ledger
+    if ledger is None:
+        return None
+    for obligation in reversed(ledger.obligations):
+        if obligation.status not in {
+            ArrivalConversionStatus.CONSUMED,
+            ArrivalConversionStatus.INTEGRATED,
+            ArrivalConversionStatus.SPENT,
+        }:
+            continue
+        if edge_id is None or obligation.opportunity.opportunity_id == edge_id:
+            return obligation
+    return None
+
+
+def _converted_semantic_lane(node: StrategicSearchNode):
+    """Current-state assessment of the matched converted lane, if any."""
+
+    schedule = node.whole_deal_schedule
+    if schedule is None:
+        return None
+    obligation = _integrated_conversion_obligation(node)
+    inferred_suit = _incoming_action_suit(node)
+    lane_after = None
+    suit = inferred_suit
+    if obligation is not None:
+        suit = obligation.opportunity.suit or inferred_suit
+        lane_after = obligation.opportunity.lane_after
+    elif (
+        node.incoming_edge is None
+        or node.incoming_edge.arrival_conversion_opportunity_id is None
+    ):
+        return None
+    assessments = schedule.lane_maturation_assessments
+    candidates = tuple(
+        item for item in assessments if suit is None or item.suit == suit
+    )
+    if not candidates:
+        return None
+    dest = (
+        obligation.opportunity.destination_column
+        if obligation is not None
+        else None
+    )
+    if dest is not None:
+        dest_matches = tuple(
+            item
+            for item in candidates
+            if any(column == dest for _high, _low, column in item.fragments)
+        )
+        if dest_matches:
+            candidates = dest_matches
+    if lane_after is not None:
+        before_edges = set(lane_after.satisfied_edges)
+        before_fragments = set(lane_after.fragment_partition)
+        return min(
+            candidates,
+            key=lambda item: (
+                -len(before_edges & set(item.satisfied_edges)),
+                -len(before_fragments & set(item.fragments)),
+                item.ordering_key(),
+            ),
+        )
+    if suit is None:
+        lead = (
+            schedule.lane_sequence_priority.lead
+            if schedule.lane_sequence_priority is not None
+            else None
+        )
+        return lead
+    if len(candidates) == 1:
+        return candidates[0]
+    if dest is not None:
+        return min(candidates, key=lambda item: item.ordering_key())
+    return None
+
+
+def _integrated_conversion_arrival_id(
+    node: StrategicSearchNode,
+    *,
+    suit: Optional[str] = None,
+) -> Optional[str]:
+    """Causal arrival on this exact child; never invents a different branch."""
+
+    obligation = _integrated_conversion_obligation(node)
+    if obligation is not None:
+        if suit is not None and obligation.opportunity.suit != suit:
+            return None
+        return obligation.opportunity.opportunity_id
+    edge_id = (
+        node.incoming_edge.arrival_conversion_opportunity_id
+        if node.incoming_edge is not None
+        else None
+    )
+    if edge_id is None:
+        return None
+    inferred = _incoming_action_suit(node)
+    if suit is not None and inferred is not None and inferred != suit:
+        return None
+    converted = _converted_semantic_lane(node)
+    if suit is not None and converted is not None and converted.suit != suit:
+        return None
+    return edge_id
+
+
+def _emit_lead_maturation_legal_successor(
+    node: StrategicSearchNode,
+    candidates: Sequence[StrategicSuccessor],
+) -> Tuple[StrategicSuccessor, ...]:
+    """Expose the already-legal lead one-step after an integrated conversion.
+
+    The scheduler still does not execute moves.  This only wraps a one-step
+    that lane assessment already inspected from ``enumerate_moves``.  A raw
+    fallback with the same actions is reclassified into ``run_construction``
+    so ordinary pre-TT portfolio retention can keep it; no post-TT priority
+    is added.
+    """
+
+    schedule = node.whole_deal_schedule
+    if schedule is None:
+        return tuple(candidates)
+    lead = (
+        schedule.lane_sequence_priority.lead
+        if schedule.lane_sequence_priority is not None
+        else None
+    )
+    if lead is None:
+        return tuple(candidates)
+    converted = _converted_semantic_lane(node)
+    if (
+        converted is None
+        or converted.lane_fingerprint != lead.lane_fingerprint
+        or _integrated_conversion_arrival_id(node, suit=lead.suit) is None
+    ):
+        return tuple(candidates)
+    step = lead_maturation_legal_step(schedule)
+    if step is None:
+        return tuple(candidates)
+    _objective, _assessment, evidence = step
+    actions = tuple(evidence.actions)
+    existing = next(
+        (item for item in candidates if tuple(item.actions) == actions),
+        None,
+    )
+    handoff_notes = (
+        "existing legal one-step recorded by foundation-lane assessment",
+        "emitted after integrated conversion while the converted lane is lead",
+        "no new tactical search and no post-TT priority",
+    )
+    if existing is not None:
+        if (
+            existing.kind == StrategicActionKind.RAW_TABLEAU_MOVE
+            or existing.category == "raw_fallback"
+        ):
+            upgraded = replace(
+                existing,
+                kind=StrategicActionKind.SAME_SUIT_CONSTRUCTION,
+                category="run_construction",
+                rationale=existing.rationale + handoff_notes,
+            )
+            return tuple(
+                upgraded if item is existing else item for item in candidates
+            )
+        return tuple(candidates)
+    end = node.state.clone()
+    try:
+        cost = replay_actions(end, list(actions))
+    except (ValueError, AssertionError, IndexError):
+        return tuple(candidates)
+    if cost != evidence.corrected_cost:
+        return tuple(candidates)
+    emitted = StrategicSuccessor(
+        StrategicActionKind.SAME_SUIT_CONSTRUCTION,
+        "run_construction",
+        (
+            f"lead-lane maturation {lead.suit} "
+            f"{lead.state.value} fingerprint={lead.lane_fingerprint}"
+        ),
+        actions,
+        cost,
+        end,
+        node.credit_level,
+        cost,
+        cost,
+        0,
+        _replay_edge(node.state, actions, end, cost),
+        False,
+        handoff_notes,
+    )
+    return tuple(candidates) + (emitted,)
+
+
 def _annotate_scheduler_successors(
     node: StrategicSearchNode,
     candidates: Sequence[StrategicSuccessor],
@@ -3092,9 +3316,11 @@ def _annotate_scheduler_successors(
     if (
         not config.enable_whole_deal_scheduler
         or node.whole_deal_schedule is None
-        or not candidates
         or config.max_scheduler_objectives_in_portfolio == 0
     ):
+        return tuple(candidates)
+    candidates = _emit_lead_maturation_legal_successor(node, candidates)
+    if not candidates:
         return tuple(candidates)
     if (
         node.whole_deal_schedule.saturation is not None
@@ -3223,7 +3449,11 @@ def _annotate_scheduler_successors(
             arrival_conversion_opportunity_id=(
                 matched_arrivals[index].opportunity.opportunity_id
                 if index in matched_arrivals
-                else None
+                else (
+                    _integrated_conversion_arrival_id(node, suit=maturation.suit)
+                    if maturation is not None
+                    else None
+                )
             ),
             arrival_conversion_class=(
                 matched_arrivals[index].opportunity.conversion_class
@@ -3249,6 +3479,48 @@ def _annotate_scheduler_successors(
         telemetry.scheduler_objectives_entered_portfolio += 1
         _scheduler_stage(telemetry, objective, "entered")
         accepted += 1
+    step = lead_maturation_legal_step(node.whole_deal_schedule)
+    converted = _converted_semantic_lane(node)
+    if (
+        step is not None
+        and converted is not None
+        and converted.lane_fingerprint == step[1].lane_fingerprint
+        and _integrated_conversion_arrival_id(node, suit=step[1].suit) is not None
+        and not any(
+            item.scheduled_objective is not None
+            and item.scheduled_objective.objective_id == step[0].objective_id
+            for item in annotated
+        )
+    ):
+        objective, assessment, evidence = step
+        actions = tuple(evidence.actions)
+        for index, item in enumerate(annotated):
+            if tuple(item.actions) != actions:
+                continue
+            effect_rank, notes = scheduler_objective_effect(
+                node.state, item.end_state, objective
+            )
+            annotated[index] = replace(
+                item,
+                scheduled_objective=objective,
+                scheduler_effect_rank=min(effect_rank, 1),
+                rationale=item.rationale
+                + objective.rationale
+                + notes
+                + (
+                    "post-conversion lead maturation uses an already-legal one-step",
+                ),
+                maturation_lane_fingerprint=assessment.lane_fingerprint,
+                maturation_state=assessment.state,
+                arrival_conversion_opportunity_id=_integrated_conversion_arrival_id(
+                    node, suit=assessment.suit
+                ),
+            )
+            telemetry.lane_maturation_successors_generated += 1
+            telemetry.scheduler_objectives_entered_portfolio += 1
+            _scheduler_stage(telemetry, objective, "entered")
+            accepted += 1
+            break
     saturation = node.whole_deal_schedule.saturation
     if (
         accepted == 0
@@ -9519,6 +9791,44 @@ def solve_anytime(
                             selected_actions=successor.actions,
                         )
                     if child_arrival_ledger is not None:
+                        if (
+                            node.whole_deal_schedule is not None
+                            and successor.arrival_conversion_opportunity_id
+                            is not None
+                        ):
+                            opp = next(
+                                (
+                                    item
+                                    for item in child_arrival_ledger.opportunities
+                                    if item.opportunity_id
+                                    == successor.arrival_conversion_opportunity_id
+                                ),
+                                None,
+                            )
+                            if opp is not None and opp.suit is not None:
+                                shift = converted_lane_cash_out_shift(
+                                    node.whole_deal_schedule,
+                                    child_schedule,
+                                    opp.suit,
+                                )
+                                if shift is not None:
+                                    telemetry.conversion_cash_out_shifts.append(shift)
+                                    if shift.estimate_worsened:
+                                        if (
+                                            shift.rehandling_after
+                                            > shift.rehandling_before
+                                        ):
+                                            telemetry.conversion_join_with_worsened_rehandling += 1
+                                        if (
+                                            shift.workspace_after
+                                            > shift.workspace_before
+                                        ):
+                                            telemetry.conversion_join_with_worsened_workspace += 1
+                                        if (
+                                            shift.blocker_after
+                                            > shift.blocker_before
+                                        ):
+                                            telemetry.conversion_join_with_worsened_blocker += 1
                         child_schedule = integrate_arrival_conversion_ledger(
                             successor.end_state,
                             child_schedule,
