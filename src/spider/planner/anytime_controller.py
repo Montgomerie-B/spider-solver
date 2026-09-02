@@ -185,8 +185,6 @@ from spider.planner.supply_consumption import (
 from spider.planner.whole_deal_scheduler import (
     ArrivalActionabilityStage,
     ArrivalConversionClass,
-    ArrivalConversionCoverage,
-    ArrivalConversionCoverageStatus,
     ArrivalConversionHarvestKind,
     ArrivalConversionStatus,
     ArrivalConversionTrace,
@@ -228,7 +226,6 @@ from spider.planner.whole_deal_scheduler import (
     make_epoch_transition_opportunity,
     maturation_assessment_for_objective,
     pre_deal_opportunity_for_objective,
-    qualify_arrival_conversion_coverage,
     record_arrival_conversion_candidates,
     rebuild_whole_deal_schedule,
     scheduler_objective_effect,
@@ -841,7 +838,6 @@ class StrategicSearchNode:
     whole_deal_schedule: Optional[WholeDealSchedule] = None
     epoch_transition_opportunity: Optional[EpochTransitionOpportunity] = None
     post_deal_conversion_ledger: Optional[PostDealConversionLedger] = None
-    arrival_conversion_coverage: Optional[ArrivalConversionCoverage] = None
 
 
 @dataclass(frozen=True)
@@ -1340,9 +1336,6 @@ class ControllerTelemetry:
     arrival_conversion_representatives_required: int = 0
     arrival_conversion_representatives_reserved: int = 0
     arrival_conversion_representatives_expanded: int = 0
-    arrival_conversion_coverage_traces: List[ArrivalConversionCoverage] = field(
-        default_factory=list
-    )
     arrival_conversion_traces: List[ArrivalConversionTrace] = field(
         default_factory=list
     )
@@ -7178,19 +7171,11 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
         and epoch_transition.status == EpochTransitionRepresentativeStatus.RESERVED
         else 1,
     )
-    conversion_coverage = node.arrival_conversion_coverage
-    conversion_coverage_reservation = (
-        0
-        if conversion_coverage is not None
-        and conversion_coverage.status == ArrivalConversionCoverageStatus.RESERVED
-        else 1,
-    )
     bounded_representative = (
         0
         if completion_reservation == (0,)
         else 1
         if epoch_transition_reservation == (0,)
-        or conversion_coverage_reservation == (0,)
         else 2,
     )
     maturation_delta = (
@@ -7769,85 +7754,6 @@ def _reserve_epoch_transition_representative(
     return rebuilt
 
 
-def _reserve_arrival_conversion_coverage(
-    frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
-    *,
-    tt: StrategicTranspositionTable,
-    spent_opportunity_ids: Sequence[str],
-    telemetry: ControllerTelemetry,
-) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
-    """Reserve at most one TT-admitted integrated conversion child."""
-
-    spent = set(spent_opportunity_ids)
-    eligible = []
-    superseded = {}
-    for _priority, _uid, node in frontier:
-        coverage = node.arrival_conversion_coverage
-        if spent or coverage is None or not coverage.eligible(spent):
-            continue
-        best_g = tt.best_g(node.state)
-        if best_g is not None and node.g > best_g:
-            superseded[coverage.opportunity_id] = replace(
-                coverage,
-                status=ArrivalConversionCoverageStatus.SUPERSEDED,
-            )
-            continue
-        eligible.append((node, coverage))
-    eligible.sort(key=lambda item: item[1].ordering_key())
-    chosen = eligible[0][1] if eligible else None
-    eligible_ids = {item[1].opportunity_id for item in eligible}
-    previously_reserved = {
-        item[2].arrival_conversion_coverage.opportunity_id
-        for item in frontier
-        if item[2].arrival_conversion_coverage is not None
-        and item[2].arrival_conversion_coverage.status
-        == ArrivalConversionCoverageStatus.RESERVED
-    }
-    rebuilt = []
-    for _priority, uid, node in frontier:
-        coverage = node.arrival_conversion_coverage
-        if coverage is None:
-            rebuilt.append((_node_priority(node), uid, node))
-            continue
-        if coverage.opportunity_id in spent:
-            updated_node = replace(
-                node,
-                arrival_conversion_coverage=replace(
-                    coverage,
-                    status=ArrivalConversionCoverageStatus.SPENT,
-                ),
-            )
-            rebuilt.append((_node_priority(updated_node), uid, updated_node))
-            continue
-        if coverage.opportunity_id in superseded:
-            updated_node = replace(
-                node,
-                arrival_conversion_coverage=superseded[coverage.opportunity_id],
-            )
-            rebuilt.append((_node_priority(updated_node), uid, updated_node))
-            continue
-        if coverage.opportunity_id not in eligible_ids:
-            rebuilt.append((_node_priority(node), uid, node))
-            continue
-        is_chosen = bool(
-            chosen is not None and coverage.opportunity_id == chosen.opportunity_id
-        )
-        updated = replace(
-            coverage,
-            status=(
-                ArrivalConversionCoverageStatus.RESERVED
-                if is_chosen
-                else ArrivalConversionCoverageStatus.QUALIFIED
-            ),
-        )
-        if is_chosen and coverage.opportunity_id not in previously_reserved:
-            telemetry.arrival_conversion_representatives_reserved += 1
-        updated_node = replace(node, arrival_conversion_coverage=updated)
-        rebuilt.append((_node_priority(updated_node), uid, updated_node))
-    heapq.heapify(rebuilt)
-    return rebuilt
-
-
 def _completion_harvest_assessment(
     opportunity: CompletionCashOutOpportunity,
     node: StrategicSearchNode,
@@ -8057,22 +7963,6 @@ def _trim_frontier_with_checkpoint_diversity(
                 telemetry.scheduler_transition_displaced_ordinary_slots += 1
         kept.append(transition_item)
         kept_ids.add(transition_item[1])
-        if len(kept) >= maximum:
-            return kept
-    conversion_item = next(
-        (
-            item
-            for item in ordered
-            if item[1] not in kept_ids
-            and item[2].arrival_conversion_coverage is not None
-            and item[2].arrival_conversion_coverage.status
-            == ArrivalConversionCoverageStatus.RESERVED
-        ),
-        None,
-    )
-    if conversion_item is not None:
-        kept.append(conversion_item)
-        kept_ids.add(conversion_item[1])
         if len(kept) >= maximum:
             return kept
     # Protect only the strongest live same-campaign continuation globally;
@@ -9170,7 +9060,6 @@ def solve_anytime(
     }
     cash_out_spent_event_ids: set[str] = set()
     epoch_transition_spent_ids: set[str] = set()
-    arrival_conversion_spent_ids: set[str] = set()
     frontier: List[Tuple[Tuple, int, StrategicSearchNode]] = []
     uid = 0
     heapq.heappush(frontier, (_node_priority(root), uid, root))
@@ -9206,12 +9095,6 @@ def solve_anytime(
             frontier,
             tt=tt,
             spent_opportunity_ids=tuple(epoch_transition_spent_ids),
-            telemetry=telemetry,
-        )
-        frontier = _reserve_arrival_conversion_coverage(
-            frontier,
-            tt=tt,
-            spent_opportunity_ids=tuple(arrival_conversion_spent_ids),
             telemetry=telemetry,
         )
         _priority, _sequence, node = heapq.heappop(frontier)
@@ -9457,30 +9340,6 @@ def solve_anytime(
             )
             telemetry.scheduler_transition_representatives_expanded += 1
             telemetry.scheduler_transition_opportunities_spent += 1
-
-        if (
-            node.arrival_conversion_coverage is not None
-            and node.arrival_conversion_coverage.status
-            == ArrivalConversionCoverageStatus.RESERVED
-            and node.arrival_conversion_coverage.eligible(
-                arrival_conversion_spent_ids
-            )
-        ):
-            coverage = node.arrival_conversion_coverage
-            arrival_conversion_spent_ids.add(coverage.opportunity_id)
-            node = replace(
-                node,
-                arrival_conversion_coverage=replace(
-                    coverage,
-                    status=ArrivalConversionCoverageStatus.SPENT,
-                ),
-            )
-            telemetry.arrival_conversion_representatives_expanded += 1
-            _append_bounded(
-                telemetry.arrival_conversion_coverage_traces,
-                node.arrival_conversion_coverage,
-                config.max_timeline_entries,
-            )
 
         telemetry.expanded += 1
         if (
@@ -9889,7 +9748,6 @@ def solve_anytime(
             child_schedule_deltas: Tuple[ScheduleDelta, ...] = ()
             child_epoch_transition = None
             child_arrival_ledger = None
-            child_conversion_coverage = None
             if whole_deal_blueprint is not None:
                 child_schedule = rebuild_whole_deal_schedule(
                     successor.end_state,
@@ -9988,26 +9846,6 @@ def solve_anytime(
                                 successor.arrival_conversion_opportunity_id
                             ),
                         )
-                        child_conversion_coverage = (
-                            qualify_arrival_conversion_coverage(
-                                child_arrival_ledger,
-                                opportunity_id=(
-                                    successor.arrival_conversion_opportunity_id
-                                ),
-                                end_state=successor.end_state,
-                                corrected_g=ng,
-                                independently_replay_verified=(
-                                    successor.independent_replay_verified
-                                ),
-                            )
-                        )
-                        if child_conversion_coverage is not None:
-                            telemetry.arrival_conversion_representatives_required += 1
-                            _append_bounded(
-                                telemetry.arrival_conversion_coverage_traces,
-                                child_conversion_coverage,
-                                config.max_timeline_entries,
-                            )
                 _record_scheduler_rebuild(
                     telemetry,
                     child_schedule,
@@ -10671,7 +10509,6 @@ def solve_anytime(
                 child_schedule,
                 child_epoch_transition,
                 child_arrival_ledger,
-                child_conversion_coverage,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
@@ -10738,12 +10575,6 @@ def solve_anytime(
             frontier,
             tt=tt,
             spent_opportunity_ids=tuple(epoch_transition_spent_ids),
-            telemetry=telemetry,
-        )
-        frontier = _reserve_arrival_conversion_coverage(
-            frontier,
-            tt=tt,
-            spent_opportunity_ids=tuple(arrival_conversion_spent_ids),
             telemetry=telemetry,
         )
         if len(frontier) > config.max_frontier_size:

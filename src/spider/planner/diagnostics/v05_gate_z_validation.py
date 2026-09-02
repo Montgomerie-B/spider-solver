@@ -194,9 +194,7 @@ def main() -> int:
     class_b = [row for row in unique if row["failure_class"] == "B"]
     path_e_tt = [row for row in former_e if row["tt_admitted"]]
 
-    primary = bool(
-        t.arrival_conversion_representatives_expanded >= 1 and causal
-    )
+    primary = bool(causal)
     stronger = bool(primary and causal_tt and (causal_selected or causal_expanded))
     _section(
         3,
@@ -212,19 +210,6 @@ def main() -> int:
                 "tt_admitted": t.arrival_conversion_successors_admitted,
                 "integrated": t.arrival_sources_integrated,
                 "consumed": t.arrival_sources_consumed,
-                "coverage_qualified": t.arrival_conversion_representatives_required,
-                "coverage_reserved": t.arrival_conversion_representatives_reserved,
-                "coverage_expanded": t.arrival_conversion_representatives_expanded,
-                "coverage_traces": tuple(
-                    {
-                        "id": item.opportunity_id,
-                        "status": item.status.value,
-                        "g": item.corrected_g,
-                        "fragment_reduction": item.fragment_reduction,
-                        "harvests": tuple(h.kind.value for h in item.harvests),
-                    }
-                    for item in t.arrival_conversion_coverage_traces
-                ),
             },
             "selected_arrivals": tuple(_arrival_row(item) for item in selected_arrivals),
             "integrated_arrivals": tuple(_arrival_row(item) for item in integrated_arrivals),

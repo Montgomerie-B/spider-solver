@@ -273,6 +273,15 @@ def test_11_existing_raw_fallback_is_reclassified_not_duplicated():
     assert matching[0].arrival_conversion_opportunity_id == "arrival-converted"
 
 
+def test_13_conversion_child_coverage_is_absent():
+    assert "arrival_conversion_coverage" not in StrategicSearchNode.__dataclass_fields__
+    assert not hasattr(scheduler, "qualify_arrival_conversion_coverage")
+    assert not hasattr(controller, "_reserve_arrival_conversion_coverage")
+    telemetry = ControllerTelemetry()
+    assert telemetry.arrival_conversion_representatives_reserved == 0
+    assert telemetry.arrival_conversion_representatives_expanded == 0
+
+
 def test_12_emitted_maturation_successor_is_tt_admissible():
     state = _merge_state()
     schedule = _matured_schedule(state)
