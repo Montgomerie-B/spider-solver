@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Natural-gate telemetry for the current-economics frontier experiment."""
+"""Natural-gate telemetry for scheduler v0.6 current-state frontier economics."""
 
 from __future__ import annotations
 
@@ -241,7 +241,7 @@ def _summarize(name, result, start):
 def main() -> int:
     cards = tuple(load_deal(DEAL_PATH))
     opening = SpiderState.from_cards(list(cards))
-    print("CURRENT-ECONOMICS FRONTIER EXPERIMENT")
+    print("CURRENT-ECONOMICS FRONTIER v0.6")
     sys.stdout.flush()
     anchor = _node(solve_anytime(opening, cards, None, _opening_anchor_config()))
     if (anchor.g, len(anchor.state.foundations), len(anchor.state.stock)) != (21, 1, 30):

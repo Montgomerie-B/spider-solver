@@ -1,3 +1,10 @@
+"""Focused regressions for whole-deal scheduler v0.6 current-state frontier economics.
+
+Standing order uses the already-attached current lead.ordering_key().
+Authorised Deal accounting counts only RESERVED/SPENT opportunity ids.
+Exact TT identity ignores authorised lineage.
+"""
+
 from __future__ import annotations
 
 from dataclasses import replace

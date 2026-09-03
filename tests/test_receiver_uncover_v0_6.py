@@ -1,4 +1,4 @@
-"""Bounded receiver-uncover tactical experiment.
+"""Focused regressions for scheduler v0.6 bounded receiver-uncover parks.
 
 Qualifying MIXED_SUIT_PARK moves stay TEMPORARY_REWORK.  A bounded PAYOFF
 (the exact enabled same-suit follow-up) may admit them at CLEAN without

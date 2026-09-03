@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Natural-gate telemetry for the bounded receiver-uncover tactical experiment."""
+"""Natural-gate telemetry for scheduler v0.6 bounded receiver-uncover parks."""
 
 from __future__ import annotations
 
@@ -581,7 +581,7 @@ def _z_safety(result, cards, config):
 def main() -> int:
     cards = tuple(load_deal(DEAL_PATH))
     opening = SpiderState.from_cards(list(cards))
-    print("RECEIVER-UNCOVER TACTICAL EXPERIMENT")
+    print("RECEIVER-UNCOVER v0.6")
     sys.stdout.flush()
     anchor = _node(solve_anytime(opening, cards, None, _opening_anchor_config()))
     if (anchor.g, len(anchor.state.foundations), len(anchor.state.stock)) != (21, 1, 30):
