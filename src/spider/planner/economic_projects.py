@@ -21,9 +21,15 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from spider.cards import Card
 from spider.engine import SpiderState
 from spider.move_lifecycle import (
+    BoundedCompensatingBenefit,
     MoveLifecycleAssessment,
     PlacementClass,
     assess_tableau_move,
+)
+from spider.planner.receiver_uncover import (
+    ReceiverUncoverEvidence,
+    ReceiverUncoverReject,
+    assess_receiver_uncover,
 )
 from spider.planner.backward_strategy import (
     BuriedCardFact,
@@ -276,6 +282,8 @@ class ReworkInvestment:
     exit_route_bounded: bool
     worthwhile: bool
     proof_pruning_allowed: bool = False
+    bounded_payoff: bool = False
+    payoff_followup: Optional[Tuple[int, int, int]] = None
 
 
 def assess_rework_investment(
@@ -286,14 +294,25 @@ def assess_rework_investment(
     evidence: str,
     confidence: str,
     exit_route_bounded: bool,
+    bounded_payoff: bool = False,
+    payoff_followup: Optional[Tuple[int, int, int]] = None,
 ) -> ReworkInvestment:
-    """Assess temporary work as an investment, never as proof evidence."""
+    """Assess temporary work as an investment, never as proof evidence.
+
+    ``bounded_payoff`` is a scoped receiver-uncover follow-up fact.  It does
+    not claim a bounded reversal of the parked card.  Unrelated parks keep
+    ``bounded_payoff=False`` and still require ``exit_route_bounded``.
+    """
     net = (
         expected_structural_return.ordering_value
         + expected_move_saving.ordering_value
         - investment_cost.ordering_value
     )
-    worthwhile = bool(exit_route_bounded and evidence.strip() and net > 0)
+    worthwhile = bool(
+        evidence.strip()
+        and net > 0
+        and (exit_route_bounded or bounded_payoff)
+    )
     return ReworkInvestment(
         investment_cost=investment_cost,
         expected_structural_return=expected_structural_return,
@@ -303,6 +322,8 @@ def assess_rework_investment(
         confidence=confidence,
         exit_route_bounded=exit_route_bounded,
         worthwhile=worthwhile,
+        bounded_payoff=bounded_payoff,
+        payoff_followup=payoff_followup,
     )
 
 
@@ -383,6 +404,11 @@ class EconomicAnalysisResult:
     frontier: EconomicFrontier
     estimated_remaining_work: float
     proof_pruning_allowed: bool = False
+    receiver_uncover_considered: int = 0
+    receiver_uncover_qualified: int = 0
+    receiver_uncover_rejected_join_broken: int = 0
+    receiver_uncover_rejected_no_fragment: int = 0
+    receiver_uncover_rejected_canonical_worse: int = 0
 
 
 def _replace_cost(cost: EconomicProjectCost, **changes: EvidenceAmount) -> EconomicProjectCost:
@@ -411,6 +437,16 @@ def _classify_tier(
         benefit.campaign_must_dependencies.ordering_value
         + benefit.critical_reveal_advancement.ordering_value
     )
+    # Scoped: exact receiver-uncover payoff may be STRUCTURALLY_DOMINANT at
+    # CLEAN without admitting unrelated SPECULATIVE parks and without treating
+    # the parked card as having a bounded exit.
+    if (
+        rework is not None
+        and rework.bounded_payoff
+        and rework.worthwhile
+        and rework.payoff_followup is not None
+    ):
+        return EconomicFrontierTier.STRUCTURALLY_DOMINANT
     if (
         net > 0
         and debt.ordering_total <= 0
@@ -807,7 +843,10 @@ def _project_from_excavation(
 
 
 def _project_from_lifecycle(
-    assessment: MoveLifecycleAssessment, epoch: int
+    assessment: MoveLifecycleAssessment,
+    epoch: int,
+    *,
+    uncover: Optional[ReceiverUncoverEvidence] = None,
 ) -> EconomicProject:
     stable = len(assessment.same_suit_joins_created)
     mixed_removed = len(assessment.mixed_suit_boundaries_removed)
@@ -876,7 +915,50 @@ def _project_from_lifecycle(
     }[assessment.placement_class]
     src, dst, k = assessment.action
     rework = None
-    if assessment.estimated_rehandling_cost > 0:
+    rationale = [
+        f"same-suit joins created={assessment.same_suit_joins_created}",
+        f"mixed boundaries created={assessment.mixed_suit_boundaries_created}",
+        f"future exit={assessment.future_exit_route}",
+    ]
+    qualified = bool(uncover is not None and uncover.qualified and uncover.followup is not None)
+    if qualified:
+        compensation = BoundedCompensatingBenefit(
+            expected_saving=1.0,
+            evidence=(
+                f"receiver-uncover payoff follow-up={uncover.followup} "
+                f"fragment_reduction={uncover.fragment_reduction}"
+            ),
+            override_reason=(
+                "bounded payoff of the exact enabled same-suit follow-up; "
+                "parked-card exit remains independently bounded"
+            ),
+            bounded_payoff=True,
+        )
+        rationale.append(
+            f"receiver_uncover:qualified:{uncover.followup[0]},{uncover.followup[1]},{uncover.followup[2]}"
+        )
+        rework = assess_rework_investment(
+            investment_cost=heuristic(
+                assessment.immediate_cost + assessment.estimated_rehandling_cost,
+                "temporary park cost plus local rehandling estimate",
+            ),
+            expected_structural_return=hard(
+                5.0 * max(1, uncover.fragment_reduction),
+                "exact enabled same-suit follow-up reduces fragment count",
+            ),
+            expected_move_saving=hard(
+                compensation.expected_saving,
+                "exact one-step same-suit merge is now legal",
+            ),
+            evidence=compensation.evidence,
+            confidence="HIGH",
+            exit_route_bounded=assessment.exit_route_bounded,
+            bounded_payoff=compensation.bounded_payoff,
+            payoff_followup=uncover.followup,
+        )
+    elif uncover is not None and uncover.reject is not None:
+        rationale.append(f"receiver_uncover:reject:{uncover.reject.value}")
+    if rework is None and assessment.estimated_rehandling_cost > 0:
         rework = assess_rework_investment(
             investment_cost=heuristic(
                 assessment.immediate_cost + assessment.estimated_rehandling_cost,
@@ -894,7 +976,9 @@ def _project_from_lifecycle(
         project_id=f"move-c{src + 1}-c{dst + 1}-k{k}",
         kind=kind,
         description=(
-            f"{assessment.placement_class.value}: c{src + 1}->c{dst + 1} k={k}"
+            f"receiver-uncover park: c{src + 1}->c{dst + 1} k={k}"
+            if qualified
+            else f"{assessment.placement_class.value}: c{src + 1}->c{dst + 1} k={k}"
         ),
         earliest_useful_epoch=epoch,
         cost=cost,
@@ -905,12 +989,12 @@ def _project_from_lifecycle(
         ),
         stock_interaction="not established by this local move",
         rework_investment=rework,
-        confidence="HIGH" if kind == EconomicProjectKind.PERMANENT_JOIN else "LOW",
-        rationale=(
-            f"same-suit joins created={assessment.same_suit_joins_created}",
-            f"mixed boundaries created={assessment.mixed_suit_boundaries_created}",
-            f"future exit={assessment.future_exit_route}",
+        confidence=(
+            "HIGH"
+            if qualified or kind == EconomicProjectKind.PERMANENT_JOIN
+            else "LOW"
         ),
+        rationale=tuple(rationale),
         action=assessment.action,
     )
 
@@ -1187,16 +1271,37 @@ def analyze_economic_projects(
     projects.extend(_stock_receiver_projects(state, epoch))
 
     # Whole legal move set is inspected, but keep only distinct representative
-    # structure classes so diagnostics remain readable.
+    # structure classes so diagnostics remain readable.  Qualifying
+    # receiver-uncover parks are always retained and do not consume the
+    # mixed-park representative cap.
     lifecycle_seen: Dict[PlacementClass, int] = {}
+    uncover_considered = 0
+    uncover_qualified = 0
+    uncover_join_broken = 0
+    uncover_no_fragment = 0
+    uncover_canonical_worse = 0
     for action in sorted(state.enumerate_moves()):
         assessment = assess_tableau_move(state, action, discover_exit=False)
+        uncover = None
+        if assessment.placement_class == PlacementClass.MIXED_SUIT_PARK:
+            uncover = assess_receiver_uncover(state, action)
+            uncover_considered += 1
+            if uncover.qualified:
+                uncover_qualified += 1
+            elif uncover.reject == ReceiverUncoverReject.JOIN_BROKEN:
+                uncover_join_broken += 1
+            elif uncover.reject == ReceiverUncoverReject.NO_FRAGMENT_REDUCTION:
+                uncover_no_fragment += 1
+            elif uncover.reject == ReceiverUncoverReject.CANONICAL_WORSE:
+                uncover_canonical_worse += 1
+        qualified_uncover = bool(uncover is not None and uncover.qualified)
         count = lifecycle_seen.get(assessment.placement_class, 0)
         limit = 8 if assessment.placement_class == PlacementClass.STABLE_SAME_SUIT_JOIN else 3
-        if count >= limit:
-            continue
-        lifecycle_seen[assessment.placement_class] = count + 1
-        projects.append(_project_from_lifecycle(assessment, epoch))
+        if not qualified_uncover:
+            if count >= limit:
+                continue
+            lifecycle_seen[assessment.placement_class] = count + 1
+        projects.append(_project_from_lifecycle(assessment, epoch, uncover=uncover))
 
     frontier = build_economic_frontier(projects)
     estimated = estimate_remaining_economic_work(projects, facts.remaining_deals)
@@ -1217,4 +1322,9 @@ def analyze_economic_projects(
         projects=tuple(projects),
         frontier=frontier,
         estimated_remaining_work=estimated,
+        receiver_uncover_considered=uncover_considered,
+        receiver_uncover_qualified=uncover_qualified,
+        receiver_uncover_rejected_join_broken=uncover_join_broken,
+        receiver_uncover_rejected_no_fragment=uncover_no_fragment,
+        receiver_uncover_rejected_canonical_worse=uncover_canonical_worse,
     )

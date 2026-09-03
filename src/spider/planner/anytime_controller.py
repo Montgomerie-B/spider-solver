@@ -29,9 +29,11 @@ from spider.engine import Column, SpiderState
 from spider.hash import zobrist
 from spider.metrics import Action, replay_actions
 from spider.move_lifecycle import (
+    BoundedCompensatingBenefit,
     MoveLifecycleAssessment,
     PlacementClass,
     assess_tableau_move,
+    with_bounded_compensation,
 )
 from spider.planner.analysis_budget import (
     AnalysisResourceLimit,
@@ -794,6 +796,7 @@ class StrategicSuccessor:
     maturation_state: Optional[FoundationLaneMaturationState] = None
     maturation_progress_delta: Optional[FoundationLaneProgressDelta] = None
     maturation_trace_id: Optional[str] = None
+    receiver_uncover_followup: Optional[Tuple[int, int, int]] = None
 
 
 @dataclass(frozen=True)
@@ -1366,6 +1369,16 @@ class ControllerTelemetry:
     lane_maturation_timeline: List[
         Tuple[int, str, str, str, Tuple[str, ...]]
     ] = field(default_factory=list)
+    receiver_uncover_considered: int = 0
+    receiver_uncover_qualified: int = 0
+    receiver_uncover_rejected_join_broken: int = 0
+    receiver_uncover_rejected_no_fragment: int = 0
+    receiver_uncover_rejected_canonical_worse: int = 0
+    receiver_uncover_admitted_clean: int = 0
+    receiver_uncover_generated: int = 0
+    receiver_uncover_tt_admitted: int = 0
+    receiver_uncover_expanded: int = 0
+    receiver_uncover_followup_generated: int = 0
     lane_maturation_traces: List[FoundationLaneMaturationTrace] = field(
         default_factory=list
     )
@@ -2240,7 +2253,45 @@ def _project_category(project: EconomicProject) -> str:
         EconomicProjectKind.DEFERRED_PROJECT,
     ):
         return "rework"
-    return "other"
+
+
+def _receiver_uncover_followup(
+    project: EconomicProject,
+) -> Optional[Tuple[int, int, int]]:
+    rework = project.rework_investment
+    if rework is None or not rework.bounded_payoff:
+        return None
+    return rework.payoff_followup
+
+
+def _record_receiver_uncover_analysis(
+    economic: EconomicAnalysisResult,
+    telemetry: ControllerTelemetry,
+    credit: StrategicCreditLevel,
+) -> None:
+    telemetry.receiver_uncover_considered += economic.receiver_uncover_considered
+    telemetry.receiver_uncover_qualified += economic.receiver_uncover_qualified
+    telemetry.receiver_uncover_rejected_join_broken += (
+        economic.receiver_uncover_rejected_join_broken
+    )
+    telemetry.receiver_uncover_rejected_no_fragment += (
+        economic.receiver_uncover_rejected_no_fragment
+    )
+    telemetry.receiver_uncover_rejected_canonical_worse += (
+        economic.receiver_uncover_rejected_canonical_worse
+    )
+    if credit != StrategicCreditLevel.CLEAN:
+        return
+    for project in economic.projects:
+        rework = project.rework_investment
+        if (
+            rework is not None
+            and rework.bounded_payoff
+            and rework.payoff_followup is not None
+            and project.assessment.frontier_tier
+            == EconomicFrontierTier.STRUCTURALLY_DOMINANT
+        ):
+            telemetry.receiver_uncover_admitted_clean += 1
 
 
 def _replay_edge(
@@ -2651,6 +2702,29 @@ def _apply_direct_project(
     if not verified:
         return None
     category = _project_category(project)
+    followup = _receiver_uncover_followup(project)
+    extra = ()
+    if followup is not None:
+        extra = (
+            f"receiver_uncover_followup={followup[0]},{followup[1]},{followup[2]}",
+            "bounded payoff does not claim a parked-card exit",
+        )
+        rework = project.rework_investment
+        lifecycle = with_bounded_compensation(
+            lifecycle,
+            BoundedCompensatingBenefit(
+                expected_saving=(
+                    0.0
+                    if rework is None
+                    else rework.expected_move_saving.ordering_value
+                ),
+                evidence="exact enabled same-suit follow-up",
+                override_reason=(
+                    "receiver-uncover bounded payoff; parked-card exit unchanged"
+                ),
+                bounded_payoff=True,
+            ),
+        )
     return StrategicSuccessor(
         StrategicActionKind.ECONOMIC_PROJECT,
         category,
@@ -2673,8 +2747,10 @@ def _apply_direct_project(
                 if len(end.foundations) > before_foundations
                 else "no automatic foundation removal on this edge"
             ),
-        ),
+        )
+        + extra,
         project.project_id,
+        receiver_uncover_followup=followup,
     )
 
 
@@ -6333,6 +6409,14 @@ def generate_strategic_successors(
     if resource_allocator is None:
         allocator.begin_expansion()
     allowed = set(allowed_frontier_tiers(node.credit_level))
+    _record_receiver_uncover_analysis(
+        analysis.economic, telemetry, node.credit_level
+    )
+    incoming_followup = (
+        None
+        if node.incoming_edge is None
+        else node.incoming_edge.receiver_uncover_followup
+    )
 
     if analysis.milestone_portfolio is not None:
         telemetry.milestones_admitted += len(analysis.milestone_portfolio.milestones)
@@ -6409,12 +6493,22 @@ def generate_strategic_successors(
             continue
         if project.action is not None and node.state.can_move(*project.action):
             telemetry.direct_actionability_detections += 1
-            if direct_per_tier.get(frontier_tier, 0) >= config.max_direct_projects_per_tier:
+            uncover_followup = _receiver_uncover_followup(project)
+            if (
+                uncover_followup is None
+                and direct_per_tier.get(frontier_tier, 0)
+                >= config.max_direct_projects_per_tier
+            ):
                 continue
             successor = _apply_direct_project(node, project)
             if successor is not None:
                 raw.append(successor)
-                direct_per_tier[frontier_tier] = direct_per_tier.get(frontier_tier, 0) + 1
+                if successor.receiver_uncover_followup is not None:
+                    telemetry.receiver_uncover_generated += 1
+                elif uncover_followup is None:
+                    direct_per_tier[frontier_tier] = (
+                        direct_per_tier.get(frontier_tier, 0) + 1
+                    )
             continue
         if node.credit_level < StrategicCreditLevel.POSITIVE_INVESTMENT:
             continue
@@ -7012,6 +7106,11 @@ def generate_strategic_successors(
             successor_matches_continuation(item, node.continuation_credit)
             for item in final
         )
+    if incoming_followup is not None:
+        for successor in final:
+            if incoming_followup in successor.actions:
+                telemetry.receiver_uncover_followup_generated += 1
+                break
     return final
 
 
@@ -9117,6 +9216,11 @@ def solve_anytime(
             telemetry=telemetry,
         )
         _priority, _sequence, node = heapq.heappop(frontier)
+        if (
+            node.incoming_edge is not None
+            and node.incoming_edge.receiver_uncover_followup is not None
+        ):
+            telemetry.receiver_uncover_expanded += 1
         if node.completion_cash_out_parent_was_deal:
             telemetry.completion_deals_chosen_after_cash_out += 1
             node = replace(node, completion_cash_out_parent_was_deal=False)
@@ -9728,6 +9832,8 @@ def solve_anytime(
                     telemetry.corridors_suppressed_by_tt += 1
                 telemetry.count_suppression("exact state reached at no lower g")
                 continue
+            if successor.receiver_uncover_followup is not None:
+                telemetry.receiver_uncover_tt_admitted += 1
             cash_out_assessment = None
             if active_cash_out is not None:
                 cash_out_assessment = _completion_harvest_assessment(

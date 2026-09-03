@@ -29,11 +29,19 @@ class PlacementClass(str, Enum):
 
 @dataclass(frozen=True)
 class BoundedCompensatingBenefit:
-    """Concrete bounded evidence that can justify a temporary park."""
+    """Concrete bounded evidence that can justify a temporary park.
+
+    ``expected_saving`` may describe a bounded PAYOFF of the park (an exact
+    enabled follow-up) or a bounded EXIT of the parked cards.  Those are not
+    the same fact.  ``bounded_payoff`` records the former without claiming the
+    latter.  ``exit_route_bounded`` on the lifecycle assessment remains the
+    parked-card reversal flag and must not be set true to fake an exit.
+    """
 
     expected_saving: float
     evidence: str
     override_reason: str
+    bounded_payoff: bool = False
 
 
 @dataclass(frozen=True)
