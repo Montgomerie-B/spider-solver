@@ -1,10 +1,4 @@
-"""Focused regressions for bounded lead-source excavation parks.
-
-A MIXED_SUIT_PARK may be admitted at CLEAN only when an exact two-peel
-prefix from the same column exposes a same-suit receiver whose consume
-exposes a current lead-lane buried source.  Receiver-uncover is not widened.
-Unrelated parks stay speculative.  allowed_frontier_tiers(CLEAN) is unchanged.
-"""
+"""Focused regressions for the bounded three-action lead-source excavation macro."""
 
 from __future__ import annotations
 
@@ -13,47 +7,65 @@ import time
 from pathlib import Path
 
 from spider.cards import Card
+from spider.deal import load_deal
 from spider.engine import Column, SpiderState
+from spider.metrics import replay_actions
 from spider.move_lifecycle import PlacementClass, assess_tableau_move
 from spider.planner.anytime_controller import (
     AnytimeControllerConfig,
     ControllerTelemetry,
+    StrategicActionKind,
     StrategicCreditLevel,
     StrategicSearchNode,
     StrategicTranspositionTable,
     allowed_frontier_tiers,
     analyze_strategic_state,
     generate_strategic_successors,
+    solve_anytime,
+    _node_priority,
+)
+from spider.planner.diagnostics.anytime_whole_game_controller_v0_6_report import (
+    _node,
+    _opening_anchor_config,
+)
+from spider.planner.diagnostics.anytime_whole_game_controller_v0_8_report import (
+    _gate_f_config as _gate_z_base_config,
+)
+from spider.planner.diagnostics.whole_deal_backward_forward_scheduler_v0_4_report import (
+    _gate_envelope,
 )
 from spider.planner.economic_projects import (
     EconomicFrontierTier,
     EconomicProjectKind,
-    _project_from_lifecycle,
     analyze_economic_projects,
 )
 from spider.planner.lead_source_excavation import (
     LeadSourceExcavationReject,
-    assess_lead_source_excavation,
+    already_covered_by_successors,
+    lead_source_excavation_reject_reason,
+    recognise_lead_source_excavation,
 )
 from spider.planner.receiver_uncover import assess_receiver_uncover
 from spider.rules import MW_RULES
 from spider.state_identity import canonical_state_key, states_structurally_equal
+import spider.planner.anytime_controller as controller
+import heapq
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PARK1 = (3, 0, 1)
-PARK2 = (3, 8, 1)
-CONSUME = (2, 3, 1)
+DEAL_PATH = ROOT / "deals" / "4925153.txt"
+MACRO78_DIAGNOSTIC = ((3, 0, 1), (3, 8, 1), (2, 3, 1))
+MACRO78 = ((3, 0, 1), (3, 9, 1), (2, 3, 1))
 
 
 def _card(suit: str, rank: int) -> Card:
     return Card(suit, rank)
 
 
-def _state(*face_up) -> SpiderState:
+def _state(*face_up, stock=()) -> SpiderState:
     columns = [Column([], list(cards)) for cards in face_up]
     columns.extend(Column([], []) for _ in range(10 - len(columns)))
-    return SpiderState(columns, [])
+    return SpiderState(columns, list(stock))
 
 
 def _cards() -> list[Card]:
@@ -76,10 +88,10 @@ def _clean_config() -> AnytimeControllerConfig:
 
 
 def known_pattern_state() -> SpiderState:
-    """As park, 9h park, Qh->Kh exposes Qd. Diamonds remain the cheap lead."""
+    """Qd under Qh; Kh under two mixed k=1 cards; diamonds keep 2-A after peels."""
     return _state(
         [_card("d", 2)],
-        [_card("s", 9)],
+        [_card("c", 2)],
         [_card("d", 12), _card("h", 12)],
         [_card("h", 13), _card("h", 9), _card("s", 1)],
         [_card("d", 1)],
@@ -94,9 +106,25 @@ def known_pattern_state() -> SpiderState:
 def join_broken_state() -> SpiderState:
     return _state(
         [_card("d", 2)],
-        [_card("s", 9)],
+        [_card("c", 2)],
         [_card("d", 12), _card("h", 12)],
-        [_card("h", 13), _card("h", 9), _card("s", 2), _card("s", 1)],
+        [_card("h", 13), _card("s", 6), _card("s", 5)],
+        [_card("d", 1)],
+        [_card("s", 8)],
+        [_card("c", 7)],
+        [_card("h", 5)],
+        [_card("c", 10)],
+        [_card("c", 4)],
+    )
+
+
+def three_peel_state() -> SpiderState:
+    """Kh buried under three mixed cards."""
+    return _state(
+        [_card("d", 2)],
+        [_card("c", 2)],
+        [_card("d", 12), _card("h", 12)],
+        [_card("h", 13), _card("c", 8), _card("h", 9), _card("s", 1)],
         [_card("d", 1)],
         [_card("s", 8)],
         [_card("c", 7)],
@@ -107,10 +135,9 @@ def join_broken_state() -> SpiderState:
 
 
 def no_source_state() -> SpiderState:
-    """Same two peels, but Qh sits on nothing of the lead suit."""
     return _state(
         [_card("d", 2)],
-        [_card("s", 9)],
+        [_card("c", 2)],
         [_card("h", 12)],
         [_card("h", 13), _card("h", 9), _card("s", 1)],
         [_card("d", 1)],
@@ -123,7 +150,6 @@ def no_source_state() -> SpiderState:
 
 
 def uncover_pattern_state() -> SpiderState:
-    """Existing receiver-uncover fixture: hQ park exposes s8, s7 joins."""
     return _state(
         [_card("s", 13)],
         [_card("d", 2)],
@@ -153,20 +179,7 @@ def unrelated_speculative_park_state() -> SpiderState:
     )
 
 
-def _project_for(state: SpiderState, action):
-    analysis = analyze_economic_projects(state, cards=_cards())
-    matches = [item for item in analysis.projects if item.action == action]
-    if matches:
-        return analysis, matches[0]
-    assessment = assess_tableau_move(state, action, discover_exit=False)
-    uncover = assess_receiver_uncover(state, action)
-    excavation = assess_lead_source_excavation(state, action)
-    return analysis, _project_from_lifecycle(
-        assessment, 0, uncover=uncover, excavation=excavation
-    )
-
-
-def _successors(state: SpiderState, *, incoming=None, g: int = 0):
+def _successors(state: SpiderState, *, g: int = 0):
     config = _clean_config()
     cards = _cards()
     analysis = analyze_strategic_state(
@@ -178,7 +191,7 @@ def _successors(state: SpiderState, *, incoming=None, g: int = 0):
         g,
         (),
         None,
-        incoming,
+        None,
         0,
         StrategicCreditLevel.CLEAN,
         analysis,
@@ -196,179 +209,318 @@ def _successors(state: SpiderState, *, incoming=None, g: int = 0):
     return successors, telemetry, analysis
 
 
-def test_known_pattern_qualifies():
+def _fd(state: SpiderState) -> int:
+    return sum(len(col.face_down) for col in state.columns)
+
+
+def _empty(state: SpiderState) -> int:
+    return sum(col.is_empty() for col in state.columns)
+
+
+def _broken_across(state: SpiderState, actions) -> int:
+    cur = state.clone()
+    broken = 0
+    for action in actions:
+        life = assess_tableau_move(cur, action, discover_exit=False)
+        broken += len(life.same_suit_joins_broken)
+        cur.move(*action, rules=MW_RULES)
+    return broken
+
+
+def test_known_pattern_recognises_three_action_macro():
     state = known_pattern_state()
-    evidence = assess_lead_source_excavation(state, PARK1)
-    lifecycle = assess_tableau_move(state, PARK1, discover_exit=False)
-    assert state.can_move(*PARK1)
-    assert lifecycle.placement_class == PlacementClass.MIXED_SUIT_PARK
-    assert not lifecycle.same_suit_joins_broken
-    assert not assess_receiver_uncover(state, PARK1).qualified
+    macros = recognise_lead_source_excavation(state)
+    assert macros
+    evidence = macros[0]
     assert evidence.qualified
-    assert evidence.reject is None
-    assert evidence.second_park == PARK2
-    assert evidence.consume == CONSUME
+    assert evidence.actions is not None
+    assert len(evidence.actions) == 3
+    assert evidence.cost == 3
+    assert evidence.source == _card("d", 12)
+    assert evidence.blocker == _card("h", 12)
     assert evidence.receiver == _card("h", 13)
-    assert evidence.consume_head == _card("h", 12)
-    assert evidence.exposed_source == _card("d", 12)
-    replay = state.clone()
-    assert replay.move(*PARK1, rules=MW_RULES) == 1
-    assert replay.move(*PARK2, rules=MW_RULES) == 1
-    assert replay.move(*CONSUME, rules=MW_RULES) == 1
-    assert replay.columns[2].top() == _card("d", 12)
+    park1, park2, consume = evidence.actions
+    assert assess_tableau_move(state, park1, discover_exit=False).placement_class == (
+        PlacementClass.MIXED_SUIT_PARK
+    )
+    mid = state.clone()
+    mid.move(*park1, rules=MW_RULES)
+    assert assess_tableau_move(mid, park2, discover_exit=False).placement_class == (
+        PlacementClass.MIXED_SUIT_PARK
+    )
+    mid.move(*park2, rules=MW_RULES)
+    life3 = assess_tableau_move(mid, consume, discover_exit=False)
+    assert life3.placement_class == PlacementClass.STABLE_SAME_SUIT_JOIN
+    end = state.clone()
+    assert replay_actions(end, list(evidence.actions)) == 3
+    assert end.columns[2].top() == _card("d", 12)
+    assert _broken_across(state, evidence.actions) == 0
+    assert evidence.post_key is not None and evidence.pre_key is not None
+    assert evidence.post_key <= evidence.pre_key
 
 
-def test_known_pattern_is_emitted_at_clean():
-    successors, telemetry, analysis = _successors(known_pattern_state())
+def test_known_pattern_emitted_as_one_clean_successor():
+    successors, telemetry, _analysis = _successors(known_pattern_state())
     excav = [
         item
         for item in successors
-        if item.actions == (PARK1,) and item.lead_source_excavation_followup == PARK2
+        if item.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION
     ]
     assert excav, [item.actions for item in successors]
-    assert excav[0].lead_source_excavation_consume == CONSUME
-    assert excav[0].kind.value == "ECONOMIC_PROJECT"
-    assert excav[0].category == "rework"
-    assert excav[0].receiver_uncover_followup is None
+    assert len(excav[0].actions) == 3
+    assert excav[0].corrected_cost == 3
+    assert excav[0].category == "lead_source_excavation"
     assert telemetry.lead_source_excavation_qualified >= 1
-    assert telemetry.lead_source_excavation_admitted_clean >= 1
     assert telemetry.lead_source_excavation_generated >= 1
-    project = next(item for item in analysis.economic.projects if item.action == PARK1)
-    assert project.kind == EconomicProjectKind.TEMPORARY_REWORK
-    assert project.assessment.frontier_tier == EconomicFrontierTier.STRUCTURALLY_DOMINANT
-    assert project.rework_investment is not None
-    assert project.rework_investment.bounded_payoff is True
-    assert project.rework_investment.payoff_followup == PARK2
-    assert project.rework_investment.payoff_consume == CONSUME
-    assert project.rework_investment.exit_route_bounded is False
+    assert telemetry.lead_source_excavation_admitted_clean >= 1
     assert allowed_frontier_tiers(StrategicCreditLevel.CLEAN) == (
         EconomicFrontierTier.STRUCTURALLY_DOMINANT,
     )
 
 
-def test_second_park_is_injected_from_the_child():
+def test_mixed_park_cap_is_unchanged():
     state = known_pattern_state()
-    first, _telemetry, _analysis = _successors(state)
-    park = next(item for item in first if item.actions == (PARK1,))
-    child, telemetry, _ = _successors(park.end_state, incoming=park, g=park.corrected_cost)
-    follow = [item for item in child if item.actions == (PARK2,)]
-    assert follow, [item.actions for item in child]
-    # After peel 1 the remainder may be ordinary receiver-uncover (Kh exposed
-    # as a one-ply receiver).  If uncover still rejects, the forced excavation
-    # follow-up carries the consume.
+    analysis = analyze_economic_projects(state, cards=_cards())
+    mixed = [
+        project
+        for project in analysis.projects
+        if project.kind == EconomicProjectKind.TEMPORARY_REWORK
+        and project.action is not None
+        and (
+            project.rework_investment is None
+            or project.rework_investment.payoff_followup is None
+        )
+    ]
+    assert len(mixed) <= 3
+
+
+def test_stock_nonempty_is_rejected():
+    state = known_pattern_state()
+    state.stock.append(_card("c", 13))
+    assert recognise_lead_source_excavation(state) == ()
     assert (
-        follow[0].lead_source_excavation_followup == CONSUME
-        or follow[0].receiver_uncover_followup == CONSUME
+        lead_source_excavation_reject_reason(state)
+        == LeadSourceExcavationReject.STOCK_NONEMPTY
     )
-    mid = park.end_state.clone()
-    assert mid.can_move(*PARK2)
-    assert mid.move(*PARK2, rules=MW_RULES) == 1
-    assert mid.can_move(*CONSUME)
-    assert mid.columns[3].top() == _card("h", 13)
 
 
-def test_consume_is_ordinary_legal_spider():
-    state = known_pattern_state()
-    replay = state.clone()
-    assert replay.move(*PARK1, rules=MW_RULES) == 1
-    assert replay.move(*PARK2, rules=MW_RULES) == 1
-    assert replay.move(*CONSUME, rules=MW_RULES) == 1
-    assert states_structurally_equal(replay, known_pattern_state()) is False
-    assert replay.columns[2].top() == _card("d", 12)
+def test_three_peels_are_rejected():
+    state = three_peel_state()
+    assert recognise_lead_source_excavation(state) == ()
+    assert lead_source_excavation_reject_reason(state) in {
+        LeadSourceExcavationReject.RECEIVER_NEEDS_OTHER_THAN_TWO_PEELS,
+        LeadSourceExcavationReject.NO_SINGLE_BLOCKER_SOURCE,
+    }
 
 
 def test_breaking_a_stable_join_is_rejected():
     state = join_broken_state()
-    evidence = assess_lead_source_excavation(state, PARK1)
-    assert evidence.reject == LeadSourceExcavationReject.JOIN_BROKEN
-    assert not evidence.qualified
-    _analysis, project = _project_for(state, PARK1)
-    assert project.assessment.frontier_tier != EconomicFrontierTier.STRUCTURALLY_DOMINANT
-    successors, _telemetry, _analysis = _successors(state)
-    excav = [
-        item
-        for item in successors
-        if item.actions == (PARK1,) and item.lead_source_excavation_followup is not None
-    ]
-    assert not excav
+    assert recognise_lead_source_excavation(state) == ()
+    assert lead_source_excavation_reject_reason(state) in {
+        LeadSourceExcavationReject.PARK_JOIN_BROKEN,
+        LeadSourceExcavationReject.RECEIVER_NEEDS_OTHER_THAN_TWO_PEELS,
+        LeadSourceExcavationReject.NO_SINGLE_BLOCKER_SOURCE,
+    }
 
 
 def test_consume_without_lead_source_is_rejected():
     state = no_source_state()
-    evidence = assess_lead_source_excavation(state, PARK1)
-    assert evidence.reject == LeadSourceExcavationReject.NO_LEAD_SOURCE_EXPOSED
-    assert not evidence.qualified
-    successors, _telemetry, _analysis = _successors(state)
-    excav = [
-        item
-        for item in successors
-        if item.actions == (PARK1,) and item.lead_source_excavation_followup is not None
-    ]
-    assert not excav
-
-
-def test_receiver_uncover_pattern_is_not_stolen():
-    state = uncover_pattern_state()
-    park = (8, 0, 1)
-    uncover = assess_receiver_uncover(state, park)
-    excav = assess_lead_source_excavation(state, park)
-    assert uncover.qualified
-    assert excav.reject == LeadSourceExcavationReject.UNCOVER_ALREADY_QUALIFIES
-    assert not excav.qualified
-    successors, telemetry, analysis = _successors(state)
-    uncover_edges = [
-        item for item in successors if item.actions == (park,) and item.receiver_uncover_followup
-    ]
-    excav_edges = [
-        item
-        for item in successors
-        if item.actions == (park,) and item.lead_source_excavation_followup is not None
-    ]
-    assert uncover_edges
-    assert not excav_edges
-    assert telemetry.receiver_uncover_generated >= 1
-    project = next(item for item in analysis.economic.projects if item.action == park)
-    assert project.rework_investment is not None
-    assert project.rework_investment.payoff_consume is None
-
-
-def test_unrelated_temporary_rework_stays_speculative_at_clean():
-    state = unrelated_speculative_park_state()
-    action = (1, 0, 1)
-    evidence = assess_lead_source_excavation(state, action)
-    assert not evidence.qualified
-    _analysis, project = _project_for(state, action)
-    assert project.kind == EconomicProjectKind.TEMPORARY_REWORK
-    assert project.assessment.frontier_tier == EconomicFrontierTier.SPECULATIVE_DEFERRABLE
-    rework = project.rework_investment
-    assert rework is None or rework.bounded_payoff is False
-    successors, _telemetry, _analysis = _successors(state)
-    assert (action,) not in {item.actions for item in successors}
-    assert allowed_frontier_tiers(StrategicCreditLevel.CLEAN) == (
-        EconomicFrontierTier.STRUCTURALLY_DOMINANT,
+    assert recognise_lead_source_excavation(state) == ()
+    assert (
+        lead_source_excavation_reject_reason(state)
+        == LeadSourceExcavationReject.NO_SINGLE_BLOCKER_SOURCE
     )
 
 
-def test_tt_canonical_identity_and_proof_unaffected():
+def test_uncover_pattern_is_not_stolen():
+    state = uncover_pattern_state()
+    park = (8, 0, 1)
+    assert assess_receiver_uncover(state, park).qualified
+    assert recognise_lead_source_excavation(state) == ()
+    successors, telemetry, _ = _successors(state)
+    excav = [
+        item
+        for item in successors
+        if item.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION
+    ]
+    uncover = [item for item in successors if item.receiver_uncover_followup is not None]
+    assert uncover
+    assert not excav
+    assert telemetry.receiver_uncover_generated >= 1
+
+
+def test_already_covered_macro_is_not_reemitted():
+    state = known_pattern_state()
+    macros = recognise_lead_source_excavation(state)
+    assert macros
+    assert already_covered_by_successors(macros[0].actions, (macros[0].actions,))
+    successors, _telemetry, _ = _successors(state)
+    existing = tuple(item.actions for item in successors)
+    from spider.planner.anytime_controller import _lead_source_excavation_successors
+
+    node_successors, _, analysis = _successors(state)
+    node = StrategicSearchNode(
+        0,
+        state,
+        0,
+        (),
+        None,
+        None,
+        0,
+        StrategicCreditLevel.CLEAN,
+        analysis,
+    )
+    extras = _lead_source_excavation_successors(
+        node, ControllerTelemetry(), existing
+    )
+    assert extras == []
+
+
+def test_unrelated_parks_stay_speculative():
+    state = unrelated_speculative_park_state()
+    action = (1, 0, 1)
+    assert recognise_lead_source_excavation(state) == ()
+    successors, _telemetry, analysis = _successors(state)
+    assert (action,) not in {item.actions for item in successors}
+    excav = [
+        item
+        for item in successors
+        if item.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION
+    ]
+    assert not excav
+    projects = [item for item in analysis.economic.projects if item.action == action]
+    if projects:
+        assert projects[0].assessment.frontier_tier == (
+            EconomicFrontierTier.SPECULATIVE_DEFERRABLE
+        )
+
+
+def test_tt_and_frontier_policy_unchanged():
     state = known_pattern_state()
     before = canonical_state_key(state)
-    evidence = assess_lead_source_excavation(state, PARK1)
-    assert evidence.qualified
+    recognise_lead_source_excavation(state)
     assert canonical_state_key(state) == before
-    assert states_structurally_equal(state, known_pattern_state())
-    _analysis, project = _project_for(state, PARK1)
-    assert project.assessment.proof_pruning_allowed is False
-    assert project.rework_investment is not None
-    assert project.rework_investment.proof_pruning_allowed is False
-    assert evidence.proof_pruning_allowed is False
     tt = StrategicTranspositionTable()
     assert tt.admit(state, 4)
     assert not tt.admit(state, 4)
     assert not tt.admit(state, 5)
     assert tt.admit(state, 3)
     source = inspect.getsource(allowed_frontier_tiers)
-    assert "StrategicCreditLevel.CLEAN" in source
-    assert "STRUCTURALLY_DOMINANT" in source
     assert source.index("return (EconomicFrontierTier.STRUCTURALLY_DOMINANT,)") < source.index(
         "POSITIVE_INVESTMENT"
     )
+
+
+def _reconstruct_node78():
+    cards = tuple(load_deal(DEAL_PATH))
+    opening = SpiderState.from_cards(list(cards))
+    anchor = _node(solve_anytime(opening, cards, None, _opening_anchor_config()))
+    assert (anchor.g, len(anchor.state.foundations), len(anchor.state.stock)) == (
+        21,
+        1,
+        30,
+    )
+    pops = []
+    nodes = {}
+    original_pop = heapq.heappop
+    original_record = controller._record_transition
+
+    def wrapped_pop(heap):
+        item = original_pop(heap)
+        try:
+            node = item[2]
+        except (IndexError, TypeError):
+            return item
+        if isinstance(node, StrategicSearchNode):
+            nodes[node.node_id] = node
+            pops.append(node.node_id)
+        return item
+
+    def wrapped_record(parent, successor, child, telemetry, config, *, elapsed_seconds):
+        nodes[child.node_id] = child
+        return original_record(
+            parent, successor, child, telemetry, config, elapsed_seconds=elapsed_seconds
+        )
+
+    controller._record_transition = wrapped_record
+    heapq.heappop = wrapped_pop
+    try:
+        solve_anytime(
+            anchor.state,
+            cards,
+            None,
+            _gate_envelope(_gate_z_base_config, 90.0, 25, 300_000),
+        )
+    finally:
+        controller._record_transition = original_record
+        heapq.heappop = original_pop
+    seen = {}
+    for nid in pops:
+        node = nodes.get(nid)
+        if node is None or len(node.state.foundations) != 1 or len(node.state.stock) != 0:
+            continue
+        key = canonical_state_key(node.state)
+        prev = seen.get(key)
+        if prev is None or _node_priority(node) < _node_priority(prev):
+            seen[key] = node
+    stock0 = sorted(seen.values(), key=_node_priority)
+    node78 = next((n for n in stock0 if n.node_id == 78), None)
+    assert node78 is not None
+    return node78, cards, stock0
+
+
+def test_node_78_emits_exact_known_macro():
+    node78, _cards_deal, stock0 = _reconstruct_node78()
+    state = node78.state
+    assert len(state.stock) == 0
+    assert _fd(state) == 32
+    assert _empty(state) == 0
+    macros = recognise_lead_source_excavation(state)
+    actions = tuple(item.actions for item in macros)
+    assert MACRO78 in actions
+    # The diagnostic (3,8,1) peel is legal and exposes Qd, but it raises
+    # lead blocker_work 7->8 so the canonical gate keeps (3,9,1) instead.
+    diag = state.clone()
+    assert replay_actions(diag, list(MACRO78_DIAGNOSTIC)) == 3
+    assert diag.columns[2].top() == _card("d", 12)
+    assert MACRO78_DIAGNOSTIC not in actions
+    evidence = next(item for item in macros if item.actions == MACRO78)
+    assert evidence.cost == 3
+    assert evidence.post_key is not None and evidence.pre_key is not None
+    assert evidence.post_key <= evidence.pre_key
+    end = state.clone()
+    assert replay_actions(end, list(MACRO78)) == 3
+    assert end.columns[2].top() == _card("d", 12)
+    assert _fd(end) == 32
+    assert _empty(end) == 0
+    assert _broken_across(state, MACRO78) == 0
+    after2 = state.clone()
+    after2.move(*MACRO78[0], rules=MW_RULES)
+    after2.move(*MACRO78[1], rules=MW_RULES)
+    consume_life = assess_tableau_move(after2, MACRO78[2], discover_exit=False)
+    assert consume_life.placement_class == PlacementClass.STABLE_SAME_SUIT_JOIN
+    assert any("Kh" in label and "Qh" in label for label in consume_life.same_suit_joins_created)
+    successors, telemetry, _ = _successors(state, g=node78.g)
+    excav = [
+        item
+        for item in successors
+        if item.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION
+        and item.actions == MACRO78
+    ]
+    assert excav, [item.actions for item in successors]
+    assert excav[0].corrected_cost == 3
+    assert telemetry.lead_source_excavation_generated >= 1
+    analysis = analyze_economic_projects(state, cards=_cards())
+    mixed = [
+        project
+        for project in analysis.projects
+        if project.kind == EconomicProjectKind.TEMPORARY_REWORK
+        and project.action is not None
+        and (
+            project.rework_investment is None
+            or project.rework_investment.payoff_followup is None
+        )
+    ]
+    assert len(mixed) <= 3
+    similar = sum(1 for node in stock0 if recognise_lead_source_excavation(node.state))
+    assert similar >= 1

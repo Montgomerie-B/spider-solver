@@ -26,11 +26,6 @@ from spider.move_lifecycle import (
     PlacementClass,
     assess_tableau_move,
 )
-from spider.planner.lead_source_excavation import (
-    LeadSourceExcavationEvidence,
-    LeadSourceExcavationReject,
-    assess_lead_source_excavation,
-)
 from spider.planner.receiver_uncover import (
     ReceiverUncoverEvidence,
     ReceiverUncoverReject,
@@ -289,7 +284,6 @@ class ReworkInvestment:
     proof_pruning_allowed: bool = False
     bounded_payoff: bool = False
     payoff_followup: Optional[Tuple[int, int, int]] = None
-    payoff_consume: Optional[Tuple[int, int, int]] = None
 
 
 def assess_rework_investment(
@@ -302,14 +296,12 @@ def assess_rework_investment(
     exit_route_bounded: bool,
     bounded_payoff: bool = False,
     payoff_followup: Optional[Tuple[int, int, int]] = None,
-    payoff_consume: Optional[Tuple[int, int, int]] = None,
 ) -> ReworkInvestment:
     """Assess temporary work as an investment, never as proof evidence.
 
-    ``bounded_payoff`` is a scoped follow-up fact (receiver-uncover consume
-    or lead-source second park).  It does not claim a bounded reversal of
-    the parked card.  Unrelated parks keep ``bounded_payoff=False`` and
-    still require ``exit_route_bounded``.
+    ``bounded_payoff`` is a scoped receiver-uncover follow-up fact.  It does
+    not claim a bounded reversal of the parked card.  Unrelated parks keep
+    ``bounded_payoff=False`` and still require ``exit_route_bounded``.
     """
     net = (
         expected_structural_return.ordering_value
@@ -332,7 +324,6 @@ def assess_rework_investment(
         worthwhile=worthwhile,
         bounded_payoff=bounded_payoff,
         payoff_followup=payoff_followup,
-        payoff_consume=payoff_consume,
     )
 
 
@@ -418,11 +409,6 @@ class EconomicAnalysisResult:
     receiver_uncover_rejected_join_broken: int = 0
     receiver_uncover_rejected_no_fragment: int = 0
     receiver_uncover_rejected_canonical_worse: int = 0
-    lead_source_excavation_considered: int = 0
-    lead_source_excavation_qualified: int = 0
-    lead_source_excavation_rejected_join_broken: int = 0
-    lead_source_excavation_rejected_canonical_worse: int = 0
-    lead_source_excavation_rejected_no_source: int = 0
 
 
 def _replace_cost(cost: EconomicProjectCost, **changes: EvidenceAmount) -> EconomicProjectCost:
@@ -861,7 +847,6 @@ def _project_from_lifecycle(
     epoch: int,
     *,
     uncover: Optional[ReceiverUncoverEvidence] = None,
-    excavation: Optional[LeadSourceExcavationEvidence] = None,
 ) -> EconomicProject:
     stable = len(assessment.same_suit_joins_created)
     mixed_removed = len(assessment.mixed_suit_boundaries_removed)
@@ -936,13 +921,6 @@ def _project_from_lifecycle(
         f"future exit={assessment.future_exit_route}",
     ]
     qualified = bool(uncover is not None and uncover.qualified and uncover.followup is not None)
-    qualified_excavation = bool(
-        not qualified
-        and excavation is not None
-        and excavation.qualified
-        and excavation.second_park is not None
-        and excavation.consume is not None
-    )
     if qualified:
         compensation = BoundedCompensatingBenefit(
             expected_saving=1.0,
@@ -978,51 +956,8 @@ def _project_from_lifecycle(
             bounded_payoff=compensation.bounded_payoff,
             payoff_followup=uncover.followup,
         )
-    elif qualified_excavation:
-        compensation = BoundedCompensatingBenefit(
-            expected_saving=1.0,
-            evidence=(
-                f"lead-source excavation second_park={excavation.second_park} "
-                f"consume={excavation.consume} "
-                f"exposed={excavation.exposed_source}"
-            ),
-            override_reason=(
-                "bounded payoff of the exact two-peel consume that exposes "
-                "a lead-lane buried source; parked-card exit remains independently bounded"
-            ),
-            bounded_payoff=True,
-        )
-        rationale.append(
-            "lead_source_excavation:qualified:"
-            f"{excavation.second_park[0]},{excavation.second_park[1]},{excavation.second_park[2]}:"
-            f"{excavation.consume[0]},{excavation.consume[1]},{excavation.consume[2]}"
-        )
-        rework = assess_rework_investment(
-            investment_cost=heuristic(
-                assessment.immediate_cost + assessment.estimated_rehandling_cost,
-                "temporary park cost plus local rehandling estimate",
-            ),
-            expected_structural_return=hard(
-                5.0,
-                "exact two-peel consume exposes a current lead-lane buried source",
-            ),
-            expected_move_saving=hard(
-                compensation.expected_saving,
-                "exact consume of the uncovered same-suit receiver is now legal",
-            ),
-            evidence=compensation.evidence,
-            confidence="HIGH",
-            exit_route_bounded=assessment.exit_route_bounded,
-            bounded_payoff=compensation.bounded_payoff,
-            payoff_followup=excavation.second_park,
-            payoff_consume=excavation.consume,
-        )
     elif uncover is not None and uncover.reject is not None:
         rationale.append(f"receiver_uncover:reject:{uncover.reject.value}")
-        if excavation is not None and excavation.reject is not None:
-            rationale.append(f"lead_source_excavation:reject:{excavation.reject.value}")
-    elif excavation is not None and excavation.reject is not None:
-        rationale.append(f"lead_source_excavation:reject:{excavation.reject.value}")
     if rework is None and assessment.estimated_rehandling_cost > 0:
         rework = assess_rework_investment(
             investment_cost=heuristic(
@@ -1043,11 +978,7 @@ def _project_from_lifecycle(
         description=(
             f"receiver-uncover park: c{src + 1}->c{dst + 1} k={k}"
             if qualified
-            else (
-                f"lead-source excavation park: c{src + 1}->c{dst + 1} k={k}"
-                if qualified_excavation
-                else f"{assessment.placement_class.value}: c{src + 1}->c{dst + 1} k={k}"
-            )
+            else f"{assessment.placement_class.value}: c{src + 1}->c{dst + 1} k={k}"
         ),
         earliest_useful_epoch=epoch,
         cost=cost,
@@ -1060,7 +991,7 @@ def _project_from_lifecycle(
         rework_investment=rework,
         confidence=(
             "HIGH"
-            if qualified or qualified_excavation or kind == EconomicProjectKind.PERMANENT_JOIN
+            if qualified or kind == EconomicProjectKind.PERMANENT_JOIN
             else "LOW"
         ),
         rationale=tuple(rationale),
@@ -1341,23 +1272,17 @@ def analyze_economic_projects(
 
     # Whole legal move set is inspected, but keep only distinct representative
     # structure classes so diagnostics remain readable.  Qualifying
-    # receiver-uncover parks and qualifying lead-source excavation parks are
-    # always retained and do not consume the mixed-park representative cap.
+    # receiver-uncover parks are always retained and do not consume the
+    # mixed-park representative cap.
     lifecycle_seen: Dict[PlacementClass, int] = {}
     uncover_considered = 0
     uncover_qualified = 0
     uncover_join_broken = 0
     uncover_no_fragment = 0
     uncover_canonical_worse = 0
-    excav_considered = 0
-    excav_qualified = 0
-    excav_join_broken = 0
-    excav_canonical_worse = 0
-    excav_no_source = 0
     for action in sorted(state.enumerate_moves()):
         assessment = assess_tableau_move(state, action, discover_exit=False)
         uncover = None
-        excavation = None
         if assessment.placement_class == PlacementClass.MIXED_SUIT_PARK:
             uncover = assess_receiver_uncover(state, action)
             uncover_considered += 1
@@ -1369,30 +1294,14 @@ def analyze_economic_projects(
                 uncover_no_fragment += 1
             elif uncover.reject == ReceiverUncoverReject.CANONICAL_WORSE:
                 uncover_canonical_worse += 1
-            if not uncover.qualified:
-                excavation = assess_lead_source_excavation(state, action)
-                excav_considered += 1
-                if excavation.qualified:
-                    excav_qualified += 1
-                    if not excavation.canonical_non_worse:
-                        excav_canonical_worse += 1
-                elif excavation.reject == LeadSourceExcavationReject.JOIN_BROKEN:
-                    excav_join_broken += 1
-                elif excavation.reject == LeadSourceExcavationReject.NO_LEAD_SOURCE_EXPOSED:
-                    excav_no_source += 1
         qualified_uncover = bool(uncover is not None and uncover.qualified)
-        qualified_excavation = bool(excavation is not None and excavation.qualified)
         count = lifecycle_seen.get(assessment.placement_class, 0)
         limit = 8 if assessment.placement_class == PlacementClass.STABLE_SAME_SUIT_JOIN else 3
-        if not qualified_uncover and not qualified_excavation:
+        if not qualified_uncover:
             if count >= limit:
                 continue
             lifecycle_seen[assessment.placement_class] = count + 1
-        projects.append(
-            _project_from_lifecycle(
-                assessment, epoch, uncover=uncover, excavation=excavation
-            )
-        )
+        projects.append(_project_from_lifecycle(assessment, epoch, uncover=uncover))
 
     frontier = build_economic_frontier(projects)
     estimated = estimate_remaining_economic_work(projects, facts.remaining_deals)
@@ -1418,9 +1327,4 @@ def analyze_economic_projects(
         receiver_uncover_rejected_join_broken=uncover_join_broken,
         receiver_uncover_rejected_no_fragment=uncover_no_fragment,
         receiver_uncover_rejected_canonical_worse=uncover_canonical_worse,
-        lead_source_excavation_considered=excav_considered,
-        lead_source_excavation_qualified=excav_qualified,
-        lead_source_excavation_rejected_join_broken=excav_join_broken,
-        lead_source_excavation_rejected_canonical_worse=excav_canonical_worse,
-        lead_source_excavation_rejected_no_source=excav_no_source,
     )

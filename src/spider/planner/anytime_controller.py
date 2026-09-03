@@ -113,6 +113,10 @@ from spider.planner.economic_projects import (
     RevealValueClass,
     analyze_economic_projects,
 )
+from spider.planner.lead_source_excavation import (
+    already_covered_by_successors,
+    recognise_lead_source_excavation,
+)
 from spider.planner.epoch_progression import (
     CampaignEpochAvailability,
     EpochTransitionAssessment,
@@ -333,6 +337,7 @@ class StrategicActionKind(str, Enum):
     PREPARE_THEN_DEAL = "PREPARE_THEN_DEAL"
     RAW_TABLEAU_MOVE = "RAW_TABLEAU_MOVE"
     RAW_DEAL = "RAW_DEAL"
+    LEAD_SOURCE_EXCAVATION = "LEAD_SOURCE_EXCAVATION"
 
 
 class StrategicCreditLevel(IntEnum):
@@ -797,8 +802,6 @@ class StrategicSuccessor:
     maturation_progress_delta: Optional[FoundationLaneProgressDelta] = None
     maturation_trace_id: Optional[str] = None
     receiver_uncover_followup: Optional[Tuple[int, int, int]] = None
-    lead_source_excavation_followup: Optional[Tuple[int, int, int]] = None
-    lead_source_excavation_consume: Optional[Tuple[int, int, int]] = None
 
 
 @dataclass(frozen=True)
@@ -1383,14 +1386,11 @@ class ControllerTelemetry:
     receiver_uncover_followup_generated: int = 0
     lead_source_excavation_considered: int = 0
     lead_source_excavation_qualified: int = 0
-    lead_source_excavation_rejected_join_broken: int = 0
-    lead_source_excavation_rejected_canonical_worse: int = 0
-    lead_source_excavation_rejected_no_source: int = 0
     lead_source_excavation_admitted_clean: int = 0
     lead_source_excavation_generated: int = 0
     lead_source_excavation_tt_admitted: int = 0
     lead_source_excavation_expanded: int = 0
-    lead_source_excavation_followup_generated: int = 0
+    lead_source_excavation_replay_ok: int = 0
     lane_maturation_traces: List[FoundationLaneMaturationTrace] = field(
         default_factory=list
     )
@@ -2273,27 +2273,7 @@ def _receiver_uncover_followup(
     rework = project.rework_investment
     if rework is None or not rework.bounded_payoff:
         return None
-    if rework.payoff_consume is not None:
-        return None
     return rework.payoff_followup
-
-
-def _lead_source_followup(
-    project: EconomicProject,
-) -> Optional[Tuple[int, int, int]]:
-    rework = project.rework_investment
-    if rework is None or not rework.bounded_payoff or rework.payoff_consume is None:
-        return None
-    return rework.payoff_followup
-
-
-def _lead_source_consume(
-    project: EconomicProject,
-) -> Optional[Tuple[int, int, int]]:
-    rework = project.rework_investment
-    if rework is None or not rework.bounded_payoff:
-        return None
-    return rework.payoff_consume
 
 
 def _record_receiver_uncover_analysis(
@@ -2312,21 +2292,6 @@ def _record_receiver_uncover_analysis(
     telemetry.receiver_uncover_rejected_canonical_worse += (
         economic.receiver_uncover_rejected_canonical_worse
     )
-    telemetry.lead_source_excavation_considered += (
-        economic.lead_source_excavation_considered
-    )
-    telemetry.lead_source_excavation_qualified += (
-        economic.lead_source_excavation_qualified
-    )
-    telemetry.lead_source_excavation_rejected_join_broken += (
-        economic.lead_source_excavation_rejected_join_broken
-    )
-    telemetry.lead_source_excavation_rejected_canonical_worse += (
-        economic.lead_source_excavation_rejected_canonical_worse
-    )
-    telemetry.lead_source_excavation_rejected_no_source += (
-        economic.lead_source_excavation_rejected_no_source
-    )
     if credit != StrategicCreditLevel.CLEAN:
         return
     for project in economic.projects:
@@ -2338,10 +2303,7 @@ def _record_receiver_uncover_analysis(
             and project.assessment.frontier_tier
             == EconomicFrontierTier.STRUCTURALLY_DOMINANT
         ):
-            if rework.payoff_consume is not None:
-                telemetry.lead_source_excavation_admitted_clean += 1
-            else:
-                telemetry.receiver_uncover_admitted_clean += 1
+            telemetry.receiver_uncover_admitted_clean += 1
 
 
 def _replay_edge(
@@ -2753,8 +2715,6 @@ def _apply_direct_project(
         return None
     category = _project_category(project)
     followup = _receiver_uncover_followup(project)
-    excav_followup = _lead_source_followup(project)
-    excav_consume = _lead_source_consume(project)
     extra = ()
     if followup is not None:
         extra = (
@@ -2773,28 +2733,6 @@ def _apply_direct_project(
                 evidence="exact enabled same-suit follow-up",
                 override_reason=(
                     "receiver-uncover bounded payoff; parked-card exit unchanged"
-                ),
-                bounded_payoff=True,
-            ),
-        )
-    elif excav_followup is not None and excav_consume is not None:
-        extra = (
-            f"lead_source_excavation_followup={excav_followup[0]},{excav_followup[1]},{excav_followup[2]}",
-            f"lead_source_excavation_consume={excav_consume[0]},{excav_consume[1]},{excav_consume[2]}",
-            "bounded payoff does not claim a parked-card exit",
-        )
-        rework = project.rework_investment
-        lifecycle = with_bounded_compensation(
-            lifecycle,
-            BoundedCompensatingBenefit(
-                expected_saving=(
-                    0.0
-                    if rework is None
-                    else rework.expected_move_saving.ordering_value
-                ),
-                evidence="exact two-peel consume exposing a lead-lane buried source",
-                override_reason=(
-                    "lead-source excavation bounded payoff; parked-card exit unchanged"
                 ),
                 bounded_payoff=True,
             ),
@@ -2825,83 +2763,65 @@ def _apply_direct_project(
         + extra,
         project.project_id,
         receiver_uncover_followup=followup,
-        lead_source_excavation_followup=excav_followup,
-        lead_source_excavation_consume=excav_consume,
     )
 
 
-def _forced_lead_source_successor(
+def _lead_source_excavation_successors(
     node: StrategicSearchNode,
-    action: Tuple[int, int, int],
-    *,
-    followup: Optional[Tuple[int, int, int]] = None,
-    consume: Optional[Tuple[int, int, int]] = None,
-    label: str,
-) -> Optional[StrategicSuccessor]:
-    if not node.state.can_move(*action):
-        return None
-    lifecycle = assess_tableau_move(node.state, action, discover_exit=False)
-    end = node.state.clone()
-    cost = end.move(*action, rules=MW_RULES)
-    if not _replay_edge(node.state, (action,), end, cost):
-        return None
-    extra = (
-        f"lead_source_excavation_forced={action[0]},{action[1]},{action[2]}",
-        "bounded payoff does not claim a parked-card exit",
-    )
-    if followup is not None:
-        extra = extra + (
-            f"lead_source_excavation_followup={followup[0]},{followup[1]},{followup[2]}",
-        )
-    if consume is not None:
-        extra = extra + (
-            f"lead_source_excavation_consume={consume[0]},{consume[1]},{consume[2]}",
-        )
-    return StrategicSuccessor(
-        StrategicActionKind.ECONOMIC_PROJECT,
-        "rework",
-        label,
-        (action,),
-        cost,
-        end,
-        node.credit_level,
-        cost,
-        cost,
-        1,
-        True,
-        False,
-        _lifecycle_rationale(lifecycle) + extra,
-        lead_source_excavation_followup=followup,
-        lead_source_excavation_consume=consume,
-    )
-
-
-def _inject_lead_source_followup(
-    node: StrategicSearchNode,
-    raw: List[StrategicSuccessor],
     telemetry: ControllerTelemetry,
-) -> None:
-    incoming = node.incoming_edge
-    if incoming is None:
-        return
-    forced = incoming.lead_source_excavation_followup
-    if forced is None:
-        return
-    already = any(forced in item.actions for item in raw)
-    if already:
-        telemetry.lead_source_excavation_followup_generated += 1
-        return
-    successor = _forced_lead_source_successor(
-        node,
-        forced,
-        followup=incoming.lead_source_excavation_consume,
-        label="lead-source excavation follow-up",
-    )
-    if successor is None:
-        return
-    raw.append(successor)
-    telemetry.lead_source_excavation_followup_generated += 1
-    telemetry.lead_source_excavation_generated += 1
+    existing_actions: Sequence[Tuple],
+) -> List[StrategicSuccessor]:
+    if node.credit_level != StrategicCreditLevel.CLEAN:
+        return []
+    telemetry.lead_source_excavation_considered += 1
+    macros = recognise_lead_source_excavation(node.state)
+    telemetry.lead_source_excavation_qualified += len(macros)
+    successors: List[StrategicSuccessor] = []
+    for evidence in macros:
+        if evidence.actions is None:
+            continue
+        if already_covered_by_successors(evidence.actions, existing_actions):
+            continue
+        end = node.state.clone()
+        cost = replay_actions(end, list(evidence.actions))
+        if not _replay_edge(node.state, evidence.actions, end, cost):
+            continue
+        if cost != evidence.cost:
+            continue
+        telemetry.lead_source_excavation_replay_ok += 1
+        source = evidence.source
+        successors.append(
+            StrategicSuccessor(
+                StrategicActionKind.LEAD_SOURCE_EXCAVATION,
+                "lead_source_excavation",
+                (
+                    "lead-source excavation "
+                    f"{evidence.actions[0]} {evidence.actions[1]} {evidence.actions[2]}"
+                ),
+                evidence.actions,
+                cost,
+                end,
+                node.credit_level,
+                cost,
+                cost,
+                3,
+                True,
+                False,
+                (
+                    "two mixed parks expose a same-suit receiver",
+                    "consume is a stable same-suit join",
+                    (
+                        f"exposed lead source="
+                        f"{source.rank if source is not None else '?'}{source.suit if source is not None else ''}"
+                    ),
+                    "canonical lead evaluated after the complete macro",
+                    "bounded payoff does not claim a parked-card exit",
+                ),
+            )
+        )
+    telemetry.lead_source_excavation_generated += len(successors)
+    telemetry.lead_source_excavation_admitted_clean += len(successors)
+    return successors
 
 
 def _raw_move_successors(
@@ -6644,10 +6564,8 @@ def generate_strategic_successors(
         if project.action is not None and node.state.can_move(*project.action):
             telemetry.direct_actionability_detections += 1
             uncover_followup = _receiver_uncover_followup(project)
-            excav_followup = _lead_source_followup(project)
             if (
                 uncover_followup is None
-                and excav_followup is None
                 and direct_per_tier.get(frontier_tier, 0)
                 >= config.max_direct_projects_per_tier
             ):
@@ -6657,9 +6575,7 @@ def generate_strategic_successors(
                 raw.append(successor)
                 if successor.receiver_uncover_followup is not None:
                     telemetry.receiver_uncover_generated += 1
-                elif successor.lead_source_excavation_followup is not None:
-                    telemetry.lead_source_excavation_generated += 1
-                elif uncover_followup is None and excav_followup is None:
+                elif uncover_followup is None:
                     direct_per_tier[frontier_tier] = (
                         direct_per_tier.get(frontier_tier, 0) + 1
                     )
@@ -7229,11 +7145,12 @@ def generate_strategic_successors(
             )
         )
 
+    existing_actions = tuple(item.actions for item in raw)
+    raw.extend(_lead_source_excavation_successors(node, telemetry, existing_actions))
+
     # 8. Broader legal tableau fallback appears only at credit level four.
     if raw_fallback_enabled(node.credit_level):
         raw.extend(_raw_move_successors(node))
-
-    _inject_lead_source_followup(node, raw, telemetry)
 
     scheduler_annotated = _annotate_scheduler_successors(
         node, raw, config, telemetry
@@ -7267,19 +7184,15 @@ def generate_strategic_successors(
             if incoming_followup in successor.actions:
                 telemetry.receiver_uncover_followup_generated += 1
                 break
-    incoming_excav = (
-        None
-        if node.incoming_edge is None
-        else node.incoming_edge.lead_source_excavation_followup
+    excav = tuple(
+        item
+        for item in deduplicated
+        if item.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION
     )
-    if incoming_excav is not None and not any(
-        incoming_excav in item.actions for item in final
+    if excav and not any(
+        item.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION for item in final
     ):
-        recovered = tuple(
-            item for item in deduplicated if incoming_excav in item.actions
-        )
-        if recovered:
-            final = final + recovered[:1]
+        final = final + excav[:1]
     return final
 
 
@@ -9392,7 +9305,7 @@ def solve_anytime(
             telemetry.receiver_uncover_expanded += 1
         if (
             node.incoming_edge is not None
-            and node.incoming_edge.lead_source_excavation_followup is not None
+            and node.incoming_edge.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION
         ):
             telemetry.lead_source_excavation_expanded += 1
         if node.completion_cash_out_parent_was_deal:
@@ -10008,7 +9921,7 @@ def solve_anytime(
                 continue
             if successor.receiver_uncover_followup is not None:
                 telemetry.receiver_uncover_tt_admitted += 1
-            if successor.lead_source_excavation_followup is not None:
+            if successor.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION:
                 telemetry.lead_source_excavation_tt_admitted += 1
             cash_out_assessment = None
             if active_cash_out is not None:
