@@ -113,6 +113,9 @@ from spider.planner.economic_projects import (
     RevealValueClass,
     analyze_economic_projects,
 )
+from spider.planner.face_down_lead_edge_excavation import (
+    recognise_face_down_lead_edge_excavation,
+)
 from spider.planner.lead_source_excavation import (
     already_covered_by_successors,
     recognise_lead_source_excavation,
@@ -338,6 +341,7 @@ class StrategicActionKind(str, Enum):
     RAW_TABLEAU_MOVE = "RAW_TABLEAU_MOVE"
     RAW_DEAL = "RAW_DEAL"
     LEAD_SOURCE_EXCAVATION = "LEAD_SOURCE_EXCAVATION"
+    FACE_DOWN_LEAD_EDGE_EXCAVATION = "FACE_DOWN_LEAD_EDGE_EXCAVATION"
 
 
 class StrategicCreditLevel(IntEnum):
@@ -1391,6 +1395,13 @@ class ControllerTelemetry:
     lead_source_excavation_tt_admitted: int = 0
     lead_source_excavation_expanded: int = 0
     lead_source_excavation_replay_ok: int = 0
+    face_down_lead_edge_excavation_considered: int = 0
+    face_down_lead_edge_excavation_qualified: int = 0
+    face_down_lead_edge_excavation_admitted_clean: int = 0
+    face_down_lead_edge_excavation_generated: int = 0
+    face_down_lead_edge_excavation_tt_admitted: int = 0
+    face_down_lead_edge_excavation_expanded: int = 0
+    face_down_lead_edge_excavation_replay_ok: int = 0
     lane_maturation_traces: List[FoundationLaneMaturationTrace] = field(
         default_factory=list
     )
@@ -2821,6 +2832,65 @@ def _lead_source_excavation_successors(
         )
     telemetry.lead_source_excavation_generated += len(successors)
     telemetry.lead_source_excavation_admitted_clean += len(successors)
+    return successors
+
+
+def _face_down_lead_edge_excavation_successors(
+    node: StrategicSearchNode,
+    telemetry: ControllerTelemetry,
+    existing_actions: Sequence[Tuple],
+) -> List[StrategicSuccessor]:
+    if node.credit_level != StrategicCreditLevel.CLEAN:
+        return []
+    telemetry.face_down_lead_edge_excavation_considered += 1
+    macros = recognise_face_down_lead_edge_excavation(node.state)
+    telemetry.face_down_lead_edge_excavation_qualified += len(macros)
+    successors: List[StrategicSuccessor] = []
+    for evidence in macros:
+        if evidence.actions is None:
+            continue
+        if already_covered_by_successors(evidence.actions, existing_actions):
+            continue
+        end = node.state.clone()
+        cost = replay_actions(end, list(evidence.actions))
+        if not _replay_edge(node.state, evidence.actions, end, cost):
+            continue
+        if cost != evidence.cost:
+            continue
+        telemetry.face_down_lead_edge_excavation_replay_ok += 1
+        required = evidence.required
+        successors.append(
+            StrategicSuccessor(
+                StrategicActionKind.FACE_DOWN_LEAD_EDGE_EXCAVATION,
+                "face_down_lead_edge_excavation",
+                (
+                    "face-down lead-edge excavation "
+                    f"{evidence.actions[0]} {evidence.actions[1]} {evidence.actions[2]}"
+                ),
+                evidence.actions,
+                cost,
+                end,
+                node.credit_level,
+                cost,
+                cost,
+                3,
+                True,
+                False,
+                (
+                    "two mixed parks flip an intermediate face-down card",
+                    "consume is a stable same-suit join",
+                    (
+                        "exposed lead-edge rank="
+                        f"{required.rank if required is not None else '?'}"
+                        f"{required.suit if required is not None else ''}"
+                    ),
+                    "owning lane evaluated after the complete macro",
+                    "bounded payoff does not claim a parked-card exit",
+                ),
+            )
+        )
+    telemetry.face_down_lead_edge_excavation_generated += len(successors)
+    telemetry.face_down_lead_edge_excavation_admitted_clean += len(successors)
     return successors
 
 
@@ -7147,6 +7217,10 @@ def generate_strategic_successors(
 
     existing_actions = tuple(item.actions for item in raw)
     raw.extend(_lead_source_excavation_successors(node, telemetry, existing_actions))
+    existing_actions = tuple(item.actions for item in raw)
+    raw.extend(
+        _face_down_lead_edge_excavation_successors(node, telemetry, existing_actions)
+    )
 
     # 8. Broader legal tableau fallback appears only at credit level four.
     if raw_fallback_enabled(node.credit_level):
@@ -7193,6 +7267,15 @@ def generate_strategic_successors(
         item.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION for item in final
     ):
         final = final + excav[:1]
+    fd_excav = tuple(
+        item
+        for item in deduplicated
+        if item.kind == StrategicActionKind.FACE_DOWN_LEAD_EDGE_EXCAVATION
+    )
+    if fd_excav and not any(
+        item.kind == StrategicActionKind.FACE_DOWN_LEAD_EDGE_EXCAVATION for item in final
+    ):
+        final = final + fd_excav[:1]
     return final
 
 
@@ -9308,6 +9391,12 @@ def solve_anytime(
             and node.incoming_edge.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION
         ):
             telemetry.lead_source_excavation_expanded += 1
+        if (
+            node.incoming_edge is not None
+            and node.incoming_edge.kind
+            == StrategicActionKind.FACE_DOWN_LEAD_EDGE_EXCAVATION
+        ):
+            telemetry.face_down_lead_edge_excavation_expanded += 1
         if node.completion_cash_out_parent_was_deal:
             telemetry.completion_deals_chosen_after_cash_out += 1
             node = replace(node, completion_cash_out_parent_was_deal=False)
@@ -9923,6 +10012,8 @@ def solve_anytime(
                 telemetry.receiver_uncover_tt_admitted += 1
             if successor.kind == StrategicActionKind.LEAD_SOURCE_EXCAVATION:
                 telemetry.lead_source_excavation_tt_admitted += 1
+            if successor.kind == StrategicActionKind.FACE_DOWN_LEAD_EDGE_EXCAVATION:
+                telemetry.face_down_lead_edge_excavation_tt_admitted += 1
             cash_out_assessment = None
             if active_cash_out is not None:
                 cash_out_assessment = _completion_harvest_assessment(
