@@ -1,4 +1,4 @@
-"""Bounded face-down current-lead-edge excavation.
+"""Scheduler v0.8 bounded face-down lead-edge excavation.
 
 Recognise only the exact stock-empty two-park + consume pattern:
 

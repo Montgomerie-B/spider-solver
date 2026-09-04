@@ -1,7 +1,7 @@
-"""Focused regressions for bounded face-down lead-edge excavation.
+"""Focused regressions for scheduler v0.8 bounded face-down lead-edge excavation.
 
-Experiment only.  Not v0.8.  Does not raise the mixed-park cap, widen
-lead-source excavation, or change TT/Deal/frontier identity.
+Does not raise the mixed-park cap, widen lead-source excavation, or change
+TT/Deal/frontier identity.
 """
 
 from __future__ import annotations

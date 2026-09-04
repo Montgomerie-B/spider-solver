@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Diagnostic report for the face-down lead-edge excavation experiment.
+"""Natural-gate telemetry for scheduler v0.8 face-down lead-edge excavation.
 
-Not v0.8.  AA/Z envelopes are unchanged.  The targeted continuation uses a
+Resource envelopes unchanged from v0.7.  The targeted continuation uses a
 small fixed strategic limit from the reconstructed post-hearts-peel state.
 """
 
@@ -254,8 +254,8 @@ def _safety(result):
 def main() -> int:
     cards = tuple(load_deal(DEAL_PATH))
     opening = SpiderState.from_cards(list(cards))
-    print("FACE-DOWN LEAD-EDGE EXCAVATION experiment")
-    print("Not v0.8. Envelopes unchanged.")
+    print("FACE-DOWN LEAD-EDGE EXCAVATION v0.8")
+    print("Three-action macro. Envelopes unchanged.")
     sys.stdout.flush()
     _section(
         0,
