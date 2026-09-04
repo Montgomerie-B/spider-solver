@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Natural-gate telemetry for the three-action lead-source excavation macro.
+"""Natural-gate telemetry for scheduler v0.7 lead-source excavation.
 
-Experiment only.  Not v0.7.  Resource envelopes unchanged.
+Resource envelopes unchanged from v0.6.
 """
 
 from __future__ import annotations
@@ -237,8 +237,8 @@ def _z_safety(result):
 def main() -> int:
     cards = tuple(load_deal(DEAL_PATH))
     opening = SpiderState.from_cards(list(cards))
-    print("LEAD-SOURCE EXCAVATION EXPERIMENT")
-    print("Three-action macro. NOT v0.7. Envelopes unchanged.")
+    print("LEAD-SOURCE EXCAVATION v0.7")
+    print("Three-action macro. Envelopes unchanged.")
     sys.stdout.flush()
     _section(
         0,

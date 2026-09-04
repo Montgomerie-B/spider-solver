@@ -1,4 +1,4 @@
-"""Focused regressions for the bounded three-action lead-source excavation macro."""
+"""Focused regressions for scheduler v0.7 bounded lead-source excavation."""
 
 from __future__ import annotations
 
@@ -88,10 +88,29 @@ def _clean_config() -> AnytimeControllerConfig:
 
 
 def known_pattern_state() -> SpiderState:
-    """Qd under Qh; Kh under two mixed k=1 cards; diamonds keep 2-A after peels."""
+    """Lead queen under one blocker; king-receiver under two mixed k=1 cards.
+
+    Diamonds keep 2-A after the peels so the canonical key is non-worse.
+    """
     return _state(
         [_card("d", 2)],
         [_card("c", 2)],
+        [_card("d", 12), _card("h", 12)],
+        [_card("h", 13), _card("h", 9), _card("s", 1)],
+        [_card("d", 1)],
+        [_card("s", 8)],
+        [_card("c", 7)],
+        [_card("h", 5)],
+        [_card("c", 10)],
+        [_card("c", 4)],
+    )
+
+
+def canonical_worse_state() -> SpiderState:
+    """Same valley, but the first peel buries the only exposed 2d and worsens lead."""
+    return _state(
+        [_card("d", 2)],
+        [_card("s", 9)],
         [_card("d", 12), _card("h", 12)],
         [_card("h", 13), _card("h", 9), _card("s", 1)],
         [_card("d", 1)],
@@ -393,6 +412,56 @@ def test_unrelated_parks_stay_speculative():
         assert projects[0].assessment.frontier_tier == (
             EconomicFrontierTier.SPECULATIVE_DEFERRABLE
         )
+
+
+def test_canonical_worse_is_rejected():
+    state = canonical_worse_state()
+    assert recognise_lead_source_excavation(state) == ()
+    assert (
+        lead_source_excavation_reject_reason(state)
+        == LeadSourceExcavationReject.CANONICAL_WORSE
+    )
+
+
+def test_after_macro_both_ends_generate_stable_join():
+    """After the macro, if both ends of the required edge are tops, CLEAN emits the join."""
+    start = known_pattern_state()
+    macros = recognise_lead_source_excavation(start)
+    assert macros
+    evidence = macros[0]
+    assert evidence.source is not None
+    mid = start.clone()
+    assert replay_actions(mid, list(evidence.actions)) == 3
+    source = evidence.source
+    high = source.rank + 1
+    src_col = next(
+        ci
+        for ci, col in enumerate(mid.columns)
+        if col.top() is not None
+        and col.top().suit == source.suit
+        and col.top().rank == source.rank
+    )
+    dst_col = next(
+        ci
+        for ci, col in enumerate(mid.columns)
+        if ci != src_col and (not col.face_up or col.top().suit != source.suit)
+    )
+    mid.columns[dst_col].face_up[:] = [_card(source.suit, high)]
+    join = (src_col, dst_col, 1)
+    assert mid.can_move(*join)
+    life = assess_tableau_move(mid, join, discover_exit=False)
+    assert life.placement_class == PlacementClass.STABLE_SAME_SUIT_JOIN
+    assert not life.same_suit_joins_broken
+    successors, _telemetry, analysis = _successors(mid, g=3)
+    generated = [
+        item for item in successors if item.actions == (join,) or join in item.actions
+    ]
+    assert generated, [item.actions for item in successors]
+    project = next((p for p in analysis.economic.projects if p.action == join), None)
+    if project is not None:
+        assert project.assessment.frontier_tier == EconomicFrontierTier.STRUCTURALLY_DOMINANT
+    end = mid.clone()
+    assert replay_actions(end, [join]) == 1
 
 
 def test_tt_and_frontier_policy_unchanged():

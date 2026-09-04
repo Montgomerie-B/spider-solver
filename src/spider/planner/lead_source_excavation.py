@@ -1,4 +1,4 @@
-"""Bounded current-lead source excavation.
+"""Scheduler v0.7 bounded current-lead source excavation.
 
 Recognise only the exact stock-empty two-peel + consume pattern:
 
