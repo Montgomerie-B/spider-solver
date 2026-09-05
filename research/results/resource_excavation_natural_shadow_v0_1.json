@@ -1,0 +1,3372 @@
+{
+  "base_sha": "7480dd26bc9506ba7467a764b51fd316b6e08fb6",
+  "production_config": {
+    "max_strategic_expansions": 25,
+    "max_tactical_nodes": 300000,
+    "wall_clock_limit_s": 180.0,
+    "stop_reason": "strategic expansion limit",
+    "status": "RESOURCE_LIMIT",
+    "telemetry": {
+      "expanded": 25,
+      "generated": 65,
+      "retained": 57,
+      "tactical_nodes": 72,
+      "tt_new": 58,
+      "tt_improved": 0,
+      "tt_suppressed": 8,
+      "proof_pruned": 0,
+      "stock_successors_admitted": 25,
+      "deal_successors_generated": 25,
+      "lazy_children_admitted": 57,
+      "successor_kinds": {
+        "CAMPAIGN_DEPENDENCY_CLOSURE": 3,
+        "ECONOMIC_PROJECT": 29,
+        "RAW_DEAL": 25
+      },
+      "scheduler_objectives_generated": 100,
+      "scheduler_objectives_selected": 8,
+      "scheduler_objectives_admitted": 11,
+      "scheduler_objectives_satisfied": 1,
+      "scheduler_objectives_advanced": 5,
+      "scheduler_delta_counts": {
+        "BRIDGE_CONSUMED": 9,
+        "BRIDGE_EXPOSED": 3,
+        "DEADLINE_ADVANCED": 1,
+        "NEW_HIGH_LEVERAGE_SOURCE": 1,
+        "TARGET_ADVANCED": 5,
+        "TARGET_REASSIGNED": 8,
+        "TARGET_SATISFIED": 1
+      },
+      "scheduler_objectives_by_family": {
+        "BUILD_FRAGMENT": {
+          "actionable": 15,
+          "generated": 15
+        },
+        "CONSUME_BRIDGE_CARD": {
+          "actionable": 62,
+          "admitted": 10,
+          "advanced": 5,
+          "downstream_harvest": 5,
+          "entered": 14,
+          "generated": 62,
+          "selected": 7
+        },
+        "EXPOSE_UNLOCK_CARD": {
+          "actionable": 9,
+          "generated": 9
+        },
+        "PREPARE_EPOCH_TRANSITION": {
+          "admitted": 1,
+          "entered": 1,
+          "satisfied": 1,
+          "selected": 1
+        },
+        "PREPARE_STOCK_RECEPTION": {
+          "actionable": 5,
+          "generated": 5
+        },
+        "PREPARE_TERMINAL_SEQUENCE": {
+          "actionable": 9,
+          "generated": 9
+        }
+      }
+    }
+  },
+  "collection_inert": true,
+  "captured_states": 58,
+  "captured_transitions": 57,
+  "expanded_parents": 25,
+  "eligible_unique_pairs": 58,
+  "sampled": 58,
+  "sampled_expanded_parents": 25,
+  "ineligible": {},
+  "stage_distribution": {
+    "stock_rows=5/fnd=0": 3,
+    "stock_rows=4/fnd=0": 14,
+    "stock_rows=3/fnd=0": 26,
+    "stock_rows=2/fnd=0": 15
+  },
+  "stock_rows_distribution": {
+    "2": 15,
+    "3": 26,
+    "4": 14,
+    "5": 3
+  },
+  "foundations_distribution": {
+    "0": 58
+  },
+  "face_down_distribution": {
+    "43": 45,
+    "44": 13
+  },
+  "empties_distribution": {
+    "0": 58
+  },
+  "lead_family_distribution": {
+    "BRIDGE_READY": 3,
+    "MERGE_READY": 30,
+    "FUTURE_GATED": 3,
+    "FRAGMENT_BUILDING": 22
+  },
+  "result_histogram": {
+    "REALISED_CAMPAIGN_PROGRESS": 4,
+    "NO_BOUNDED_PLAN": 54
+  },
+  "overlap_histogram": {
+    "EXACT_DUPLICATE": 4,
+    "NO_SUCCESS": 54
+  },
+  "expanded_success_overlap": {
+    "EXACT_DUPLICATE": 4
+  },
+  "operator_frequencies": {
+    "REALISE_CAMPAIGN_EDGE": 4
+  },
+  "visited": {
+    "median": 1.0,
+    "p90": 2.0,
+    "p95": 2.0,
+    "max": 2
+  },
+  "runtime_s": {
+    "median": 0.000295,
+    "p90": 0.000666,
+    "p95": 0.000866,
+    "max": 0.001031
+  },
+  "plan_cost": {
+    "n": 4,
+    "median": 1.0,
+    "max": 1
+  },
+  "novel_terminal_states": 0,
+  "first_action_already_production": 4,
+  "novel_with_known_first_action": 0,
+  "novel_with_new_first_action": 0,
+  "realised_count": 4,
+  "per_call_limit_s": 5.0,
+  "timeout_note": "Calls run in-process under structural bounds; RESOURCE_OVERRUN is recorded if elapsed exceeds 5s but the call is not forcibly killed.",
+  "evaluations": [
+    {
+      "parent_digest": "565d1de7d0f17f9e",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.001031,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "end_digest": "75cf1236074f5eeb",
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": {
+        "class": "EXACT_DUPLICATE",
+        "first_action_known": true,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "04a7caf162d583114263a7c436baab65c377702d07aad75231da7c2b783539ea"
+    },
+    {
+      "parent_digest": "021a7380370396fe",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000945,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "021a7380370396fe",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 1,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "05fc1cac80782122e23f0b02b43d86284b660c81f9ee2c7dbd7cfdb3a88ee799"
+    },
+    {
+      "parent_digest": "c06565c127ccbc7a",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000275,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "c06565c127ccbc7a",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "BRIDGE_READY",
+      "objective": "s BRIDGE_READY missing 13-12",
+      "stage": {
+        "stock": 50,
+        "stock_rows": 5,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "08ca0b31a13e52217716c522dca5f9312c72b17611f6a0e9cff25431c0b9cd31"
+    },
+    {
+      "parent_digest": "eb4b2dfca97021a5",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000319,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "eb4b2dfca97021a5",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "0db763d4460f073236cd734190ec7f65b814a3c6390ff6adb101f19b2a657833"
+    },
+    {
+      "parent_digest": "80765376ee888c25",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000335,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "80765376ee888c25",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "17e149c6e08f6e542c9b7263919e36e583cd08175a5cb3a309e8ac24a2aaad81"
+    },
+    {
+      "parent_digest": "64a8ca698cc303e9",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000306,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "64a8ca698cc303e9",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "1a972cf15c68fdaf7cb517c7e812d6e3ab2dfabe108c845ac5e7afc85c3ed42e"
+    },
+    {
+      "parent_digest": "97344b73f31f2e05",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000419,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "97344b73f31f2e05",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FUTURE_GATED",
+      "objective": "s FUTURE_GATED missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "1edbd309ec37799cbbdbb52db0b4484ade60ec205c4c92b945efd6c065d0163b"
+    },
+    {
+      "parent_digest": "f4e8c3320f0883c5",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000291,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "f4e8c3320f0883c5",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "2815dade68ec3d855407b253f5eeadb5904446ec64afc17b172d9755af7ab03b"
+    },
+    {
+      "parent_digest": "7e14b4818ef7dfd8",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000294,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "7e14b4818ef7dfd8",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "2a7a905ed1990baafb33850635ce1d0ffecb87c25f859e383d53dc97ffc6ca46"
+    },
+    {
+      "parent_digest": "564b6aa649b89649",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000793,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "end_digest": "021a7380370396fe",
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": {
+        "class": "EXACT_DUPLICATE",
+        "first_action_known": true,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "2ac7567da6b8e33e7c5eb9503c0193f4961c49efb6c536fcf8289bc9c9eab1a9"
+    },
+    {
+      "parent_digest": "982d62a58d6006d6",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000293,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "982d62a58d6006d6",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "2c7492e595bd2731b128daf083880f6877636f0a383c36b3ae0e5caf4f96b5cc"
+    },
+    {
+      "parent_digest": "712918f2ef1c65aa",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000666,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "712918f2ef1c65aa",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "31fce9b705df17931f47eda939d7680ec360e3b7e8d95e26056916ed17171868"
+    },
+    {
+      "parent_digest": "6342ea1c390acd7f",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.00033,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "6342ea1c390acd7f",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "3364f20e1b4329be085ce3c0caba76b1b127505357558275bad7b151cd9071f5"
+    },
+    {
+      "parent_digest": "751ea69a53fd34e2",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.00017,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "751ea69a53fd34e2",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "BRIDGE_READY",
+      "objective": "s BRIDGE_READY missing 13-12",
+      "stage": {
+        "stock": 50,
+        "stock_rows": 5,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "34feac2e196378429e7cc46a9ab6c9ba178f78d5c07f1252376ecad11240346e"
+    },
+    {
+      "parent_digest": "fe523abfde9d0680",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000149,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "fe523abfde9d0680",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "37f1d30ed730cf6066c883831821f11efea7fd10e0fb35a65ea95f12034f3c99"
+    },
+    {
+      "parent_digest": "3d69ad2455fc6de1",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000228,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "3d69ad2455fc6de1",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "3a8c6acbc4bb3a1855dadc13baf44a6035ae8c358a28a1f2b6f4a76528b244c4"
+    },
+    {
+      "parent_digest": "4ab67805393766d6",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000368,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "4ab67805393766d6",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "3d491a8781bf640a316d996afc508a5851fe988d13a253cd4a62a2ba8b9eeb2c"
+    },
+    {
+      "parent_digest": "c305fb2a65b52294",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000145,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "c305fb2a65b52294",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "BRIDGE_READY",
+      "objective": "s BRIDGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "3dd9f9196ce3abd800e6f841737152cc41ea6043dec04ae539d5f753b6fc7651"
+    },
+    {
+      "parent_digest": "97144fe302c881c2",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000144,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "97144fe302c881c2",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "4841a465914dfb78da0648228fcc76769d4e1c1e968ce007789b5bd56de99b4b"
+    },
+    {
+      "parent_digest": "7b7389ce3c1cc362",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000143,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "7b7389ce3c1cc362",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "486eabefc3dd99c496b9df6ea5cd5b86fc16495493d74b92f50258505982de94"
+    },
+    {
+      "parent_digest": "628018b882f32c3e",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000141,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "628018b882f32c3e",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "4b7fdc71de760f6ef46b1db7a7c700e90c564cc66acd4b9c7b5142d4cb7263ea"
+    },
+    {
+      "parent_digest": "8974feef67581a77",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000148,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "8974feef67581a77",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "4c149b069313d713aca721fbd0d7ac87ed780a22a9202b105c85e5b114121eaf"
+    },
+    {
+      "parent_digest": "55a4e5534aa202dc",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000143,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "55a4e5534aa202dc",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "4c5cd4fcbcd35dfbef40646f9ec3ee0a7fb90e7de08df323427e3053680982e9"
+    },
+    {
+      "parent_digest": "3943a81991e43d75",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000144,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "3943a81991e43d75",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "4fdfba18a48f9008b59048b55ff34265c28b363e0bafb5ae1e128940cf83f043"
+    },
+    {
+      "parent_digest": "fb67f48139ca34e0",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000142,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "fb67f48139ca34e0",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "57a39d6d2f7ded84bb0245d1f28c3b640c5e5d7eb8443bfb831f90410bdb2c2e"
+    },
+    {
+      "parent_digest": "d38ea2b458cb4170",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000142,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "d38ea2b458cb4170",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "62fa2debadb96f7df1adfbdf6dc12067f1dbe53cb45a535eb1678006f82776f1"
+    },
+    {
+      "parent_digest": "f1af626b9f8c6552",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000345,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "f1af626b9f8c6552",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "6660f6708f536fbd78fa839be8ec70f06a065d780e22875ee2cbaa32a17625b9"
+    },
+    {
+      "parent_digest": "75cf1236074f5eeb",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000271,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "75cf1236074f5eeb",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "66f157e53a7abaa38e71fcdac44aa71a71714b8a1a8af00659ee087b59102d92"
+    },
+    {
+      "parent_digest": "fdd038d5e111621f",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000428,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "fdd038d5e111621f",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "682b2e93c31271b5899dfe442206ce003583c6c49362b4379995f1e26669e889"
+    },
+    {
+      "parent_digest": "62aedc5b18df3a37",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.0002,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "62aedc5b18df3a37",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "690c0f7cf88e7531cd1a9352eff4b89513f20654f4038a5d54ea777374435da9"
+    },
+    {
+      "parent_digest": "7dc747e52338babb",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000144,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "7dc747e52338babb",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "69eb91da77c2de0440b7b51ae3067fc7b3c0606548e629e0211421e455f970c3"
+    },
+    {
+      "parent_digest": "f3f7310293855a2a",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000384,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "f3f7310293855a2a",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "795cbb9a92f2b00cf9e3351d64b9ed556c6bbdf0def38434302ca94e4e97a44f"
+    },
+    {
+      "parent_digest": "ade3fb73f5c9c328",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000314,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "ade3fb73f5c9c328",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "8dde0f6ea02d99ed169fb78d0ac17d756cdf8c181f174044cb0cdc0ba641c605"
+    },
+    {
+      "parent_digest": "e85503bcea582b82",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000374,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "e85503bcea582b82",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 1,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "91c5f456c953b68e491df5860cc61d60c6c81dff3572d438a3373bf48c318c50"
+    },
+    {
+      "parent_digest": "1eb69ee5c4de1ab8",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000296,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "1eb69ee5c4de1ab8",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "94d6e8b90acb476751c299bb373b3bad76b9fc68baa5638eb5d85c3779efbe58"
+    },
+    {
+      "parent_digest": "caf822a7a13a0821",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000282,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "caf822a7a13a0821",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "978404875bcfb32a69ff1e42e3a58eae96e085ac2c6aee2fa75d27e3520299f5"
+    },
+    {
+      "parent_digest": "225c381ec78801a0",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000305,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "225c381ec78801a0",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "97c6008f5e49b0f3764067bd69b943d3f3c176c32d85369f4e9eda0c8cfe9ec7"
+    },
+    {
+      "parent_digest": "4c1a0cb7efb270f9",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000288,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "4c1a0cb7efb270f9",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "98f9b73e002d34810c35d9076a969acceb4dd85461b6dd571f5b3e3ad08c57df"
+    },
+    {
+      "parent_digest": "fdf7553894fecea5",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000732,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "end_digest": "61ebc2f2c8e30267",
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": {
+        "class": "EXACT_DUPLICATE",
+        "first_action_known": true,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "a0a9ed11d6081294c77dbd72f7ed7966c85790c36360e34512a9d98fae48a50f"
+    },
+    {
+      "parent_digest": "38ca4cbe24e07b09",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000304,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "38ca4cbe24e07b09",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "a56c3dc977987d3169c5994e9bb293b2929d25e36b1894a123afd2a5c8a0f9f8"
+    },
+    {
+      "parent_digest": "b06c44d866d6e287",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000244,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "b06c44d866d6e287",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 50,
+        "stock_rows": 5,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "ae46ea8875332dc5e6d1582581df8e75395bcea3d98431df7e1ff2090f7bce55"
+    },
+    {
+      "parent_digest": "b56e6ab2ad0355ec",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000286,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "b56e6ab2ad0355ec",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "b72dd6062103c48d27ba5851cc73ee2cb60c672280f35e42bbfd81640958fad9"
+    },
+    {
+      "parent_digest": "fc7f44496554ccb1",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000286,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "fc7f44496554ccb1",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "b811687f7eb22bb3f0a22aba717d26b302d79ff04224e9ce5c4498abe0e6f275"
+    },
+    {
+      "parent_digest": "bcafdbf4913416f1",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000308,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "bcafdbf4913416f1",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FUTURE_GATED",
+      "objective": "s FUTURE_GATED missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "bb4f1443cddbffb85e8fbb7991f06404b27dd5abc31f41effbae447759b43998"
+    },
+    {
+      "parent_digest": "5591fe7440637e26",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000337,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "5591fe7440637e26",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "bddb5e4538c7df3e125ec988c0c9d8738d8dd9f336a28e0047ac79fcb119b9ca"
+    },
+    {
+      "parent_digest": "85247a9d4ed4a5c0",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000308,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "85247a9d4ed4a5c0",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "c855da16b478c79dab74d5ff45b368678e6696310408e16427639ffdc1c55a75"
+    },
+    {
+      "parent_digest": "61ebc2f2c8e30267",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000866,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "61ebc2f2c8e30267",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 1,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "cb4eb693c1fe789259e6260b7d400675a9a23f30e8f5769fc0993f545657086a"
+    },
+    {
+      "parent_digest": "9fe64e123268a5ed",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000291,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "9fe64e123268a5ed",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "cc5cc1a44ee0ea0d3f8fd5f0186e9e25b273bd61dab040aafb35de35a74311f4"
+    },
+    {
+      "parent_digest": "fb397858c995ec1f",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000299,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "fb397858c995ec1f",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "d0bb836292f613925d70103c6ac4b6662d0ae046aa0f2937ccf147bb704b35c9"
+    },
+    {
+      "parent_digest": "30b1cd213a2956ed",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000282,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "30b1cd213a2956ed",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "da428fd859924770e9e4bef70d5cd75fff54f451f47d5a15fa448742965087f4"
+    },
+    {
+      "parent_digest": "b4e0c5578811f48c",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000369,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "b4e0c5578811f48c",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 4,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "dff77de60adfa34dde395510435ada5c18769390443e0aeee2ec80a06c8bbb14"
+    },
+    {
+      "parent_digest": "b1e4a51b06972f19",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.00039,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "b1e4a51b06972f19",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 1,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "e5558909b67fecab03d354f3e5e0e667f32c57ab356802c59c6b4f921add5f39"
+    },
+    {
+      "parent_digest": "83ae5414f9c1bc8f",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000304,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "83ae5414f9c1bc8f",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FUTURE_GATED",
+      "objective": "s FUTURE_GATED missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "e5c995cebcf220c634b813f076004f46b236e4cd43cbe53e8aaba6179c017065"
+    },
+    {
+      "parent_digest": "eb3e568b616e4b60",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000216,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "eb3e568b616e4b60",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "e8106135c24e26558052ebd6e70cfc487de4400b25dda845d6d0aaca254b8907"
+    },
+    {
+      "parent_digest": "19c46c7c31b84cc8",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000406,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "19c46c7c31b84cc8",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 0,
+        "expanded_parent": false
+      },
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "edc56485aab584be4f488836e238c4a94ac9c151304cbb63099e5b2c72daa8a8"
+    },
+    {
+      "parent_digest": "7d84017545fa47fb",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000196,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "7d84017545fa47fb",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 3,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "ef355be0468caad66c4258e4d78bde1178b8f0d497e8328e34f1b9407442c319"
+    },
+    {
+      "parent_digest": "83c12885305d41e5",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000402,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "end_digest": "19c46c7c31b84cc8",
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": {
+        "class": "EXACT_DUPLICATE",
+        "first_action_known": true,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "f8565040fccdeabedf526d990cacdf9216db51a844fdd85e527e14917da25a0b"
+    },
+    {
+      "parent_digest": "7f3bfe2724a7177e",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000177,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "end_digest": "7f3bfe2724a7177e",
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": {
+        "class": "NO_SUCCESS",
+        "first_action_known": false,
+        "production_child_count": 2,
+        "expanded_parent": true
+      },
+      "family": "MERGE_READY",
+      "objective": "s MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "fdb1ac0229e95d49f02b66f37570619532bd228433a18b5660949487304b489a"
+    }
+  ],
+  "correctness_failures": [],
+  "eligibility_rate": 1.0,
+  "sampled_identities": [
+    {
+      "digest": "565d1de7d0f17f9e",
+      "suit": "h",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "04a7caf162d583114263a7c436baab65c377702d07aad75231da7c2b783539ea",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "021a7380370396fe",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "05fc1cac80782122e23f0b02b43d86284b660c81f9ee2c7dbd7cfdb3a88ee799",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "c06565c127ccbc7a",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "08ca0b31a13e52217716c522dca5f9312c72b17611f6a0e9cff25431c0b9cd31",
+      "family": "BRIDGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "eb4b2dfca97021a5",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "0db763d4460f073236cd734190ec7f65b814a3c6390ff6adb101f19b2a657833",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "80765376ee888c25",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "17e149c6e08f6e542c9b7263919e36e583cd08175a5cb3a309e8ac24a2aaad81",
+      "family": "MERGE_READY",
+      "expanded": false
+    },
+    {
+      "digest": "64a8ca698cc303e9",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "1a972cf15c68fdaf7cb517c7e812d6e3ab2dfabe108c845ac5e7afc85c3ed42e",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "97344b73f31f2e05",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "1edbd309ec37799cbbdbb52db0b4484ade60ec205c4c92b945efd6c065d0163b",
+      "family": "FUTURE_GATED",
+      "expanded": false
+    },
+    {
+      "digest": "f4e8c3320f0883c5",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "2815dade68ec3d855407b253f5eeadb5904446ec64afc17b172d9755af7ab03b",
+      "family": "MERGE_READY",
+      "expanded": false
+    },
+    {
+      "digest": "7e14b4818ef7dfd8",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "2a7a905ed1990baafb33850635ce1d0ffecb87c25f859e383d53dc97ffc6ca46",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "564b6aa649b89649",
+      "suit": "h",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "2ac7567da6b8e33e7c5eb9503c0193f4961c49efb6c536fcf8289bc9c9eab1a9",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "982d62a58d6006d6",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "2c7492e595bd2731b128daf083880f6877636f0a383c36b3ae0e5caf4f96b5cc",
+      "family": "MERGE_READY",
+      "expanded": false
+    },
+    {
+      "digest": "712918f2ef1c65aa",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "31fce9b705df17931f47eda939d7680ec360e3b7e8d95e26056916ed17171868",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "6342ea1c390acd7f",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "3364f20e1b4329be085ce3c0caba76b1b127505357558275bad7b151cd9071f5",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "751ea69a53fd34e2",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "34feac2e196378429e7cc46a9ab6c9ba178f78d5c07f1252376ecad11240346e",
+      "family": "BRIDGE_READY",
+      "expanded": false
+    },
+    {
+      "digest": "fe523abfde9d0680",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "37f1d30ed730cf6066c883831821f11efea7fd10e0fb35a65ea95f12034f3c99",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "3d69ad2455fc6de1",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "3a8c6acbc4bb3a1855dadc13baf44a6035ae8c358a28a1f2b6f4a76528b244c4",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "4ab67805393766d6",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "3d491a8781bf640a316d996afc508a5851fe988d13a253cd4a62a2ba8b9eeb2c",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "c305fb2a65b52294",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "3dd9f9196ce3abd800e6f841737152cc41ea6043dec04ae539d5f753b6fc7651",
+      "family": "BRIDGE_READY",
+      "expanded": false
+    },
+    {
+      "digest": "97144fe302c881c2",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "4841a465914dfb78da0648228fcc76769d4e1c1e968ce007789b5bd56de99b4b",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "7b7389ce3c1cc362",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "486eabefc3dd99c496b9df6ea5cd5b86fc16495493d74b92f50258505982de94",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "628018b882f32c3e",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "4b7fdc71de760f6ef46b1db7a7c700e90c564cc66acd4b9c7b5142d4cb7263ea",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "8974feef67581a77",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "4c149b069313d713aca721fbd0d7ac87ed780a22a9202b105c85e5b114121eaf",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "55a4e5534aa202dc",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "4c5cd4fcbcd35dfbef40646f9ec3ee0a7fb90e7de08df323427e3053680982e9",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "3943a81991e43d75",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "4fdfba18a48f9008b59048b55ff34265c28b363e0bafb5ae1e128940cf83f043",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "fb67f48139ca34e0",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "57a39d6d2f7ded84bb0245d1f28c3b640c5e5d7eb8443bfb831f90410bdb2c2e",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "d38ea2b458cb4170",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "62fa2debadb96f7df1adfbdf6dc12067f1dbe53cb45a535eb1678006f82776f1",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "f1af626b9f8c6552",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "6660f6708f536fbd78fa839be8ec70f06a065d780e22875ee2cbaa32a17625b9",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "75cf1236074f5eeb",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "66f157e53a7abaa38e71fcdac44aa71a71714b8a1a8af00659ee087b59102d92",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "fdd038d5e111621f",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "682b2e93c31271b5899dfe442206ce003583c6c49362b4379995f1e26669e889",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "62aedc5b18df3a37",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "690c0f7cf88e7531cd1a9352eff4b89513f20654f4038a5d54ea777374435da9",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "7dc747e52338babb",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "69eb91da77c2de0440b7b51ae3067fc7b3c0606548e629e0211421e455f970c3",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "f3f7310293855a2a",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "795cbb9a92f2b00cf9e3351d64b9ed556c6bbdf0def38434302ca94e4e97a44f",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "ade3fb73f5c9c328",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "8dde0f6ea02d99ed169fb78d0ac17d756cdf8c181f174044cb0cdc0ba641c605",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "e85503bcea582b82",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "91c5f456c953b68e491df5860cc61d60c6c81dff3572d438a3373bf48c318c50",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "1eb69ee5c4de1ab8",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "94d6e8b90acb476751c299bb373b3bad76b9fc68baa5638eb5d85c3779efbe58",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "caf822a7a13a0821",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "978404875bcfb32a69ff1e42e3a58eae96e085ac2c6aee2fa75d27e3520299f5",
+      "family": "MERGE_READY",
+      "expanded": false
+    },
+    {
+      "digest": "225c381ec78801a0",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "97c6008f5e49b0f3764067bd69b943d3f3c176c32d85369f4e9eda0c8cfe9ec7",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "4c1a0cb7efb270f9",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "98f9b73e002d34810c35d9076a969acceb4dd85461b6dd571f5b3e3ad08c57df",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "fdf7553894fecea5",
+      "suit": "h",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "a0a9ed11d6081294c77dbd72f7ed7966c85790c36360e34512a9d98fae48a50f",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "38ca4cbe24e07b09",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "a56c3dc977987d3169c5994e9bb293b2929d25e36b1894a123afd2a5c8a0f9f8",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "b06c44d866d6e287",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "ae46ea8875332dc5e6d1582581df8e75395bcea3d98431df7e1ff2090f7bce55",
+      "family": "MERGE_READY",
+      "expanded": false
+    },
+    {
+      "digest": "b56e6ab2ad0355ec",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "b72dd6062103c48d27ba5851cc73ee2cb60c672280f35e42bbfd81640958fad9",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "fc7f44496554ccb1",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "b811687f7eb22bb3f0a22aba717d26b302d79ff04224e9ce5c4498abe0e6f275",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "bcafdbf4913416f1",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "bb4f1443cddbffb85e8fbb7991f06404b27dd5abc31f41effbae447759b43998",
+      "family": "FUTURE_GATED",
+      "expanded": false
+    },
+    {
+      "digest": "5591fe7440637e26",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "bddb5e4538c7df3e125ec988c0c9d8738d8dd9f336a28e0047ac79fcb119b9ca",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "85247a9d4ed4a5c0",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "c855da16b478c79dab74d5ff45b368678e6696310408e16427639ffdc1c55a75",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "61ebc2f2c8e30267",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "cb4eb693c1fe789259e6260b7d400675a9a23f30e8f5769fc0993f545657086a",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "9fe64e123268a5ed",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "cc5cc1a44ee0ea0d3f8fd5f0186e9e25b273bd61dab040aafb35de35a74311f4",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "fb397858c995ec1f",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "d0bb836292f613925d70103c6ac4b6662d0ae046aa0f2937ccf147bb704b35c9",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "30b1cd213a2956ed",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "da428fd859924770e9e4bef70d5cd75fff54f451f47d5a15fa448742965087f4",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "b4e0c5578811f48c",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "dff77de60adfa34dde395510435ada5c18769390443e0aeee2ec80a06c8bbb14",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "b1e4a51b06972f19",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "e5558909b67fecab03d354f3e5e0e667f32c57ab356802c59c6b4f921add5f39",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "83ae5414f9c1bc8f",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "e5c995cebcf220c634b813f076004f46b236e4cd43cbe53e8aaba6179c017065",
+      "family": "FUTURE_GATED",
+      "expanded": false
+    },
+    {
+      "digest": "eb3e568b616e4b60",
+      "suit": "d",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "e8106135c24e26558052ebd6e70cfc487de4400b25dda845d6d0aaca254b8907",
+      "family": "MERGE_READY",
+      "expanded": false
+    },
+    {
+      "digest": "19c46c7c31b84cc8",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "edc56485aab584be4f488836e238c4a94ac9c151304cbb63099e5b2c72daa8a8",
+      "family": "FRAGMENT_BUILDING",
+      "expanded": false
+    },
+    {
+      "digest": "7d84017545fa47fb",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "ef355be0468caad66c4258e4d78bde1178b8f0d497e8328e34f1b9407442c319",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "83c12885305d41e5",
+      "suit": "h",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "f8565040fccdeabedf526d990cacdf9216db51a844fdd85e527e14917da25a0b",
+      "family": "MERGE_READY",
+      "expanded": true
+    },
+    {
+      "digest": "7f3bfe2724a7177e",
+      "suit": "s",
+      "high": 13,
+      "low": 12,
+      "pair_hash": "fdb1ac0229e95d49f02b66f37570619532bd228433a18b5660949487304b489a",
+      "family": "MERGE_READY",
+      "expanded": true
+    }
+  ],
+  "successful_plans": [
+    {
+      "parent_digest": "565d1de7d0f17f9e",
+      "end_digest": "75cf1236074f5eeb",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.001031,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": "EXACT_DUPLICATE",
+      "first_action_known": true,
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "04a7caf162d583114263a7c436baab65c377702d07aad75231da7c2b783539ea"
+    },
+    {
+      "parent_digest": "564b6aa649b89649",
+      "end_digest": "021a7380370396fe",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000793,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": "EXACT_DUPLICATE",
+      "first_action_known": true,
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "2ac7567da6b8e33e7c5eb9503c0193f4961c49efb6c536fcf8289bc9c9eab1a9"
+    },
+    {
+      "parent_digest": "fdf7553894fecea5",
+      "end_digest": "61ebc2f2c8e30267",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000732,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": "EXACT_DUPLICATE",
+      "first_action_known": true,
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "a0a9ed11d6081294c77dbd72f7ed7966c85790c36360e34512a9d98fae48a50f"
+    },
+    {
+      "parent_digest": "83c12885305d41e5",
+      "end_digest": "19c46c7c31b84cc8",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000402,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": "EXACT_DUPLICATE",
+      "first_action_known": true,
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "f8565040fccdeabedf526d990cacdf9216db51a844fdd85e527e14917da25a0b"
+    }
+  ],
+  "representative_examples": [
+    {
+      "parent_digest": "565d1de7d0f17f9e",
+      "end_digest": "75cf1236074f5eeb",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.001031,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": "EXACT_DUPLICATE",
+      "first_action_known": true,
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "04a7caf162d583114263a7c436baab65c377702d07aad75231da7c2b783539ea"
+    },
+    {
+      "parent_digest": "564b6aa649b89649",
+      "end_digest": "021a7380370396fe",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000793,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": "EXACT_DUPLICATE",
+      "first_action_known": true,
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "2ac7567da6b8e33e7c5eb9503c0193f4961c49efb6c536fcf8289bc9c9eab1a9"
+    },
+    {
+      "parent_digest": "fdf7553894fecea5",
+      "end_digest": "61ebc2f2c8e30267",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000732,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": "EXACT_DUPLICATE",
+      "first_action_known": true,
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "a0a9ed11d6081294c77dbd72f7ed7966c85790c36360e34512a9d98fae48a50f"
+    },
+    {
+      "parent_digest": "83c12885305d41e5",
+      "end_digest": "19c46c7c31b84cc8",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "result": "REALISED_CAMPAIGN_PROGRESS",
+      "operators": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "action_count": 1,
+      "cost": 1,
+      "visited": 2,
+      "elapsed_s": 0.000402,
+      "replay_ok": true,
+      "edge_before": 0,
+      "edge_after": 1,
+      "proof_pruning_allowed": false,
+      "unresolved_count": 0,
+      "first_action": [
+        0,
+        3,
+        1
+      ],
+      "overlap": "EXACT_DUPLICATE",
+      "first_action_known": true,
+      "family": "MERGE_READY",
+      "objective": "h MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "f8565040fccdeabedf526d990cacdf9216db51a844fdd85e527e14917da25a0b"
+    },
+    {
+      "parent_digest": "021a7380370396fe",
+      "end_digest": "021a7380370396fe",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 2,
+      "elapsed_s": 0.000945,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": "NO_SUCCESS",
+      "first_action_known": false,
+      "family": "MERGE_READY",
+      "objective": "d MERGE_READY missing 13-12",
+      "stage": {
+        "stock": 30,
+        "stock_rows": 3,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "05fc1cac80782122e23f0b02b43d86284b660c81f9ee2c7dbd7cfdb3a88ee799"
+    },
+    {
+      "parent_digest": "c06565c127ccbc7a",
+      "end_digest": "c06565c127ccbc7a",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000275,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": "NO_SUCCESS",
+      "first_action_known": false,
+      "family": "BRIDGE_READY",
+      "objective": "s BRIDGE_READY missing 13-12",
+      "stage": {
+        "stock": 50,
+        "stock_rows": 5,
+        "foundations": 0,
+        "face_down": 44,
+        "empties": 0
+      },
+      "expanded_parent": true,
+      "pair_hash": "08ca0b31a13e52217716c522dca5f9312c72b17611f6a0e9cff25431c0b9cd31"
+    },
+    {
+      "parent_digest": "64a8ca698cc303e9",
+      "end_digest": "64a8ca698cc303e9",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000306,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": "NO_SUCCESS",
+      "first_action_known": false,
+      "family": "FRAGMENT_BUILDING",
+      "objective": "s FRAGMENT_BUILDING missing 13-12",
+      "stage": {
+        "stock": 20,
+        "stock_rows": 2,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "1a972cf15c68fdaf7cb517c7e812d6e3ab2dfabe108c845ac5e7afc85c3ed42e"
+    },
+    {
+      "parent_digest": "97344b73f31f2e05",
+      "end_digest": "97344b73f31f2e05",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "result": "NO_BOUNDED_PLAN",
+      "operators": [],
+      "action_count": 0,
+      "cost": 0,
+      "visited": 1,
+      "elapsed_s": 0.000419,
+      "replay_ok": false,
+      "edge_before": 0,
+      "edge_after": 0,
+      "proof_pruning_allowed": false,
+      "unresolved_count": null,
+      "first_action": null,
+      "overlap": "NO_SUCCESS",
+      "first_action_known": false,
+      "family": "FUTURE_GATED",
+      "objective": "s FUTURE_GATED missing 13-12",
+      "stage": {
+        "stock": 40,
+        "stock_rows": 4,
+        "foundations": 0,
+        "face_down": 43,
+        "empties": 0
+      },
+      "expanded_parent": false,
+      "pair_hash": "1edbd309ec37799cbbdbb52db0b4484ade60ec205c4c92b945efd6c065d0163b"
+    }
+  ],
+  "conclusion": {
+    "novel_realised_successors": 0,
+    "successful_plans": 4,
+    "all_successes_exact_duplicates": true,
+    "max_visited": 2,
+    "max_runtime_s": 0.001031
+  }
+}
