@@ -534,6 +534,22 @@ def _reconstruct_node78():
             seen[key] = node
     stock0 = sorted(seen.values(), key=_node_priority)
     node78 = next((n for n in stock0 if n.node_id == 78), None)
+    if node78 is None:
+        # node_id is a transient search identifier, not a semantic identity.
+        def _emits_known_macro(node):
+            macros = recognise_lead_source_excavation(node.state)
+            return MACRO78 in tuple(item.actions for item in macros)
+
+        node78 = next(
+            (
+                n
+                for n in stock0
+                if _fd(n.state) == 32
+                and _empty(n.state) == 0
+                and _emits_known_macro(n)
+            ),
+            None,
+        )
     assert node78 is not None
     return node78, cards, stock0
 

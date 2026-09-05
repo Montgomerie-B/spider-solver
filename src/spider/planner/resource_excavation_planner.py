@@ -73,7 +73,11 @@ class ReceiverReservation:
 
 @dataclass(frozen=True)
 class WorkspaceObligation:
-    """Outstanding recovery of an invested empty.  Idle empties are tableau-derived."""
+    """Borrowed empty column that must be returned to empty.
+
+    ``occupant_*`` is the invested run head (not necessarily the column top).
+    Occupancy of the borrowed column, not a top-card match, is the debt.
+    """
 
     column: int
     occupant_suit: str
@@ -83,13 +87,18 @@ class WorkspaceObligation:
 
 @dataclass(frozen=True)
 class ReworkDebt:
-    """At most one bounded broken stable join, with a known repair dest."""
+    """At most one bounded broken stable join, with a known repair dest.
+
+    ``restore_join_count`` is the matching-join capacity before the break.
+    An untouched duplicate join elsewhere must not discharge this debt.
+    """
 
     suit: str
     high_rank: int
     low_rank: int
     origin_column: int
     parked_column: int
+    restore_join_count: int
 
 
 @dataclass(frozen=True)
@@ -180,6 +189,7 @@ def canonical_outstanding_obligations(
                 debt.low_rank,
                 debt.origin_column,
                 debt.parked_column,
+                debt.restore_join_count,
             )
         )
     return tuple(parts)
@@ -199,26 +209,27 @@ def unique_usable_receiver_column(
 def receiver_threat_action(
     state: SpiderState, target: CampaignTarget
 ) -> Optional[TableauMove]:
-    """Engine-legal non-owner consume of the unique usable campaign receiver.
+    """Engine-legal non-owner consume of a campaign-high top.
 
-    The rightful campaign low is not a threat.  Absence of a threat means
-    RESERVE_RECEIVER has no future consequence and must not be generated.
+    Anchored to the threatened receiver column.  A second identical copy
+    elsewhere is a different resource.  The rightful campaign low is not a
+    threat.  Absence of a threat means RESERVE_RECEIVER has no future
+    consequence and must not be generated.
     """
 
-    receiver = unique_usable_receiver_column(state, target)
-    if receiver is None:
-        return None
-    for src in range(len(state.columns)):
-        if src == receiver:
-            continue
-        max_k = _movable_run_length(state, src)
-        for k in range(1, max_k + 1):
-            if not state.can_move(src, receiver, k):
+    receivers = _rank_top_copies(state, target.suit, target.high_rank)
+    for receiver in receivers:
+        for src in range(len(state.columns)):
+            if src == receiver:
                 continue
-            head = state.columns[src].face_up[-k]
-            if head.suit == target.suit and head.rank == target.low_rank:
-                continue
-            return (src, receiver, k)
+            max_k = _movable_run_length(state, src)
+            for k in range(1, max_k + 1):
+                if not state.can_move(src, receiver, k):
+                    continue
+                head = state.columns[src].face_up[-k]
+                if head.suit == target.suit and head.rank == target.low_rank:
+                    continue
+                return (src, receiver, k)
     return None
 
 
@@ -398,37 +409,23 @@ def normalize_obligations(
     reservation = obligations.reservation
     if reservation is not None:
         top = state.columns[reservation.column].top()
-        if top is None:
+        if (
+            top is not None
+            and top.suit == reservation.consumer_suit
+            and top.rank == reservation.consumer_rank
+        ):
             reservation = None
-        elif top.suit == reservation.consumer_suit and top.rank == reservation.consumer_rank:
-            reservation = None
-        elif not (top.suit == reservation.suit and top.rank == reservation.rank):
-            relocated = _find_top(state, reservation.suit, reservation.rank)
-            if relocated is None:
-                reservation = None
-            else:
-                reservation = ReceiverReservation(
-                    relocated,
-                    reservation.suit,
-                    reservation.rank,
-                    reservation.consumer_suit,
-                    reservation.consumer_rank,
-                )
 
     workspace = obligations.workspace
     if workspace is not None:
         col = state.columns[workspace.column]
         if col.is_empty():
             workspace = None
-        else:
-            top = col.top()
-            if top is None or top.suit != workspace.occupant_suit or top.rank != workspace.occupant_rank:
-                workspace = None
 
     rework = obligations.rework
-    if rework is not None and _join_present(
+    if rework is not None and _join_count(
         state, rework.suit, rework.high_rank, rework.low_rank
-    ):
+    ) >= rework.restore_join_count:
         rework = None
 
     return ObligationState(reservation=reservation, workspace=workspace, rework=rework)
@@ -482,10 +479,12 @@ def _realise_reserve(
 ) -> Iterator[OperatorRealisation]:
     if obl.reservation is not None:
         return
-    column = unique_usable_receiver_column(state, target)
-    if column is None:
+    threat = receiver_threat_action(state, target)
+    if threat is None:
         return
-    if receiver_threat_action(state, target) is None:
+    column = threat[1]
+    top = state.columns[column].top()
+    if top is None or top.suit != target.suit or top.rank != target.high_rank:
         return
     reserved = ReceiverReservation(
         column,
@@ -739,7 +738,12 @@ def _realise_rework(
                         dst, child.suit, child.rank, child.rank + 1
                     )
                 debt = ReworkDebt(
-                    parent.suit, parent.rank, child.rank, src, dst
+                    parent.suit,
+                    parent.rank,
+                    child.rank,
+                    src,
+                    dst,
+                    _join_count(state, parent.suit, parent.rank, child.rank),
                 )
                 new_obl = ObligationState(obl.reservation, workspace, debt)
                 if new_obl.unresolved_count() > MAX_UNRESOLVED_OBLIGATIONS:
@@ -797,6 +801,8 @@ def _realise_campaign(
         and col.top().suit == target.suit
         and col.top().rank == target.high_rank
     ]
+    if obl.reservation is not None:
+        highs = [i for i in highs if i == obl.reservation.column]
     for src in range(len(state.columns)):
         k = _campaign_source_k(state, src, target)
         if k <= 0:
@@ -1102,13 +1108,18 @@ def _edge_count(state: SpiderState, target: CampaignTarget) -> int:
     return n
 
 
-def _join_present(state: SpiderState, suit: str, high: int, low: int) -> bool:
+def _join_count(state: SpiderState, suit: str, high: int, low: int) -> int:
+    n = 0
     for col in state.columns:
         up = col.face_up
         for a, b in zip(up, up[1:]):
             if a.suit == suit and b.suit == suit and a.rank == high and b.rank == low:
-                return True
-    return False
+                n += 1
+    return n
+
+
+def _join_present(state: SpiderState, suit: str, high: int, low: int) -> bool:
+    return _join_count(state, suit, high, low) > 0
 
 
 def _same_suit_join(parent: Card, child: Card) -> bool:
