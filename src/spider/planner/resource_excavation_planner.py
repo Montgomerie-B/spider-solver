@@ -512,7 +512,12 @@ def _realise_create(
         col = state.columns[src]
         if col.face_down or not col.face_up:
             continue
-        if len(col.face_up) == 1 and col.face_up[0].rank == target.high_rank:
+        # Protect the actual campaign-high card, not every same-rank singleton.
+        if (
+            len(col.face_up) == 1
+            and col.face_up[0].suit == target.suit
+            and col.face_up[0].rank == target.high_rank
+        ):
             continue
         k = len(col.face_up)
         if _movable_run_length(state, src) != k:

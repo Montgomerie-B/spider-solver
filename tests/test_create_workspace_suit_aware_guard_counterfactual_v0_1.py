@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 from spider.cards import Card
@@ -110,21 +111,36 @@ def test_production_function_restored_after_counterfactual():
     original = planner_mod._realise_create
     state = mod._filled({0: [Card("s", 12)], 1: [Card("h", 13)]})
     target = CampaignTarget("c", 12, 11)
-    with mod.create_guard_mode("G1"):
+    with mod.create_guard_mode("G0"):
         assert planner_mod._realise_create is not original
         list(planner_mod._realise_create(state, mod.empty_obligations(), target))
     assert planner_mod._realise_create is original
     assert planner_mod._realise_create is mod._ORIG_REALISE_CREATE
+    with mod.create_guard_mode("G1"):
+        assert planner_mod._realise_create is original
+    mod.run_plan(state, target, "G0")
+    assert planner_mod._realise_create is original
     mod.run_plan(state, target, "G1")
     assert planner_mod._realise_create is original
 
 
-def test_production_files_unchanged():
+def test_historical_artefact_records_pre_fix_g0_and_controller_stays_isolated():
+    """Gate 8: keep the historical JSON; production is now G1.
+
+    The counterfactual artefact still records rank-only G0 rejecting Qs.
+    Current production implements suit-and-rank.  Controller remains unwired.
+    """
+
     controller = CONTROLLER.read_text(encoding="utf-8")
     planner = PLANNER.read_text(encoding="utf-8")
     assert "resource_excavation" not in controller
-    assert "if len(col.face_up) == 1 and col.face_up[0].rank == target.high_rank:" in planner
-    assert "col.face_up[0].suit == target.suit" not in planner.split("def _realise_create")[1].split("def _realise_invest")[0]
+    create_src = planner.split("def _realise_create")[1].split("def _realise_invest")[0]
+    assert "col.face_up[0].suit == target.suit" in create_src
+    assert "col.face_up[0].rank == target.high_rank" in create_src
+    payload = json.loads(RESULT.read_text(encoding="utf-8"))
+    assert payload["natural_p_create"]["g0"] == "EXCLUDED_SINGLETON_CAMPAIGN_HIGH"
+    assert payload["natural_p_create"]["g1_emits"] is True
+    assert payload["decision"] == "A"
 
 
 def test_artefact_prefixes_and_no_same_suit_high_leak():

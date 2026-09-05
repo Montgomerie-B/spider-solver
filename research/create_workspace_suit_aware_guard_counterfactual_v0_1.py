@@ -271,28 +271,36 @@ def _remaining_create_predicates(
         )
 
 
-def _realise_create_g1(state: SpiderState, obl, target: CampaignTarget):
-    """Production CREATE plus off-suit singleton same-rank sources."""
+def _legacy_realise_create_rank_only(state: SpiderState, obl, target: CampaignTarget):
+    """Frozen pre-fix CREATE: rank-only singleton campaign-high guard.
 
-    yield from _ORIG_REALISE_CREATE(state, obl, target)
+    Historical G0.  Not production.  Production after the suit-aware fix is G1.
+    """
+
     if _idle_empties(state) or obl.workspace is not None:
         return
     for src, col in enumerate(state.columns):
         if col.face_down or not col.face_up:
             continue
-        if not (len(col.face_up) == 1 and col.face_up[0].rank == target.high_rank):
-            continue
-        if col.face_up[0].suit == target.suit:
+        if len(col.face_up) == 1 and col.face_up[0].rank == target.high_rank:
             continue
         yield from _remaining_create_predicates(state, obl, target, src, col)
 
 
+def _realise_create_g1(state: SpiderState, obl, target: CampaignTarget):
+    """Historical extra-candidate wrapper. Unused after production became G1."""
+
+    yield from _ORIG_REALISE_CREATE(state, obl, target)
+
+
 @contextmanager
 def create_guard_mode(mode: str):
+    """G0 is frozen rank-only CREATE. G1 is current production CREATE."""
+
     if mode not in {"G0", "G1"}:
         raise ValueError(mode)
     planner_mod._realise_create = (
-        _ORIG_REALISE_CREATE if mode == "G0" else _realise_create_g1
+        _legacy_realise_create_rank_only if mode == "G0" else _ORIG_REALISE_CREATE
     )
     try:
         yield
