@@ -1,7 +1,8 @@
-"""v0.1 standalone INVEST/RECOVER-positive gate.
+"""v0.1 workspace CASE W2: recovery dest is created by REALISE.
 
-Root already has an idle empty.  Recovery dest is created by REALISE, not
-present at invest time.  PREPAY/CREATE/REWORK/RESERVE must not be required.
+Root already has an idle empty.  The parked blocker's dest rank does not
+exist until the exposed campaign low joins the unique high.  Distinct from
+CASE W1 (recovery dest already present at INVEST).
 """
 
 from __future__ import annotations
