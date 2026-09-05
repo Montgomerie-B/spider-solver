@@ -1,0 +1,1295 @@
+{
+  "base_sha": "debabe17359c2f986252220aae8ed8c113c352e6",
+  "static": {
+    "widening_located": true,
+    "widening_uses_record_transition": false,
+    "widening_uses_tt_admit": false,
+    "widening_changes_tableau": false,
+    "widening_preserves_g_actions_context": true,
+    "raw_fallback_credit": 4,
+    "raw_fallback_predicate": "raw_fallback_enabled(credit) iff credit == RAW_LEGAL_FALLBACK",
+    "previous_harness_restart_identity": "canonical tableau digest only",
+    "previous_harness_frontier_from_retained_children_only": true,
+    "previous_harness_solve_anytime_clean_root": true,
+    "previous_harness_identity_is_digest": true,
+    "verdict": "PREVIOUS_FOREST_DROPPED_CREDIT"
+  },
+  "production_run": {
+    "stop_reason": "strategic expansion limit",
+    "expansions": 25,
+    "status": "RESOURCE_LIMIT"
+  },
+  "expanded_credit_histogram": {
+    "0": 25,
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 0
+  },
+  "terminal_frontier_credit_histogram": {
+    "0": 33,
+    "1": 25,
+    "2": 0,
+    "3": 0,
+    "4": 0
+  },
+  "widened": {
+    "pushed": 25,
+    "popped": 0,
+    "expanded": 0,
+    "live": 25
+  },
+  "tableau_states_with_multiple_credits": 25,
+  "multi_credit_examples": [
+    {
+      "digest": "021a7380370396fe",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "30b1cd213a2956ed",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "38ca4cbe24e07b09",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "3943a81991e43d75",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "5591fe7440637e26",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "55a4e5534aa202dc",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "564b6aa649b89649",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "565d1de7d0f17f9e",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "61ebc2f2c8e30267",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "62aedc5b18df3a37",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "7d84017545fa47fb",
+      "credits": [
+        0,
+        1
+      ]
+    },
+    {
+      "digest": "7dc747e52338babb",
+      "credits": [
+        0,
+        1
+      ]
+    }
+  ],
+  "previous_gen1_roots": [
+    {
+      "digest": "80765376ee888c25",
+      "previous_restart_identity": "80765376ee888c25",
+      "previous_restart_credit": 0,
+      "actual_credits": [
+        0
+      ],
+      "actual_origins": [
+        "transition"
+      ],
+      "widened_same_tableau": false,
+      "bucket": "C1",
+      "reason": "production identities are CLEAN; restart preserved credit 0"
+    },
+    {
+      "digest": "caf822a7a13a0821",
+      "previous_restart_identity": "caf822a7a13a0821",
+      "previous_restart_credit": 0,
+      "actual_credits": [
+        0
+      ],
+      "actual_origins": [
+        "transition"
+      ],
+      "widened_same_tableau": false,
+      "bucket": "C1",
+      "reason": "production identities are CLEAN; restart preserved credit 0"
+    },
+    {
+      "digest": "eb3e568b616e4b60",
+      "previous_restart_identity": "eb3e568b616e4b60",
+      "previous_restart_credit": 0,
+      "actual_credits": [
+        0
+      ],
+      "actual_origins": [
+        "transition"
+      ],
+      "widened_same_tableau": false,
+      "bucket": "C1",
+      "reason": "production identities are CLEAN; restart preserved credit 0"
+    },
+    {
+      "digest": "982d62a58d6006d6",
+      "previous_restart_identity": "982d62a58d6006d6",
+      "previous_restart_credit": 0,
+      "actual_credits": [
+        0
+      ],
+      "actual_origins": [
+        "transition"
+      ],
+      "widened_same_tableau": false,
+      "bucket": "C1",
+      "reason": "production identities are CLEAN; restart preserved credit 0"
+    }
+  ],
+  "previous_later_roots": {
+    "1": [
+      {
+        "digest": "80765376ee888c25",
+        "previous_restart_identity": "80765376ee888c25",
+        "previous_restart_credit": 0,
+        "actual_credits": [
+          0
+        ],
+        "actual_origins": [
+          "transition"
+        ],
+        "widened_same_tableau": false,
+        "bucket": "C1",
+        "reason": "production identities are CLEAN; restart preserved credit 0"
+      },
+      {
+        "digest": "caf822a7a13a0821",
+        "previous_restart_identity": "caf822a7a13a0821",
+        "previous_restart_credit": 0,
+        "actual_credits": [
+          0
+        ],
+        "actual_origins": [
+          "transition"
+        ],
+        "widened_same_tableau": false,
+        "bucket": "C1",
+        "reason": "production identities are CLEAN; restart preserved credit 0"
+      },
+      {
+        "digest": "eb3e568b616e4b60",
+        "previous_restart_identity": "eb3e568b616e4b60",
+        "previous_restart_credit": 0,
+        "actual_credits": [
+          0
+        ],
+        "actual_origins": [
+          "transition"
+        ],
+        "widened_same_tableau": false,
+        "bucket": "C1",
+        "reason": "production identities are CLEAN; restart preserved credit 0"
+      },
+      {
+        "digest": "982d62a58d6006d6",
+        "previous_restart_identity": "982d62a58d6006d6",
+        "previous_restart_credit": 0,
+        "actual_credits": [
+          0
+        ],
+        "actual_origins": [
+          "transition"
+        ],
+        "widened_same_tableau": false,
+        "bucket": "C1",
+        "reason": "production identities are CLEAN; restart preserved credit 0"
+      }
+    ],
+    "2": [
+      {
+        "digest": "a4d01315b152a929",
+        "previous_restart_identity": "a4d01315b152a929",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "8805bf29917decd5",
+        "previous_restart_identity": "8805bf29917decd5",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "25661c7c2a47fa7e",
+        "previous_restart_identity": "25661c7c2a47fa7e",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "22c4a5ee02c695d9",
+        "previous_restart_identity": "22c4a5ee02c695d9",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      }
+    ],
+    "3": [
+      {
+        "digest": "0a1b9902544e301d",
+        "previous_restart_identity": "0a1b9902544e301d",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "1cd6c11944ef93c8",
+        "previous_restart_identity": "1cd6c11944ef93c8",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "a2641e453b16a288",
+        "previous_restart_identity": "a2641e453b16a288",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "2f0b0c724e4600d6",
+        "previous_restart_identity": "2f0b0c724e4600d6",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      }
+    ],
+    "4": [
+      {
+        "digest": "11fd4ad3b4133a2f",
+        "previous_restart_identity": "11fd4ad3b4133a2f",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "32eb45d090c1df16",
+        "previous_restart_identity": "32eb45d090c1df16",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "1ce0eed85f84373a",
+        "previous_restart_identity": "1ce0eed85f84373a",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "c7fa4376736fa1e2",
+        "previous_restart_identity": "c7fa4376736fa1e2",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      }
+    ],
+    "5": [
+      {
+        "digest": "baabe0e58b30de2d",
+        "previous_restart_identity": "baabe0e58b30de2d",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "199866547a9eba63",
+        "previous_restart_identity": "199866547a9eba63",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "abed698dd1513e63",
+        "previous_restart_identity": "abed698dd1513e63",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "af717cec5864b771",
+        "previous_restart_identity": "af717cec5864b771",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      }
+    ],
+    "6": [
+      {
+        "digest": "2cc65ae9798af926",
+        "previous_restart_identity": "2cc65ae9798af926",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "50191cd500a3346e",
+        "previous_restart_identity": "50191cd500a3346e",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "d6dbb18311daad00",
+        "previous_restart_identity": "d6dbb18311daad00",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      },
+      {
+        "digest": "6fe301ad6017d476",
+        "previous_restart_identity": "6fe301ad6017d476",
+        "previous_restart_credit": 0,
+        "actual_credits": [],
+        "actual_origins": [],
+        "widened_same_tableau": false,
+        "bucket": "C3",
+        "reason": "digest not on observed frontier as a distinct credit identity match"
+      }
+    ]
+  },
+  "c_counts": {
+    "C1": 4,
+    "C2": 0,
+    "C3_gen1_roots": 0,
+    "C3_omitted_widened_pushes": 25
+  },
+  "exact_credit_fidelity": {
+    "n": 0,
+    "equal": 0,
+    "rows": []
+  },
+  "additional_context_required": [],
+  "clean_reset_losses": [],
+  "live_nonclean_vs_clean": [
+    {
+      "identity": "021a7380370396fe|c1",
+      "credit": 1,
+      "g": 10,
+      "credit_kinds": [
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "clean_kinds": [
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "equal_to_clean": true,
+      "raw_at_credit": 0,
+      "raw_at_clean": 0
+    },
+    {
+      "identity": "30b1cd213a2956ed|c1",
+      "credit": 1,
+      "g": 7,
+      "credit_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL",
+        "ECONOMIC_PROJECT"
+      ],
+      "clean_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "equal_to_clean": false,
+      "raw_at_credit": 0,
+      "raw_at_clean": 0
+    },
+    {
+      "identity": "38ca4cbe24e07b09|c1",
+      "credit": 1,
+      "g": 8,
+      "credit_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "clean_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "equal_to_clean": true,
+      "raw_at_credit": 0,
+      "raw_at_clean": 0
+    },
+    {
+      "identity": "3943a81991e43d75|c1",
+      "credit": 1,
+      "g": 4,
+      "credit_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "CAMPAIGN_DEPENDENCY_CLOSURE",
+        "RAW_DEAL",
+        "ECONOMIC_PROJECT"
+      ],
+      "clean_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "CAMPAIGN_DEPENDENCY_CLOSURE",
+        "RAW_DEAL"
+      ],
+      "equal_to_clean": false,
+      "raw_at_credit": 0,
+      "raw_at_clean": 0
+    },
+    {
+      "identity": "5591fe7440637e26|c1",
+      "credit": 1,
+      "g": 6,
+      "credit_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL",
+        "ECONOMIC_PROJECT"
+      ],
+      "clean_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "equal_to_clean": false,
+      "raw_at_credit": 0,
+      "raw_at_clean": 0
+    },
+    {
+      "identity": "55a4e5534aa202dc|c1",
+      "credit": 1,
+      "g": 7,
+      "credit_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "clean_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "equal_to_clean": true,
+      "raw_at_credit": 0,
+      "raw_at_clean": 0
+    },
+    {
+      "identity": "564b6aa649b89649|c1",
+      "credit": 1,
+      "g": 9,
+      "credit_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "clean_kinds": [
+        "ECONOMIC_PROJECT",
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "equal_to_clean": true,
+      "raw_at_credit": 0,
+      "raw_at_clean": 0
+    },
+    {
+      "identity": "565d1de7d0f17f9e|c1",
+      "credit": 1,
+      "g": 10,
+      "credit_kinds": [
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL",
+        "ECONOMIC_PROJECT"
+      ],
+      "clean_kinds": [
+        "ECONOMIC_PROJECT",
+        "RAW_DEAL"
+      ],
+      "equal_to_clean": false,
+      "raw_at_credit": 0,
+      "raw_at_clean": 0
+    }
+  ],
+  "raw_fallback": {
+    "credit4_nodes": 0,
+    "raw_move_count": 0,
+    "reveal": 0,
+    "empty": 0,
+    "reduces_buried_depth": 0,
+    "already_at_lower_credit": 0,
+    "moves": []
+  },
+  "expanded_nodes": [
+    {
+      "identity": "c06565c127ccbc7a|c0",
+      "digest": "c06565c127ccbc7a",
+      "credit": 0,
+      "g": 0,
+      "origin": "root",
+      "incoming_kind": null
+    },
+    {
+      "identity": "9fe64e123268a5ed|c0",
+      "digest": "9fe64e123268a5ed",
+      "credit": 0,
+      "g": 1,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "7e14b4818ef7dfd8|c0",
+      "digest": "7e14b4818ef7dfd8",
+      "credit": 0,
+      "g": 2,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "7d84017545fa47fb|c0",
+      "digest": "7d84017545fa47fb",
+      "credit": 0,
+      "g": 3,
+      "origin": "transition",
+      "incoming_kind": "CAMPAIGN_DEPENDENCY_CLOSURE"
+    },
+    {
+      "identity": "3943a81991e43d75|c0",
+      "digest": "3943a81991e43d75",
+      "credit": 0,
+      "g": 4,
+      "origin": "transition",
+      "incoming_kind": "CAMPAIGN_DEPENDENCY_CLOSURE"
+    },
+    {
+      "identity": "b4e0c5578811f48c|c0",
+      "digest": "b4e0c5578811f48c",
+      "credit": 0,
+      "g": 5,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "62aedc5b18df3a37|c0",
+      "digest": "62aedc5b18df3a37",
+      "credit": 0,
+      "g": 6,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "e85503bcea582b82|c0",
+      "digest": "e85503bcea582b82",
+      "credit": 0,
+      "g": 6,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "5591fe7440637e26|c0",
+      "digest": "5591fe7440637e26",
+      "credit": 0,
+      "g": 6,
+      "origin": "transition",
+      "incoming_kind": "CAMPAIGN_DEPENDENCY_CLOSURE"
+    },
+    {
+      "identity": "b1e4a51b06972f19|c0",
+      "digest": "b1e4a51b06972f19",
+      "credit": 0,
+      "g": 7,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "eb4b2dfca97021a5|c0",
+      "digest": "eb4b2dfca97021a5",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "7dc747e52338babb|c0",
+      "digest": "7dc747e52338babb",
+      "credit": 0,
+      "g": 7,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "30b1cd213a2956ed|c0",
+      "digest": "30b1cd213a2956ed",
+      "credit": 0,
+      "g": 7,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "38ca4cbe24e07b09|c0",
+      "digest": "38ca4cbe24e07b09",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "7f3bfe2724a7177e|c0",
+      "digest": "7f3bfe2724a7177e",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "565d1de7d0f17f9e|c0",
+      "digest": "565d1de7d0f17f9e",
+      "credit": 0,
+      "g": 10,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "564b6aa649b89649|c0",
+      "digest": "564b6aa649b89649",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "021a7380370396fe|c0",
+      "digest": "021a7380370396fe",
+      "credit": 0,
+      "g": 10,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "d38ea2b458cb4170|c0",
+      "digest": "d38ea2b458cb4170",
+      "credit": 0,
+      "g": 7,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "ade3fb73f5c9c328|c0",
+      "digest": "ade3fb73f5c9c328",
+      "credit": 0,
+      "g": 6,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "55a4e5534aa202dc|c0",
+      "digest": "55a4e5534aa202dc",
+      "credit": 0,
+      "g": 7,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "fb397858c995ec1f|c0",
+      "digest": "fb397858c995ec1f",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "83c12885305d41e5|c0",
+      "digest": "83c12885305d41e5",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "fdf7553894fecea5|c0",
+      "digest": "fdf7553894fecea5",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "61ebc2f2c8e30267|c0",
+      "digest": "61ebc2f2c8e30267",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    }
+  ],
+  "live_nodes": [
+    {
+      "identity": "80765376ee888c25|c0",
+      "digest": "80765376ee888c25",
+      "credit": 0,
+      "g": 4,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "eb3e568b616e4b60|c0",
+      "digest": "eb3e568b616e4b60",
+      "credit": 0,
+      "g": 3,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "caf822a7a13a0821|c0",
+      "digest": "caf822a7a13a0821",
+      "credit": 0,
+      "g": 5,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "b06c44d866d6e287|c0",
+      "digest": "b06c44d866d6e287",
+      "credit": 0,
+      "g": 1,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "982d62a58d6006d6|c0",
+      "digest": "982d62a58d6006d6",
+      "credit": 0,
+      "g": 2,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "f4e8c3320f0883c5|c0",
+      "digest": "f4e8c3320f0883c5",
+      "credit": 0,
+      "g": 2,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "c305fb2a65b52294|c0",
+      "digest": "c305fb2a65b52294",
+      "credit": 0,
+      "g": 5,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "751ea69a53fd34e2|c0",
+      "digest": "751ea69a53fd34e2",
+      "credit": 0,
+      "g": 1,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "85247a9d4ed4a5c0|c0",
+      "digest": "85247a9d4ed4a5c0",
+      "credit": 0,
+      "g": 11,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "225c381ec78801a0|c0",
+      "digest": "225c381ec78801a0",
+      "credit": 0,
+      "g": 11,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "64a8ca698cc303e9|c0",
+      "digest": "64a8ca698cc303e9",
+      "credit": 0,
+      "g": 7,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "1eb69ee5c4de1ab8|c0",
+      "digest": "1eb69ee5c4de1ab8",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "19c46c7c31b84cc8|c0",
+      "digest": "19c46c7c31b84cc8",
+      "credit": 0,
+      "g": 10,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "fe523abfde9d0680|c0",
+      "digest": "fe523abfde9d0680",
+      "credit": 0,
+      "g": 10,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "f3f7310293855a2a|c0",
+      "digest": "f3f7310293855a2a",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "4c1a0cb7efb270f9|c0",
+      "digest": "4c1a0cb7efb270f9",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "628018b882f32c3e|c0",
+      "digest": "628018b882f32c3e",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "38ca4cbe24e07b09|c1",
+      "digest": "38ca4cbe24e07b09",
+      "credit": 1,
+      "g": 8,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "6342ea1c390acd7f|c0",
+      "digest": "6342ea1c390acd7f",
+      "credit": 0,
+      "g": 10,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "97344b73f31f2e05|c0",
+      "digest": "97344b73f31f2e05",
+      "credit": 0,
+      "g": 7,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "3d69ad2455fc6de1|c0",
+      "digest": "3d69ad2455fc6de1",
+      "credit": 0,
+      "g": 10,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "4ab67805393766d6|c0",
+      "digest": "4ab67805393766d6",
+      "credit": 0,
+      "g": 7,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "8974feef67581a77|c0",
+      "digest": "8974feef67581a77",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "55a4e5534aa202dc|c1",
+      "digest": "55a4e5534aa202dc",
+      "credit": 1,
+      "g": 7,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "fb397858c995ec1f|c1",
+      "digest": "fb397858c995ec1f",
+      "credit": 1,
+      "g": 8,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "f1af626b9f8c6552|c0",
+      "digest": "f1af626b9f8c6552",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "97144fe302c881c2|c0",
+      "digest": "97144fe302c881c2",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "b56e6ab2ad0355ec|c0",
+      "digest": "b56e6ab2ad0355ec",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "fdd038d5e111621f|c0",
+      "digest": "fdd038d5e111621f",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "3943a81991e43d75|c1",
+      "digest": "3943a81991e43d75",
+      "credit": 1,
+      "g": 4,
+      "origin": "credit_widening",
+      "incoming_kind": "CAMPAIGN_DEPENDENCY_CLOSURE"
+    },
+    {
+      "identity": "30b1cd213a2956ed|c1",
+      "digest": "30b1cd213a2956ed",
+      "credit": 1,
+      "g": 7,
+      "origin": "credit_widening",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "d38ea2b458cb4170|c1",
+      "digest": "d38ea2b458cb4170",
+      "credit": 1,
+      "g": 7,
+      "origin": "credit_widening",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "b4e0c5578811f48c|c1",
+      "digest": "b4e0c5578811f48c",
+      "credit": 1,
+      "g": 5,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "9fe64e123268a5ed|c1",
+      "digest": "9fe64e123268a5ed",
+      "credit": 1,
+      "g": 1,
+      "origin": "credit_widening",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "021a7380370396fe|c1",
+      "digest": "021a7380370396fe",
+      "credit": 1,
+      "g": 10,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "7e14b4818ef7dfd8|c1",
+      "digest": "7e14b4818ef7dfd8",
+      "credit": 1,
+      "g": 2,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "eb4b2dfca97021a5|c1",
+      "digest": "eb4b2dfca97021a5",
+      "credit": 1,
+      "g": 8,
+      "origin": "credit_widening",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "7f3bfe2724a7177e|c1",
+      "digest": "7f3bfe2724a7177e",
+      "credit": 1,
+      "g": 9,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "75cf1236074f5eeb|c0",
+      "digest": "75cf1236074f5eeb",
+      "credit": 0,
+      "g": 11,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "565d1de7d0f17f9e|c1",
+      "digest": "565d1de7d0f17f9e",
+      "credit": 1,
+      "g": 10,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "62aedc5b18df3a37|c1",
+      "digest": "62aedc5b18df3a37",
+      "credit": 1,
+      "g": 6,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "564b6aa649b89649|c1",
+      "digest": "564b6aa649b89649",
+      "credit": 1,
+      "g": 9,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "712918f2ef1c65aa|c0",
+      "digest": "712918f2ef1c65aa",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "e85503bcea582b82|c1",
+      "digest": "e85503bcea582b82",
+      "credit": 1,
+      "g": 6,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "83ae5414f9c1bc8f|c0",
+      "digest": "83ae5414f9c1bc8f",
+      "credit": 0,
+      "g": 4,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "5591fe7440637e26|c1",
+      "digest": "5591fe7440637e26",
+      "credit": 1,
+      "g": 6,
+      "origin": "credit_widening",
+      "incoming_kind": "CAMPAIGN_DEPENDENCY_CLOSURE"
+    },
+    {
+      "identity": "c06565c127ccbc7a|c1",
+      "digest": "c06565c127ccbc7a",
+      "credit": 1,
+      "g": 0,
+      "origin": "credit_widening",
+      "incoming_kind": null
+    },
+    {
+      "identity": "ade3fb73f5c9c328|c1",
+      "digest": "ade3fb73f5c9c328",
+      "credit": 1,
+      "g": 6,
+      "origin": "credit_widening",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "7d84017545fa47fb|c1",
+      "digest": "7d84017545fa47fb",
+      "credit": 1,
+      "g": 3,
+      "origin": "credit_widening",
+      "incoming_kind": "CAMPAIGN_DEPENDENCY_CLOSURE"
+    },
+    {
+      "identity": "7dc747e52338babb|c1",
+      "digest": "7dc747e52338babb",
+      "credit": 1,
+      "g": 7,
+      "origin": "credit_widening",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "83c12885305d41e5|c1",
+      "digest": "83c12885305d41e5",
+      "credit": 1,
+      "g": 9,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "b1e4a51b06972f19|c1",
+      "digest": "b1e4a51b06972f19",
+      "credit": 1,
+      "g": 7,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "7b7389ce3c1cc362|c0",
+      "digest": "7b7389ce3c1cc362",
+      "credit": 0,
+      "g": 9,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "fc7f44496554ccb1|c0",
+      "digest": "fc7f44496554ccb1",
+      "credit": 0,
+      "g": 10,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "fdf7553894fecea5|c1",
+      "digest": "fdf7553894fecea5",
+      "credit": 1,
+      "g": 8,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "bcafdbf4913416f1|c0",
+      "digest": "bcafdbf4913416f1",
+      "credit": 0,
+      "g": 3,
+      "origin": "transition",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    },
+    {
+      "identity": "fb67f48139ca34e0|c0",
+      "digest": "fb67f48139ca34e0",
+      "credit": 0,
+      "g": 8,
+      "origin": "transition",
+      "incoming_kind": "RAW_DEAL"
+    },
+    {
+      "identity": "61ebc2f2c8e30267|c1",
+      "digest": "61ebc2f2c8e30267",
+      "credit": 1,
+      "g": 9,
+      "origin": "credit_widening",
+      "incoming_kind": "ECONOMIC_PROJECT"
+    }
+  ]
+}
