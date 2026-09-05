@@ -574,7 +574,9 @@ def _realise_invest(
             if exposed is None or not _useful_card(exposed, nxt, src, target):
                 continue
             recovery = _recovery_dests(nxt, dst, k, obl, forbidden=(src,))
-            if not recovery:
+            if not recovery and not _realise_would_create_recovery_dest(
+                nxt, src, head, exposed, target
+            ):
                 continue
             workspace = WorkspaceObligation(
                 dst, head.suit, head.rank, head.rank + 1
@@ -606,8 +608,19 @@ def _realise_recover(
             continue
         if _destroys_reserved_without_payoff(state, obl, target, action):
             continue
+        dest_top = state.columns[dst].top()
+        if (
+            dest_top is not None
+            and dest_top.suit == target.suit
+            and dest_top.rank == target.low_rank
+            and _edge_count(state, target) == 0
+        ):
+            # Recovering onto the still-unrealised campaign low re-covers it.
+            continue
         nxt, ok = _play(state, (action,))
         if not ok or not nxt.columns[src].is_empty():
+            continue
+        if _edge_count(nxt, target) < _edge_count(state, target):
             continue
         yield OperatorRealisation(
             OperatorKind.RECOVER_WORKSPACE,
@@ -931,6 +944,31 @@ def _rework_destinations(
             continue
         dests.append(dst)
     return tuple(dests)
+
+
+def _realise_would_create_recovery_dest(
+    post_invest: SpiderState,
+    source_column: int,
+    occupant: Card,
+    exposed: Card,
+    target: CampaignTarget,
+) -> bool:
+    """True when realising the newly exposed campaign low creates occupant's dest.
+
+    The parked card's recovery rank is occupant.rank+1.  If that equals the
+    exposed campaign low, joining the low onto the unique campaign high makes
+    a bounded recovery dest that does not re-cover the source in place.
+    """
+
+    if exposed.suit != target.suit or exposed.rank != target.low_rank:
+        return False
+    if occupant.rank + 1 != exposed.rank:
+        return False
+    receiver = unique_usable_receiver_column(post_invest, target)
+    if receiver is None or receiver == source_column:
+        return False
+    k = _campaign_source_k(post_invest, source_column, target)
+    return k > 0 and post_invest.can_move(source_column, receiver, k)
 
 
 def _recovery_dests(
