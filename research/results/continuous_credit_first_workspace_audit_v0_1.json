@@ -1,0 +1,876 @@
+{
+  "base_sha": "e7342067e22696600ec92696a3b325f26849d8b0",
+  "calibration": {
+    "metrics": {
+      "expansions": 25,
+      "stop_reason": "strategic expansion limit",
+      "expanded_credit": {
+        "0": 25,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "live_credit": {
+        "0": 33,
+        "1": 25,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "widened_pushed": 25,
+      "widened_popped": 0,
+      "generated": 65,
+      "retained": 57,
+      "tt_new": 58,
+      "tt_suppressed": 8,
+      "successor_kinds": {
+        "CAMPAIGN_DEPENDENCY_CLOSURE": 3,
+        "ECONOMIC_PROJECT": 29,
+        "RAW_DEAL": 25
+      }
+    },
+    "mismatches": {}
+  },
+  "long_run": {
+    "max_strategic_expansions": 400,
+    "max_tactical_nodes": 300000,
+    "wall_clock_limit_s": 900,
+    "stop_reason": "strategic expansion limit",
+    "expansions": 400,
+    "elapsed_s": 499.196,
+    "tactical_nodes": 1049,
+    "tt_new": 915,
+    "tt_improved": 0,
+    "tt_suppressed": 191,
+    "generated": 1105,
+    "retained": 914,
+    "maximum_credit_reached": 0
+  },
+  "milestones": {
+    "25": {
+      "expansions": 25,
+      "expanded_credit": {
+        "0": 25,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "live_credit": {
+        "0": 33,
+        "1": 25,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "widened": {
+        "pushed": 25,
+        "popped": 0,
+        "expanded": 0,
+        "live": 25
+      },
+      "frontier_size": 58,
+      "tt_new": 0,
+      "tt_improved": 0,
+      "tt_suppressed": 8,
+      "progress": {
+        "min_face_down": 43,
+        "min_col_fd": 3,
+        "max_fully_revealed": 0,
+        "max_empties": 0,
+        "max_foundations": 0,
+        "stock_rows": {
+          "2": 15,
+          "3": 45,
+          "4": 27,
+          "5": 3
+        }
+      },
+      "starvation": {
+        "frontier_size": 58,
+        "credit_order_prefix": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "best": {
+          "1": {
+            "rank": 34,
+            "ahead": {
+              "0": 33
+            },
+            "lower_credit_ahead": 33,
+            "credit0_ahead": 33
+          },
+          "2": null,
+          "3": null,
+          "4": null
+        }
+      }
+    },
+    "50": {
+      "expansions": 50,
+      "expanded_credit": {
+        "0": 50,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "live_credit": {
+        "0": 65,
+        "1": 50,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "widened": {
+        "pushed": 50,
+        "popped": 0,
+        "expanded": 0,
+        "live": 50
+      },
+      "frontier_size": 115,
+      "tt_new": 0,
+      "tt_improved": 0,
+      "tt_suppressed": 15,
+      "progress": {
+        "min_face_down": 43,
+        "min_col_fd": 3,
+        "max_fully_revealed": 0,
+        "max_empties": 0,
+        "max_foundations": 0,
+        "stock_rows": {
+          "2": 39,
+          "3": 108,
+          "4": 29,
+          "5": 3
+        }
+      },
+      "starvation": {
+        "frontier_size": 115,
+        "credit_order_prefix": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "best": {
+          "1": {
+            "rank": 66,
+            "ahead": {
+              "0": 65
+            },
+            "lower_credit_ahead": 65,
+            "credit0_ahead": 65
+          },
+          "2": null,
+          "3": null,
+          "4": null
+        }
+      }
+    },
+    "100": {
+      "expansions": 100,
+      "expanded_credit": {
+        "0": 100,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "live_credit": {
+        "0": 129,
+        "1": 100,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "widened": {
+        "pushed": 100,
+        "popped": 0,
+        "expanded": 0,
+        "live": 100
+      },
+      "frontier_size": 229,
+      "tt_new": 0,
+      "tt_improved": 0,
+      "tt_suppressed": 34,
+      "progress": {
+        "min_face_down": 40,
+        "min_col_fd": 2,
+        "max_fully_revealed": 0,
+        "max_empties": 0,
+        "max_foundations": 0,
+        "stock_rows": {
+          "2": 75,
+          "3": 214,
+          "4": 63,
+          "5": 10
+        }
+      },
+      "starvation": {
+        "frontier_size": 229,
+        "credit_order_prefix": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "best": {
+          "1": {
+            "rank": 130,
+            "ahead": {
+              "0": 129
+            },
+            "lower_credit_ahead": 129,
+            "credit0_ahead": 129
+          },
+          "2": null,
+          "3": null,
+          "4": null
+        }
+      }
+    },
+    "200": {
+      "expansions": 200,
+      "expanded_credit": {
+        "0": 200,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "live_credit": {
+        "0": 251,
+        "1": 5,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "widened": {
+        "pushed": 200,
+        "popped": 0,
+        "expanded": 0,
+        "live": 5
+      },
+      "frontier_size": 256,
+      "tt_new": 0,
+      "tt_improved": 0,
+      "tt_suppressed": 80,
+      "progress": {
+        "min_face_down": 37,
+        "min_col_fd": 0,
+        "max_fully_revealed": 1,
+        "max_empties": 0,
+        "max_foundations": 0,
+        "stock_rows": {
+          "2": 140,
+          "3": 404,
+          "4": 158,
+          "5": 28
+        }
+      },
+      "starvation": {
+        "frontier_size": 256,
+        "credit_order_prefix": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "best": {
+          "1": {
+            "rank": 252,
+            "ahead": {
+              "0": 251
+            },
+            "lower_credit_ahead": 251,
+            "credit0_ahead": 251
+          },
+          "2": null,
+          "3": null,
+          "4": null
+        }
+      }
+    },
+    "400": {
+      "expansions": 400,
+      "expanded_credit": {
+        "0": 400,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "live_credit": {
+        "0": 255,
+        "1": 1,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "widened": {
+        "pushed": 400,
+        "popped": 0,
+        "expanded": 0,
+        "live": 1
+      },
+      "frontier_size": 256,
+      "tt_new": 915,
+      "tt_improved": 0,
+      "tt_suppressed": 191,
+      "progress": {
+        "min_face_down": 37,
+        "min_col_fd": 0,
+        "max_fully_revealed": 1,
+        "max_empties": 0,
+        "max_foundations": 0,
+        "stock_rows": {
+          "2": 292,
+          "3": 864,
+          "4": 313,
+          "5": 36
+        }
+      },
+      "starvation": {
+        "frontier_size": 256,
+        "credit_order_prefix": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "best": {
+          "1": {
+            "rank": 256,
+            "ahead": {
+              "0": 255
+            },
+            "lower_credit_ahead": 255,
+            "credit0_ahead": 255
+          },
+          "2": null,
+          "3": null,
+          "4": null
+        }
+      }
+    }
+  },
+  "first_credit": {
+    "push": {
+      "0": 0,
+      "1": 1
+    },
+    "pop": {
+      "0": 0
+    },
+    "expand": {
+      "0": 1
+    }
+  },
+  "terminal_live_credit": {
+    "0": 255,
+    "1": 1,
+    "2": 0,
+    "3": 0,
+    "4": 0
+  },
+  "widened": {
+    "pushed": 400,
+    "popped": 0,
+    "expanded": 0,
+    "live": 1
+  },
+  "geometry": {
+    "R1": {
+      "generated": 20,
+      "retained": 20,
+      "expanded": 9
+    },
+    "R2": {
+      "generated": 4,
+      "retained": 4,
+      "expanded": 0
+    },
+    "R3": {
+      "generated": 1,
+      "retained": 1,
+      "expanded": 0
+    },
+    "R4": {
+      "generated": 0,
+      "retained": 0,
+      "expanded": 0
+    },
+    "R5": {
+      "generated": 0,
+      "retained": 0,
+      "expanded": 0
+    }
+  },
+  "credit_kind": {
+    "0": {
+      "ECONOMIC_PROJECT": 571,
+      "RAW_DEAL": 400,
+      "CAMPAIGN_DEPENDENCY_CLOSURE": 124,
+      "SAME_SUIT_CONSTRUCTION": 10
+    }
+  },
+  "credit_geometry": {
+    "0": {
+      "R1": {
+        "generated": 20,
+        "retained": 20,
+        "expanded": 9
+      },
+      "R2": {
+        "generated": 4,
+        "retained": 4,
+        "expanded": 0
+      },
+      "R3": {
+        "generated": 1,
+        "retained": 1,
+        "expanded": 0
+      },
+      "R4": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R5": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      }
+    },
+    "1": {
+      "R1": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R2": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R3": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R4": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R5": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      }
+    },
+    "2": {
+      "R1": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R2": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R3": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R4": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R5": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      }
+    },
+    "3": {
+      "R1": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R2": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R3": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R4": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R5": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      }
+    },
+    "4": {
+      "R1": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R2": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R3": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R4": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      },
+      "R5": {
+        "generated": 0,
+        "retained": 0,
+        "expanded": 0
+      }
+    }
+  },
+  "first_events": {
+    "R1": {
+      "expansion": 1,
+      "parent_credit": 0,
+      "parent_digest": "c06565c127ccbc7a",
+      "kind": "ECONOMIC_PROJECT",
+      "category": "run_construction",
+      "actions": [
+        [
+          2,
+          5,
+          1
+        ]
+      ],
+      "cost": 1,
+      "child_digest": "751ea69a53fd34e2",
+      "lifecycle": "RETAINED",
+      "stock_rows_before": 5,
+      "stock_rows_after": 5,
+      "face_down_before": 44,
+      "face_down_after": 43,
+      "col_fd_before": [
+        5,
+        5,
+        5,
+        5,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "col_fd_after": [
+        5,
+        5,
+        4,
+        5,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "empties_before": 0,
+      "empties_after": 0,
+      "parent_path": [],
+      "replay": {
+        "replay_ok": true,
+        "replay_cost": 1,
+        "end_digest": "751ea69a53fd34e2",
+        "matches_child": true,
+        "path_len": 1
+      }
+    },
+    "R2": {
+      "expansion": 116,
+      "parent_credit": 0,
+      "parent_digest": "ef231f9fa3ba01d6",
+      "kind": "ECONOMIC_PROJECT",
+      "category": "run_construction",
+      "actions": [
+        [
+          5,
+          4,
+          1
+        ]
+      ],
+      "cost": 1,
+      "child_digest": "1c3d3ec77bf164ad",
+      "lifecycle": "RETAINED",
+      "stock_rows_before": 5,
+      "stock_rows_after": 5,
+      "face_down_before": 40,
+      "face_down_after": 39,
+      "col_fd_before": [
+        5,
+        5,
+        4,
+        5,
+        4,
+        1,
+        4,
+        4,
+        4,
+        4
+      ],
+      "col_fd_after": [
+        5,
+        5,
+        4,
+        5,
+        4,
+        0,
+        4,
+        4,
+        4,
+        4
+      ],
+      "empties_before": 0,
+      "empties_after": 0,
+      "parent_path": [
+        [
+          5,
+          7,
+          1
+        ],
+        [
+          2,
+          7,
+          1
+        ],
+        [
+          5,
+          7,
+          1
+        ],
+        [
+          5,
+          7,
+          1
+        ]
+      ],
+      "replay": {
+        "replay_ok": true,
+        "replay_cost": 5,
+        "end_digest": "1c3d3ec77bf164ad",
+        "matches_child": true,
+        "path_len": 5
+      }
+    },
+    "R3": {
+      "expansion": 116,
+      "parent_credit": 0,
+      "parent_digest": "ef231f9fa3ba01d6",
+      "kind": "ECONOMIC_PROJECT",
+      "category": "run_construction",
+      "actions": [
+        [
+          5,
+          4,
+          1
+        ]
+      ],
+      "cost": 1,
+      "child_digest": "1c3d3ec77bf164ad",
+      "lifecycle": "RETAINED",
+      "stock_rows_before": 5,
+      "stock_rows_after": 5,
+      "face_down_before": 40,
+      "face_down_after": 39,
+      "col_fd_before": [
+        5,
+        5,
+        4,
+        5,
+        4,
+        1,
+        4,
+        4,
+        4,
+        4
+      ],
+      "col_fd_after": [
+        5,
+        5,
+        4,
+        5,
+        4,
+        0,
+        4,
+        4,
+        4,
+        4
+      ],
+      "empties_before": 0,
+      "empties_after": 0,
+      "parent_path": [
+        [
+          5,
+          7,
+          1
+        ],
+        [
+          2,
+          7,
+          1
+        ],
+        [
+          5,
+          7,
+          1
+        ],
+        [
+          5,
+          7,
+          1
+        ]
+      ],
+      "replay": {
+        "replay_ok": true,
+        "replay_cost": 5,
+        "end_digest": "1c3d3ec77bf164ad",
+        "matches_child": true,
+        "path_len": 5
+      }
+    }
+  },
+  "raw": {
+    "credit4_expanded": 0,
+    "p_counts": {},
+    "raw_flag_counts": {},
+    "geometry_samples": []
+  },
+  "progress": {
+    "min_face_down": 37,
+    "min_col_fd": 0,
+    "max_fully_revealed": 1,
+    "max_empties": 0,
+    "max_foundations": 0
+  },
+  "starvation_terminal": {
+    "frontier_size": 256,
+    "credit_order_prefix": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "best": {
+      "1": {
+        "rank": 256,
+        "ahead": {
+          "0": 255
+        },
+        "lower_credit_ahead": 255,
+        "credit0_ahead": 255
+      },
+      "2": null,
+      "3": null,
+      "4": null
+    }
+  },
+  "positive_successors": 20
+}
