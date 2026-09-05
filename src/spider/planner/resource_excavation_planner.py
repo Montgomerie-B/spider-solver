@@ -109,6 +109,7 @@ class ResourceExcavationPlan:
     result: ResourcePlanResult
     actions: Tuple[TableauMove, ...] = ()
     operators: Tuple[OperatorKind, ...] = ()
+    operator_trace: Tuple[Tuple[OperatorKind, Tuple[TableauMove, ...]], ...] = ()
     cost: int = 0
     visited: int = 0
     replay_ok: bool = False
@@ -215,6 +216,7 @@ def plan_resource_excavation(
     target: CampaignTarget,
     *,
     obligations: Optional[ObligationState] = None,
+    disabled_operators: Sequence[OperatorKind] = (),
 ) -> ResourceExcavationPlan:
     """Search operator sequences for campaign-edge or prepaid progress."""
 
@@ -222,7 +224,12 @@ def plan_resource_excavation(
     start_obl = normalize_obligations(start, obligations or empty_obligations())
     edges0 = _edge_count(start, target)
     queue: deque[
-        Tuple[SpiderState, ObligationState, Tuple[TableauMove, ...], Tuple[OperatorKind, ...]]
+        Tuple[
+            SpiderState,
+            ObligationState,
+            Tuple[TableauMove, ...],
+            Tuple[Tuple[OperatorKind, Tuple[TableauMove, ...]], ...],
+        ]
     ] = deque()
     queue.append((start, start_obl, (), ()))
     seen = {local_transposition_key(start, start_obl)}
@@ -231,8 +238,9 @@ def plan_resource_excavation(
     prepaid_hit: Optional[ResourceExcavationPlan] = None
 
     while queue:
-        cur, obl, actions, ops = queue.popleft()
+        cur, obl, actions, trace = queue.popleft()
         visited += 1
+        ops = tuple(kind for kind, _acts in trace)
         edges = _edge_count(cur, target)
         if edges > edges0 and obl.unresolved_count() == 0:
             replay = start.clone()
@@ -245,6 +253,7 @@ def plan_resource_excavation(
                     ResourcePlanResult.REALISED_CAMPAIGN_PROGRESS,
                     actions=actions,
                     operators=ops,
+                    operator_trace=trace,
                     cost=paid,
                     visited=visited,
                     replay_ok=True,
@@ -258,15 +267,18 @@ def plan_resource_excavation(
                     ResourcePlanResult.PREPAID_DEPENDENCY,
                     actions=actions,
                     operators=ops,
+                    operator_trace=trace,
                     cost=prepaid,
                     visited=visited,
                     replay_ok=True,
                     edge_before=edges0,
                     edge_after=edges,
                 )
-        if len(ops) >= MAX_OPERATORS:
+        if len(trace) >= MAX_OPERATORS:
             continue
-        for step in _generate_steps(cur, obl, target):
+        for step in _generate_steps(
+            cur, obl, target, disabled=disabled_operators
+        ):
             if any(is_reserved_receiver_misuse(cur, obl, action) for action in step.actions):
                 continue
             new_obl = normalize_obligations(step.state, step.obligations)
@@ -297,7 +309,7 @@ def plan_resource_excavation(
                     step.state,
                     new_obl,
                     actions + step.actions,
-                    ops + (step.kind,),
+                    trace + ((step.kind, step.actions),),
                 )
             )
 
@@ -386,6 +398,7 @@ def _generate_steps(
     target: CampaignTarget,
     *,
     kinds: Optional[Sequence[OperatorKind]] = None,
+    disabled: Sequence[OperatorKind] = (),
 ) -> Iterator[OperatorRealisation]:
     order = kinds or (
         OperatorKind.RESERVE_RECEIVER,
@@ -397,6 +410,7 @@ def _generate_steps(
         OperatorKind.TEMPORARY_REWORK,
         OperatorKind.INVEST_WORKSPACE,
     )
+    blocked = set(disabled)
     generators: dict[OperatorKind, Callable[..., Iterator[OperatorRealisation]]] = {
         OperatorKind.RESERVE_RECEIVER: _realise_reserve,
         OperatorKind.REALISE_CAMPAIGN_EDGE: _realise_campaign,
@@ -408,6 +422,8 @@ def _generate_steps(
         OperatorKind.INVEST_WORKSPACE: _realise_invest,
     }
     for kind in order:
+        if kind in blocked:
+            continue
         yield from generators[kind](state, obl, target)
 
 
@@ -464,6 +480,8 @@ def _realise_create(
                 continue
             nxt, ok = _play(state, (action,))
             if not ok or not nxt.columns[src].is_empty():
+                continue
+            if _edge_count(nxt, target) > _edge_count(state, target):
                 continue
             yield OperatorRealisation(
                 OperatorKind.CREATE_WORKSPACE,
@@ -620,51 +638,53 @@ def _realise_rework(
         up = state.columns[src].face_up
         if len(up) < 2:
             continue
-        k = _movable_run_length(state, src)
-        if k <= 0 or k >= len(up):
+        max_k = _movable_run_length(state, src)
+        if max_k <= 0:
             continue
-        child = up[-k]
-        parent = up[-k - 1]
-        if not _same_suit_join(parent, child):
-            continue
-        if not _useful_card(parent, state, src, target) and not _useful_card(
-            child, state, src, target
-        ):
-            # Breaking is only admitted when it exposes campaign material.
-            if not (
-                parent.suit == target.suit
-                and parent.rank in (target.high_rank, target.low_rank)
+        for k in range(1, max_k + 1):
+            if k >= len(up):
+                continue
+            child = up[-k]
+            parent = up[-k - 1]
+            if not _same_suit_join(parent, child):
+                continue
+            if not _useful_card(parent, state, src, target) and not _useful_card(
+                child, state, src, target
             ):
+                if not (
+                    parent.suit == target.suit
+                    and parent.rank in (target.high_rank, target.low_rank)
+                ):
+                    continue
+            dests = _rework_destinations(state, src, k, obl, target)
+            if not dests:
                 continue
-        dests = _rework_destinations(state, src, k, obl, target)
-        if not dests:
-            continue
-        for dst in dests:
-            action = (src, dst, k)
-            if not _breaks_join(state, action):
-                continue
-            if is_reserved_receiver_misuse(state, obl, action):
-                continue
-            nxt, ok = _play(state, (action,))
-            if not ok:
-                continue
-            workspace = obl.workspace
-            if nxt.columns[dst].top() is not None and state.columns[dst].is_empty():
-                workspace = WorkspaceObligation(
-                    dst, child.suit, child.rank, child.rank + 1
+            for dst in dests:
+                action = (src, dst, k)
+                if not _breaks_join(state, action):
+                    continue
+                if is_reserved_receiver_misuse(state, obl, action):
+                    continue
+                nxt, ok = _play(state, (action,))
+                if not ok:
+                    continue
+                workspace = obl.workspace
+                if nxt.columns[dst].top() is not None and state.columns[dst].is_empty():
+                    workspace = WorkspaceObligation(
+                        dst, child.suit, child.rank, child.rank + 1
+                    )
+                debt = ReworkDebt(
+                    parent.suit, parent.rank, child.rank, src, dst
                 )
-            debt = ReworkDebt(
-                parent.suit, parent.rank, child.rank, src, dst
-            )
-            new_obl = ObligationState(obl.reservation, workspace, debt)
-            if new_obl.unresolved_count() > MAX_UNRESOLVED_OBLIGATIONS:
-                continue
-            yield OperatorRealisation(
-                OperatorKind.TEMPORARY_REWORK,
-                (action,),
-                nxt,
-                new_obl,
-            )
+                new_obl = ObligationState(obl.reservation, workspace, debt)
+                if new_obl.unresolved_count() > MAX_UNRESOLVED_OBLIGATIONS:
+                    continue
+                yield OperatorRealisation(
+                    OperatorKind.TEMPORARY_REWORK,
+                    (action,),
+                    nxt,
+                    new_obl,
+                )
 
 
 def _realise_repay(
@@ -682,13 +702,6 @@ def _realise_repay(
         return
     high_col = _find_top(state, debt.suit, debt.high_rank)
     if high_col is None:
-        if _edge_count(state, target) > 0:
-            yield OperatorRealisation(
-                OperatorKind.REPAY_REWORK,
-                (),
-                state.clone(),
-                ObligationState(obl.reservation, obl.workspace, None),
-            )
         return
     action = (parked, high_col, k)
     if not state.can_move(parked, high_col, k):
@@ -736,16 +749,11 @@ def _realise_campaign(
                 continue
             if _edge_count(nxt, target) <= _edge_count(state, target):
                 continue
-            new_obl = obl
-            if obl.rework is not None and _join_present(
-                nxt, obl.rework.suit, obl.rework.high_rank, obl.rework.low_rank
-            ):
-                new_obl = ObligationState(obl.reservation, obl.workspace, None)
             yield OperatorRealisation(
                 OperatorKind.REALISE_CAMPAIGN_EDGE,
                 (action,),
                 nxt,
-                new_obl,
+                obl,
             )
 
 
@@ -932,18 +940,22 @@ def _destroys_reserved_without_payoff(
 
 
 def _campaign_source_k(state: SpiderState, src: int, target: CampaignTarget) -> int:
+    """Realise only an already-exposed campaign low.
+
+    A buried low that is merely the head of a same-suit run under a join is
+    not yet a realisable source; exposing it is TEMPORARY_REWORK, not REALISE.
+    """
+
     up = state.columns[src].face_up
     if not up:
+        return 0
+    top = up[-1]
+    if top.suit != target.suit or top.rank != target.low_rank:
         return 0
     k = _movable_run_length(state, src)
     if k <= 0:
         return 0
-    head = up[-k]
-    if head.suit == target.suit and head.rank == target.low_rank:
-        return k
-    if up[-1].suit == target.suit and up[-1].rank == target.low_rank:
-        return 1
-    return 0
+    return 1
 
 
 def _campaign_source_k_any(state: SpiderState, target: CampaignTarget) -> bool:
