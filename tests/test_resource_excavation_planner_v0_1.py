@@ -226,7 +226,25 @@ def test_n1_reserved_receiver_misuse_rejected():
         state, target, OperatorKind.REALISE_CAMPAIGN_EDGE, obligations=obl, candidate=action
     ) is None
     plan = plan_resource_excavation(state, target)
-    assert action not in plan.actions
+    cur = state.clone()
+    for _kind, acts in plan.operator_trace:
+        for act in acts:
+            if act != action:
+                continue
+            dest_top = cur.columns[reserved_col].top()
+            src_top = cur.columns[thief_col].top()
+            thief_on_reserved = (
+                dest_top is not None
+                and dest_top.suit == target.suit
+                and dest_top.rank == target.high_rank
+                and src_top is not None
+                and not (
+                    src_top.suit == target.suit and src_top.rank == target.low_rank
+                )
+            )
+            assert not thief_on_reserved
+        if acts:
+            replay_actions(cur, list(acts))
 
 
 def test_n2_break_without_destination_rejected():

@@ -185,6 +185,43 @@ def canonical_outstanding_obligations(
     return tuple(parts)
 
 
+def unique_usable_receiver_column(
+    state: SpiderState, target: CampaignTarget
+) -> Optional[int]:
+    """Column of the unique currently-top campaign-high copy, or None."""
+
+    cols = _rank_top_copies(state, target.suit, target.high_rank)
+    if len(cols) != 1:
+        return None
+    return cols[0]
+
+
+def receiver_threat_action(
+    state: SpiderState, target: CampaignTarget
+) -> Optional[TableauMove]:
+    """Engine-legal non-owner consume of the unique usable campaign receiver.
+
+    The rightful campaign low is not a threat.  Absence of a threat means
+    RESERVE_RECEIVER has no future consequence and must not be generated.
+    """
+
+    receiver = unique_usable_receiver_column(state, target)
+    if receiver is None:
+        return None
+    for src in range(len(state.columns)):
+        if src == receiver:
+            continue
+        max_k = _movable_run_length(state, src)
+        for k in range(1, max_k + 1):
+            if not state.can_move(src, receiver, k):
+                continue
+            head = state.columns[src].face_up[-k]
+            if head.suit == target.suit and head.rank == target.low_rank:
+                continue
+            return (src, receiver, k)
+    return None
+
+
 def is_reserved_receiver_misuse(
     state: SpiderState,
     obligations: ObligationState,
@@ -346,7 +383,12 @@ def apply_operator(
         if candidate is None or candidate in step.actions or step.actions[:1] == (candidate,):
             if any(is_reserved_receiver_misuse(state, obl, action) for action in step.actions):
                 continue
-            return step
+            return OperatorRealisation(
+                step.kind,
+                step.actions,
+                step.state,
+                normalize_obligations(step.state, step.obligations),
+            )
     return None
 
 
@@ -411,6 +453,14 @@ def _generate_steps(
         OperatorKind.INVEST_WORKSPACE,
     )
     blocked = set(disabled)
+    if (
+        kinds is None
+        and obl.reservation is None
+        and receiver_threat_action(state, target) is not None
+    ):
+        if OperatorKind.RESERVE_RECEIVER not in blocked:
+            yield from _realise_reserve(state, obl, target)
+        return
     generators: dict[OperatorKind, Callable[..., Iterator[OperatorRealisation]]] = {
         OperatorKind.RESERVE_RECEIVER: _realise_reserve,
         OperatorKind.REALISE_CAMPAIGN_EDGE: _realise_campaign,
@@ -432,8 +482,10 @@ def _realise_reserve(
 ) -> Iterator[OperatorRealisation]:
     if obl.reservation is not None:
         return
-    column = _find_top(state, target.suit, target.high_rank)
+    column = unique_usable_receiver_column(state, target)
     if column is None:
+        return
+    if receiver_threat_action(state, target) is None:
         return
     reserved = ReceiverReservation(
         column,
@@ -769,6 +821,8 @@ def _prepaid_success(
     if obl.reservation is not None or obl.workspace is not None or obl.rework is not None:
         return None
     if _edge_count(cur, target) > _edge_count(start, target):
+        return None
+    if unique_usable_receiver_column(cur, target) is None:
         return None
     exposed = False
     for ci, col in enumerate(cur.columns):
