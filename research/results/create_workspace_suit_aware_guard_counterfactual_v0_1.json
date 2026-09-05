@@ -1,0 +1,2794 @@
+{
+  "base_sha": "df7e858a3e749b0ff7e7393f2405d1835a140800",
+  "intent": {
+    "create_guard_line": "if len(col.face_up) == 1 and col.face_up[0].rank == target.high_rank:",
+    "create_has_comment": false,
+    "create_source": "def _realise_create(\n    state: SpiderState, obl: ObligationState, target: CampaignTarget\n) -> Iterator[OperatorRealisation]:\n    if _idle_empties(state):\n        return\n    if obl.workspace is not None:\n        return\n    for src in range(len(state.columns)):\n        col = state.columns[src]\n        if col.face_down or not col.face_up:\n            continue\n        if len(col.face_up) == 1 and col.face_up[0].rank == target.high_rank:\n            continue\n        k = len(col.face_up)\n        if _movable_run_length(state, src) != k:\n            continue\n        for dst in range(len(state.columns)):\n            if dst == src or not state.can_move(src, dst, k):\n                continue\n            if state.columns[dst].is_empty():\n                continue\n            action = (src, dst, k)\n            if _breaks_join(state, action):\n                continue\n            if is_reserved_receiver_misuse(state, obl, action):\n                continue\n            if _occupies_unique_receiver(state, target, action, obl):\n                continue\n            nxt, ok = _play(state, (action,))\n            if not ok or not nxt.columns[src].is_empty():\n                continue\n            if _edge_count(nxt, target) > _edge_count(state, target):\n                continue\n            yield OperatorRealisation(\n                OperatorKind.CREATE_WORKSPACE,\n                (action,),\n                nxt,\n                obl,\n            )\n",
+    "unique_receiver_is_suit_aware": true,
+    "occupies_unique_is_suit_aware": true,
+    "useful_card_is_suit_aware": true,
+    "h2_literal_markers_in_planner": [],
+    "introduced_in": "a244206397691843beca91ff6f83b10bd606010c",
+    "introduced_without_docstring": true,
+    "hypothesis": "H1",
+    "h2_supported": false,
+    "rationale": "The singleton exclusion is rank-only and uncommented. Every neighbouring campaign-high helper (unique receiver, occupy-unique, useful-card, edge-count, find-top) is suit-aware. No test or docstring states that every suit copy of target.high_rank is a protected rank-class resource."
+  },
+  "r3": {
+    "digest": "1c3d3ec77bf164ad",
+    "face_down": 39,
+    "fully_revealed": 1,
+    "empties": 0,
+    "legal_count": 1,
+    "legal": [
+      {
+        "src": 5,
+        "dst": 1,
+        "k": 1,
+        "packet": [
+          [
+            "s",
+            12
+          ]
+        ],
+        "cost": 1,
+        "joins_created": 0,
+        "joins_broken": 0,
+        "end_digest": "19e9e5d1326854ed",
+        "empties": 1,
+        "face_down": 39,
+        "action": [
+          5,
+          1,
+          1
+        ]
+      }
+    ],
+    "r2": true,
+    "r3": true,
+    "ok": true
+  },
+  "controls": {
+    "C1": {
+      "name": "C1",
+      "action": [
+        0,
+        1,
+        1
+      ],
+      "g0": "EXCLUDED_SINGLETON_CAMPAIGN_HIGH",
+      "g1": "EXCLUDED_SINGLETON_CAMPAIGN_HIGH",
+      "expect_g0": "EXCLUDED_SINGLETON_CAMPAIGN_HIGH",
+      "expect_g1": "EXCLUDED_SINGLETON_CAMPAIGN_HIGH",
+      "match": true,
+      "create_g0": [],
+      "create_g1": [],
+      "same_suit_high_emitted_g1": false
+    },
+    "C2": {
+      "name": "C2",
+      "action": [
+        0,
+        1,
+        1
+      ],
+      "g0": "EXCLUDED_SINGLETON_CAMPAIGN_HIGH",
+      "g1": null,
+      "expect_g0": "EXCLUDED_SINGLETON_CAMPAIGN_HIGH",
+      "expect_g1": null,
+      "match": true,
+      "create_g0": [],
+      "create_g1": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          3,
+          1
+        ],
+        [
+          0,
+          4,
+          1
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          0,
+          8,
+          1
+        ],
+        [
+          0,
+          9,
+          1
+        ]
+      ],
+      "same_suit_high_emitted_g1": false
+    },
+    "C3": {
+      "name": "C3",
+      "action": [
+        0,
+        1,
+        1
+      ],
+      "g0": null,
+      "g1": null,
+      "agree": true,
+      "create_g0": [
+        [
+          0,
+          1,
+          1
+        ]
+      ],
+      "create_g1": [
+        [
+          0,
+          1,
+          1
+        ]
+      ]
+    },
+    "C4_JOIN": {
+      "name": "C4_JOIN",
+      "note": "partial packet off a hearts join; not a singleton-high source",
+      "g0": "NOT_ONE_MOVABLE_RUN",
+      "g1": "NOT_ONE_MOVABLE_RUN",
+      "agree": true
+    },
+    "C4_UNIQUE_RECEIVER": {
+      "name": "C4_UNIQUE_RECEIVER",
+      "action": [
+        0,
+        1,
+        1
+      ],
+      "g0": "OCCUPIES_UNIQUE_RECEIVER",
+      "g1": "OCCUPIES_UNIQUE_RECEIVER",
+      "agree": true,
+      "expected": "OCCUPIES_UNIQUE_RECEIVER",
+      "note": "Js onto unique Qc; singleton-high guard does not apply (rank 11)"
+    },
+    "C4_RESERVATION": {
+      "name": "C4_RESERVATION",
+      "g0": "RECEIVER_MISUSE_OR_OCCUPY",
+      "g1": "RECEIVER_MISUSE_OR_OCCUPY",
+      "agree": true,
+      "expected": "RECEIVER_MISUSE_OR_OCCUPY"
+    },
+    "C4_NOT_ONE_RUN": {
+      "name": "C4_NOT_ONE_RUN",
+      "g0": "NOT_ONE_MOVABLE_RUN",
+      "g1": "NOT_ONE_MOVABLE_RUN",
+      "agree": true,
+      "expected": "NOT_ONE_MOVABLE_RUN"
+    },
+    "C4_FACE_DOWN": {
+      "name": "C4_FACE_DOWN",
+      "g0": "SOURCE_HAS_FACE_DOWN",
+      "g1": "SOURCE_HAS_FACE_DOWN",
+      "agree": true,
+      "expected": "SOURCE_HAS_FACE_DOWN"
+    },
+    "C4_IDLE_EMPTY": {
+      "name": "C4_IDLE_EMPTY",
+      "g0": "HAS_IDLE_EMPTY",
+      "g1": "HAS_IDLE_EMPTY",
+      "agree": true,
+      "expected": "HAS_IDLE_EMPTY"
+    }
+  },
+  "natural_p_create": {
+    "action": [
+      5,
+      1,
+      1
+    ],
+    "g0": "EXCLUDED_SINGLETON_CAMPAIGN_HIGH",
+    "g1": null,
+    "g0_emits": false,
+    "g1_emits": true,
+    "end_digest": "19e9e5d1326854ed",
+    "empties": 1,
+    "cost": 1,
+    "joins_created": 0,
+    "joins_broken": 0,
+    "replay_ok": true,
+    "create_g0": [],
+    "create_g1": [
+      [
+        5,
+        1,
+        1
+      ]
+    ]
+  },
+  "p_g0": {
+    "result": "NO_BOUNDED_PLAN",
+    "operators": [],
+    "actions": [],
+    "cost": 0,
+    "visited": 2,
+    "replay_ok": false,
+    "end_digest": "1c3d3ec77bf164ad",
+    "edge_before": 0,
+    "edge_after": 0,
+    "unresolved": 0,
+    "empties_trace": [
+      0
+    ],
+    "obligation_trace": [],
+    "FIRST_EMPTY_CREATED": false,
+    "WORKSPACE_INVESTED": false,
+    "WORKSPACE_RECOVERED": false,
+    "NONTRIVIAL_RESOURCE_SUCCESS": false,
+    "prepaid": false,
+    "proof_pruning_allowed": false,
+    "elapsed_s": 0.000775,
+    "mode": "G0",
+    "create_actions": []
+  },
+  "p_g1": {
+    "result": "REALISED_CAMPAIGN_PROGRESS",
+    "operators": [
+      "CREATE_WORKSPACE",
+      "INVEST_WORKSPACE",
+      "REALISE_CAMPAIGN_EDGE",
+      "RECOVER_WORKSPACE"
+    ],
+    "actions": [
+      [
+        5,
+        1,
+        1
+      ],
+      [
+        9,
+        5,
+        1
+      ],
+      [
+        9,
+        4,
+        1
+      ],
+      [
+        5,
+        6,
+        1
+      ]
+    ],
+    "cost": 4,
+    "visited": 10,
+    "replay_ok": true,
+    "end_digest": "554c339c714d204c",
+    "edge_before": 0,
+    "edge_after": 1,
+    "unresolved": 0,
+    "empties_trace": [
+      0,
+      1,
+      0,
+      0,
+      1
+    ],
+    "obligation_trace": [
+      {
+        "op": "CREATE_WORKSPACE",
+        "actions": [
+          [
+            5,
+            1,
+            1
+          ]
+        ],
+        "unresolved": 0,
+        "workspace": false,
+        "rework": false,
+        "reservation": false,
+        "empties": 1
+      },
+      {
+        "op": "INVEST_WORKSPACE",
+        "actions": [
+          [
+            9,
+            5,
+            1
+          ]
+        ],
+        "unresolved": 1,
+        "workspace": true,
+        "rework": false,
+        "reservation": false,
+        "empties": 0
+      },
+      {
+        "op": "REALISE_CAMPAIGN_EDGE",
+        "actions": [
+          [
+            9,
+            4,
+            1
+          ]
+        ],
+        "unresolved": 1,
+        "workspace": true,
+        "rework": false,
+        "reservation": false,
+        "empties": 0
+      },
+      {
+        "op": "RECOVER_WORKSPACE",
+        "actions": [
+          [
+            5,
+            6,
+            1
+          ]
+        ],
+        "unresolved": 0,
+        "workspace": false,
+        "rework": false,
+        "reservation": false,
+        "empties": 1
+      }
+    ],
+    "FIRST_EMPTY_CREATED": true,
+    "WORKSPACE_INVESTED": true,
+    "WORKSPACE_RECOVERED": true,
+    "NONTRIVIAL_RESOURCE_SUCCESS": true,
+    "prepaid": false,
+    "proof_pruning_allowed": false,
+    "elapsed_s": 0.00506,
+    "mode": "G1",
+    "create_actions": [
+      [
+        5,
+        1,
+        1
+      ]
+    ]
+  },
+  "p_g1_class": "P_FULL_WORKSPACE_SUCCESS",
+  "s_g0": {
+    "result": "PREPAID_DEPENDENCY",
+    "operators": [
+      "CREATE_WORKSPACE",
+      "INVEST_WORKSPACE",
+      "RECOVER_WORKSPACE"
+    ],
+    "actions": [
+      [
+        5,
+        1,
+        1
+      ],
+      [
+        9,
+        5,
+        1
+      ],
+      [
+        5,
+        6,
+        1
+      ]
+    ],
+    "cost": 3,
+    "visited": 4,
+    "replay_ok": true,
+    "end_digest": "db8ff65b9ffe468d",
+    "edge_before": 0,
+    "edge_after": 0,
+    "unresolved": 0,
+    "empties_trace": [
+      0,
+      1,
+      0,
+      1
+    ],
+    "obligation_trace": [
+      {
+        "op": "CREATE_WORKSPACE",
+        "actions": [
+          [
+            5,
+            1,
+            1
+          ]
+        ],
+        "unresolved": 0,
+        "workspace": false,
+        "rework": false,
+        "reservation": false,
+        "empties": 1
+      },
+      {
+        "op": "INVEST_WORKSPACE",
+        "actions": [
+          [
+            9,
+            5,
+            1
+          ]
+        ],
+        "unresolved": 1,
+        "workspace": true,
+        "rework": false,
+        "reservation": false,
+        "empties": 0
+      },
+      {
+        "op": "RECOVER_WORKSPACE",
+        "actions": [
+          [
+            5,
+            6,
+            1
+          ]
+        ],
+        "unresolved": 0,
+        "workspace": false,
+        "rework": false,
+        "reservation": false,
+        "empties": 1
+      }
+    ],
+    "FIRST_EMPTY_CREATED": true,
+    "WORKSPACE_INVESTED": true,
+    "WORKSPACE_RECOVERED": true,
+    "NONTRIVIAL_RESOURCE_SUCCESS": true,
+    "prepaid": true,
+    "proof_pruning_allowed": false,
+    "elapsed_s": 0.001725,
+    "mode": "G0",
+    "create_actions": [
+      [
+        5,
+        1,
+        1
+      ]
+    ]
+  },
+  "s_g1": {
+    "result": "PREPAID_DEPENDENCY",
+    "operators": [
+      "CREATE_WORKSPACE",
+      "INVEST_WORKSPACE",
+      "RECOVER_WORKSPACE"
+    ],
+    "actions": [
+      [
+        5,
+        1,
+        1
+      ],
+      [
+        9,
+        5,
+        1
+      ],
+      [
+        5,
+        6,
+        1
+      ]
+    ],
+    "cost": 3,
+    "visited": 4,
+    "replay_ok": true,
+    "end_digest": "db8ff65b9ffe468d",
+    "edge_before": 0,
+    "edge_after": 0,
+    "unresolved": 0,
+    "empties_trace": [
+      0,
+      1,
+      0,
+      1
+    ],
+    "obligation_trace": [
+      {
+        "op": "CREATE_WORKSPACE",
+        "actions": [
+          [
+            5,
+            1,
+            1
+          ]
+        ],
+        "unresolved": 0,
+        "workspace": false,
+        "rework": false,
+        "reservation": false,
+        "empties": 1
+      },
+      {
+        "op": "INVEST_WORKSPACE",
+        "actions": [
+          [
+            9,
+            5,
+            1
+          ]
+        ],
+        "unresolved": 1,
+        "workspace": true,
+        "rework": false,
+        "reservation": false,
+        "empties": 0
+      },
+      {
+        "op": "RECOVER_WORKSPACE",
+        "actions": [
+          [
+            5,
+            6,
+            1
+          ]
+        ],
+        "unresolved": 0,
+        "workspace": false,
+        "rework": false,
+        "reservation": false,
+        "empties": 1
+      }
+    ],
+    "FIRST_EMPTY_CREATED": true,
+    "WORKSPACE_INVESTED": true,
+    "WORKSPACE_RECOVERED": true,
+    "NONTRIVIAL_RESOURCE_SUCCESS": true,
+    "prepaid": true,
+    "proof_pruning_allowed": false,
+    "elapsed_s": 0.001752,
+    "mode": "G1",
+    "create_actions": [
+      [
+        5,
+        1,
+        1
+      ]
+    ]
+  },
+  "s_equivalence": {
+    "equal": true,
+    "g0_result": "PREPAID_DEPENDENCY",
+    "g1_result": "PREPAID_DEPENDENCY",
+    "g0_ops": [
+      "CREATE_WORKSPACE",
+      "INVEST_WORKSPACE",
+      "RECOVER_WORKSPACE"
+    ],
+    "g1_ops": [
+      "CREATE_WORKSPACE",
+      "INVEST_WORKSPACE",
+      "RECOVER_WORKSPACE"
+    ],
+    "g0_end": "db8ff65b9ffe468d",
+    "g1_end": "db8ff65b9ffe468d"
+  },
+  "r2_matrix": [
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "P",
+      "target": {
+        "suit": "c",
+        "high": 12,
+        "low": 11
+      },
+      "legal_first_empty": 1,
+      "g0_create": [],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [],
+      "g1_ops": [
+        "CREATE_WORKSPACE",
+        "INVEST_WORKSPACE",
+        "REALISE_CAMPAIGN_EDGE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "554c339c714d204c",
+      "delta": "EXPECTED_DELTA"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 11,
+        "low": 10
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "PREPAID_DEPENDENCY",
+      "g1_result": "PREPAID_DEPENDENCY",
+      "g0_ops": [
+        "CREATE_WORKSPACE",
+        "INVEST_WORKSPACE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g1_ops": [
+        "CREATE_WORKSPACE",
+        "INVEST_WORKSPACE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g0_end": "db8ff65b9ffe468d",
+      "g1_end": "db8ff65b9ffe468d",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 10,
+        "low": 9
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 9,
+        "low": 8
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 8,
+        "low": 7
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 7,
+        "low": 6
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 6,
+        "low": 5
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 5,
+        "low": 4
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 4,
+        "low": 3
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 3,
+        "low": 2
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 2,
+        "low": 1
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 1,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "RESOURCE_DEADLOCK",
+      "g1_result": "RESOURCE_DEADLOCK",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 1,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "RESOURCE_DEADLOCK",
+      "g1_result": "RESOURCE_DEADLOCK",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "1c3d3ec77bf164ad",
+      "r3": true,
+      "class": "S",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 1,
+      "g0_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          5,
+          1,
+          1
+        ]
+      ],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "1c3d3ec77bf164ad",
+      "g1_end": "1c3d3ec77bf164ad",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "P",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 12,
+        "low": 11
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 11,
+        "low": 10
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 10,
+        "low": 9
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 9,
+        "low": 8
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 8,
+        "low": 7
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 7,
+        "low": 6
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 2,
+        "low": 1
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 12,
+        "low": 11
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "edb1f739a3100867",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "edb1f739a3100867",
+      "g1_end": "edb1f739a3100867",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "P",
+      "target": {
+        "suit": "c",
+        "high": 12,
+        "low": 11
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "PREPAID_DEPENDENCY",
+      "g1_result": "PREPAID_DEPENDENCY",
+      "g0_ops": [
+        "TEMPORARY_REWORK"
+      ],
+      "g1_ops": [
+        "TEMPORARY_REWORK"
+      ],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 11,
+        "low": 10
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 10,
+        "low": 9
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 9,
+        "low": 8
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 8,
+        "low": 7
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 7,
+        "low": 6
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 6,
+        "low": 5
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 5,
+        "low": 4
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 4,
+        "low": 3
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 3,
+        "low": 2
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 2,
+        "low": 1
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "de13114dc57870d7",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "de13114dc57870d7",
+      "g1_end": "de13114dc57870d7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "P",
+      "target": {
+        "suit": "c",
+        "high": 12,
+        "low": 11
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 11,
+        "low": 10
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 10,
+        "low": 9
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 9,
+        "low": 8
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 8,
+        "low": 7
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 7,
+        "low": 6
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 6,
+        "low": 5
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 5,
+        "low": 4
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 4,
+        "low": 3
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 3,
+        "low": 2
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 2,
+        "low": 1
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "s",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "c",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "d",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    },
+    {
+      "digest": "f729fad6e19cb5b5",
+      "r3": false,
+      "class": "S",
+      "target": {
+        "suit": "h",
+        "high": 13,
+        "low": 12
+      },
+      "legal_first_empty": 0,
+      "g0_create": [],
+      "g1_create": [],
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_end": "f729fad6e19cb5b5",
+      "g1_end": "f729fad6e19cb5b5",
+      "delta": "UNCHANGED"
+    }
+  ],
+  "fixture_regression": [
+    {
+      "name": "W1",
+      "target": {
+        "suit": "s",
+        "high": 12,
+        "low": 11
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "CREATE_WORKSPACE",
+        "INVEST_WORKSPACE",
+        "REALISE_CAMPAIGN_EDGE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g1_ops": [
+        "CREATE_WORKSPACE",
+        "INVEST_WORKSPACE",
+        "REALISE_CAMPAIGN_EDGE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g0_create": [
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "g0_end": "191cc1e034219df2",
+      "g1_end": "191cc1e034219df2",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "W1_NO_RECOVERY",
+      "target": {
+        "suit": "s",
+        "high": 12,
+        "low": 11
+      },
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_create": [
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "g0_end": "56597389e6d0c0f0",
+      "g1_end": "56597389e6d0c0f0",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "W1_ALREADY_EXPOSED",
+      "target": {
+        "suit": "s",
+        "high": 12,
+        "low": 11
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "g1_ops": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "g0_create": [],
+      "g1_create": [],
+      "g0_end": "b14113c811fe1dd7",
+      "g1_end": "b14113c811fe1dd7",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "W2",
+      "target": {
+        "suit": "s",
+        "high": 12,
+        "low": 11
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "INVEST_WORKSPACE",
+        "REALISE_CAMPAIGN_EDGE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g1_ops": [
+        "INVEST_WORKSPACE",
+        "REALISE_CAMPAIGN_EDGE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g0_create": [],
+      "g1_create": [],
+      "g0_end": "ff16cf213de285ce",
+      "g1_end": "ff16cf213de285ce",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "W2_NO_RECOVERY",
+      "target": {
+        "suit": "s",
+        "high": 12,
+        "low": 11
+      },
+      "g0_result": "NO_BOUNDED_PLAN",
+      "g1_result": "NO_BOUNDED_PLAN",
+      "g0_ops": [],
+      "g1_ops": [],
+      "g0_create": [],
+      "g1_create": [],
+      "g0_end": "36c4131450a94cea",
+      "g1_end": "36c4131450a94cea",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "W2_UNNECESSARY",
+      "target": {
+        "suit": "s",
+        "high": 12,
+        "low": 11
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "g1_ops": [
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "g0_create": [],
+      "g1_create": [],
+      "g0_end": "297fd36a03d492ac",
+      "g1_end": "297fd36a03d492ac",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "W3",
+      "target": {
+        "suit": "s",
+        "high": 8,
+        "low": 7
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "INVEST_WORKSPACE",
+        "REALISE_CAMPAIGN_EDGE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g1_ops": [
+        "INVEST_WORKSPACE",
+        "REALISE_CAMPAIGN_EDGE",
+        "RECOVER_WORKSPACE"
+      ],
+      "g0_create": [],
+      "g1_create": [],
+      "g0_end": "1c4177ee0f4dc1b3",
+      "g1_end": "1c4177ee0f4dc1b3",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "P1",
+      "target": {
+        "suit": "s",
+        "high": 6,
+        "low": 5
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "RESERVE_RECEIVER",
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "TEMPORARY_REWORK",
+        "REALISE_CAMPAIGN_EDGE",
+        "REPAY_REWORK"
+      ],
+      "g1_ops": [
+        "RESERVE_RECEIVER",
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "TEMPORARY_REWORK",
+        "REALISE_CAMPAIGN_EDGE",
+        "REPAY_REWORK"
+      ],
+      "g0_create": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          4,
+          5,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          4,
+          5,
+          1
+        ]
+      ],
+      "g0_end": "e6ccc2fed69c6838",
+      "g1_end": "e6ccc2fed69c6838",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "P2",
+      "target": {
+        "suit": "h",
+        "high": 10,
+        "low": 9
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "RESERVE_RECEIVER",
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "TEMPORARY_REWORK",
+        "REALISE_CAMPAIGN_EDGE",
+        "REPAY_REWORK"
+      ],
+      "g1_ops": [
+        "RESERVE_RECEIVER",
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "TEMPORARY_REWORK",
+        "REALISE_CAMPAIGN_EDGE",
+        "REPAY_REWORK"
+      ],
+      "g0_create": [
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          7,
+          1,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          7,
+          1,
+          1
+        ]
+      ],
+      "g0_end": "01517bee3e82aad0",
+      "g1_end": "01517bee3e82aad0",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "P3",
+      "target": {
+        "suit": "d",
+        "high": 8,
+        "low": 7
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "RESERVE_RECEIVER",
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "TEMPORARY_REWORK",
+        "REALISE_CAMPAIGN_EDGE",
+        "REPAY_REWORK"
+      ],
+      "g1_ops": [
+        "RESERVE_RECEIVER",
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "TEMPORARY_REWORK",
+        "REALISE_CAMPAIGN_EDGE",
+        "REPAY_REWORK"
+      ],
+      "g0_create": [
+        [
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          8,
+          1
+        ],
+        [
+          8,
+          9,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          8,
+          1
+        ],
+        [
+          8,
+          9,
+          1
+        ]
+      ],
+      "g0_end": "28c94176c2a34b06",
+      "g1_end": "28c94176c2a34b06",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "REWORK",
+      "target": {
+        "suit": "c",
+        "high": 11,
+        "low": 10
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "RESERVE_RECEIVER",
+        "TEMPORARY_REWORK",
+        "REALISE_CAMPAIGN_EDGE",
+        "REPAY_REWORK"
+      ],
+      "g1_ops": [
+        "RESERVE_RECEIVER",
+        "TEMPORARY_REWORK",
+        "REALISE_CAMPAIGN_EDGE",
+        "REPAY_REWORK"
+      ],
+      "g0_create": [],
+      "g1_create": [],
+      "g0_end": "426df20d914e3d5d",
+      "g1_end": "426df20d914e3d5d",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "RESERVATION",
+      "target": {
+        "suit": "h",
+        "high": 9,
+        "low": 8
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "RESERVE_RECEIVER",
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "g1_ops": [
+        "RESERVE_RECEIVER",
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "g0_create": [
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          2,
+          3,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          2,
+          3,
+          1
+        ]
+      ],
+      "g0_end": "28c86cef405c8e4d",
+      "g1_end": "28c86cef405c8e4d",
+      "delta": "UNCHANGED"
+    },
+    {
+      "name": "RESERVATION_UNTHREATENED",
+      "target": {
+        "suit": "h",
+        "high": 9,
+        "low": 8
+      },
+      "g0_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g1_result": "REALISED_CAMPAIGN_PROGRESS",
+      "g0_ops": [
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "g1_ops": [
+        "CREATE_WORKSPACE",
+        "PREPAY_DEPENDENCY",
+        "REALISE_CAMPAIGN_EDGE"
+      ],
+      "g0_create": [
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "g1_create": [
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "g0_end": "3f3a7f3bb755c5e1",
+      "g1_end": "3f3a7f3bb755c5e1",
+      "delta": "UNCHANGED"
+    }
+  ],
+  "guard_incidence": {
+    "current_guard_hits": 5,
+    "true_same_suit_campaign_high_hits": 1,
+    "off_suit_same_rank_hits": 4,
+    "off_suit_g1_new_create_candidates": 1,
+    "harvest_hits": [
+      {
+        "source": "harvest_r2",
+        "digest": "1c3d3ec77bf164ad",
+        "target": {
+          "suit": "c",
+          "high": 12,
+          "low": 11
+        },
+        "class": "P",
+        "src": 5,
+        "card": [
+          "s",
+          12
+        ],
+        "same_suit": false,
+        "g1_would_accept": true,
+        "other_predicates_pass": true,
+        "other_reject": [
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST"
+        ]
+      },
+      {
+        "source": "harvest_r2",
+        "digest": "edb1f739a3100867",
+        "target": {
+          "suit": "s",
+          "high": 12,
+          "low": 11
+        },
+        "class": "S",
+        "src": 5,
+        "card": [
+          "s",
+          12
+        ],
+        "same_suit": true,
+        "g1_would_accept": false,
+        "other_predicates_pass": false,
+        "other_reject": []
+      },
+      {
+        "source": "harvest_r2",
+        "digest": "edb1f739a3100867",
+        "target": {
+          "suit": "c",
+          "high": 12,
+          "low": 11
+        },
+        "class": "S",
+        "src": 5,
+        "card": [
+          "s",
+          12
+        ],
+        "same_suit": false,
+        "g1_would_accept": false,
+        "other_predicates_pass": false,
+        "other_reject": [
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST"
+        ]
+      },
+      {
+        "source": "harvest_r2",
+        "digest": "de13114dc57870d7",
+        "target": {
+          "suit": "c",
+          "high": 12,
+          "low": 11
+        },
+        "class": "P",
+        "src": 5,
+        "card": [
+          "s",
+          12
+        ],
+        "same_suit": false,
+        "g1_would_accept": false,
+        "other_predicates_pass": false,
+        "other_reject": [
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST"
+        ]
+      },
+      {
+        "source": "harvest_r2",
+        "digest": "f729fad6e19cb5b5",
+        "target": {
+          "suit": "c",
+          "high": 12,
+          "low": 11
+        },
+        "class": "P",
+        "src": 5,
+        "card": [
+          "s",
+          12
+        ],
+        "same_suit": false,
+        "g1_would_accept": false,
+        "other_predicates_pass": false,
+        "other_reject": [
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST",
+          "NO_LEGAL_NONEMPTY_DEST"
+        ]
+      }
+    ],
+    "shadow_meta": {
+      "expansions": 25,
+      "captured_states": 58,
+      "stop_reason": "strategic expansion limit"
+    },
+    "shadow_hits": 0
+  },
+  "expected_delta_count": 1,
+  "unexpected_delta_count": 0,
+  "unexpected_deltas": [],
+  "production_restored": true,
+  "hard_fail": false,
+  "decision": "A",
+  "recommended_next": "bounded production-quality CREATE singleton-high guard correction with regression shadow"
+}
