@@ -1,0 +1,750 @@
+{
+  "base_sha": "93a2cf9606cc3cfafa4186b92da3907c6237d0e4",
+  "restart_mode": "state_only",
+  "continuation_context": "state_only_spider_state",
+  "root_selection": "4 highest-priority unexpanded retained frontier states using production _node_priority without node_id; canonical digest tie-break",
+  "width": 4,
+  "max_continuation_generations": 6,
+  "fidelity": [
+    {
+      "digest": "021a7380370396fe",
+      "g": 10,
+      "credit_level": 0,
+      "incoming_kind": "ECONOMIC_PROJECT",
+      "original_lead": {
+        "suit": "d",
+        "family": "MERGE_READY",
+        "edge": [
+          13,
+          12
+        ]
+      },
+      "stop_reason": "strategic expansion limit",
+      "classification": "STATE_ONLY_RESTART_EQUIVALENT",
+      "generated": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 2,
+        "restart_count": 2,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      },
+      "retained": {
+        "generated_equal": false,
+        "generated_multiset_equal": false,
+        "original_count": 1,
+        "restart_count": 2,
+        "kinds_original": [
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": [
+          [
+            "ECONOMIC_PROJECT",
+            [
+              [
+                7,
+                9,
+                1
+              ]
+            ],
+            "75cf1236074f5eeb",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "digest": "30b1cd213a2956ed",
+      "g": 7,
+      "credit_level": 0,
+      "incoming_kind": "RAW_DEAL",
+      "original_lead": {
+        "suit": "d",
+        "family": "MERGE_READY",
+        "edge": [
+          13,
+          12
+        ]
+      },
+      "stop_reason": "strategic expansion limit",
+      "classification": "STATE_ONLY_RESTART_EQUIVALENT",
+      "generated": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 3,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      },
+      "retained": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 3,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      }
+    },
+    {
+      "digest": "38ca4cbe24e07b09",
+      "g": 8,
+      "credit_level": 0,
+      "incoming_kind": "ECONOMIC_PROJECT",
+      "original_lead": {
+        "suit": "s",
+        "family": "MERGE_READY",
+        "edge": [
+          13,
+          12
+        ]
+      },
+      "stop_reason": "strategic expansion limit",
+      "classification": "STATE_ONLY_RESTART_EQUIVALENT",
+      "generated": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 3,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      },
+      "retained": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 3,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      }
+    },
+    {
+      "digest": "3943a81991e43d75",
+      "g": 4,
+      "credit_level": 0,
+      "incoming_kind": "CAMPAIGN_DEPENDENCY_CLOSURE",
+      "original_lead": {
+        "suit": "s",
+        "family": "MERGE_READY",
+        "edge": [
+          13,
+          12
+        ]
+      },
+      "stop_reason": "strategic expansion limit",
+      "classification": "STATE_ONLY_RESTART_EQUIVALENT",
+      "generated": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 4,
+        "restart_count": 4,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "CAMPAIGN_DEPENDENCY_CLOSURE",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "CAMPAIGN_DEPENDENCY_CLOSURE",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      },
+      "retained": {
+        "generated_equal": false,
+        "generated_multiset_equal": false,
+        "original_count": 3,
+        "restart_count": 4,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "CAMPAIGN_DEPENDENCY_CLOSURE",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": [
+          [
+            "CAMPAIGN_DEPENDENCY_CLOSURE",
+            [
+              [
+                9,
+                5,
+                1
+              ]
+            ],
+            "7d84017545fa47fb",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "digest": "5591fe7440637e26",
+      "g": 6,
+      "credit_level": 0,
+      "incoming_kind": "CAMPAIGN_DEPENDENCY_CLOSURE",
+      "original_lead": {
+        "suit": "s",
+        "family": "MERGE_READY",
+        "edge": [
+          13,
+          12
+        ]
+      },
+      "stop_reason": "strategic expansion limit",
+      "classification": "STATE_ONLY_RESTART_EQUIVALENT",
+      "generated": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 3,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      },
+      "retained": {
+        "generated_equal": false,
+        "generated_multiset_equal": false,
+        "original_count": 2,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": [
+          [
+            "ECONOMIC_PROJECT",
+            [
+              [
+                1,
+                6,
+                1
+              ]
+            ],
+            "e85503bcea582b82",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "digest": "55a4e5534aa202dc",
+      "g": 7,
+      "credit_level": 0,
+      "incoming_kind": "ECONOMIC_PROJECT",
+      "original_lead": {
+        "suit": "s",
+        "family": "MERGE_READY",
+        "edge": [
+          13,
+          12
+        ]
+      },
+      "stop_reason": "strategic expansion limit",
+      "classification": "STATE_ONLY_RESTART_EQUIVALENT",
+      "generated": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 3,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      },
+      "retained": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 3,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      }
+    },
+    {
+      "digest": "564b6aa649b89649",
+      "g": 9,
+      "credit_level": 0,
+      "incoming_kind": "ECONOMIC_PROJECT",
+      "original_lead": {
+        "suit": "h",
+        "family": "MERGE_READY",
+        "edge": [
+          13,
+          12
+        ]
+      },
+      "stop_reason": "strategic expansion limit",
+      "classification": "STATE_ONLY_RESTART_EQUIVALENT",
+      "generated": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 3,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      },
+      "retained": {
+        "generated_equal": false,
+        "generated_multiset_equal": false,
+        "original_count": 2,
+        "restart_count": 3,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": [
+          [
+            "ECONOMIC_PROJECT",
+            [
+              [
+                7,
+                9,
+                1
+              ]
+            ],
+            "565d1de7d0f17f9e",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "digest": "565d1de7d0f17f9e",
+      "g": 10,
+      "credit_level": 0,
+      "incoming_kind": "ECONOMIC_PROJECT",
+      "original_lead": {
+        "suit": "h",
+        "family": "MERGE_READY",
+        "edge": [
+          13,
+          12
+        ]
+      },
+      "stop_reason": "strategic expansion limit",
+      "classification": "STATE_ONLY_RESTART_EQUIVALENT",
+      "generated": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 2,
+        "restart_count": 2,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      },
+      "retained": {
+        "generated_equal": true,
+        "generated_multiset_equal": true,
+        "original_count": 2,
+        "restart_count": 2,
+        "kinds_original": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "kinds_restart": [
+          "ECONOMIC_PROJECT",
+          "RAW_DEAL"
+        ],
+        "missing_from_restart": [],
+        "extra_in_restart": []
+      }
+    }
+  ],
+  "generations_executed": 7,
+  "telemetry": [
+    {
+      "generation": 0,
+      "roots": 1,
+      "retained_states": 58,
+      "expanded": 25,
+      "unique_frontier": 33,
+      "face_down_min": 43,
+      "face_down_median": 43.0,
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 0,
+      "G5": 0,
+      "stock_rows": {
+        "2": 15,
+        "3": 26,
+        "4": 14,
+        "5": 3
+      },
+      "foundations": {
+        "0": 58
+      },
+      "empties": {
+        "0": 58
+      },
+      "root_digests": [
+        "c06565c127ccbc7a"
+      ]
+    },
+    {
+      "generation": 1,
+      "roots": 4,
+      "retained_states": 312,
+      "expanded": 100,
+      "unique_frontier": 212,
+      "face_down_min": 44,
+      "face_down_median": 44.0,
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 0,
+      "G5": 0,
+      "stock_rows": {
+        "0": 70,
+        "1": 183,
+        "2": 29,
+        "3": 28,
+        "4": 2
+      },
+      "foundations": {
+        "0": 312
+      },
+      "empties": {
+        "0": 312
+      },
+      "root_digests": [
+        "80765376ee888c25",
+        "caf822a7a13a0821",
+        "eb3e568b616e4b60",
+        "982d62a58d6006d6"
+      ]
+    },
+    {
+      "generation": 2,
+      "roots": 4,
+      "retained_states": 142,
+      "expanded": 75,
+      "unique_frontier": 67,
+      "face_down_min": 44,
+      "face_down_median": 44.0,
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 0,
+      "G5": 0,
+      "stock_rows": {
+        "0": 130,
+        "1": 12
+      },
+      "foundations": {
+        "0": 142
+      },
+      "empties": {
+        "0": 142
+      },
+      "root_digests": [
+        "a4d01315b152a929",
+        "8805bf29917decd5",
+        "25661c7c2a47fa7e",
+        "22c4a5ee02c695d9"
+      ]
+    },
+    {
+      "generation": 3,
+      "roots": 4,
+      "retained_states": 133,
+      "expanded": 73,
+      "unique_frontier": 60,
+      "face_down_min": 44,
+      "face_down_median": 44,
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 0,
+      "G5": 0,
+      "stock_rows": {
+        "0": 133
+      },
+      "foundations": {
+        "0": 133
+      },
+      "empties": {
+        "0": 133
+      },
+      "root_digests": [
+        "0a1b9902544e301d",
+        "1cd6c11944ef93c8",
+        "a2641e453b16a288",
+        "2f0b0c724e4600d6"
+      ]
+    },
+    {
+      "generation": 4,
+      "roots": 4,
+      "retained_states": 56,
+      "expanded": 48,
+      "unique_frontier": 8,
+      "face_down_min": 44,
+      "face_down_median": 44.0,
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 0,
+      "G5": 0,
+      "stock_rows": {
+        "0": 56
+      },
+      "foundations": {
+        "0": 56
+      },
+      "empties": {
+        "0": 56
+      },
+      "root_digests": [
+        "11fd4ad3b4133a2f",
+        "32eb45d090c1df16",
+        "1ce0eed85f84373a",
+        "c7fa4376736fa1e2"
+      ]
+    },
+    {
+      "generation": 5,
+      "roots": 4,
+      "retained_states": 95,
+      "expanded": 69,
+      "unique_frontier": 26,
+      "face_down_min": 44,
+      "face_down_median": 44,
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 0,
+      "G5": 0,
+      "stock_rows": {
+        "0": 95
+      },
+      "foundations": {
+        "0": 95
+      },
+      "empties": {
+        "0": 95
+      },
+      "root_digests": [
+        "baabe0e58b30de2d",
+        "199866547a9eba63",
+        "abed698dd1513e63",
+        "af717cec5864b771"
+      ]
+    },
+    {
+      "generation": 6,
+      "roots": 4,
+      "retained_states": 83,
+      "expanded": 63,
+      "unique_frontier": 20,
+      "face_down_min": 44,
+      "face_down_median": 44,
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 0,
+      "G5": 0,
+      "stock_rows": {
+        "0": 83
+      },
+      "foundations": {
+        "0": 83
+      },
+      "empties": {
+        "0": 83
+      },
+      "root_digests": [
+        "2cc65ae9798af926",
+        "50191cd500a3346e",
+        "d6dbb18311daad00",
+        "6fe301ad6017d476"
+      ]
+    }
+  ],
+  "earliest_triggers": {
+    "G1": null,
+    "G2": null,
+    "G3": null,
+    "G4": null,
+    "G5": null
+  },
+  "harvested_identities": [],
+  "audit": {
+    "selected": 0,
+    "trigger_corpus": {},
+    "P": {
+      "targets": 0,
+      "REALISED_CAMPAIGN_PROGRESS": 0,
+      "PREPAID_DEPENDENCY": 0,
+      "NO_BOUNDED_PLAN": 0,
+      "RESOURCE_DEADLOCK": 0,
+      "NONTRIVIAL_RESOURCE_PLAN": 0,
+      "expanded_parent_success": 0,
+      "NONTRIVIAL_NOVEL_RESOURCE_SUCCESSOR": 0,
+      "EXACT_DUPLICATE": 0,
+      "NOVEL_RESOURCE_SUCCESSOR": 0,
+      "PARENT_NOT_EXPANDED": 0
+    },
+    "S": {
+      "targets": 0,
+      "REALISED_CAMPAIGN_PROGRESS": 0,
+      "PREPAID_DEPENDENCY": 0,
+      "NO_BOUNDED_PLAN": 0,
+      "RESOURCE_DEADLOCK": 0,
+      "NONTRIVIAL_RESOURCE_PLAN": 0,
+      "expanded_parent_success": 0,
+      "NONTRIVIAL_NOVEL_RESOURCE_SUCCESSOR": 0,
+      "EXACT_DUPLICATE": 0,
+      "NOVEL_RESOURCE_SUCCESSOR": 0,
+      "PARENT_NOT_EXPANDED": 0
+    },
+    "operator_frequencies": {
+      "P": {},
+      "S": {}
+    },
+    "novelty_by_trigger": {
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 0,
+      "G5": 0
+    },
+    "novel_traces": [],
+    "cost": {
+      "n": 0,
+      "median": 0,
+      "p90": 0.0,
+      "max": 0
+    },
+    "visited": {
+      "median": 0,
+      "p90": 0.0,
+      "p95": 0.0,
+      "max": 0
+    },
+    "runtime_s": {
+      "median": 0,
+      "p90": 0.0,
+      "p95": 0.0,
+      "max": 0
+    }
+  },
+  "evaluations": []
+}
