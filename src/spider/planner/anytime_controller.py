@@ -364,6 +364,13 @@ class AnalysisStage(IntEnum):
     EXPENSIVE_OPTIONAL = 2
 
 
+class FrontierPrioritySchema(str, Enum):
+    """Queue representation switch used by bounded comparator research."""
+
+    LEGACY = "LEGACY"
+    COMMON_STAGE0 = "COMMON_STAGE0"
+
+
 @dataclass(frozen=True)
 class ActionabilityTierSpec:
     tier: ActionabilityTier
@@ -386,6 +393,7 @@ class AnytimeControllerConfig:
     max_successors_per_expansion: int = 12
     max_trace_entries: int = 256
     max_timeline_entries: int = 256
+    frontier_priority_schema: FrontierPrioritySchema = FrontierPrioritySchema.LEGACY
     campaign_source_combination_limit: int = 64
     max_direct_projects_per_tier: int = 2
     max_bounded_projects_per_expansion: int = 1
@@ -851,6 +859,7 @@ class StrategicSearchNode:
     epoch_transition_opportunity: Optional[EpochTransitionOpportunity] = None
     post_deal_conversion_ledger: Optional[PostDealConversionLedger] = None
     authorised_epoch_transition_ids: Tuple[str, ...] = ()
+    frontier_priority_schema: FrontierPrioritySchema = FrontierPrioritySchema.LEGACY
 
 
 @dataclass(frozen=True)
@@ -7374,7 +7383,10 @@ def _contextual_milestone_completion(
 
 def strategic_progress_order_key(node: StrategicSearchNode) -> Tuple:
     """Return the inspectable heuristic order; stock epoch is absent."""
-    if node.analysis is None:
+    if (
+        node.analysis is None
+        or node.frontier_priority_schema == FrontierPrioritySchema.COMMON_STAGE0
+    ):
         if node.stage0 is None:
             raise ValueError("lazy node lacks required Stage-0 analysis")
         # Foundation count leads this exact/cheap admission order.  Stock
@@ -7537,8 +7549,12 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
     # Foundation precedence and milestone checkpoint audit come first. A live
     # same-target continuation may not outrank a completed purposeful Deal or
     # launder anonymous Deal debt.
-    continuity_index = 4 if node.analysis is None else 7
-    representative_index = 1 if node.analysis is None else 4
+    stage0_layout = (
+        node.analysis is None
+        or node.frontier_priority_schema == FrontierPrioritySchema.COMMON_STAGE0
+    )
+    continuity_index = 4 if stage0_layout else 7
+    representative_index = 1 if stage0_layout else 4
     # Scheduler intent ranks otherwise comparable exact states.  It follows
     # the established structural, milestone and bounded-continuation order so
     # that a fresh receding-horizon target cannot become a compulsory script.
@@ -9199,6 +9215,7 @@ def solve_anytime(
                 incumbent_cost=initial_incumbent_cost,
             ),
             residual.checkpoint if initial_state.foundations else None,
+            frontier_priority_schema=config.frontier_priority_schema,
         )
         if not initial_state.foundations:
             geometry = build_pre_foundation_geometry(
@@ -9291,6 +9308,7 @@ def solve_anytime(
         root_analysis,
         root_stage0,
         root_analysis.residual.checkpoint if initial_state.foundations else None,
+        frontier_priority_schema=config.frontier_priority_schema,
     )
     if whole_deal_blueprint is not None:
         root_schedule = rebuild_whole_deal_schedule(
@@ -10820,6 +10838,7 @@ def solve_anytime(
                 child_epoch_transition,
                 child_arrival_ledger,
                 _authorised_ids_for_child(node),
+                config.frontier_priority_schema,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
