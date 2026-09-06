@@ -352,6 +352,13 @@ class StrategicCreditLevel(IntEnum):
     RAW_LEGAL_FALLBACK = 4
 
 
+class StrategicCreditPropagation(str, Enum):
+    """Whether ordinary successors inherit a parent's expansion breadth."""
+
+    INHERITED = "INHERITED"
+    STATE_LOCAL = "STATE_LOCAL"
+
+
 class ActionabilityTier(IntEnum):
     SHALLOW = 0
     MODEST = 1
@@ -390,6 +397,9 @@ class AnytimeControllerConfig:
     max_tactical_nodes: int = 100_000
     max_frontier_size: int = 2_000
     max_credit_level: StrategicCreditLevel = StrategicCreditLevel.RAW_LEGAL_FALLBACK
+    strategic_credit_propagation: StrategicCreditPropagation = (
+        StrategicCreditPropagation.INHERITED
+    )
     max_successors_per_expansion: int = 12
     max_trace_entries: int = 256
     max_timeline_entries: int = 256
@@ -7565,6 +7575,26 @@ def _node_priority(node: StrategicSearchNode) -> Tuple:
     )
 
 
+def _apply_ordinary_child_credit_semantics(
+    child: StrategicSearchNode,
+    *,
+    parent_credit: StrategicCreditLevel,
+    propagation: StrategicCreditPropagation,
+) -> StrategicSearchNode:
+    """Apply only the configured strategic-credit rule to an admitted child."""
+
+    credit = (
+        StrategicCreditLevel.CLEAN
+        if propagation == StrategicCreditPropagation.STATE_LOCAL
+        else parent_credit
+    )
+    return (
+        child
+        if child.credit_level == credit
+        else replace(child, credit_level=credit)
+    )
+
+
 def _better_progress(candidate: StrategicSearchNode, incumbent: StrategicSearchNode) -> bool:
     return strategic_progress_order_key(candidate) < strategic_progress_order_key(incumbent)
 
@@ -10839,6 +10869,11 @@ def solve_anytime(
                 child_arrival_ledger,
                 _authorised_ids_for_child(node),
                 config.frontier_priority_schema,
+            )
+            child = _apply_ordinary_child_credit_semantics(
+                child,
+                parent_credit=node.credit_level,
+                propagation=config.strategic_credit_propagation,
             )
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
