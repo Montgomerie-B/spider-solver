@@ -73,6 +73,11 @@ def stock_rows(state) -> int:
     return synchronous.stock_rows(state)
 
 
+def best_live_stock_rows(frontier, lane) -> int | None:
+    ordinary = ordinary_live_frontier_items(frontier, lane)
+    return min((stock_rows(item[2].state) for item in ordinary), default=None)
+
+
 def workspace_candidate_snapshot(frontier, lane) -> dict:
     ordinary = ordinary_live_frontier_items(frontier, lane)
     if not ordinary:
@@ -124,9 +129,7 @@ class Lag1GraceWorkspaceServiceLane(service.WorkspaceServiceLane):
         self._last_expansion_count = 0
         self._completed_expansions = 0
 
-    def _record_epoch(self, frontier, expansion_count: int) -> dict:
-        snapshot = workspace_candidate_snapshot(frontier, self)
-        best_rows = snapshot["best_live_stock_rows"]
+    def _observe_epoch(self, best_rows: int | None, expansion_count: int) -> None:
         if best_rows is not None:
             observation = {
                 "after_completed_expansions": expansion_count,
@@ -134,6 +137,10 @@ class Lag1GraceWorkspaceServiceLane(service.WorkspaceServiceLane):
             }
             if not self.epoch_observations or self.epoch_observations[-1] != observation:
                 self.epoch_observations.append(observation)
+
+    def _record_epoch(self, frontier, expansion_count: int) -> dict:
+        snapshot = workspace_candidate_snapshot(frontier, self)
+        self._observe_epoch(snapshot["best_live_stock_rows"], expansion_count)
         return snapshot
 
     def _selection_record(self, selected, candidates, frontier, expansion_count: int) -> dict:
@@ -270,8 +277,7 @@ class Lag1GraceWorkspaceServiceLane(service.WorkspaceServiceLane):
             before = len(self.selections)
             selected = super().select(frontier, expansion_count=expansion_count)
             if selected is not None and len(self.selections) > before:
-                snapshot = workspace_candidate_snapshot(frontier, self)
-                best_rows = snapshot["best_live_stock_rows"]
+                best_rows = best_live_stock_rows(frontier, self)
                 self.current_selection.update(
                     best_live_stock_rows_at_selection=best_rows,
                     stock_lag_at_selection=stock_rows(selected[2].state) - best_rows,
@@ -366,8 +372,20 @@ class Lag1GraceWorkspaceServiceLane(service.WorkspaceServiceLane):
         self._last_expansion_count = expansion_count
         self.reconcile(frontier)
         self.select(frontier, expansion_count=expansion_count)
-        snapshot = self._record_epoch(frontier, expansion_count)
         due = self.ordinary_expansions_since_service >= self.interval
+        if self.mode == UNGUARDED:
+            best_rows = best_live_stock_rows(frontier, self)
+            self._observe_epoch(best_rows, expansion_count)
+            snapshot = (
+                workspace_candidate_snapshot(frontier, self)
+                if due and self.current_item is not None
+                else {
+                    "best_live_stock_rows": best_rows,
+                    "lag_counts": {"lag0": 0, "lag1": 0, "lag2_plus": 0},
+                }
+            )
+        else:
+            snapshot = self._record_epoch(frontier, expansion_count)
 
         if due and (self.mode == GRACE or self.current_item is not None):
             opportunity = self._opportunity(frontier, expansion_count, snapshot)
