@@ -528,6 +528,8 @@ def aggregate(rows: list[dict], runs: dict) -> dict:
     tactical = [row["tactical_node_ratio"] for row in rows]
     elapsed = [row["elapsed_time_ratio"] for row in rows]
     active = [row for row in rows if row["active_predeclared"]]
+    active_tactical = [row["tactical_node_ratio"] for row in active]
+    active_elapsed = [row["elapsed_time_ratio"] for row in active]
     decisions = Counter(row["combined_endpoint"] for row in rows)
     active_decisions = Counter(row["combined_endpoint"] for row in active)
 
@@ -571,6 +573,22 @@ def aggregate(rows: list[dict], runs: dict) -> dict:
             "combined_endpoint": {
                 name: active_decisions[name]
                 for name in ("WIN", "TRADEOFF", "NEUTRAL", "LOSS")
+            },
+            "cost": {
+                "tactical_node_ratio": {
+                    "median": statistics.median(active_tactical)
+                    if active_tactical
+                    else None,
+                    "min": min(active_tactical) if active_tactical else None,
+                    "max": max(active_tactical) if active_tactical else None,
+                },
+                "elapsed_time_ratio": {
+                    "median": statistics.median(active_elapsed)
+                    if active_elapsed
+                    else None,
+                    "min": min(active_elapsed) if active_elapsed else None,
+                    "max": max(active_elapsed) if active_elapsed else None,
+                },
             },
         },
         "cost": {
