@@ -1,0 +1,125 @@
+{
+  "active_deals": [
+    "P0",
+    "P2",
+    "P4",
+    "P7"
+  ],
+  "arms": [
+    "N8_UNGUARDED",
+    "ZERO_TOLERANCE_HOLD",
+    "STOCK_SYNCHRONOUS_RESELECT"
+  ],
+  "balance_rule": {
+    "BALANCED_WIN": "stock_delta < 0 and face_down_delta <= 1, or face_down_delta < 0 and stock_delta <= 0",
+    "LOCAL_TRADEOFF": "face_down_delta < 0 and stock_delta > 0",
+    "LOSS": "face_down_delta > 0 and stock_delta > 0",
+    "NEUTRAL": "all remaining outcomes",
+    "STOCK_TRADEOFF": "stock_delta < 0 and face_down_delta > 1",
+    "delta_definition": "B/C minus A; negative is improvement",
+    "evaluation_order": [
+      "BALANCED_WIN",
+      "LOSS",
+      "LOCAL_TRADEOFF",
+      "STOCK_TRADEOFF",
+      "NEUTRAL"
+    ]
+  },
+  "base_sha": "8f9e181d28bc2e46e2b9a52c4199ec3acd84c0bc",
+  "config": {
+    "controller_seed": 0,
+    "credit_propagation": "STATE_LOCAL",
+    "incumbent": null,
+    "max_credit_level": 4,
+    "max_frontier_size": 256,
+    "max_strategic_expansions": 400,
+    "max_successors_per_expansion": 10,
+    "max_tactical_nodes": 300000,
+    "priority_schema": "COMMON_STAGE0",
+    "scheduler": true,
+    "stock_lag_tolerance": 0,
+    "tactical_allocation": true,
+    "target_foundation_count": 2,
+    "wall_clock_limit_s": 900.0,
+    "workspace_service_interval": 8
+  },
+  "experiment": "workspace_service_stock_synchronous_v0_1",
+  "historical_context": {
+    "P2": {
+      "N8": {
+        "minimum_expanded_stock_rows": 4,
+        "minimum_face_down": 26
+      },
+      "NO_WORKSPACE": {
+        "minimum_expanded_stock_rows": 0,
+        "minimum_face_down": 39
+      }
+    },
+    "P7": {
+      "N8": {
+        "minimum_expanded_stock_rows": 5,
+        "minimum_face_down": 32
+      },
+      "NO_WORKSPACE": {
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 34
+      }
+    }
+  },
+  "opening_digests": {
+    "P0": "c06565c127ccbc7a",
+    "P2": "4d67539f2e5b6949",
+    "P4": "d8ce5c96ef47d786",
+    "P7": "3e1bac697f14bb19"
+  },
+  "panel_definition_path": "docs/research/workspace_service_generalisation_panel_v0_1_panel.json",
+  "panel_fixture_sha256": {
+    "P0": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+    "P2": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+    "P4": "90ef2371308873dc4568260f9330d28e0843d381e99efd1d43889d6c74d307f6",
+    "P7": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3"
+  },
+  "run_schedule": {
+    "P0": [
+      "N8_UNGUARDED",
+      "ZERO_TOLERANCE_HOLD",
+      "STOCK_SYNCHRONOUS_RESELECT"
+    ],
+    "P2": [
+      "ZERO_TOLERANCE_HOLD",
+      "STOCK_SYNCHRONOUS_RESELECT",
+      "N8_UNGUARDED"
+    ],
+    "P4": [
+      "STOCK_SYNCHRONOUS_RESELECT",
+      "N8_UNGUARDED",
+      "ZERO_TOLERANCE_HOLD"
+    ],
+    "P7": [
+      "N8_UNGUARDED",
+      "STOCK_SYNCHRONOUS_RESELECT",
+      "ZERO_TOLERANCE_HOLD"
+    ]
+  },
+  "stale_block_definition": {
+    "current_epoch_occurrence": "one candidate occurrence at one pre-expansion ordinary-frontier snapshot while a previously withheld HOLD representative owns the lane",
+    "span": "completed strategic expansions from first lagging ownership observation until synchrony, expansion, invalidation, release, or end",
+    "unique_candidate_state": "candidate structural digest"
+  },
+  "status": "FROZEN_PRE_RUN",
+  "verdict_rule": {
+    "STALE_RESERVATION_BLOCKING_CONFIRMED": "B has a span >32 and blocked lag-0 opportunities, and C restores more forced/natural service, ordinary reintegration, or a better FD/stock endpoint on an affected deal",
+    "STOCK_SYNCHRONOUS_SERVICE_EFFECTIVE": "C has BALANCED_WIN on at least two deals and retains at least half of A's total productive workspace descendants",
+    "STOCK_SYNCHRONY_INERT": "C is NEUTRAL on all four deals",
+    "STOCK_SYNCHRONY_MIXED": "all other valid completed outcomes",
+    "ZERO_TOLERANCE_OVER_SUPPRESSES": "on both P2 and P7, B and C each retain at most 25% of A workspace expansions and erase the historical N8 face-down advantage",
+    "evaluation_order": [
+      "INCONCLUSIVE",
+      "STALE_RESERVATION_BLOCKING_CONFIRMED",
+      "STOCK_SYNCHRONOUS_SERVICE_EFFECTIVE",
+      "ZERO_TOLERANCE_OVER_SUPPRESSES",
+      "STOCK_SYNCHRONY_INERT",
+      "STOCK_SYNCHRONY_MIXED"
+    ]
+  }
+}
