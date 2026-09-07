@@ -1,0 +1,125 @@
+{
+  "active_deals": [
+    "P0",
+    "P2",
+    "P4",
+    "P7"
+  ],
+  "arms": [
+    "N8_UNGUARDED",
+    "LAG1_GRACE_LEASE"
+  ],
+  "base_sha": "3fb9d2825aa4aea977fb9b8e26c6db3607787e52",
+  "classification_rule": {
+    "NEUTRAL": "all remaining paired outcomes",
+    "P0_P4_BALANCED_IMPROVEMENT": "B stock < A stock with face-down <= A+1, or B face-down < A with stock <= A",
+    "P0_P4_LOCAL_GAIN_PRESERVED": "B ties or improves both endpoints, retains productive workspace descendants, and uses fewer forced services",
+    "P2_P7_BALANCED_IMPROVEMENT": "B stock < A stock and B face-down <= historical no-workspace face-down",
+    "P2_P7_LOCAL_GAIN_PRESERVED": "B stock >= A stock, B face-down < historical no-workspace face-down, and B uses fewer forced lag-1 services than A",
+    "P2_P7_OVER_SUPPRESSED": "B productive workspace descendants <=25% of A and B face-down >= historical no-workspace face-down",
+    "P2_P7_STILL_STALLED": "B stock is no more than one row better than A after at least one B lag-1 grace service",
+    "evaluation_order": [
+      "BALANCED_IMPROVEMENT",
+      "LOCAL_GAIN_PRESERVED",
+      "OVER_SUPPRESSED",
+      "STILL_STALLED",
+      "NEUTRAL"
+    ]
+  },
+  "config": {
+    "controller_seed": 0,
+    "credit_propagation": "STATE_LOCAL",
+    "incumbent": null,
+    "max_credit_level": 4,
+    "max_frontier_size": 256,
+    "max_strategic_expansions": 400,
+    "max_successors_per_expansion": 10,
+    "max_tactical_nodes": 300000,
+    "priority_schema": "COMMON_STAGE0",
+    "scheduler": true,
+    "tactical_allocation": true,
+    "target_foundation_count": 2,
+    "wall_clock_limit_s": 900.0,
+    "workspace_service_interval": 8
+  },
+  "experiment": "workspace_service_lag1_grace_v0_1",
+  "historical_context": {
+    "P2": {
+      "N8": {
+        "minimum_expanded_stock_rows": 4,
+        "minimum_face_down": 26
+      },
+      "NO_WORKSPACE": {
+        "minimum_expanded_stock_rows": 0,
+        "minimum_face_down": 39
+      }
+    },
+    "P7": {
+      "N8": {
+        "minimum_expanded_stock_rows": 5,
+        "minimum_face_down": 32
+      },
+      "NO_WORKSPACE": {
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 34
+      }
+    }
+  },
+  "lease_semantics": {
+    "consumption": "only an actual forced lag-1 expansion permanently spends that integer epoch",
+    "lag0": "normally eligible; does not consume grace",
+    "lag1": "eligible only when the integer stock epoch has never spent grace",
+    "lag2_plus": "not forced-service eligible",
+    "missed_window": "reset N8 counter and continue ordinary search; no catch-up entitlement",
+    "natural_expansion": "unrestricted and never consumes grace",
+    "release": "release only lane ownership when reserved state becomes ineligible; frontier entry is untouched",
+    "stock_epoch": "minimum stock rows among unique live non-stale ordinary frontier entries"
+  },
+  "opening_digests": {
+    "P0": "c06565c127ccbc7a",
+    "P2": "4d67539f2e5b6949",
+    "P4": "d8ce5c96ef47d786",
+    "P7": "3e1bac697f14bb19"
+  },
+  "panel_definition_path": "docs/research/workspace_service_generalisation_panel_v0_1_panel.json",
+  "panel_fixture_sha256": {
+    "P0": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+    "P2": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+    "P4": "90ef2371308873dc4568260f9330d28e0843d381e99efd1d43889d6c74d307f6",
+    "P7": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3"
+  },
+  "run_schedule": {
+    "P0": [
+      "N8_UNGUARDED",
+      "LAG1_GRACE_LEASE"
+    ],
+    "P2": [
+      "LAG1_GRACE_LEASE",
+      "N8_UNGUARDED"
+    ],
+    "P4": [
+      "N8_UNGUARDED",
+      "LAG1_GRACE_LEASE"
+    ],
+    "P7": [
+      "LAG1_GRACE_LEASE",
+      "N8_UNGUARDED"
+    ]
+  },
+  "status": "FROZEN_PRE_RUN",
+  "verdict_rule": {
+    "LAG1_GRACE_EFFECTIVE": "on both P2 and P7 B improves stock, remains below the historical no-workspace face-down reference, performs forced lag-1 service, and retains productive workspace circulation",
+    "LAG1_GRACE_INERT": "B performs no forced lag-1 grace service, or all four paired endpoints and workspace expansion counts equal A",
+    "LAG1_GRACE_MIXED": "all other valid completed outcomes",
+    "LAG1_GRACE_STILL_OVERINVESTS": "on both P2 and P7 B spends grace but improves stock by at most one row",
+    "LAG1_GRACE_TOO_RESTRICTIVE": "on both P2 and P7 B retains <=25% of A productive workspace descendants and loses the historical local advantage",
+    "evaluation_order": [
+      "INCONCLUSIVE",
+      "LAG1_GRACE_EFFECTIVE",
+      "LAG1_GRACE_TOO_RESTRICTIVE",
+      "LAG1_GRACE_STILL_OVERINVESTS",
+      "LAG1_GRACE_INERT",
+      "LAG1_GRACE_MIXED"
+    ]
+  }
+}
