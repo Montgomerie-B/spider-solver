@@ -1,0 +1,153 @@
+{
+  "active_deals_for_stratified_reporting": [
+    "P0",
+    "P2",
+    "P4",
+    "P7"
+  ],
+  "arms": [
+    "WORKSPACE_N8",
+    "WORKSPACE_N8_STOCK_GUARD"
+  ],
+  "base_sha": "7444850e158619353df6e6ea18b190ef22d56b37",
+  "combined_endpoint_rule": {
+    "LOSS": "face_down_delta > 0 and stock_delta > 0",
+    "NEUTRAL": "all remaining paired outcomes",
+    "TRADEOFF": "stock_delta < 0 and face_down_delta > 1, or face_down_delta < 0 and stock_delta > 0",
+    "WIN": "stock_delta < 0 and face_down_delta <= 1, or face_down_delta < 0 and stock_delta <= 0",
+    "delta_definition": "guarded minus N8; negative is improvement",
+    "evaluation_order": [
+      "WIN",
+      "LOSS",
+      "TRADEOFF",
+      "NEUTRAL"
+    ]
+  },
+  "config": {
+    "controller_seed": 0,
+    "credit_propagation": "STATE_LOCAL",
+    "incumbent": null,
+    "max_credit_level": 4,
+    "max_frontier_size": 256,
+    "max_strategic_expansions": 400,
+    "max_successors_per_expansion": 10,
+    "max_tactical_nodes": 300000,
+    "priority_schema": "COMMON_STAGE0",
+    "scheduler": true,
+    "stock_lag_threshold": 1,
+    "tactical_allocation": true,
+    "target_foundation_count": 2,
+    "wall_clock_limit_s": 900.0,
+    "workspace_service_interval": 8
+  },
+  "experiment": "workspace_service_stock_guard_v0_1",
+  "historical_context": {
+    "P2": {
+      "N8": {
+        "minimum_expanded_stock_rows": 4,
+        "minimum_face_down": 26
+      },
+      "NO_WORKSPACE": {
+        "minimum_expanded_stock_rows": 0,
+        "minimum_face_down": 39
+      }
+    },
+    "P7": {
+      "N8": {
+        "minimum_expanded_stock_rows": 5,
+        "minimum_face_down": 32
+      },
+      "NO_WORKSPACE": {
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 34
+      }
+    }
+  },
+  "opening_digests": {
+    "P0": "c06565c127ccbc7a",
+    "P1": "4985999558684dba",
+    "P2": "4d67539f2e5b6949",
+    "P3": "116e16a36fb97d8d",
+    "P4": "d8ce5c96ef47d786",
+    "P5": "2a38b6842db9491d",
+    "P6": "a76f1d0eaa918477",
+    "P7": "3e1bac697f14bb19",
+    "P8": "c30d6533e8e80ff6",
+    "P9": "b280e024873cb6de"
+  },
+  "panel_definition_path": "docs/research/workspace_service_generalisation_panel_v0_1_panel.json",
+  "panel_fixture_sha256": {
+    "P0": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+    "P1": "6de8605515f12e2ce03fae3f0e65a8017bff1dc996fad8e01d8a9d4acf9941e6",
+    "P2": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+    "P3": "899813b528dd488d9bb8f69641d6c65d9fcab6441118292cc95ed623319b20a5",
+    "P4": "90ef2371308873dc4568260f9330d28e0843d381e99efd1d43889d6c74d307f6",
+    "P5": "4190f5aaac93bf58f522b3c1ee2408b056a397824265fd0674adae50b2f38549",
+    "P6": "1d790c29efab1d183bf53d04a8eda043a66be775b249e84b575006c82f6446aa",
+    "P7": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3",
+    "P8": "19a8d650df4392b40b1b2d6d50656713ad523433c263a5c1dac5b233259d54d8",
+    "P9": "8ef8f9dfba32d2c8c95abbdfaa639f9737d9316abe2b84dae9111b153c08c6a6"
+  },
+  "run_schedule": {
+    "P0": [
+      "WORKSPACE_N8_STOCK_GUARD",
+      "WORKSPACE_N8"
+    ],
+    "P1": [
+      "WORKSPACE_N8",
+      "WORKSPACE_N8_STOCK_GUARD"
+    ],
+    "P2": [
+      "WORKSPACE_N8_STOCK_GUARD",
+      "WORKSPACE_N8"
+    ],
+    "P3": [
+      "WORKSPACE_N8",
+      "WORKSPACE_N8_STOCK_GUARD"
+    ],
+    "P4": [
+      "WORKSPACE_N8_STOCK_GUARD",
+      "WORKSPACE_N8"
+    ],
+    "P5": [
+      "WORKSPACE_N8",
+      "WORKSPACE_N8_STOCK_GUARD"
+    ],
+    "P6": [
+      "WORKSPACE_N8_STOCK_GUARD",
+      "WORKSPACE_N8"
+    ],
+    "P7": [
+      "WORKSPACE_N8",
+      "WORKSPACE_N8_STOCK_GUARD"
+    ],
+    "P8": [
+      "WORKSPACE_N8_STOCK_GUARD",
+      "WORKSPACE_N8"
+    ],
+    "P9": [
+      "WORKSPACE_N8",
+      "WORKSPACE_N8_STOCK_GUARD"
+    ]
+  },
+  "status": "FROZEN_PRE_RUN",
+  "tradeoff_diagnostic_deals": [
+    "P2",
+    "P7"
+  ],
+  "verdict_rule": {
+    "BALANCES": "P2 and P7 both improve stock, both retain at least half their historical face-down advantage, and active subset has at least two WINs",
+    "HARMS": "at least two active deals are LOSS",
+    "INERT": "no withheld events, or both P2 and P7 are NEUTRAL",
+    "MIXED": "all other valid completed outcomes",
+    "OVER_SUPPRESSES": "at least one P2/P7 stock recovery, but every recovered deal loses its entire historical face-down advantage",
+    "evaluation_order": [
+      "INCONCLUSIVE",
+      "BALANCES",
+      "OVER_SUPPRESSES",
+      "HARMS",
+      "INERT",
+      "MIXED"
+    ]
+  }
+}
