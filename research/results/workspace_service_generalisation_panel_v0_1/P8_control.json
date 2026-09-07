@@ -1,0 +1,102 @@
+{
+  "arm": "CONTROL",
+  "completed_utc": "2026-09-07T09:35:40.017874+00:00",
+  "config_fingerprint": "bd63263008917f323ba0c4e33771ed5e4d164446a49e2ea6c6be23d363fd6401",
+  "experiment": "workspace_service_generalisation_panel_v0_1",
+  "opening_digest": "c30d6533e8e80ff6",
+  "panel_entry": "P8",
+  "run_order_index": 2,
+  "started_utc": "2026-09-07T09:26:59.065969+00:00",
+  "summary": {
+    "ACTUAL_EMPTY": {
+      "expanded": 0,
+      "generated": 0,
+      "popped": 0,
+      "retained": 0,
+      "trimmed": 0,
+      "unique": {
+        "expanded": 0,
+        "generated": 0,
+        "popped": 0,
+        "retained": 0,
+        "trimmed": 0
+      }
+    },
+    "EMPTY_CREATABLE": {
+      "expanded": 0,
+      "generated": 0,
+      "popped": 0,
+      "retained": 0,
+      "trimmed": 0,
+      "unique": {
+        "expanded": 0,
+        "generated": 0,
+        "popped": 0,
+        "retained": 0,
+        "trimmed": 0
+      }
+    },
+    "complete_solution_replay": null,
+    "corrected_cost_inconsistencies": [],
+    "credit_expansions": [
+      84,
+      79,
+      79,
+      79,
+      79
+    ],
+    "credit_propagation": "STATE_LOCAL",
+    "elapsed_s": 520.831503,
+    "existing_duplicate_occurrence_count": 0,
+    "frontier": {
+      "credit_histogram": {
+        "0": 254,
+        "1": 2,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "distinct_node_ids": 256,
+      "duplicate_entries": 0,
+      "duplicate_node_ids": [],
+      "size": 256
+    },
+    "independent_replay_false": 0,
+    "maximum_actual_empty_count": 0,
+    "maximum_foundations": 0,
+    "minimum_expanded_stock_rows": 3,
+    "minimum_face_down": 38,
+    "priority_schema": "COMMON_STAGE0",
+    "proof_pruned": 0,
+    "proof_pruning_successor_flags": 0,
+    "replay_failures": [],
+    "resource_planner_calls": 0,
+    "stop_reason": "strategic expansion limit",
+    "strategic_expansions": 400,
+    "successors_generated": 1880,
+    "successors_retained": 517,
+    "tactical_nodes": 67276,
+    "tt": {
+      "improved": 14,
+      "new": 504,
+      "suppressed": 1363
+    },
+    "workspace": {
+      "forced_services": 0,
+      "invalidations": 0,
+      "lane_duplicate_entries_introduced": 0,
+      "max_outstanding": 0,
+      "minimum_forced_interval_respected": true,
+      "natural_services": 0,
+      "natural_workspace_parent_expansions": 0,
+      "ordinary_serviced_endpoint_digests": [],
+      "productive_descendants_ordinary_serviced": 0,
+      "productive_descendants_ordinary_serviced_unique": 0,
+      "productive_descendants_retained": 0,
+      "productive_descendants_workspace_serviced": 0,
+      "productive_descendants_workspace_serviced_unique": 0,
+      "representatives_selected": 0,
+      "service_intervals": []
+    }
+  }
+}

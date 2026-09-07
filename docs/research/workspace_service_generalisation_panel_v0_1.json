@@ -1,0 +1,3160 @@
+{
+  "aggregate": {
+    "completed_pairs": 10,
+    "cost": {
+      "elapsed_time_ratio": {
+        "max": 2.5012429712239492,
+        "median": 1.0894260017124975,
+        "min": 0.979707877848851,
+        "ties": 0,
+        "treatment_cheaper": 1,
+        "treatment_more_expensive": 9
+      },
+      "tactical_node_ratio": {
+        "max": 7.372791841194682,
+        "median": 1.0143674441973984,
+        "min": 0.8556356536757528,
+        "ties": 0,
+        "treatment_cheaper": 4,
+        "treatment_more_expensive": 6
+      }
+    },
+    "credit_balance_flagged_deals": [],
+    "face_down": {
+      "improve": 3,
+      "median_paired_delta": 0.0,
+      "tie": 6,
+      "worsen": 1
+    },
+    "foundation": {
+      "both": 0,
+      "control_only": 0,
+      "neither": 10,
+      "treatment_only": 0
+    },
+    "non_calibration_treatment_deals_with_ordinary_serviced_productive_descendants": 3,
+    "ordinary_serviced_productive_descendants": {
+      "CONTROL": {
+        "deals_with_at_least_one": 1,
+        "total": 1,
+        "unique_endpoints": 1
+      },
+      "WORKSPACE_SERVICE_1": {
+        "deals_with_at_least_one": 3,
+        "total": 6,
+        "unique_endpoints": 6
+      }
+    },
+    "workspace_service_coverage": {
+      "ACTUAL_EMPTY_expansion_increase": 4,
+      "EMPTY_CREATABLE_expansion_increase": 4,
+      "combined_workspace_expansion_increase": 4,
+      "ordinary_serviced_productive_descendants_increase": 2,
+      "productive_descendants_retained_increase": 4
+    }
+  },
+  "base_sha": "1af93024fd1add6ab18a36300d3fe819dbb69fe5",
+  "calibration": {
+    "broadly_reproduced": true,
+    "checks": {
+      "bounded_credit_distribution": true,
+      "control_workspace_expansions_at_most_one": true,
+      "integrity": true,
+      "treatment_expands_ACTUAL_EMPTY": true,
+      "treatment_material_EMPTY_CREATABLE_service": true
+    },
+    "complete": true
+  },
+  "completed_utc": "2026-09-07T10:12:08.003641+00:00",
+  "config": {
+    "controller_seed": 0,
+    "credit_propagation": "STATE_LOCAL",
+    "incumbent": null,
+    "max_credit_level": 4,
+    "max_frontier_size": 256,
+    "max_strategic_expansions": 400,
+    "max_successors_per_expansion": 10,
+    "max_tactical_nodes": 300000,
+    "priority_schema": "COMMON_STAGE0",
+    "scheduler": true,
+    "tactical_allocation": true,
+    "target_foundation_count": 2,
+    "wall_clock_limit_s": 900.0,
+    "workspace_service_interval": 8
+  },
+  "experiment": "workspace_service_generalisation_panel_v0_1",
+  "gates": {
+    "all_forced_intervals_respected": true,
+    "all_twenty_runs_complete": true,
+    "alternating_run_order_observed": true,
+    "fixed_workspace_interval": true,
+    "frontier_capacity_preserved": true,
+    "identical_arm_initial_states": true,
+    "integrity": true,
+    "no_lane_duplicates": true,
+    "resource_planner_not_invoked": true
+  },
+  "paired_results": [
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 1
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 13
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.225,
+          0.2,
+          0.195,
+          0.1925,
+          0.1875
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          0.007500000000000007,
+          -0.0025000000000000022,
+          -0.0025000000000000022,
+          -0.0025000000000000022,
+          0.0
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.2325,
+          0.1975,
+          0.1925,
+          0.19,
+          0.1875
+        ]
+      },
+      "elapsed_time_ratio": 1.0801988239484874,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 3,
+        "treatment": 3
+      },
+      "minimum_face_down": {
+        "control": 36,
+        "delta": 1,
+        "treatment": 37
+      },
+      "opening_digest": "c06565c127ccbc7a",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 0,
+        "treatment_unique": 0
+      },
+      "panel_entry": "P0",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 57
+      },
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "tactical_node_ratio": 1.064612894949774,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 14,
+        "treatment": 14
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.2225,
+          0.2,
+          0.195,
+          0.1925,
+          0.19
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.2225,
+          0.2,
+          0.195,
+          0.1925,
+          0.19
+        ]
+      },
+      "elapsed_time_ratio": 1.1027752071385757,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 1,
+        "treatment": 1
+      },
+      "minimum_face_down": {
+        "control": 40,
+        "delta": 0,
+        "treatment": 40
+      },
+      "opening_digest": "4985999558684dba",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 0,
+        "treatment_unique": 0
+      },
+      "panel_entry": "P1",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 0
+      },
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "tactical_node_ratio": 0.9832251082251082,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 0,
+        "treatment": 0
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 19
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 52
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.235,
+          0.2,
+          0.1975,
+          0.185,
+          0.1825
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          0.012500000000000011,
+          0.004999999999999977,
+          -0.007500000000000007,
+          -0.0050000000000000044,
+          -0.0050000000000000044
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.2475,
+          0.205,
+          0.19,
+          0.18,
+          0.1775
+        ]
+      },
+      "elapsed_time_ratio": 2.5012429712239492,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 0,
+        "treatment": 4
+      },
+      "minimum_face_down": {
+        "control": 39,
+        "delta": -13,
+        "treatment": 26
+      },
+      "opening_digest": "4d67539f2e5b6949",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 4,
+        "treatment_unique": 4
+      },
+      "panel_entry": "P2",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 522
+      },
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "tactical_node_ratio": 2.2299677238282345,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 71,
+        "treatment": 71
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.23,
+          0.1975,
+          0.1975,
+          0.19,
+          0.185
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.23,
+          0.1975,
+          0.1975,
+          0.19,
+          0.185
+        ]
+      },
+      "elapsed_time_ratio": 1.0986531794765075,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 1,
+        "treatment": 1
+      },
+      "minimum_face_down": {
+        "control": 41,
+        "delta": 0,
+        "treatment": 41
+      },
+      "opening_digest": "116e16a36fb97d8d",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 0,
+        "treatment_unique": 0
+      },
+      "panel_entry": "P3",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 0
+      },
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "tactical_node_ratio": 0.8936154136758595,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 0,
+        "treatment": 0
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 3
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 2,
+        "treatment": 8
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.2425,
+          0.19,
+          0.19,
+          0.19,
+          0.1875
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          -0.0025000000000000022,
+          0.007500000000000007,
+          0.0025000000000000022,
+          -0.0025000000000000022,
+          -0.0050000000000000044
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.24,
+          0.1975,
+          0.1925,
+          0.1875,
+          0.1825
+        ]
+      },
+      "elapsed_time_ratio": 1.1447942176199768,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 1,
+        "treatment": 1
+      },
+      "minimum_face_down": {
+        "control": 36,
+        "delta": 0,
+        "treatment": 36
+      },
+      "opening_digest": "d8ce5c96ef47d786",
+      "ordinary_serviced_productive_descendants": {
+        "control": 1,
+        "control_unique": 1,
+        "treatment": 1,
+        "treatment_unique": 1
+      },
+      "panel_entry": "P4",
+      "productive_descendants_retained": {
+        "control": 6,
+        "treatment": 65
+      },
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "tactical_node_ratio": 1.1425905035380988,
+      "workspace_expansions": {
+        "control": 2,
+        "delta": 9,
+        "treatment": 11
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.23,
+          0.2,
+          0.195,
+          0.1875,
+          0.1875
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          -0.0025000000000000022,
+          0.0,
+          0.0025000000000000022,
+          0.0025000000000000022,
+          -0.0025000000000000022
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.2275,
+          0.2,
+          0.1975,
+          0.19,
+          0.185
+        ]
+      },
+      "elapsed_time_ratio": 1.11760629632262,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_face_down": {
+        "control": 41,
+        "delta": 0,
+        "treatment": 41
+      },
+      "opening_digest": "2a38b6842db9491d",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 0,
+        "treatment_unique": 0
+      },
+      "panel_entry": "P5",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 0
+      },
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "tactical_node_ratio": 0.9690937382625959,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 0,
+        "treatment": 0
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.2325,
+          0.1975,
+          0.1925,
+          0.19,
+          0.1875
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.2325,
+          0.1975,
+          0.1925,
+          0.19,
+          0.1875
+        ]
+      },
+      "elapsed_time_ratio": 1.0580015702335575,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 3,
+        "treatment": 3
+      },
+      "minimum_face_down": {
+        "control": 36,
+        "delta": 0,
+        "treatment": 36
+      },
+      "opening_digest": "a76f1d0eaa918477",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 0,
+        "treatment_unique": 0
+      },
+      "panel_entry": "P6",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 0
+      },
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "tactical_node_ratio": 1.0254945054945055,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 0,
+        "treatment": 0
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 2
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 10
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.2325,
+          0.195,
+          0.195,
+          0.1925,
+          0.185
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          -0.017500000000000016,
+          0.009999999999999981,
+          0.0,
+          0.0025000000000000022,
+          0.0050000000000000044
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.215,
+          0.205,
+          0.195,
+          0.195,
+          0.19
+        ]
+      },
+      "elapsed_time_ratio": 0.979707877848851,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 1,
+        "treatment": 5
+      },
+      "minimum_face_down": {
+        "control": 34,
+        "delta": -2,
+        "treatment": 32
+      },
+      "opening_digest": "3e1bac697f14bb19",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 1,
+        "treatment_unique": 1
+      },
+      "panel_entry": "P7",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 75
+      },
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "tactical_node_ratio": 7.372791841194682,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 12,
+        "treatment": 12
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.21,
+          0.1975,
+          0.1975,
+          0.1975,
+          0.1975
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.21,
+          0.1975,
+          0.1975,
+          0.1975,
+          0.1975
+        ]
+      },
+      "elapsed_time_ratio": 1.0742765803857297,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 3,
+        "treatment": 3
+      },
+      "minimum_face_down": {
+        "control": 38,
+        "delta": 0,
+        "treatment": 38
+      },
+      "opening_digest": "c30d6533e8e80ff6",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 0,
+        "treatment_unique": 0
+      },
+      "panel_entry": "P8",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 0
+      },
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "tactical_node_ratio": 1.0032403829002914,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 0,
+        "treatment": 0
+      }
+    },
+    {
+      "ACTUAL_EMPTY_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "EMPTY_CREATABLE_expanded": {
+        "control": 0,
+        "treatment": 0
+      },
+      "credit_balance": {
+        "control_shares": [
+          0.2175,
+          0.1975,
+          0.195,
+          0.195,
+          0.195
+        ],
+        "flagged": false,
+        "paired_share_deltas": [
+          -0.0050000000000000044,
+          0.0025000000000000022,
+          0.0025000000000000022,
+          0.0,
+          0.0
+        ],
+        "reasons": [],
+        "treatment_shares": [
+          0.2125,
+          0.2,
+          0.1975,
+          0.195,
+          0.195
+        ]
+      },
+      "elapsed_time_ratio": 1.033647691500248,
+      "maximum_foundations": {
+        "control": 0,
+        "treatment": 0
+      },
+      "minimum_expanded_stock_rows": {
+        "control": 1,
+        "treatment": 1
+      },
+      "minimum_face_down": {
+        "control": 43,
+        "delta": -3,
+        "treatment": 40
+      },
+      "opening_digest": "b280e024873cb6de",
+      "ordinary_serviced_productive_descendants": {
+        "control": 0,
+        "control_unique": 0,
+        "treatment": 0,
+        "treatment_unique": 0
+      },
+      "panel_entry": "P9",
+      "productive_descendants_retained": {
+        "control": 0,
+        "treatment": 0
+      },
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "tactical_node_ratio": 0.8556356536757528,
+      "workspace_expansions": {
+        "control": 0,
+        "delta": 0,
+        "treatment": 0
+      }
+    }
+  ],
+  "panel_definition_path": "docs/research/workspace_service_generalisation_panel_v0_1_panel.json",
+  "panel_id": "workspace-service-panel-v0-1",
+  "run_schedule": {
+    "P0": [
+      "WORKSPACE_SERVICE_1",
+      "CONTROL"
+    ],
+    "P1": [
+      "CONTROL",
+      "WORKSPACE_SERVICE_1"
+    ],
+    "P2": [
+      "WORKSPACE_SERVICE_1",
+      "CONTROL"
+    ],
+    "P3": [
+      "CONTROL",
+      "WORKSPACE_SERVICE_1"
+    ],
+    "P4": [
+      "WORKSPACE_SERVICE_1",
+      "CONTROL"
+    ],
+    "P5": [
+      "CONTROL",
+      "WORKSPACE_SERVICE_1"
+    ],
+    "P6": [
+      "WORKSPACE_SERVICE_1",
+      "CONTROL"
+    ],
+    "P7": [
+      "CONTROL",
+      "WORKSPACE_SERVICE_1"
+    ],
+    "P8": [
+      "WORKSPACE_SERVICE_1",
+      "CONTROL"
+    ],
+    "P9": [
+      "CONTROL",
+      "WORKSPACE_SERVICE_1"
+    ]
+  },
+  "runs": {
+    "P0": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 22,
+          "popped": 0,
+          "retained": 10,
+          "trimmed": 2,
+          "unique": {
+            "expanded": 0,
+            "generated": 10,
+            "popped": 0,
+            "retained": 10,
+            "trimmed": 2
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          90,
+          80,
+          78,
+          77,
+          75
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 576.78766,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 241,
+            "1": 10,
+            "2": 2,
+            "3": 1,
+            "4": 2
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 3,
+        "minimum_face_down": 36,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1906,
+        "successors_retained": 507,
+        "tactical_nodes": 50671,
+        "tt": {
+          "improved": 4,
+          "new": 504,
+          "suppressed": 1399
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 1,
+          "generated": 49,
+          "popped": 1,
+          "retained": 12,
+          "trimmed": 5,
+          "unique": {
+            "expanded": 1,
+            "generated": 12,
+            "popped": 1,
+            "retained": 12,
+            "trimmed": 5
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 13,
+          "generated": 136,
+          "popped": 13,
+          "retained": 45,
+          "trimmed": 7,
+          "unique": {
+            "expanded": 13,
+            "generated": 45,
+            "popped": 13,
+            "retained": 45,
+            "trimmed": 7
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          93,
+          79,
+          77,
+          76,
+          75
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 623.045352,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 238,
+            "1": 14,
+            "2": 2,
+            "3": 1,
+            "4": 1
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 1,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 3,
+        "minimum_face_down": 37,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1909,
+        "successors_retained": 525,
+        "tactical_nodes": 53945,
+        "tt": {
+          "improved": 4,
+          "new": 522,
+          "suppressed": 1384
+        },
+        "workspace": {
+          "forced_services": 42,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 1,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 10,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 57,
+          "productive_descendants_workspace_serviced": 8,
+          "productive_descendants_workspace_serviced_unique": 8,
+          "representatives_selected": 53,
+          "service_intervals": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    "P1": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          89,
+          80,
+          78,
+          77,
+          76
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 228.858989,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 228,
+            "1": 9,
+            "2": 2,
+            "3": 1,
+            "4": 1
+          },
+          "distinct_node_ids": 241,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 241
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 40,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1446,
+        "successors_retained": 323,
+        "tactical_nodes": 11088,
+        "tt": {
+          "improved": 10,
+          "new": 314,
+          "suppressed": 1123
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          89,
+          80,
+          78,
+          77,
+          76
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 252.380019,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 228,
+            "1": 9,
+            "2": 2,
+            "3": 1,
+            "4": 1
+          },
+          "distinct_node_ids": 241,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 241
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 40,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1447,
+        "successors_retained": 323,
+        "tactical_nodes": 10902,
+        "tt": {
+          "improved": 10,
+          "new": 314,
+          "suppressed": 1124
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      }
+    },
+    "P2": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 2,
+          "popped": 0,
+          "retained": 1,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 1,
+            "popped": 0,
+            "retained": 1,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          94,
+          80,
+          79,
+          74,
+          73
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 318.428128,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 235,
+            "1": 14,
+            "2": 1,
+            "3": 5,
+            "4": 1
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 0,
+        "minimum_face_down": 39,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1621,
+        "successors_retained": 399,
+        "tactical_nodes": 28504,
+        "tt": {
+          "improved": 34,
+          "new": 366,
+          "suppressed": 1222
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 19,
+          "generated": 415,
+          "popped": 20,
+          "retained": 115,
+          "trimmed": 75,
+          "unique": {
+            "expanded": 19,
+            "generated": 114,
+            "popped": 19,
+            "retained": 114,
+            "trimmed": 75
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 52,
+          "generated": 1076,
+          "popped": 58,
+          "retained": 348,
+          "trimmed": 164,
+          "unique": {
+            "expanded": 52,
+            "generated": 342,
+            "popped": 52,
+            "retained": 342,
+            "trimmed": 164
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          99,
+          82,
+          76,
+          72,
+          71
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 796.466117,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 238,
+            "1": 10,
+            "2": 4,
+            "3": 3,
+            "4": 1
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 2,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 4,
+        "minimum_face_down": 26,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 2421,
+        "successors_retained": 740,
+        "tactical_nodes": 63563,
+        "tt": {
+          "improved": 9,
+          "new": 732,
+          "suppressed": 1681
+        },
+        "workspace": {
+          "forced_services": 12,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 1,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 272,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [
+            "38c2588d28fdb47b",
+            "5890e0fb8c214224",
+            "8370517457dbf4da",
+            "9db375f113c269e3"
+          ],
+          "productive_descendants_ordinary_serviced": 4,
+          "productive_descendants_ordinary_serviced_unique": 4,
+          "productive_descendants_retained": 522,
+          "productive_descendants_workspace_serviced": 70,
+          "productive_descendants_workspace_serviced_unique": 70,
+          "representatives_selected": 285,
+          "service_intervals": [
+            9,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            8,
+            7,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            8,
+            8,
+            4,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    "P3": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          92,
+          79,
+          79,
+          76,
+          74
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 538.637916,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 238,
+            "1": 13,
+            "2": 0,
+            "3": 3,
+            "4": 2
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 41,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1833,
+        "successors_retained": 447,
+        "tactical_nodes": 13235,
+        "tt": {
+          "improved": 28,
+          "new": 420,
+          "suppressed": 1386
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          92,
+          79,
+          79,
+          76,
+          74
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 591.776259,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 238,
+            "1": 13,
+            "2": 0,
+            "3": 3,
+            "4": 2
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 41,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1832,
+        "successors_retained": 446,
+        "tactical_nodes": 11827,
+        "tt": {
+          "improved": 28,
+          "new": 419,
+          "suppressed": 1386
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      }
+    },
+    "P4": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 3,
+          "popped": 0,
+          "retained": 2,
+          "trimmed": 2,
+          "unique": {
+            "expanded": 0,
+            "generated": 2,
+            "popped": 0,
+            "retained": 2,
+            "trimmed": 2
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 2,
+          "generated": 15,
+          "popped": 2,
+          "retained": 6,
+          "trimmed": 4,
+          "unique": {
+            "expanded": 2,
+            "generated": 6,
+            "popped": 2,
+            "retained": 6,
+            "trimmed": 4
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          97,
+          76,
+          76,
+          76,
+          75
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 427.058891,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 241,
+            "1": 15,
+            "2": 0,
+            "3": 0,
+            "4": 0
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 1,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 36,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1906,
+        "successors_retained": 517,
+        "tactical_nodes": 48755,
+        "tt": {
+          "improved": 17,
+          "new": 501,
+          "suppressed": 1389
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 5,
+          "ordinary_serviced_endpoint_digests": [
+            "f092a93bab5098b1"
+          ],
+          "productive_descendants_ordinary_serviced": 1,
+          "productive_descendants_ordinary_serviced_unique": 1,
+          "productive_descendants_retained": 6,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 3,
+          "generated": 61,
+          "popped": 3,
+          "retained": 15,
+          "trimmed": 12,
+          "unique": {
+            "expanded": 3,
+            "generated": 15,
+            "popped": 3,
+            "retained": 15,
+            "trimmed": 12
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 8,
+          "generated": 97,
+          "popped": 8,
+          "retained": 26,
+          "trimmed": 18,
+          "unique": {
+            "expanded": 8,
+            "generated": 26,
+            "popped": 8,
+            "retained": 26,
+            "trimmed": 18
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          96,
+          79,
+          77,
+          75,
+          73
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 488.894549,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 240,
+            "1": 13,
+            "2": 1,
+            "3": 2,
+            "4": 0
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 1,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 36,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1943,
+        "successors_retained": 542,
+        "tactical_nodes": 55707,
+        "tt": {
+          "improved": 15,
+          "new": 528,
+          "suppressed": 1401
+        },
+        "workspace": {
+          "forced_services": 42,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 1,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 5,
+          "ordinary_serviced_endpoint_digests": [
+            "f092a93bab5098b1"
+          ],
+          "productive_descendants_ordinary_serviced": 1,
+          "productive_descendants_ordinary_serviced_unique": 1,
+          "productive_descendants_retained": 65,
+          "productive_descendants_workspace_serviced": 8,
+          "productive_descendants_workspace_serviced_unique": 8,
+          "representatives_selected": 43,
+          "service_intervals": [
+            26,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    "P5": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          92,
+          80,
+          78,
+          75,
+          75
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 354.545873,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 239,
+            "1": 12,
+            "2": 2,
+            "3": 3,
+            "4": 0
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 0,
+        "minimum_face_down": 41,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1351,
+        "successors_retained": 414,
+        "tactical_nodes": 37274,
+        "tt": {
+          "improved": 7,
+          "new": 408,
+          "suppressed": 937
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          91,
+          80,
+          79,
+          76,
+          74
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 396.2427,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 239,
+            "1": 11,
+            "2": 1,
+            "3": 3,
+            "4": 2
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 0,
+        "minimum_face_down": 41,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1349,
+        "successors_retained": 415,
+        "tactical_nodes": 36122,
+        "tt": {
+          "improved": 10,
+          "new": 406,
+          "suppressed": 934
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      }
+    },
+    "P6": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          93,
+          79,
+          77,
+          76,
+          75
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 755.825141,
+        "existing_duplicate_occurrence_count": 9,
+        "frontier": {
+          "credit_histogram": {
+            "0": 239,
+            "1": 13,
+            "2": 2,
+            "3": 1,
+            "4": 1
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 3,
+        "minimum_face_down": 36,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 2397,
+        "successors_retained": 569,
+        "tactical_nodes": 6825,
+        "tt": {
+          "improved": 51,
+          "new": 519,
+          "suppressed": 1828
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          93,
+          79,
+          77,
+          76,
+          75
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 799.664186,
+        "existing_duplicate_occurrence_count": 9,
+        "frontier": {
+          "credit_histogram": {
+            "0": 239,
+            "1": 13,
+            "2": 2,
+            "3": 1,
+            "4": 1
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 3,
+        "minimum_face_down": 36,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 2395,
+        "successors_retained": 569,
+        "tactical_nodes": 6999,
+        "tt": {
+          "improved": 51,
+          "new": 519,
+          "suppressed": 1826
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      }
+    },
+    "P7": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 42,
+          "popped": 0,
+          "retained": 12,
+          "trimmed": 9,
+          "unique": {
+            "expanded": 0,
+            "generated": 12,
+            "popped": 0,
+            "retained": 12,
+            "trimmed": 9
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          93,
+          78,
+          78,
+          77,
+          74
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 493.669855,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 248,
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 34,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 2124,
+        "successors_retained": 636,
+        "tactical_nodes": 10982,
+        "tt": {
+          "improved": 2,
+          "new": 635,
+          "suppressed": 1488
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 2,
+          "generated": 17,
+          "popped": 2,
+          "retained": 10,
+          "trimmed": 6,
+          "unique": {
+            "expanded": 2,
+            "generated": 10,
+            "popped": 2,
+            "retained": 10,
+            "trimmed": 6
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 10,
+          "generated": 125,
+          "popped": 10,
+          "retained": 42,
+          "trimmed": 9,
+          "unique": {
+            "expanded": 10,
+            "generated": 41,
+            "popped": 10,
+            "retained": 41,
+            "trimmed": 8
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          86,
+          82,
+          78,
+          78,
+          76
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 483.652246,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 246,
+            "1": 4,
+            "2": 4,
+            "3": 0,
+            "4": 2
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 1,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 5,
+        "minimum_face_down": 32,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 2078,
+        "successors_retained": 540,
+        "tactical_nodes": 80968,
+        "tt": {
+          "improved": 10,
+          "new": 531,
+          "suppressed": 1538
+        },
+        "workspace": {
+          "forced_services": 43,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 1,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 8,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [
+            "441fcbb849870095"
+          ],
+          "productive_descendants_ordinary_serviced": 1,
+          "productive_descendants_ordinary_serviced_unique": 1,
+          "productive_descendants_retained": 75,
+          "productive_descendants_workspace_serviced": 11,
+          "productive_descendants_workspace_serviced_unique": 11,
+          "representatives_selected": 52,
+          "service_intervals": [
+            8,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    "P8": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          84,
+          79,
+          79,
+          79,
+          79
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 520.831503,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 254,
+            "1": 2,
+            "2": 0,
+            "3": 0,
+            "4": 0
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 3,
+        "minimum_face_down": 38,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1880,
+        "successors_retained": 517,
+        "tactical_nodes": 67276,
+        "tt": {
+          "improved": 14,
+          "new": 504,
+          "suppressed": 1363
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          84,
+          79,
+          79,
+          79,
+          79
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 559.517086,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 254,
+            "1": 2,
+            "2": 0,
+            "3": 0,
+            "4": 0
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 3,
+        "minimum_face_down": 38,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1879,
+        "successors_retained": 517,
+        "tactical_nodes": 67494,
+        "tt": {
+          "improved": 14,
+          "new": 504,
+          "suppressed": 1362
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      }
+    },
+    "P9": {
+      "CONTROL": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          87,
+          79,
+          78,
+          78,
+          78
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 346.031941,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 248,
+            "1": 7,
+            "2": 1,
+            "3": 0,
+            "4": 0
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 43,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1816,
+        "successors_retained": 544,
+        "tactical_nodes": 26634,
+        "tt": {
+          "improved": 12,
+          "new": 533,
+          "suppressed": 1272
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      },
+      "WORKSPACE_SERVICE_1": {
+        "ACTUAL_EMPTY": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "EMPTY_CREATABLE": {
+          "expanded": 0,
+          "generated": 0,
+          "popped": 0,
+          "retained": 0,
+          "trimmed": 0,
+          "unique": {
+            "expanded": 0,
+            "generated": 0,
+            "popped": 0,
+            "retained": 0,
+            "trimmed": 0
+          }
+        },
+        "complete_solution_replay": null,
+        "corrected_cost_inconsistencies": [],
+        "credit_expansions": [
+          85,
+          80,
+          79,
+          78,
+          78
+        ],
+        "credit_propagation": "STATE_LOCAL",
+        "elapsed_s": 357.675117,
+        "existing_duplicate_occurrence_count": 0,
+        "frontier": {
+          "credit_histogram": {
+            "0": 249,
+            "1": 5,
+            "2": 1,
+            "3": 1,
+            "4": 0
+          },
+          "distinct_node_ids": 256,
+          "duplicate_entries": 0,
+          "duplicate_node_ids": [],
+          "size": 256
+        },
+        "independent_replay_false": 0,
+        "maximum_actual_empty_count": 0,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 40,
+        "priority_schema": "COMMON_STAGE0",
+        "proof_pruned": 0,
+        "proof_pruning_successor_flags": 0,
+        "replay_failures": [],
+        "resource_planner_calls": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 400,
+        "successors_generated": 1929,
+        "successors_retained": 448,
+        "tactical_nodes": 22789,
+        "tt": {
+          "improved": 23,
+          "new": 426,
+          "suppressed": 1481
+        },
+        "workspace": {
+          "forced_services": 0,
+          "invalidations": 0,
+          "lane_duplicate_entries_introduced": 0,
+          "max_outstanding": 0,
+          "minimum_forced_interval_respected": true,
+          "natural_services": 0,
+          "natural_workspace_parent_expansions": 0,
+          "ordinary_serviced_endpoint_digests": [],
+          "productive_descendants_ordinary_serviced": 0,
+          "productive_descendants_ordinary_serviced_unique": 0,
+          "productive_descendants_retained": 0,
+          "productive_descendants_workspace_serviced": 0,
+          "productive_descendants_workspace_serviced_unique": 0,
+          "representatives_selected": 0,
+          "service_intervals": []
+        }
+      }
+    }
+  },
+  "verdict": "WORKSPACE_SERVICE_NOISY_OR_MIXED"
+}

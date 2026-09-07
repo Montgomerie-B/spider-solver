@@ -144,7 +144,13 @@ def _minimum_expanded_stock_rows(full: dict) -> int | None:
     return min(values) if values else None
 
 
-def compact_arm(full: dict, opening: SpiderState, result) -> dict:
+def compact_arm(
+    full: dict,
+    opening: SpiderState,
+    result,
+    *,
+    final_duplicate_node_ids: list[int],
+) -> dict:
     ordinary_total, ordinary_unique, ordinary_digests = _productive_endpoints(
         full, "ORDINARY"
     )
@@ -209,7 +215,10 @@ def compact_arm(full: dict, opening: SpiderState, result) -> dict:
                 workspace_digests
             ),
         },
-        "frontier": full["frontier"],
+        "frontier": {
+            **full["frontier"],
+            "duplicate_node_ids": final_duplicate_node_ids,
+        },
         "existing_duplicate_occurrence_count": len(
             full["existing_duplicate_occurrences"]
         ),
@@ -241,11 +250,19 @@ def run_arm(cards: tuple, *, enable_service: bool) -> dict:
     try:
         result = controller.solve_anytime(opening.clone(), cards, None, config)
         full = observer.workspace_summary(result)
+        final_duplicate_node_ids = sorted(
+            observer._duplicate_ids(observer.frontier or []).keys()
+        )
     finally:
         observer.restore()
     full["priority_schema"] = config.frontier_priority_schema.value
     full["credit_propagation"] = config.strategic_credit_propagation.value
-    return compact_arm(full, opening, result)
+    return compact_arm(
+        full,
+        opening,
+        result,
+        final_duplicate_node_ids=final_duplicate_node_ids,
+    )
 
 
 def _checkpoint_path(panel_entry: str, arm: str) -> Path:
