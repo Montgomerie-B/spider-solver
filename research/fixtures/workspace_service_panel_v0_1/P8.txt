@@ -1,0 +1,8 @@
+spider
+Kd,8s,5c,Ah,3s,As,As,3c,2h,6h,
+4d,5d,9h,8c,9s,Js,5s,4d,2h,7h,
+Ad,Ac,10h,4h,Qs,6s,Kc,Qd,Jh,7d,
+4c,6d,8d,Qc,Ac,6c,5h,3h,5h,Js,
+Ks,2c,6c,5s,Jc,3d,Ks,Kd,2c,2s,
+6h,Qh,Jd,4h,
+9c,8c,4c,Jc,10d,8h,7d,10h,8s,3c,8d,10d,10s,9d,4s,3s,3h,9d,Kc,2s,2d,6d,Ah,2d,9h,10c,Ad,Jd,Kh,7s,Kh,7s,Qc,Qh,6s,5c,5d,10s,9c,3d,8h,7c,7c,Jh,10c,4s,9s,7h,Qs,Qd

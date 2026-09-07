@@ -1,0 +1,184 @@
+{
+  "calibration_fixture_path": "deals/4925153.txt",
+  "deck_construction": {
+    "base_order": "copy, then suit, then ascending rank",
+    "cards_per_copy": 52,
+    "copies": 2,
+    "rank_order": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ],
+    "suit_order": "shdc"
+  },
+  "entries": [
+    {
+      "fixture_path": "deals/4925153.txt",
+      "fixture_sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+      "kind": "CALIBRATION",
+      "opening_digest": "c06565c127ccbc7a",
+      "panel_entry": "P0",
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "seed": null
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P1.txt",
+      "fixture_sha256": "6de8605515f12e2ce03fae3f0e65a8017bff1dc996fad8e01d8a9d4acf9941e6",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "4985999558684dba",
+      "panel_entry": "P1",
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "seed": 12858661474814657433
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P2.txt",
+      "fixture_sha256": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "4d67539f2e5b6949",
+      "panel_entry": "P2",
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "seed": 17037747615682187675
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P3.txt",
+      "fixture_sha256": "899813b528dd488d9bb8f69641d6c65d9fcab6441118292cc95ed623319b20a5",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "116e16a36fb97d8d",
+      "panel_entry": "P3",
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "seed": 3511299091343336564
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P4.txt",
+      "fixture_sha256": "90ef2371308873dc4568260f9330d28e0843d381e99efd1d43889d6c74d307f6",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "d8ce5c96ef47d786",
+      "panel_entry": "P4",
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "seed": 6782576163807013305
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P5.txt",
+      "fixture_sha256": "4190f5aaac93bf58f522b3c1ee2408b056a397824265fd0674adae50b2f38549",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "2a38b6842db9491d",
+      "panel_entry": "P5",
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "seed": 5347712971617699974
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P6.txt",
+      "fixture_sha256": "1d790c29efab1d183bf53d04a8eda043a66be775b249e84b575006c82f6446aa",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "a76f1d0eaa918477",
+      "panel_entry": "P6",
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "seed": 323099503300668895
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P7.txt",
+      "fixture_sha256": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "3e1bac697f14bb19",
+      "panel_entry": "P7",
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "seed": 1454277106742966837
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P8.txt",
+      "fixture_sha256": "19a8d650df4392b40b1b2d6d50656713ad523433c263a5c1dac5b233259d54d8",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "c30d6533e8e80ff6",
+      "panel_entry": "P8",
+      "run_order": [
+        "WORKSPACE_SERVICE_1",
+        "CONTROL"
+      ],
+      "seed": 719590085337095586
+    },
+    {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P9.txt",
+      "fixture_sha256": "8ef8f9dfba32d2c8c95abbdfaa639f9737d9316abe2b84dae9111b153c08c6a6",
+      "kind": "DETERMINISTIC_RESEARCH_DEAL",
+      "opening_digest": "b280e024873cb6de",
+      "panel_entry": "P9",
+      "run_order": [
+        "CONTROL",
+        "WORKSPACE_SERVICE_1"
+      ],
+      "seed": 11599763336346334964
+    }
+  ],
+  "generator_version": "sha256-fisher-yates-v1",
+  "layout": {
+    "column_totals": [
+      6,
+      6,
+      6,
+      6,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "initial_face_up_per_column": 1,
+    "stock_cards": 50,
+    "stock_rows": 5,
+    "tableau_cards": 54
+  },
+  "panel_id": "workspace-service-panel-v0-1",
+  "rule_profile": {
+    "can_deal_into_empty": true,
+    "legacy_zero_cost_ignores_face_down": false,
+    "name": "MW_RULES",
+    "zero_cost_move_to_empty": true,
+    "zero_cost_requires_emptying_column": true
+  },
+  "seed_derivation": {
+    "conversion": "first 8 digest bytes as unsigned 64-bit big-endian",
+    "hash": "SHA-256",
+    "input": "workspace-service-panel-v0-1:P{index}"
+  },
+  "shuffle": {
+    "algorithm": "descending Fisher-Yates",
+    "bounded_draw": "64-bit rejection sampling, then modulo current bound",
+    "domain_hex": "776f726b73706163652d736572766963652d70616e656c2d76302d312f73687566666c652d763100",
+    "draw_source": "first 8 bytes of SHA-256(domain || seed_u64_be || counter_u64_be)"
+  }
+}
