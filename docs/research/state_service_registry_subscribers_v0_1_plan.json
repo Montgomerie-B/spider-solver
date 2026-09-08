@@ -1,0 +1,72 @@
+{
+  "arms": [
+    "REGISTRY_V0_1_OWNERSHIP",
+    "REGISTRY_SUBSCRIBERS"
+  ],
+  "base_sha": "b79419bda094941869925b35ec5730c6aa1e45ed",
+  "config": {
+    "controller_seed": 0,
+    "credit_propagation": "STATE_LOCAL",
+    "incumbent": null,
+    "max_credit_level": 4,
+    "max_frontier_size": 256,
+    "max_strategic_expansions": 80,
+    "max_successors_per_expansion": 10,
+    "max_tactical_nodes": 120000,
+    "priority_schema": "COMMON_STAGE0",
+    "resource_planner": false,
+    "scheduler": true,
+    "state_service_registry": true,
+    "tactical_allocation": true,
+    "target_foundation_count": 2,
+    "wall_clock_limit_s": 240.0,
+    "workspace_service": false
+  },
+  "config_fingerprint": "505028b55c2876866307bad13e1bc13caedcce99a155aa95f899d753daed33cd",
+  "deals": [
+    "P0",
+    "P2",
+    "P7"
+  ],
+  "experiment": "state_service_registry_subscribers_v0_1",
+  "fixtures": {
+    "P0": {
+      "fixture_path": "deals/4925153.txt",
+      "fixture_sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+      "opening_digest": "c06565c127ccbc7a"
+    },
+    "P2": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P2.txt",
+      "fixture_sha256": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+      "opening_digest": "4d67539f2e5b6949"
+    },
+    "P7": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P7.txt",
+      "fixture_sha256": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3",
+      "opening_digest": "3e1bac697f14bb19"
+    }
+  },
+  "ownership_contract": {
+    "arm_a": "registry lifecycle plus legacy node-owned completion/epoch reservations",
+    "arm_b": "same registry request/handle with ordinary, completion and epoch subscribers",
+    "priority": "unchanged RESERVED marker projected from subscriber entitlement",
+    "production_default": false,
+    "quota": "one completion and one epoch entitlement; shared execution capacity once"
+  },
+  "run_order": {
+    "P0": [
+      "REGISTRY_V0_1_OWNERSHIP",
+      "REGISTRY_SUBSCRIBERS"
+    ],
+    "P2": [
+      "REGISTRY_SUBSCRIBERS",
+      "REGISTRY_V0_1_OWNERSHIP"
+    ],
+    "P7": [
+      "REGISTRY_V0_1_OWNERSHIP",
+      "REGISTRY_SUBSCRIBERS"
+    ]
+  },
+  "selection_rationale": "P0/P2/P7 are the mandatory existing frozen fixtures; the prior 80-expansion registry panel advances 3/4/1 stock rows respectively, so the unchanged envelope naturally reaches epoch-transition eligibility without outcome-based fixture selection. Focused deterministic tests cover all completion/epoch overlaps even if a panel mechanism is sparse.",
+  "status": "FROZEN_PRE_RUN"
+}

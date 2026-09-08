@@ -316,6 +316,7 @@ from spider.planner.source_completion import (
 from spider.planner.state_service_registry import (
     ServiceCoverageMode,
     ServiceRequestKey,
+    ServiceSubscriberKind,
     StateServiceRegistry,
 )
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
@@ -492,6 +493,7 @@ class AnytimeControllerConfig:
     )
     max_scheduler_objectives_in_portfolio: int = 1
     enable_state_service_registry: bool = False
+    enable_state_service_subscribers: bool = False
     state_service_registry_max_states: int = 100_000
     state_service_registry_max_requests: int = 500_000
     deal_timing_config: DealTimingConfig = field(
@@ -526,6 +528,8 @@ class AnytimeControllerConfig:
             or self.state_service_registry_max_requests <= 0
         ):
             raise ValueError("state-service registry limits must be positive")
+        if self.enable_state_service_subscribers and not self.enable_state_service_registry:
+            raise ValueError("state-service subscribers require StateServiceRegistry")
         if len(self.tactical_max_cost_by_credit) != 5:
             raise ValueError("tactical cost schedule must contain five credit levels")
         if tuple(sorted(self.tactical_max_cost_by_credit)) != self.tactical_max_cost_by_credit:
@@ -958,6 +962,28 @@ class ControllerTelemetry:
     registry_live_handle_invariant_violations: int = 0
     registry_service_executions: int = 0
     registry_approximate_bytes: int = 0
+    registry_subscribers_enabled: bool = False
+    registry_subscriber_records: int = 0
+    registry_subscriber_records_by_kind: Dict[str, int] = field(default_factory=dict)
+    registry_active_subscribers: int = 0
+    registry_active_subscribers_by_kind: Dict[str, int] = field(default_factory=dict)
+    registry_subscriber_attachments: int = 0
+    registry_subscriber_attachments_by_kind: Dict[str, int] = field(default_factory=dict)
+    registry_request_combinations_observed: Dict[str, int] = field(default_factory=dict)
+    registry_duplicate_subscriber_coalesces: int = 0
+    registry_duplicate_live_representations_prevented: int = 0
+    registry_subscriber_live_representations_used: int = 0
+    registry_subscriber_add_events: int = 0
+    registry_subscriber_remove_events: int = 0
+    registry_subscriber_quota_usage: Dict[str, int] = field(default_factory=dict)
+    registry_peak_subscriber_quota_usage: Dict[str, int] = field(default_factory=dict)
+    registry_shared_executions: int = 0
+    registry_executions_satisfying_multiple_subscribers: int = 0
+    registry_subscriber_satisfactions: int = 0
+    registry_stale_shared_handles_rejected: int = 0
+    registry_shared_request_deferrals: int = 0
+    registry_shared_request_reactivations: int = 0
+    registry_subscriber_orphan_deferrals: int = 0
     actionability_cache_hits: int = 0
     actionability_cache_misses: int = 0
     inaccessible_retry_suppressed: int = 0
@@ -8109,6 +8135,195 @@ def _reserve_epoch_transition_representative(
     return rebuilt
 
 
+def _node_with_registry_subscriber_entitlements(
+    node: StrategicSearchNode,
+    registry: StateServiceRegistry,
+) -> StrategicSearchNode:
+    """Project authoritative subscriber entitlements onto the node adapter."""
+
+    request_key = registry.request_key_for_handle(node.node_id)
+    if request_key is None:
+        return node
+    completion = node.completion_cash_out
+    if completion is not None:
+        completion = replace(
+            completion,
+            status=(
+                CompletionCashOutStatus.RESERVED
+                if registry.has_active_subscriber(
+                    request_key, ServiceSubscriberKind.COMPLETION_CASH_OUT
+                )
+                else (
+                    CompletionCashOutStatus.QUALIFIED
+                    if completion.status == CompletionCashOutStatus.RESERVED
+                    else completion.status
+                )
+            ),
+        )
+    epoch = node.epoch_transition_opportunity
+    if epoch is not None:
+        epoch = replace(
+            epoch,
+            status=(
+                EpochTransitionRepresentativeStatus.RESERVED
+                if registry.has_active_subscriber(
+                    request_key, ServiceSubscriberKind.EPOCH_TRANSITION
+                )
+                else (
+                    EpochTransitionRepresentativeStatus.QUALIFIED
+                    if epoch.status == EpochTransitionRepresentativeStatus.RESERVED
+                    else epoch.status
+                )
+            ),
+        )
+    return replace(
+        node,
+        completion_cash_out=completion,
+        epoch_transition_opportunity=epoch,
+    )
+
+
+def _node_without_subscriber_reservation_markers(
+    node: StrategicSearchNode,
+) -> StrategicSearchNode:
+    """Keep policy data on the node while removing independent ownership flags."""
+
+    completion = node.completion_cash_out
+    if completion is not None and completion.status == CompletionCashOutStatus.RESERVED:
+        completion = replace(completion, status=CompletionCashOutStatus.QUALIFIED)
+    epoch = node.epoch_transition_opportunity
+    if (
+        epoch is not None
+        and epoch.status == EpochTransitionRepresentativeStatus.RESERVED
+    ):
+        epoch = replace(epoch, status=EpochTransitionRepresentativeStatus.QUALIFIED)
+    return replace(
+        node,
+        completion_cash_out=completion,
+        epoch_transition_opportunity=epoch,
+    )
+
+
+def _subscriber_node_priority(
+    node: StrategicSearchNode,
+    registry: StateServiceRegistry,
+) -> Tuple:
+    return _node_priority(_node_with_registry_subscriber_entitlements(node, registry))
+
+
+def _reserve_completion_subscriber(
+    frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
+    *,
+    tt: StrategicTranspositionTable,
+    spent_event_ids: Sequence[str],
+    telemetry: ControllerTelemetry,
+    registry: StateServiceRegistry,
+) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
+    """Apply the existing completion selection, then transfer ownership."""
+
+    previously_subscribed = {
+        uid
+        for _priority, uid, _node in frontier
+        if (request_key := registry.request_key_for_handle(uid)) is not None
+        and registry.has_active_subscriber(
+            request_key, ServiceSubscriberKind.COMPLETION_CASH_OUT
+        )
+    }
+    selected = _reserve_completion_representative(
+        frontier,
+        tt=tt,
+        spent_event_ids=spent_event_ids,
+        telemetry=telemetry,
+    )
+    neutral = []
+    for _priority, uid, node in selected:
+        request_key = registry.request_key_for_handle(uid)
+        opportunity = node.completion_cash_out
+        if request_key is not None:
+            if (
+                opportunity is not None
+                and opportunity.status == CompletionCashOutStatus.RESERVED
+            ):
+                if uid in previously_subscribed:
+                    telemetry.completion_representatives_reserved -= 1
+                registry.subscribe(
+                    request_key,
+                    ServiceSubscriberKind.COMPLETION_CASH_OUT,
+                    priority_information=(
+                        opportunity.metrics.ordering_key(),
+                        opportunity.corrected_g,
+                        opportunity.exact_state_hash,
+                        opportunity.opportunity_id,
+                    ),
+                    quota_identity=opportunity.opportunity_id,
+                    reason=opportunity.reason,
+                )
+            else:
+                registry.unsubscribe(
+                    request_key,
+                    ServiceSubscriberKind.COMPLETION_CASH_OUT,
+                    reason="completion reservation no longer selected or eligible",
+                )
+        neutral_node = _node_without_subscriber_reservation_markers(node)
+        neutral.append((_subscriber_node_priority(neutral_node, registry), uid, neutral_node))
+    heapq.heapify(neutral)
+    return neutral
+
+
+def _reserve_epoch_transition_subscriber(
+    frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
+    *,
+    tt: StrategicTranspositionTable,
+    spent_opportunity_ids: Sequence[str],
+    telemetry: ControllerTelemetry,
+    registry: StateServiceRegistry,
+) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
+    """Apply the existing epoch selection, then transfer ownership."""
+
+    previously_subscribed = {
+        uid
+        for _priority, uid, _node in frontier
+        if (request_key := registry.request_key_for_handle(uid)) is not None
+        and registry.has_active_subscriber(
+            request_key, ServiceSubscriberKind.EPOCH_TRANSITION
+        )
+    }
+    selected = _reserve_epoch_transition_representative(
+        frontier,
+        tt=tt,
+        spent_opportunity_ids=spent_opportunity_ids,
+        telemetry=telemetry,
+    )
+    neutral = []
+    for _priority, uid, node in selected:
+        request_key = registry.request_key_for_handle(uid)
+        opportunity = node.epoch_transition_opportunity
+        if request_key is not None:
+            if (
+                opportunity is not None
+                and opportunity.status == EpochTransitionRepresentativeStatus.RESERVED
+            ):
+                if uid in previously_subscribed:
+                    telemetry.scheduler_transition_representatives_reserved -= 1
+                registry.subscribe(
+                    request_key,
+                    ServiceSubscriberKind.EPOCH_TRANSITION,
+                    priority_information=opportunity.ordering_key(),
+                    quota_identity=opportunity.opportunity_id,
+                    reason="strongest eligible epoch transition retains its existing quota",
+                )
+            else:
+                registry.unsubscribe(
+                    request_key,
+                    ServiceSubscriberKind.EPOCH_TRANSITION,
+                    reason="epoch-transition reservation no longer selected or eligible",
+                )
+        neutral_node = _node_without_subscriber_reservation_markers(node)
+        neutral.append((_subscriber_node_priority(neutral_node, registry), uid, neutral_node))
+    heapq.heapify(neutral)
+    return neutral
+
+
 def _completion_harvest_assessment(
     opportunity: CompletionCashOutOpportunity,
     node: StrategicSearchNode,
@@ -8243,6 +8458,7 @@ def _trim_frontier_with_checkpoint_diversity(
     portfolio: FoundationCheckpointPortfolio,
     pre_foundation_portfolio: Optional[PreFoundationPortfolio] = None,
     telemetry: Optional[ControllerTelemetry] = None,
+    registry: Optional[StateServiceRegistry] = None,
 ) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
     """Protect checkpoint and material pre-foundation geometries."""
     ordered = sorted(frontier)
@@ -8252,14 +8468,29 @@ def _trim_frontier_with_checkpoint_diversity(
     represented = set()
     # One already-admitted completion representative occupies an existing
     # frontier slot.  It receives no width, resource, or expansion increase.
+    def subscribed(item, kind: ServiceSubscriberKind) -> bool:
+        if registry is None:
+            return False
+        request_key = registry.request_key_for_handle(item[1])
+        return bool(
+            request_key is not None
+            and registry.has_active_subscriber(request_key, kind)
+        )
+
     completion_item = next(
         (
             item
             for item in ordered
-            if item[2].completion_cash_out is not None
-            and item[2].completion_cash_out.status
-            == CompletionCashOutStatus.RESERVED
-            and not item[2].completion_cash_out.cash_out_spent
+            if (
+                subscribed(item, ServiceSubscriberKind.COMPLETION_CASH_OUT)
+                or (
+                    registry is None
+                    and item[2].completion_cash_out is not None
+                    and item[2].completion_cash_out.status
+                    == CompletionCashOutStatus.RESERVED
+                    and not item[2].completion_cash_out.cash_out_spent
+                )
+            )
         ),
         None,
     )
@@ -8286,9 +8517,15 @@ def _trim_frontier_with_checkpoint_diversity(
         kept.append(completion_item)
         kept_ids.add(completion_item[1])
         if telemetry is not None and any(
-            item[2].epoch_transition_opportunity is not None
-            and item[2].epoch_transition_opportunity.status
-            == EpochTransitionRepresentativeStatus.RESERVED
+            (
+                subscribed(item, ServiceSubscriberKind.EPOCH_TRANSITION)
+                or (
+                    registry is None
+                    and item[2].epoch_transition_opportunity is not None
+                    and item[2].epoch_transition_opportunity.status
+                    == EpochTransitionRepresentativeStatus.RESERVED
+                )
+            )
             and item[1] != completion_item[1]
             for item in ordered
         ):
@@ -8300,9 +8537,15 @@ def _trim_frontier_with_checkpoint_diversity(
             item
             for item in ordered
             if item[1] not in kept_ids
-            and item[2].epoch_transition_opportunity is not None
-            and item[2].epoch_transition_opportunity.status
-            == EpochTransitionRepresentativeStatus.RESERVED
+            and (
+                subscribed(item, ServiceSubscriberKind.EPOCH_TRANSITION)
+                or (
+                    registry is None
+                    and item[2].epoch_transition_opportunity is not None
+                    and item[2].epoch_transition_opportunity.status
+                    == EpochTransitionRepresentativeStatus.RESERVED
+                )
+            )
         ),
         None,
     )
@@ -9256,6 +9499,55 @@ def _publish_registry_telemetry(
     ]
     telemetry.registry_service_executions = snapshot["service_executions"]
     telemetry.registry_approximate_bytes = snapshot["approximate_bytes"]
+    telemetry.registry_subscriber_records = snapshot["subscriber_records"]
+    telemetry.registry_subscriber_records_by_kind = snapshot[
+        "subscriber_records_by_kind"
+    ]
+    telemetry.registry_active_subscribers = snapshot["active_subscribers"]
+    telemetry.registry_active_subscribers_by_kind = snapshot[
+        "active_subscribers_by_kind"
+    ]
+    telemetry.registry_subscriber_attachments = snapshot["subscriber_attachments"]
+    telemetry.registry_subscriber_attachments_by_kind = snapshot[
+        "subscriber_attachments_by_kind"
+    ]
+    telemetry.registry_request_combinations_observed = snapshot[
+        "request_combinations_observed"
+    ]
+    telemetry.registry_duplicate_subscriber_coalesces = snapshot[
+        "duplicate_subscriber_coalesces"
+    ]
+    telemetry.registry_duplicate_live_representations_prevented = snapshot[
+        "duplicate_live_representations_prevented"
+    ]
+    telemetry.registry_subscriber_live_representations_used = snapshot[
+        "subscriber_live_representations_used"
+    ]
+    telemetry.registry_subscriber_add_events = snapshot["subscriber_add_events"]
+    telemetry.registry_subscriber_remove_events = snapshot["subscriber_remove_events"]
+    telemetry.registry_subscriber_quota_usage = snapshot["subscriber_quota_usage"]
+    telemetry.registry_peak_subscriber_quota_usage = snapshot[
+        "peak_subscriber_quota_usage"
+    ]
+    telemetry.registry_shared_executions = snapshot["shared_executions"]
+    telemetry.registry_executions_satisfying_multiple_subscribers = snapshot[
+        "executions_satisfying_multiple_subscribers"
+    ]
+    telemetry.registry_subscriber_satisfactions = snapshot[
+        "subscriber_satisfactions"
+    ]
+    telemetry.registry_stale_shared_handles_rejected = snapshot[
+        "stale_shared_handles_rejected"
+    ]
+    telemetry.registry_shared_request_deferrals = snapshot[
+        "shared_request_deferrals"
+    ]
+    telemetry.registry_shared_request_reactivations = snapshot[
+        "shared_request_reactivations"
+    ]
+    telemetry.registry_subscriber_orphan_deferrals = snapshot[
+        "subscriber_orphan_deferrals"
+    ]
 
 
 def solve_anytime(
@@ -9304,8 +9596,10 @@ def solve_anytime(
         registry = StateServiceRegistry(
             max_states=config.state_service_registry_max_states,
             max_requests=config.state_service_registry_max_requests,
+            enable_subscribers=config.enable_state_service_subscribers,
         )
         telemetry.registry_enabled = True
+        telemetry.registry_subscribers_enabled = config.enable_state_service_subscribers
     resource_allocator = _resource_allocator_for_config(config)
     checkpoint_profiles: List[FoundationCheckpointProfile] = []
     pre_foundation_profiles: List[PreFoundationGeometry] = []
@@ -9549,21 +9843,40 @@ def solve_anytime(
             stop_reason = "tactical node limit"
             break
 
-        frontier = _reserve_completion_representative(
-            frontier,
-            tt=tt,
-            spent_event_ids=tuple(cash_out_spent_event_ids),
-            telemetry=telemetry,
-        )
-        frontier = _reserve_epoch_transition_representative(
-            frontier,
-            tt=tt,
-            spent_opportunity_ids=tuple(epoch_transition_spent_ids),
-            telemetry=telemetry,
-        )
+        if config.enable_state_service_subscribers:
+            assert registry is not None
+            frontier = _reserve_completion_subscriber(
+                frontier,
+                tt=tt,
+                spent_event_ids=tuple(cash_out_spent_event_ids),
+                telemetry=telemetry,
+                registry=registry,
+            )
+            frontier = _reserve_epoch_transition_subscriber(
+                frontier,
+                tt=tt,
+                spent_opportunity_ids=tuple(epoch_transition_spent_ids),
+                telemetry=telemetry,
+                registry=registry,
+            )
+        else:
+            frontier = _reserve_completion_representative(
+                frontier,
+                tt=tt,
+                spent_event_ids=tuple(cash_out_spent_event_ids),
+                telemetry=telemetry,
+            )
+            frontier = _reserve_epoch_transition_representative(
+                frontier,
+                tt=tt,
+                spent_opportunity_ids=tuple(epoch_transition_spent_ids),
+                telemetry=telemetry,
+            )
         _priority, _sequence, node = heapq.heappop(frontier)
         running_request: Optional[ServiceRequestKey] = None
         if registry is not None:
+            if config.enable_state_service_subscribers:
+                node = _node_with_registry_subscriber_entitlements(node, registry)
             service_start = registry.begin(node.node_id)
             if not service_start.accepted:
                 continue
@@ -11141,18 +11454,35 @@ def solve_anytime(
                     widened = replace(node, node_id=uid, credit_level=next_credit)
                     heapq.heappush(frontier, (_node_priority(widened), uid, widened))
 
-        frontier = _reserve_completion_representative(
-            frontier,
-            tt=tt,
-            spent_event_ids=tuple(cash_out_spent_event_ids),
-            telemetry=telemetry,
-        )
-        frontier = _reserve_epoch_transition_representative(
-            frontier,
-            tt=tt,
-            spent_opportunity_ids=tuple(epoch_transition_spent_ids),
-            telemetry=telemetry,
-        )
+        if config.enable_state_service_subscribers:
+            assert registry is not None
+            frontier = _reserve_completion_subscriber(
+                frontier,
+                tt=tt,
+                spent_event_ids=tuple(cash_out_spent_event_ids),
+                telemetry=telemetry,
+                registry=registry,
+            )
+            frontier = _reserve_epoch_transition_subscriber(
+                frontier,
+                tt=tt,
+                spent_opportunity_ids=tuple(epoch_transition_spent_ids),
+                telemetry=telemetry,
+                registry=registry,
+            )
+        else:
+            frontier = _reserve_completion_representative(
+                frontier,
+                tt=tt,
+                spent_event_ids=tuple(cash_out_spent_event_ids),
+                telemetry=telemetry,
+            )
+            frontier = _reserve_epoch_transition_representative(
+                frontier,
+                tt=tt,
+                spent_opportunity_ids=tuple(epoch_transition_spent_ids),
+                telemetry=telemetry,
+            )
         if len(frontier) > config.max_frontier_size:
             registry_handles_before_trim = (
                 {item[1] for item in frontier} if registry is not None else set()
@@ -11171,6 +11501,9 @@ def solve_anytime(
                 portfolio=checkpoint_portfolio,
                 pre_foundation_portfolio=pre_foundation_portfolio,
                 telemetry=telemetry,
+                registry=(
+                    registry if config.enable_state_service_subscribers else None
+                ),
             )
             retained_ids = {item[1] for item in frontier}
             trimmed_mature = [
