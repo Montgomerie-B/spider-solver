@@ -1,0 +1,461 @@
+{
+  "aggregate": {
+    "approximate_bytes": 305728,
+    "cheaper_arrival_updates": 12,
+    "elapsed_ratio_max": 1.0306622190826047,
+    "elapsed_ratio_median": 0.9998096385604671,
+    "elapsed_ratio_min": 0.9994579648801001,
+    "eviction_deferrals": 0,
+    "reactivations": 0,
+    "registry_service_requests": 613,
+    "registry_states": 413,
+    "reopening_events": 16,
+    "service_executions": 240,
+    "stale_handles_rejected_before_analysis": 3
+  },
+  "arms": [
+    "LEGACY_BOOKKEEPING",
+    "STATE_SERVICE_REGISTRY"
+  ],
+  "base_sha": "57d301efc0324353d27be70eef20062d8a14e4ec",
+  "comparisons": [
+    {
+      "deal": "P0",
+      "elapsed_ratio": 0.9994579648801001,
+      "face_down_delta": 0,
+      "foundation_delta": 0,
+      "stock_rows_delta": 0,
+      "strategic_expansion_delta": 0,
+      "tactical_node_delta": 511,
+      "trajectory_changed": true
+    },
+    {
+      "deal": "P2",
+      "elapsed_ratio": 1.0306622190826047,
+      "face_down_delta": 0,
+      "foundation_delta": 0,
+      "stock_rows_delta": 0,
+      "strategic_expansion_delta": 0,
+      "tactical_node_delta": 164,
+      "trajectory_changed": true
+    },
+    {
+      "deal": "P7",
+      "elapsed_ratio": 0.9998096385604671,
+      "face_down_delta": 0,
+      "foundation_delta": 0,
+      "stock_rows_delta": 0,
+      "strategic_expansion_delta": 0,
+      "tactical_node_delta": 23,
+      "trajectory_changed": false
+    }
+  ],
+  "completed_utc": "2026-09-08T05:57:40.072144+00:00",
+  "config": {
+    "controller_seed": 0,
+    "credit_propagation": "STATE_LOCAL",
+    "incumbent": null,
+    "max_credit_level": 4,
+    "max_frontier_size": 256,
+    "max_strategic_expansions": 80,
+    "max_successors_per_expansion": 10,
+    "max_tactical_nodes": 120000,
+    "priority_schema": "COMMON_STAGE0",
+    "resource_planner": false,
+    "scheduler": true,
+    "tactical_allocation": true,
+    "target_foundation_count": 2,
+    "wall_clock_limit_s": 240.0,
+    "workspace_service": false
+  },
+  "config_fingerprint": "00754be92e2b5277e604fe69dacd0359a7fa7df5e5145826efb37c45af795302",
+  "deals": [
+    "P0",
+    "P2",
+    "P7"
+  ],
+  "experiment": "state_service_registry_v0_1",
+  "fixtures": {
+    "P0": {
+      "fixture_path": "deals/4925153.txt",
+      "fixture_sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+      "opening_digest": "c06565c127ccbc7a"
+    },
+    "P2": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P2.txt",
+      "fixture_sha256": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+      "opening_digest": "4d67539f2e5b6949"
+    },
+    "P7": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P7.txt",
+      "fixture_sha256": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3",
+      "opening_digest": "3e1bac697f14bb19"
+    }
+  },
+  "gates": {
+    "all_six_runs_complete": true,
+    "best_progress_replay_and_cost_integrity": true,
+    "exact_identity_source_unchanged": true,
+    "one_live_handle_invariant": true,
+    "production_defaults_unchanged": true,
+    "registry_executed": true,
+    "resource_planner_not_integrated": true
+  },
+  "registry_contract": {
+    "canonical_state_identity": "UNCHANGED",
+    "coverage_request": "canonical state + credit + CURRENT_STRATEGIC_SUCCESSORS + BEST_ARRIVAL_STRATEGIC_NODE_V0_1 adapter",
+    "production_default": false,
+    "reopening": "every existing current-generator credit request is reopened once when the exact state's best corrected arrival cost decreases"
+  },
+  "run_order": {
+    "P0": [
+      "LEGACY_BOOKKEEPING",
+      "STATE_SERVICE_REGISTRY"
+    ],
+    "P2": [
+      "STATE_SERVICE_REGISTRY",
+      "LEGACY_BOOKKEEPING"
+    ],
+    "P7": [
+      "LEGACY_BOOKKEEPING",
+      "STATE_SERVICE_REGISTRY"
+    ]
+  },
+  "runs": {
+    "P0": {
+      "LEGACY_BOOKKEEPING": {
+        "arm": "LEGACY_BOOKKEEPING",
+        "best_progress_digest": "57e776f099a0b7c6",
+        "best_progress_replay": {
+          "corrected_cost": 20,
+          "cost_matches": true,
+          "expected_g": 20,
+          "state_matches": true
+        },
+        "credit_expansions": [
+          24,
+          16,
+          14,
+          13,
+          13
+        ],
+        "elapsed_s": 170.4865545000066,
+        "frontier_remaining": 129,
+        "maximum_credit_reached": 4,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 3,
+        "minimum_face_down": 38,
+        "proof_pruned": 0,
+        "registry": {
+          "approximate_bytes": 0,
+          "cheaper_arrival_updates": 0,
+          "duplicate_request_coalesces": 0,
+          "enabled": false,
+          "eviction_deferrals": 0,
+          "live_handle_invariant_violations": 0,
+          "reactivations": 0,
+          "reopening_events": 0,
+          "service_executions": 0,
+          "service_requests": 0,
+          "stale_handles_rejected_before_analysis": 0,
+          "states": 0,
+          "status_counts": {}
+        },
+        "solution_replay_failures": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "successors_generated": 375,
+        "successors_retained": 141,
+        "tactical_nodes": 20126,
+        "trajectory_digest": "429125cffe963a7f",
+        "tt": {
+          "improved": 0,
+          "new": 142,
+          "suppressed": 234
+        }
+      },
+      "STATE_SERVICE_REGISTRY": {
+        "arm": "STATE_SERVICE_REGISTRY",
+        "best_progress_digest": "57e776f099a0b7c6",
+        "best_progress_replay": {
+          "corrected_cost": 20,
+          "cost_matches": true,
+          "expected_g": 20,
+          "state_matches": true
+        },
+        "credit_expansions": [
+          24,
+          16,
+          14,
+          13,
+          13
+        ],
+        "elapsed_s": 170.39414479999687,
+        "frontier_remaining": 129,
+        "maximum_credit_reached": 4,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 3,
+        "minimum_face_down": 38,
+        "proof_pruned": 0,
+        "registry": {
+          "approximate_bytes": 105308,
+          "cheaper_arrival_updates": 0,
+          "duplicate_request_coalesces": 234,
+          "enabled": true,
+          "eviction_deferrals": 0,
+          "live_handle_invariant_violations": 0,
+          "reactivations": 0,
+          "reopening_events": 0,
+          "service_executions": 80,
+          "service_requests": 209,
+          "stale_handles_rejected_before_analysis": 0,
+          "states": 142,
+          "status_counts": {
+            "ATTEMPTED": 80,
+            "DEFERRED": 0,
+            "LIVE": 129,
+            "PENDING": 0,
+            "PROOF_PRUNED": 0,
+            "RUNNING": 0
+          }
+        },
+        "solution_replay_failures": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "successors_generated": 375,
+        "successors_retained": 141,
+        "tactical_nodes": 20637,
+        "trajectory_digest": "efaac5d6962bbb0a",
+        "tt": {
+          "improved": 0,
+          "new": 142,
+          "suppressed": 234
+        }
+      }
+    },
+    "P2": {
+      "LEGACY_BOOKKEEPING": {
+        "arm": "LEGACY_BOOKKEEPING",
+        "best_progress_digest": "4d67539f2e5b6949",
+        "best_progress_replay": {
+          "corrected_cost": 0,
+          "cost_matches": true,
+          "expected_g": 0,
+          "state_matches": true
+        },
+        "credit_expansions": [
+          21,
+          16,
+          16,
+          14,
+          13
+        ],
+        "elapsed_s": 115.552986900002,
+        "frontier_remaining": 115,
+        "maximum_credit_reached": 4,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 4,
+        "minimum_face_down": 41,
+        "proof_pruned": 0,
+        "registry": {
+          "approximate_bytes": 0,
+          "cheaper_arrival_updates": 0,
+          "duplicate_request_coalesces": 0,
+          "enabled": false,
+          "eviction_deferrals": 0,
+          "live_handle_invariant_violations": 0,
+          "reactivations": 0,
+          "reopening_events": 0,
+          "service_executions": 0,
+          "service_requests": 0,
+          "stale_handles_rejected_before_analysis": 0,
+          "states": 0,
+          "status_counts": {}
+        },
+        "solution_replay_failures": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "successors_generated": 409,
+        "successors_retained": 131,
+        "tactical_nodes": 25542,
+        "trajectory_digest": "6502750c5f8948cc",
+        "tt": {
+          "improved": 5,
+          "new": 127,
+          "suppressed": 278
+        }
+      },
+      "STATE_SERVICE_REGISTRY": {
+        "arm": "STATE_SERVICE_REGISTRY",
+        "best_progress_digest": "4d67539f2e5b6949",
+        "best_progress_replay": {
+          "corrected_cost": 0,
+          "cost_matches": true,
+          "expected_g": 0,
+          "state_matches": true
+        },
+        "credit_expansions": [
+          21,
+          16,
+          16,
+          14,
+          13
+        ],
+        "elapsed_s": 119.09609789997921,
+        "frontier_remaining": 116,
+        "maximum_credit_reached": 4,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 4,
+        "minimum_face_down": 41,
+        "proof_pruned": 0,
+        "registry": {
+          "approximate_bytes": 90168,
+          "cheaper_arrival_updates": 12,
+          "duplicate_request_coalesces": 295,
+          "enabled": true,
+          "eviction_deferrals": 0,
+          "live_handle_invariant_violations": 0,
+          "reactivations": 0,
+          "reopening_events": 16,
+          "service_executions": 80,
+          "service_requests": 183,
+          "stale_handles_rejected_before_analysis": 3,
+          "states": 120,
+          "status_counts": {
+            "ATTEMPTED": 75,
+            "DEFERRED": 0,
+            "LIVE": 108,
+            "PENDING": 0,
+            "PROOF_PRUNED": 0,
+            "RUNNING": 0
+          }
+        },
+        "solution_replay_failures": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "successors_generated": 410,
+        "successors_retained": 131,
+        "tactical_nodes": 25706,
+        "trajectory_digest": "ae82528f056989ab",
+        "tt": {
+          "improved": 12,
+          "new": 120,
+          "suppressed": 279
+        }
+      }
+    },
+    "P7": {
+      "LEGACY_BOOKKEEPING": {
+        "arm": "LEGACY_BOOKKEEPING",
+        "best_progress_digest": "4dcad73819bb4098",
+        "best_progress_replay": {
+          "corrected_cost": 7,
+          "cost_matches": true,
+          "expected_g": 7,
+          "state_matches": true
+        },
+        "credit_expansions": [
+          29,
+          14,
+          14,
+          13,
+          10
+        ],
+        "elapsed_s": 99.95406660001026,
+        "frontier_remaining": 141,
+        "maximum_credit_reached": 4,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 38,
+        "proof_pruned": 0,
+        "registry": {
+          "approximate_bytes": 0,
+          "cheaper_arrival_updates": 0,
+          "duplicate_request_coalesces": 0,
+          "enabled": false,
+          "eviction_deferrals": 0,
+          "live_handle_invariant_violations": 0,
+          "reactivations": 0,
+          "reopening_events": 0,
+          "service_executions": 0,
+          "service_requests": 0,
+          "stale_handles_rejected_before_analysis": 0,
+          "states": 0,
+          "status_counts": {}
+        },
+        "solution_replay_failures": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "successors_generated": 361,
+        "successors_retained": 150,
+        "tactical_nodes": 3895,
+        "trajectory_digest": "c96c2a4645eeb0be",
+        "tt": {
+          "improved": 0,
+          "new": 151,
+          "suppressed": 211
+        }
+      },
+      "STATE_SERVICE_REGISTRY": {
+        "arm": "STATE_SERVICE_REGISTRY",
+        "best_progress_digest": "4dcad73819bb4098",
+        "best_progress_replay": {
+          "corrected_cost": 7,
+          "cost_matches": true,
+          "expected_g": 7,
+          "state_matches": true
+        },
+        "credit_expansions": [
+          29,
+          14,
+          14,
+          13,
+          10
+        ],
+        "elapsed_s": 99.93503920000512,
+        "frontier_remaining": 141,
+        "maximum_credit_reached": 4,
+        "maximum_foundations": 0,
+        "minimum_expanded_stock_rows": 1,
+        "minimum_face_down": 38,
+        "proof_pruned": 0,
+        "registry": {
+          "approximate_bytes": 110252,
+          "cheaper_arrival_updates": 0,
+          "duplicate_request_coalesces": 211,
+          "enabled": true,
+          "eviction_deferrals": 0,
+          "live_handle_invariant_violations": 0,
+          "reactivations": 0,
+          "reopening_events": 0,
+          "service_executions": 80,
+          "service_requests": 221,
+          "stale_handles_rejected_before_analysis": 0,
+          "states": 151,
+          "status_counts": {
+            "ATTEMPTED": 80,
+            "DEFERRED": 0,
+            "LIVE": 141,
+            "PENDING": 0,
+            "PROOF_PRUNED": 0,
+            "RUNNING": 0
+          }
+        },
+        "solution_replay_failures": 0,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "successors_generated": 361,
+        "successors_retained": 150,
+        "tactical_nodes": 3918,
+        "trajectory_digest": "c96c2a4645eeb0be",
+        "tt": {
+          "improved": 0,
+          "new": 151,
+          "suppressed": 211
+        }
+      }
+    }
+  },
+  "status": "COMPLETE",
+  "verdict": "STATE_SERVICE_REGISTRY_READY"
+}

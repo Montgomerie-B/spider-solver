@@ -1,0 +1,65 @@
+{
+  "arm": "STATE_SERVICE_REGISTRY",
+  "completed_utc": "2026-09-08T05:50:25.204698+00:00",
+  "config_fingerprint": "00754be92e2b5277e604fe69dacd0359a7fa7df5e5145826efb37c45af795302",
+  "deal": "P0",
+  "experiment": "state_service_registry_v0_1",
+  "result": {
+    "arm": "STATE_SERVICE_REGISTRY",
+    "best_progress_digest": "57e776f099a0b7c6",
+    "best_progress_replay": {
+      "corrected_cost": 20,
+      "cost_matches": true,
+      "expected_g": 20,
+      "state_matches": true
+    },
+    "credit_expansions": [
+      24,
+      16,
+      14,
+      13,
+      13
+    ],
+    "elapsed_s": 170.39414479999687,
+    "frontier_remaining": 129,
+    "maximum_credit_reached": 4,
+    "maximum_foundations": 0,
+    "minimum_expanded_stock_rows": 3,
+    "minimum_face_down": 38,
+    "proof_pruned": 0,
+    "registry": {
+      "approximate_bytes": 105308,
+      "cheaper_arrival_updates": 0,
+      "duplicate_request_coalesces": 234,
+      "enabled": true,
+      "eviction_deferrals": 0,
+      "live_handle_invariant_violations": 0,
+      "reactivations": 0,
+      "reopening_events": 0,
+      "service_executions": 80,
+      "service_requests": 209,
+      "stale_handles_rejected_before_analysis": 0,
+      "states": 142,
+      "status_counts": {
+        "ATTEMPTED": 80,
+        "DEFERRED": 0,
+        "LIVE": 129,
+        "PENDING": 0,
+        "PROOF_PRUNED": 0,
+        "RUNNING": 0
+      }
+    },
+    "solution_replay_failures": 0,
+    "stop_reason": "strategic expansion limit",
+    "strategic_expansions": 80,
+    "successors_generated": 375,
+    "successors_retained": 141,
+    "tactical_nodes": 20637,
+    "trajectory_digest": "efaac5d6962bbb0a",
+    "tt": {
+      "improved": 0,
+      "new": 142,
+      "suppressed": 234
+    }
+  }
+}

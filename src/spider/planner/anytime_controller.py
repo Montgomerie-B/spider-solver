@@ -10219,18 +10219,23 @@ def solve_anytime(
                 telemetry.count_suppression("exact state reached at no lower g")
                 if registry is not None:
                     suppressed_key = canonical_state_key(successor.end_state)
-                    deferred_request = _registry_request(
-                        registry,
-                        suppressed_key,
-                        StrategicCreditLevel.CLEAN,
-                    )
-                    uid = _activate_registry_pending(
-                        registry,
-                        suppressed_key,
-                        frontier,
-                        uid,
-                        preferred_key=deferred_request.key,
-                    )
+                    # The TT can contain an arrival that was eliminated by an
+                    # admissible proof before it ever became a serviceable
+                    # controller node.  Such an entry intentionally has no
+                    # registry witness/request to reactivate.
+                    if registry.arrival(suppressed_key) is not None:
+                        deferred_request = _registry_request(
+                            registry,
+                            suppressed_key,
+                            StrategicCreditLevel.CLEAN,
+                        )
+                        uid = _activate_registry_pending(
+                            registry,
+                            suppressed_key,
+                            frontier,
+                            uid,
+                            preferred_key=deferred_request.key,
+                        )
                 continue
             if successor.receiver_uncover_followup is not None:
                 telemetry.receiver_uncover_tt_admitted += 1
