@@ -1,0 +1,59 @@
+{
+  "arms": [
+    "CURRENT_CONTINUATION_OWNERSHIP",
+    "STRATEGIC_PROJECT_CONTINUATION"
+  ],
+  "base_sha": "dc778dc7b33239b6cfaec77e7181b129cdd60830",
+  "config": {
+    "frontier_priority_schema": "COMMON_STAGE0",
+    "implementation_revision": 2,
+    "max_strategic_expansions": 80,
+    "max_tactical_nodes": 120000,
+    "seed": 0,
+    "state_service_registry": true,
+    "state_service_subscribers": true,
+    "strategic_credit_propagation": "STATE_LOCAL",
+    "target_foundation_count": 2,
+    "wall_clock_limit_s": 240.0
+  },
+  "config_fingerprint": "eeb4f6f1b6d8a4d3599280a421538babe0790a68dcc9c1449b2d10bfca736d83",
+  "deals": [
+    "P0",
+    "P2",
+    "P7"
+  ],
+  "experiment": "strategic_project_lifecycle_v0_1",
+  "fixtures": {
+    "P0": {
+      "fixture_path": "deals/4925153.txt",
+      "fixture_sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+      "opening_digest": "c06565c127ccbc7a"
+    },
+    "P2": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P2.txt",
+      "fixture_sha256": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+      "opening_digest": "4d67539f2e5b6949"
+    },
+    "P7": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P7.txt",
+      "fixture_sha256": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3",
+      "opening_digest": "3e1bac697f14bb19"
+    }
+  },
+  "run_order": {
+    "P0": [
+      "CURRENT_CONTINUATION_OWNERSHIP",
+      "STRATEGIC_PROJECT_CONTINUATION"
+    ],
+    "P2": [
+      "STRATEGIC_PROJECT_CONTINUATION",
+      "CURRENT_CONTINUATION_OWNERSHIP"
+    ],
+    "P7": [
+      "CURRENT_CONTINUATION_OWNERSHIP",
+      "STRATEGIC_PROJECT_CONTINUATION"
+    ]
+  },
+  "selection_rationale": "Mandatory frozen P0/P2/P7. P0 produced a continuation during the pre-panel implementation smoke, so no fourth fixture was selected; no project outcome was used to choose among fixtures.",
+  "status": "FROZEN_PRE_RUN"
+}

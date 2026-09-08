@@ -316,9 +316,11 @@ from spider.planner.source_completion import (
 from spider.planner.state_service_registry import (
     ServiceCoverageMode,
     ServiceRequestKey,
+    ServiceStatus,
     ServiceSubscriberKind,
     StateServiceRegistry,
 )
+from spider.planner.strategic_project import StrategicProjectRegistry
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.state_identity import (
     CanonicalStateKey,
@@ -494,6 +496,7 @@ class AnytimeControllerConfig:
     max_scheduler_objectives_in_portfolio: int = 1
     enable_state_service_registry: bool = False
     enable_state_service_subscribers: bool = False
+    enable_strategic_project_continuation: bool = False
     state_service_registry_max_states: int = 100_000
     state_service_registry_max_requests: int = 500_000
     deal_timing_config: DealTimingConfig = field(
@@ -530,6 +533,12 @@ class AnytimeControllerConfig:
             raise ValueError("state-service registry limits must be positive")
         if self.enable_state_service_subscribers and not self.enable_state_service_registry:
             raise ValueError("state-service subscribers require StateServiceRegistry")
+        if self.enable_strategic_project_continuation and not (
+            self.enable_state_service_registry and self.enable_state_service_subscribers
+        ):
+            raise ValueError(
+                "strategic-project continuation requires registry subscribers"
+            )
         if len(self.tactical_max_cost_by_credit) != 5:
             raise ValueError("tactical cost schedule must contain five credit levels")
         if tuple(sorted(self.tactical_max_cost_by_credit)) != self.tactical_max_cost_by_credit:
@@ -985,6 +994,8 @@ class ControllerTelemetry:
     registry_shared_request_deferrals: int = 0
     registry_shared_request_reactivations: int = 0
     registry_subscriber_orphan_deferrals: int = 0
+    strategic_projects_enabled: bool = False
+    strategic_project_snapshot: Dict[str, object] = field(default_factory=dict)
     actionability_cache_hits: int = 0
     actionability_cache_misses: int = 0
     inaccessible_retry_suppressed: int = 0
@@ -8212,6 +8223,72 @@ def _subscriber_node_priority(
     return _node_priority(_node_with_registry_subscriber_entitlements(node, registry))
 
 
+def _node_with_strategic_project_entitlement(
+    node: StrategicSearchNode,
+    registry: StateServiceRegistry,
+    projects: StrategicProjectRegistry,
+) -> StrategicSearchNode:
+    """Transiently adapt a selected project candidate to legacy policy code."""
+
+    request_key = registry.request_key_for_handle(node.node_id)
+    if request_key is None:
+        return node
+    credit = projects.selected_credit_for_request(request_key)
+    return replace(node, continuation_credit=credit)
+
+
+def _strategic_project_node_priority(
+    node: StrategicSearchNode,
+    registry: StateServiceRegistry,
+    projects: StrategicProjectRegistry,
+) -> Tuple:
+    projected = _node_with_registry_subscriber_entitlements(node, registry)
+    projected = _node_with_strategic_project_entitlement(
+        projected, registry, projects
+    )
+    return _node_priority(projected)
+
+
+def _reserve_strategic_project_continuation(
+    frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
+    *,
+    registry: StateServiceRegistry,
+    projects: StrategicProjectRegistry,
+    expansion: int,
+) -> List[Tuple[Tuple, int, StrategicSearchNode]]:
+    """Give the legacy global quota of one to the strongest project candidate."""
+
+    eligible = []
+    for _priority, uid, node in frontier:
+        request_key = registry.request_key_for_handle(uid)
+        if request_key is None:
+            continue
+        eligible.append(request_key)
+        for project in projects.projects_for_request(request_key):
+            candidate = project.candidates[request_key]
+            candidate.priority_information = _node_priority(
+                _node_with_registry_subscriber_entitlements(
+                    replace(node, continuation_credit=candidate.continuation),
+                    registry,
+                )
+            )
+    projects.select_global_candidate(
+        registry,
+        eligible,
+        expansion=expansion,
+    )
+    rebuilt = [
+        (
+            _strategic_project_node_priority(node, registry, projects),
+            uid,
+            replace(node, continuation_credit=None),
+        )
+        for _priority, uid, node in frontier
+    ]
+    heapq.heapify(rebuilt)
+    return rebuilt
+
+
 def _reserve_completion_subscriber(
     frontier: Sequence[Tuple[Tuple, int, StrategicSearchNode]],
     *,
@@ -8570,8 +8647,16 @@ def _trim_frontier_with_checkpoint_diversity(
         (
             item
             for item in ordered
-            if item[2].continuation_credit is not None
-            and item[2].continuation_credit.is_live
+            if item[1] not in kept_ids
+            and (
+                subscribed(
+                    item, ServiceSubscriberKind.STRATEGIC_PROJECT_CONTINUATION
+                )
+                or (
+                    item[2].continuation_credit is not None
+                    and item[2].continuation_credit.is_live
+                )
+            )
         ),
         None,
     )
@@ -8954,6 +9039,111 @@ def _refresh_same_campaign_continuation(
                 StructuralInvestmentStatus.ACTIVE,
                 StructuralInvestmentStatus.PARTIALLY_HARVESTED,
             ):
+                telemetry.unharvested_investments = max(
+                    0, telemetry.unharvested_investments - 1
+                )
+                if status != StructuralInvestmentStatus.HARVESTED:
+                    telemetry.abandoned_or_superseded_investments += 1
+    return replace(
+        node,
+        continuation_credit=refreshed,
+        structural_investment_ledger=ledger,
+    )
+
+
+def _refresh_strategic_project_continuation(
+    node: StrategicSearchNode,
+    telemetry: ControllerTelemetry,
+    config: AnytimeControllerConfig,
+    projects: StrategicProjectRegistry,
+    registry: StateServiceRegistry,
+    request_key: ServiceRequestKey,
+    seen: set[Tuple[str, str, CanonicalStateKey]],
+    *,
+    elapsed_seconds: float,
+) -> StrategicSearchNode:
+    """Revalidate project-owned expiry and expose one transient legacy adapter."""
+
+    credit = projects.selected_credit_for_request(request_key)
+    if credit is None or node.analysis is None:
+        return replace(node, continuation_credit=None)
+    campaign = next(
+        (
+            item
+            for item in node.analysis.economic.campaign_portfolio.campaigns
+            if item.label == credit.objective_id
+        ),
+        None,
+    )
+    outstanding: Optional[Tuple[str, ...]] = None
+    if campaign is not None:
+        graph = build_campaign_dependency_graph(
+            node.state,
+            campaign,
+            supply_consumptions=node.supply_consumption_results,
+        )
+        telemetry.dependency_graphs_built += 1
+        telemetry.critical_paths_built += 1
+        outstanding = tuple(
+            item.dependency_id
+            for item in graph.dependencies
+            if item.dependency_id != graph.terminal_dependency_id
+        )
+    refreshed = projects.revalidate_selected(
+        request_key,
+        current_depth=node.depth,
+        current_elapsed_seconds=elapsed_seconds,
+        objective_still_credible=campaign is not None,
+        fully_harvested=bool(campaign is not None and not outstanding),
+        outstanding_dependencies=outstanding,
+        current_g=node.g,
+        registry=registry,
+        expansion=telemetry.expanded,
+    )
+    if refreshed is None:
+        return replace(node, continuation_credit=None)
+    event = (refreshed.credit_id, refreshed.status.value, canonical_state_key(node.state))
+    if event not in seen and refreshed.status != credit.status:
+        seen.add(event)
+        if refreshed.status == SameCampaignContinuationStatus.REPLANNED:
+            telemetry.continuation_credits_replanned += 1
+        elif refreshed.status == SameCampaignContinuationStatus.HARVESTED:
+            telemetry.continuation_credits_harvested += 1
+        elif refreshed.status == SameCampaignContinuationStatus.INVALIDATED:
+            telemetry.continuation_credits_invalidated += 1
+        elif refreshed.status == SameCampaignContinuationStatus.EXPIRED:
+            telemetry.continuation_credits_expired += 1
+        elif refreshed.status == SameCampaignContinuationStatus.SUPERSEDED:
+            telemetry.continuation_credits_superseded += 1
+        _append_bounded(
+            telemetry.continuation_timeline,
+            (node.g, refreshed.objective_id, refreshed.credit_id, refreshed.status.value),
+            config.max_timeline_entries,
+        )
+    ledger = node.structural_investment_ledger
+    if not refreshed.is_live:
+        active = next(
+            (
+                item
+                for item in ledger.investments
+                if item.investment_id == refreshed.investment_id
+            ),
+            None,
+        )
+        if active is not None:
+            status = {
+                SameCampaignContinuationStatus.HARVESTED: StructuralInvestmentStatus.HARVESTED,
+                SameCampaignContinuationStatus.INVALIDATED: StructuralInvestmentStatus.INVALIDATED,
+                SameCampaignContinuationStatus.EXPIRED: StructuralInvestmentStatus.EXPIRED,
+                SameCampaignContinuationStatus.SUPERSEDED: StructuralInvestmentStatus.SUPERSEDED,
+            }[refreshed.status]
+            ledger = ledger.replace(
+                replace(active, status=status, expiry_reason=refreshed.expiry_reason)
+            )
+            if active.status in {
+                StructuralInvestmentStatus.ACTIVE,
+                StructuralInvestmentStatus.PARTIALLY_HARVESTED,
+            }:
                 telemetry.unharvested_investments = max(
                     0, telemetry.unharvested_investments - 1
                 )
@@ -9449,6 +9639,7 @@ def _activate_registry_pending(
     *,
     preferred_key: Optional[ServiceRequestKey] = None,
     preferred_handle_id: Optional[int] = None,
+    projects: Optional[StrategicProjectRegistry] = None,
 ) -> int:
     """Give each pending request one handle backed by the best legal witness."""
 
@@ -9459,6 +9650,7 @@ def _activate_registry_pending(
     if preferred_key is not None:
         pending.sort(key=lambda item: item.key != preferred_key)
     for request in pending:
+        was_deferred = request.status is ServiceStatus.DEFERRED
         if request.key == preferred_key and preferred_handle_id is not None:
             handle_id = preferred_handle_id
         else:
@@ -9470,6 +9662,8 @@ def _activate_registry_pending(
             credit_level=StrategicCreditLevel(request.key.strategic_credit),
         )
         if registry.activate(request.key, handle_id):
+            if was_deferred and projects is not None:
+                projects.note_reactivated(request.key)
             heapq.heappush(frontier, (_node_priority(witness), handle_id, witness))
     return uid
 
@@ -9554,6 +9748,16 @@ def _publish_registry_telemetry(
     ]
 
 
+def _publish_strategic_project_telemetry(
+    projects: Optional[StrategicProjectRegistry],
+    telemetry: ControllerTelemetry,
+) -> None:
+    if projects is None:
+        return
+    telemetry.strategic_projects_enabled = True
+    telemetry.strategic_project_snapshot = projects.snapshot()
+
+
 def solve_anytime(
     initial_state: SpiderState,
     cards: Sequence[Card],
@@ -9588,6 +9792,7 @@ def solve_anytime(
     supplied_record = incumbent if isinstance(incumbent, IncumbentRecord) else None
     telemetry = ControllerTelemetry()
     registry: Optional[StateServiceRegistry] = None
+    projects: Optional[StrategicProjectRegistry] = None
     if config.enable_state_service_registry:
         if (
             config.frontier_priority_schema != FrontierPrioritySchema.COMMON_STAGE0
@@ -9604,6 +9809,9 @@ def solve_anytime(
         )
         telemetry.registry_enabled = True
         telemetry.registry_subscribers_enabled = config.enable_state_service_subscribers
+        if config.enable_strategic_project_continuation:
+            projects = StrategicProjectRegistry()
+            telemetry.strategic_projects_enabled = True
     resource_allocator = _resource_allocator_for_config(config)
     checkpoint_profiles: List[FoundationCheckpointProfile] = []
     pre_foundation_profiles: List[PreFoundationGeometry] = []
@@ -9824,6 +10032,7 @@ def solve_anytime(
             uid,
             preferred_key=root_request.key,
             preferred_handle_id=root.node_id,
+            projects=projects,
         )
     expansion_credits: set[Tuple[CanonicalStateKey, int]] = set()
     actionability_cache: Dict[ActionabilityCacheKey, ProjectActionability] = {}
@@ -9863,6 +10072,13 @@ def solve_anytime(
                 telemetry=telemetry,
                 registry=registry,
             )
+            if projects is not None:
+                frontier = _reserve_strategic_project_continuation(
+                    frontier,
+                    registry=registry,
+                    projects=projects,
+                    expansion=telemetry.expanded,
+                )
         else:
             frontier = _reserve_completion_representative(
                 frontier,
@@ -9878,9 +10094,18 @@ def solve_anytime(
             )
         _priority, _sequence, node = heapq.heappop(frontier)
         running_request: Optional[ServiceRequestKey] = None
+        running_project_request = False
         if registry is not None:
             if config.enable_state_service_subscribers:
                 node = _node_with_registry_subscriber_entitlements(node, registry)
+                if projects is not None:
+                    node = _node_with_strategic_project_entitlement(
+                        node, registry, projects
+                    )
+                    running_project_request = bool(
+                        node.continuation_credit is not None
+                        and node.continuation_credit.is_live
+                    )
             service_start = registry.begin(node.node_id)
             if not service_start.accepted:
                 continue
@@ -10017,13 +10242,25 @@ def solve_anytime(
             lane_events_seen,
             elapsed_seconds=elapsed,
         )
-        node = _refresh_same_campaign_continuation(
-            node,
-            telemetry,
-            config,
-            continuation_events_seen,
-            elapsed_seconds=elapsed,
-        )
+        if projects is not None and registry is not None and running_request is not None:
+            node = _refresh_strategic_project_continuation(
+                node,
+                telemetry,
+                config,
+                projects,
+                registry,
+                running_request,
+                continuation_events_seen,
+                elapsed_seconds=elapsed,
+            )
+        else:
+            node = _refresh_same_campaign_continuation(
+                node,
+                telemetry,
+                config,
+                continuation_events_seen,
+                elapsed_seconds=elapsed,
+            )
         node = _refresh_active_milestone(
             node,
             telemetry,
@@ -10062,6 +10299,13 @@ def solve_anytime(
         if node.state.is_solved():
             if registry is not None and running_request is not None:
                 registry.complete(running_request, outcome="TERMINAL_STATE_CHECKED")
+                if projects is not None and running_project_request:
+                    projects.observe_execution(
+                        running_request,
+                        execution_ordinal=registry.request(running_request).executions,
+                        expansion=telemetry.expanded,
+                        result=registry.request(running_request).last_execution_result,
+                    )
             telemetry.solution_candidates += 1
             verified = verify_complete_candidate(
                 initial_state,
@@ -10448,6 +10692,13 @@ def solve_anytime(
         )
         if registry is not None and running_request is not None:
             registry.complete(running_request, outcome="SUCCESSORS_GENERATED")
+            if projects is not None and running_project_request:
+                projects.observe_execution(
+                    running_request,
+                    execution_ordinal=registry.request(running_request).executions,
+                    expansion=telemetry.expanded,
+                    result=registry.request(running_request).last_execution_result,
+                )
         telemetry.generated += len(successors)
         _trace_expansion(node, successors, telemetry, config, current_incumbent_cost)
         cash_out_assessments: List[CompletionHarvestAssessment] = []
@@ -11373,6 +11624,12 @@ def solve_anytime(
                 parent_credit=node.credit_level,
                 propagation=config.strategic_credit_propagation,
             )
+            project_continuation = None
+            project_priority = None
+            if projects is not None and child.continuation_credit is not None:
+                project_continuation = child.continuation_credit
+                project_priority = _node_priority(child)
+                child = replace(child, continuation_credit=None)
             if child.analysis is not None:
                 if child.analysis.budget.proof_prunable:
                     telemetry.proof_pruned += 1
@@ -11382,12 +11639,29 @@ def solve_anytime(
                 heapq.heappush(frontier, (_node_priority(child), uid, child))
             else:
                 child_key = canonical_state_key(child.state)
-                registry.admit_arrival(child_key, child.g, child)
+                disposition = registry.admit_arrival(child_key, child.g, child)
                 child_request = _registry_request(
                     registry,
                     child_key,
                     child.credit_level,
                 )
+                if projects is not None:
+                    arrival = registry.arrival(child_key)
+                    assert arrival is not None
+                    if disposition.value == "IMPROVED":
+                        for reopened in registry.pending_requests(child_key):
+                            projects.revalidate_cheaper_arrival(
+                                reopened.key,
+                                arrival_version=arrival.version,
+                            )
+                    if project_continuation is not None:
+                        projects.attach_continuation(
+                            project_continuation,
+                            child_request.key,
+                            priority_information=project_priority or (),
+                            arrival_version=arrival.version,
+                            expansion=telemetry.expanded,
+                        )
                 uid = _activate_registry_pending(
                     registry,
                     child_key,
@@ -11395,6 +11669,7 @@ def solve_anytime(
                     uid,
                     preferred_key=child_request.key,
                     preferred_handle_id=child.node_id,
+                    projects=projects,
                 )
             telemetry.retained += 1
             telemetry.lazy_children_admitted += 1
@@ -11525,13 +11800,17 @@ def solve_anytime(
             if registry is not None:
                 retained_handle_ids = {item[1] for item in frontier}
                 for handle_id in registry_handles_before_trim - retained_handle_ids:
-                    registry.defer_handle(handle_id)
+                    deferred_key = registry.request_key_for_handle(handle_id)
+                    if registry.defer_handle(handle_id) and projects is not None:
+                        assert deferred_key is not None
+                        projects.note_deferred(deferred_key)
 
     telemetry.tt_new = tt.new_entries
     telemetry.tt_improved = tt.improvements
     telemetry.tt_suppressed = max(telemetry.tt_suppressed, tt.suppressions)
     telemetry.component_timings = deadline.timing_snapshot()
     _publish_registry_telemetry(registry, telemetry)
+    _publish_strategic_project_telemetry(projects, telemetry)
     _publish_tactical_resource_telemetry(
         telemetry,
         resource_allocator.ledger,

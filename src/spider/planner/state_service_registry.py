@@ -44,6 +44,7 @@ class ServiceSubscriberKind(str, Enum):
     ORDINARY = "ORDINARY"
     COMPLETION_CASH_OUT = "COMPLETION_CASH_OUT"
     EPOCH_TRANSITION = "EPOCH_TRANSITION"
+    STRATEGIC_PROJECT_CONTINUATION = "STRATEGIC_PROJECT_CONTINUATION"
 
 
 @dataclass(frozen=True)
@@ -198,6 +199,7 @@ class StateServiceRegistry:
             ServiceSubscriberKind.ORDINARY,
             ServiceSubscriberKind.COMPLETION_CASH_OUT,
             ServiceSubscriberKind.EPOCH_TRANSITION,
+            ServiceSubscriberKind.STRATEGIC_PROJECT_CONTINUATION,
         )
         return "+".join(item.value for item in ordered if item in active) or "NONE"
 
@@ -562,8 +564,8 @@ class StateServiceRegistry:
                 records_by_kind[kind.value] += 1
                 active_by_kind[kind.value] += int(subscriber.active)
             for combination in request.observed_subscriber_combinations:
-                if combination in combination_counts:
-                    combination_counts[combination] += 1
+                combination_counts.setdefault(combination, 0)
+                combination_counts[combination] += 1
         return {
             "subscriber_records": sum(records_by_kind.values()),
             "subscriber_records_by_kind": records_by_kind,

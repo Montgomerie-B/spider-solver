@@ -1,0 +1,601 @@
+{
+  "aggregate": {
+    "activity_without_progress": 7,
+    "candidate_defer_events": 0,
+    "candidate_reactivate_events": 0,
+    "candidate_replacements": 4,
+    "cheaper_arrival_revalidations": 1,
+    "incremental_project_bytes": 5824,
+    "maximum_concurrent_projects": 4,
+    "median_elapsed_ratio": 0.944163548139403,
+    "projects_created": 9,
+    "projects_expired": 1,
+    "semantic_progress_events": 1,
+    "service_executions_observed": 8
+  },
+  "arms": [
+    "CURRENT_CONTINUATION_OWNERSHIP",
+    "STRATEGIC_PROJECT_CONTINUATION"
+  ],
+  "base_sha": "dc778dc7b33239b6cfaec77e7181b129cdd60830",
+  "comparisons": [
+    {
+      "deal": "P0",
+      "elapsed_ratio": 0.9980970144843729,
+      "face_down_delta": 0,
+      "foundation_delta": 0,
+      "service_execution_delta": 0,
+      "stock_rows_delta": 0,
+      "strategic_expansion_delta": 0,
+      "tactical_node_delta": 281,
+      "trajectory_changed": true
+    },
+    {
+      "deal": "P2",
+      "elapsed_ratio": 0.944163548139403,
+      "face_down_delta": 0,
+      "foundation_delta": 0,
+      "service_execution_delta": 0,
+      "stock_rows_delta": 0,
+      "strategic_expansion_delta": 0,
+      "tactical_node_delta": -729,
+      "trajectory_changed": true
+    },
+    {
+      "deal": "P7",
+      "elapsed_ratio": 0.8915916709965375,
+      "face_down_delta": 0,
+      "foundation_delta": 0,
+      "service_execution_delta": 0,
+      "stock_rows_delta": 0,
+      "strategic_expansion_delta": 0,
+      "tactical_node_delta": -1892,
+      "trajectory_changed": true
+    }
+  ],
+  "config": {
+    "frontier_priority_schema": "COMMON_STAGE0",
+    "implementation_revision": 2,
+    "max_strategic_expansions": 80,
+    "max_tactical_nodes": 120000,
+    "seed": 0,
+    "state_service_registry": true,
+    "state_service_subscribers": true,
+    "strategic_credit_propagation": "STATE_LOCAL",
+    "target_foundation_count": 2,
+    "wall_clock_limit_s": 240.0
+  },
+  "config_fingerprint": "eeb4f6f1b6d8a4d3599280a421538babe0790a68dcc9c1449b2d10bfca736d83",
+  "deals": [
+    "P0",
+    "P2",
+    "P7"
+  ],
+  "experiment": "strategic_project_lifecycle_v0_1",
+  "fixtures": {
+    "P0": {
+      "fixture_path": "deals/4925153.txt",
+      "fixture_sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+      "opening_digest": "c06565c127ccbc7a"
+    },
+    "P2": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P2.txt",
+      "fixture_sha256": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+      "opening_digest": "4d67539f2e5b6949"
+    },
+    "P7": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P7.txt",
+      "fixture_sha256": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3",
+      "opening_digest": "3e1bac697f14bb19"
+    }
+  },
+  "gates": {
+    "all_runs_complete": true,
+    "one_handle_invariant": true,
+    "outcome_equivalence": true,
+    "project_path_exercised": true,
+    "replay_integrity": true
+  },
+  "run_order": {
+    "P0": [
+      "CURRENT_CONTINUATION_OWNERSHIP",
+      "STRATEGIC_PROJECT_CONTINUATION"
+    ],
+    "P2": [
+      "STRATEGIC_PROJECT_CONTINUATION",
+      "CURRENT_CONTINUATION_OWNERSHIP"
+    ],
+    "P7": [
+      "CURRENT_CONTINUATION_OWNERSHIP",
+      "STRATEGIC_PROJECT_CONTINUATION"
+    ]
+  },
+  "runs": {
+    "P0": {
+      "CURRENT_CONTINUATION_OWNERSHIP": {
+        "arm": "CURRENT_CONTINUATION_OWNERSHIP",
+        "best_progress_digest": "57e776f099a0b7c6",
+        "best_progress_replay": {
+          "cost_matches": true,
+          "state_matches": true
+        },
+        "continuation": {
+          "admitted": 3,
+          "created": 3,
+          "expired": 0,
+          "harvested": 0,
+          "invalidated": 0,
+          "replanned": 0,
+          "retained": 0,
+          "superseded": 0
+        },
+        "credit_expansions": [
+          24,
+          16,
+          14,
+          13,
+          13
+        ],
+        "elapsed_s": 177.06382800001302,
+        "maximum_foundations": 0,
+        "minimum_face_down": 38,
+        "projects": {},
+        "registry": {
+          "bytes": 229567,
+          "handle_errors": 0,
+          "reactivations": 0,
+          "reopenings": 0,
+          "requests": 209,
+          "states": 142
+        },
+        "service_executions": 80,
+        "stock_rows_remaining": 3,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "tactical_nodes": 19833,
+        "trajectory_digest": "3162589b65228e7c",
+        "tt": {
+          "improved": 0,
+          "new": 142,
+          "suppressed": 235
+        }
+      },
+      "STRATEGIC_PROJECT_CONTINUATION": {
+        "arm": "STRATEGIC_PROJECT_CONTINUATION",
+        "best_progress_digest": "57e776f099a0b7c6",
+        "best_progress_replay": {
+          "cost_matches": true,
+          "state_matches": true
+        },
+        "continuation": {
+          "admitted": 3,
+          "created": 3,
+          "expired": 0,
+          "harvested": 0,
+          "invalidated": 0,
+          "replanned": 0,
+          "retained": 0,
+          "superseded": 0
+        },
+        "credit_expansions": [
+          24,
+          16,
+          14,
+          13,
+          13
+        ],
+        "elapsed_s": 176.72687809998752,
+        "maximum_foundations": 0,
+        "minimum_face_down": 38,
+        "projects": {
+          "approximate_bytes": 1480,
+          "candidate_defer_events": 0,
+          "candidate_reactivate_events": 0,
+          "candidate_replacements": 1,
+          "candidates_attached": 3,
+          "cheaper_arrival_revalidations": 0,
+          "maximum_candidates_per_project": 2,
+          "maximum_project_lifetime_expansions": 74,
+          "maximum_simultaneous_projects": 2,
+          "per_project": [
+            {
+              "campaign_id": "C#1",
+              "candidates": 2,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 37,
+              "project_id": "273a2ea6a6c772bc",
+              "semantic_progress_events": 0,
+              "service_executions": 0,
+              "status": "RUNNABLE"
+            },
+            {
+              "campaign_id": "D#1",
+              "candidates": 1,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 36,
+              "project_id": "3fb0988e163b6f8c",
+              "semantic_progress_events": 0,
+              "service_executions": 0,
+              "status": "RUNNABLE"
+            }
+          ],
+          "project_activity_events": 0,
+          "project_identity_collisions": 0,
+          "project_progress_events": 0,
+          "project_service_executions": 0,
+          "projects": 2,
+          "projects_achieved": 0,
+          "projects_blocked": 0,
+          "projects_created": 2,
+          "projects_exhausted": 0,
+          "projects_expired": 0,
+          "projects_invalidated": 0,
+          "projects_reused": 1,
+          "service_executions_without_progress": 0,
+          "service_requests_subscribed": 3,
+          "status_counts": {
+            "ACHIEVED": 0,
+            "BLOCKED": 0,
+            "EXHAUSTED": 0,
+            "INVALIDATED": 0,
+            "RUNNABLE": 2
+          }
+        },
+        "registry": {
+          "bytes": 230092,
+          "handle_errors": 0,
+          "reactivations": 0,
+          "reopenings": 0,
+          "requests": 209,
+          "states": 142
+        },
+        "service_executions": 80,
+        "stock_rows_remaining": 3,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "tactical_nodes": 20114,
+        "trajectory_digest": "efaac5d6962bbb0a",
+        "tt": {
+          "improved": 0,
+          "new": 142,
+          "suppressed": 234
+        }
+      }
+    },
+    "P2": {
+      "CURRENT_CONTINUATION_OWNERSHIP": {
+        "arm": "CURRENT_CONTINUATION_OWNERSHIP",
+        "best_progress_digest": "4d67539f2e5b6949",
+        "best_progress_replay": {
+          "cost_matches": true,
+          "state_matches": true
+        },
+        "continuation": {
+          "admitted": 7,
+          "created": 7,
+          "expired": 0,
+          "harvested": 0,
+          "invalidated": 0,
+          "replanned": 2,
+          "retained": 13,
+          "superseded": 0
+        },
+        "credit_expansions": [
+          21,
+          16,
+          16,
+          14,
+          13
+        ],
+        "elapsed_s": 123.5554403999995,
+        "maximum_foundations": 0,
+        "minimum_face_down": 41,
+        "projects": {},
+        "registry": {
+          "bytes": 198851,
+          "handle_errors": 0,
+          "reactivations": 0,
+          "reopenings": 16,
+          "requests": 183,
+          "states": 120
+        },
+        "service_executions": 80,
+        "stock_rows_remaining": 4,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "tactical_nodes": 24948,
+        "trajectory_digest": "ae82528f056989ab",
+        "tt": {
+          "improved": 12,
+          "new": 120,
+          "suppressed": 279
+        }
+      },
+      "STRATEGIC_PROJECT_CONTINUATION": {
+        "arm": "STRATEGIC_PROJECT_CONTINUATION",
+        "best_progress_digest": "4d67539f2e5b6949",
+        "best_progress_replay": {
+          "cost_matches": true,
+          "state_matches": true
+        },
+        "continuation": {
+          "admitted": 6,
+          "created": 6,
+          "expired": 1,
+          "harvested": 0,
+          "invalidated": 0,
+          "replanned": 2,
+          "retained": 4,
+          "superseded": 0
+        },
+        "credit_expansions": [
+          21,
+          16,
+          16,
+          14,
+          13
+        ],
+        "elapsed_s": 116.65654299999005,
+        "maximum_foundations": 0,
+        "minimum_face_down": 41,
+        "projects": {
+          "approximate_bytes": 2112,
+          "candidate_defer_events": 0,
+          "candidate_reactivate_events": 0,
+          "candidate_replacements": 3,
+          "candidates_attached": 6,
+          "cheaper_arrival_revalidations": 1,
+          "maximum_candidates_per_project": 2,
+          "maximum_project_lifetime_expansions": 77,
+          "maximum_simultaneous_projects": 3,
+          "per_project": [
+            {
+              "campaign_id": "D#1",
+              "candidates": 2,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 2,
+              "project_id": "3fb0988e163b6f8c",
+              "semantic_progress_events": 0,
+              "service_executions": 2,
+              "status": "BLOCKED"
+            },
+            {
+              "campaign_id": "H#1",
+              "candidates": 2,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 58,
+              "project_id": "9acc6cf03e95b11b",
+              "semantic_progress_events": 1,
+              "service_executions": 3,
+              "status": "EXHAUSTED"
+            },
+            {
+              "campaign_id": "S#1",
+              "candidates": 2,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 77,
+              "project_id": "d6dd39dee9ae6724",
+              "semantic_progress_events": 0,
+              "service_executions": 0,
+              "status": "RUNNABLE"
+            }
+          ],
+          "project_activity_events": 5,
+          "project_identity_collisions": 0,
+          "project_progress_events": 1,
+          "project_service_executions": 5,
+          "projects": 3,
+          "projects_achieved": 0,
+          "projects_blocked": 2,
+          "projects_created": 3,
+          "projects_exhausted": 1,
+          "projects_expired": 1,
+          "projects_invalidated": 0,
+          "projects_reused": 3,
+          "service_executions_without_progress": 4,
+          "service_requests_subscribed": 10,
+          "status_counts": {
+            "ACHIEVED": 0,
+            "BLOCKED": 1,
+            "EXHAUSTED": 1,
+            "INVALIDATED": 0,
+            "RUNNABLE": 1
+          }
+        },
+        "registry": {
+          "bytes": 198740,
+          "handle_errors": 0,
+          "reactivations": 0,
+          "reopenings": 12,
+          "requests": 182,
+          "states": 119
+        },
+        "service_executions": 80,
+        "stock_rows_remaining": 4,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "tactical_nodes": 24219,
+        "trajectory_digest": "6fcdbb473aab368b",
+        "tt": {
+          "improved": 8,
+          "new": 119,
+          "suppressed": 278
+        }
+      }
+    },
+    "P7": {
+      "CURRENT_CONTINUATION_OWNERSHIP": {
+        "arm": "CURRENT_CONTINUATION_OWNERSHIP",
+        "best_progress_digest": "4dcad73819bb4098",
+        "best_progress_replay": {
+          "cost_matches": true,
+          "state_matches": true
+        },
+        "continuation": {
+          "admitted": 8,
+          "created": 8,
+          "expired": 0,
+          "harvested": 0,
+          "invalidated": 0,
+          "replanned": 2,
+          "retained": 5,
+          "superseded": 0
+        },
+        "credit_expansions": [
+          29,
+          14,
+          14,
+          13,
+          10
+        ],
+        "elapsed_s": 105.40549609999289,
+        "maximum_foundations": 0,
+        "minimum_face_down": 38,
+        "projects": {},
+        "registry": {
+          "bytes": 241466,
+          "handle_errors": 0,
+          "reactivations": 0,
+          "reopenings": 0,
+          "requests": 221,
+          "states": 151
+        },
+        "service_executions": 80,
+        "stock_rows_remaining": 1,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "tactical_nodes": 3740,
+        "trajectory_digest": "c96c2a4645eeb0be",
+        "tt": {
+          "improved": 0,
+          "new": 151,
+          "suppressed": 211
+        }
+      },
+      "STRATEGIC_PROJECT_CONTINUATION": {
+        "arm": "STRATEGIC_PROJECT_CONTINUATION",
+        "best_progress_digest": "4dcad73819bb4098",
+        "best_progress_replay": {
+          "cost_matches": true,
+          "state_matches": true
+        },
+        "continuation": {
+          "admitted": 5,
+          "created": 5,
+          "expired": 0,
+          "harvested": 0,
+          "invalidated": 0,
+          "replanned": 2,
+          "retained": 0,
+          "superseded": 0
+        },
+        "credit_expansions": [
+          29,
+          15,
+          14,
+          12,
+          10
+        ],
+        "elapsed_s": 93.97866240001167,
+        "maximum_foundations": 0,
+        "minimum_face_down": 38,
+        "projects": {
+          "approximate_bytes": 2232,
+          "candidate_defer_events": 0,
+          "candidate_reactivate_events": 0,
+          "candidate_replacements": 0,
+          "candidates_attached": 5,
+          "cheaper_arrival_revalidations": 0,
+          "maximum_candidates_per_project": 2,
+          "maximum_project_lifetime_expansions": 78,
+          "maximum_simultaneous_projects": 4,
+          "per_project": [
+            {
+              "campaign_id": "C#1",
+              "candidates": 1,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 1,
+              "project_id": "273a2ea6a6c772bc",
+              "semantic_progress_events": 0,
+              "service_executions": 1,
+              "status": "BLOCKED"
+            },
+            {
+              "campaign_id": "D#1",
+              "candidates": 2,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 68,
+              "project_id": "3fb0988e163b6f8c",
+              "semantic_progress_events": 0,
+              "service_executions": 1,
+              "status": "RUNNABLE"
+            },
+            {
+              "campaign_id": "H#1",
+              "candidates": 1,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 1,
+              "project_id": "9acc6cf03e95b11b",
+              "semantic_progress_events": 0,
+              "service_executions": 1,
+              "status": "BLOCKED"
+            },
+            {
+              "campaign_id": "S#1",
+              "candidates": 1,
+              "kind": "SAME_CAMPAIGN_CONTINUATION",
+              "lifetime_expansions": 9,
+              "project_id": "d6dd39dee9ae6724",
+              "semantic_progress_events": 0,
+              "service_executions": 0,
+              "status": "RUNNABLE"
+            }
+          ],
+          "project_activity_events": 3,
+          "project_identity_collisions": 0,
+          "project_progress_events": 0,
+          "project_service_executions": 3,
+          "projects": 4,
+          "projects_achieved": 0,
+          "projects_blocked": 3,
+          "projects_created": 4,
+          "projects_exhausted": 0,
+          "projects_expired": 0,
+          "projects_invalidated": 0,
+          "projects_reused": 1,
+          "service_executions_without_progress": 3,
+          "service_requests_subscribed": 6,
+          "status_counts": {
+            "ACHIEVED": 0,
+            "BLOCKED": 2,
+            "EXHAUSTED": 0,
+            "INVALIDATED": 0,
+            "RUNNABLE": 2
+          }
+        },
+        "registry": {
+          "bytes": 237932,
+          "handle_errors": 0,
+          "reactivations": 0,
+          "reopenings": 10,
+          "requests": 216,
+          "states": 150
+        },
+        "service_executions": 80,
+        "stock_rows_remaining": 1,
+        "stop_reason": "strategic expansion limit",
+        "strategic_expansions": 80,
+        "tactical_nodes": 1848,
+        "trajectory_digest": "9215fd83392f2088",
+        "tt": {
+          "improved": 6,
+          "new": 150,
+          "suppressed": 211
+        }
+      }
+    }
+  },
+  "selection_rationale": "Mandatory frozen P0/P2/P7. P0 produced a continuation during the pre-panel implementation smoke, so no fourth fixture was selected; no project outcome was used to choose among fixtures.",
+  "status": "COMPLETE",
+  "verdict": "STRATEGIC_PROJECT_LIFECYCLE_READY"
+}

@@ -1,0 +1,51 @@
+{
+  "config_fingerprint": "eeb4f6f1b6d8a4d3599280a421538babe0790a68dcc9c1449b2d10bfca736d83",
+  "result": {
+    "arm": "CURRENT_CONTINUATION_OWNERSHIP",
+    "best_progress_digest": "4dcad73819bb4098",
+    "best_progress_replay": {
+      "cost_matches": true,
+      "state_matches": true
+    },
+    "continuation": {
+      "admitted": 8,
+      "created": 8,
+      "expired": 0,
+      "harvested": 0,
+      "invalidated": 0,
+      "replanned": 2,
+      "retained": 5,
+      "superseded": 0
+    },
+    "credit_expansions": [
+      29,
+      14,
+      14,
+      13,
+      10
+    ],
+    "elapsed_s": 105.40549609999289,
+    "maximum_foundations": 0,
+    "minimum_face_down": 38,
+    "projects": {},
+    "registry": {
+      "bytes": 241466,
+      "handle_errors": 0,
+      "reactivations": 0,
+      "reopenings": 0,
+      "requests": 221,
+      "states": 151
+    },
+    "service_executions": 80,
+    "stock_rows_remaining": 1,
+    "stop_reason": "strategic expansion limit",
+    "strategic_expansions": 80,
+    "tactical_nodes": 3740,
+    "trajectory_digest": "c96c2a4645eeb0be",
+    "tt": {
+      "improved": 0,
+      "new": 151,
+      "suppressed": 211
+    }
+  }
+}
