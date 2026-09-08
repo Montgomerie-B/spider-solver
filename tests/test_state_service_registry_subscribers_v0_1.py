@@ -156,7 +156,8 @@ def test_s4_three_interests_still_use_one_live_handle_and_one_execution():
         ServiceSubscriberKind.EPOCH_TRANSITION,
     )
     assert len([item for item in request.subscribers.values() if item.active]) == 3
-    assert registry.metrics.duplicate_live_representations_prevented == 2
+    assert registry.metrics.duplicate_live_representations_prevented == 0
+    assert registry.metrics.special_interests_shared_with_existing_handle == 2
     assert registry.metrics.subscriber_live_representations_used == 1
     assert registry.begin(10).accepted
     registry.complete(request.key)

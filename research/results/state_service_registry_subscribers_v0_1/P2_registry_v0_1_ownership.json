@@ -1,0 +1,115 @@
+{
+  "arm": "REGISTRY_V0_1_OWNERSHIP",
+  "completed_utc": "2026-09-08T11:05:54.237410+00:00",
+  "config_fingerprint": "505028b55c2876866307bad13e1bc13caedcce99a155aa95f899d753daed33cd",
+  "deal": "P2",
+  "experiment": "state_service_registry_subscribers_v0_1",
+  "result": {
+    "arm": "REGISTRY_V0_1_OWNERSHIP",
+    "best_progress_digest": "4d67539f2e5b6949",
+    "best_progress_replay": {
+      "corrected_cost": 0,
+      "cost_matches": true,
+      "expected_g": 0,
+      "state_matches": true
+    },
+    "credit_expansions": [
+      21,
+      16,
+      16,
+      14,
+      13
+    ],
+    "elapsed_s": 122.14798259999952,
+    "frontier_remaining": 116,
+    "maximum_credit_reached": 4,
+    "maximum_foundations": 0,
+    "minimum_expanded_stock_rows": 4,
+    "minimum_face_down": 41,
+    "proof_pruned": 0,
+    "registry": {
+      "approximate_bytes": 141408,
+      "cheaper_arrival_updates": 12,
+      "duplicate_request_coalesces": 295,
+      "eviction_deferrals": 0,
+      "live_handle_invariant_violations": 0,
+      "reactivations": 0,
+      "reopening_events": 16,
+      "service_executions": 80,
+      "service_requests": 183,
+      "stale_handles_rejected_before_analysis": 3,
+      "states": 120,
+      "status_counts": {
+        "ATTEMPTED": 75,
+        "DEFERRED": 0,
+        "LIVE": 108,
+        "PENDING": 0,
+        "PROOF_PRUNED": 0,
+        "RUNNING": 0
+      },
+      "subscribers": {
+        "active": 0,
+        "active_by_kind": {
+          "COMPLETION_CASH_OUT": 0,
+          "EPOCH_TRANSITION": 0,
+          "ORDINARY": 0
+        },
+        "add_events": 0,
+        "attachments": 0,
+        "attachments_by_kind": {},
+        "duplicate_live_representations_prevented": 0,
+        "duplicate_subscriber_coalesces": 0,
+        "enabled": false,
+        "executions_satisfying_multiple_subscribers": 0,
+        "live_representations_used": 0,
+        "orphan_deferrals": 0,
+        "peak_quota_usage": {},
+        "quota_usage": {
+          "COMPLETION_CASH_OUT": 0,
+          "EPOCH_TRANSITION": 0
+        },
+        "records": 0,
+        "records_by_kind": {
+          "COMPLETION_CASH_OUT": 0,
+          "EPOCH_TRANSITION": 0,
+          "ORDINARY": 0
+        },
+        "remove_events": 0,
+        "request_combinations_observed": {
+          "COMPLETION_CASH_OUT": 0,
+          "COMPLETION_CASH_OUT+EPOCH_TRANSITION": 0,
+          "EPOCH_TRANSITION": 0,
+          "ORDINARY": 0,
+          "ORDINARY+COMPLETION_CASH_OUT": 0,
+          "ORDINARY+COMPLETION_CASH_OUT+EPOCH_TRANSITION": 0,
+          "ORDINARY+EPOCH_TRANSITION": 0
+        },
+        "shared_executions": 0,
+        "shared_request_deferrals": 0,
+        "shared_request_reactivations": 0,
+        "special_interests_shared_with_existing_handle": 0,
+        "stale_shared_handles_rejected": 0,
+        "subscriber_satisfactions": 0
+      }
+    },
+    "reservation_ownership": {
+      "completion_expanded": 1,
+      "completion_reserved": 1,
+      "epoch_expanded": 0,
+      "epoch_reserved": 0,
+      "old_independent_claims": 1
+    },
+    "solution_replay_failures": 0,
+    "stop_reason": "strategic expansion limit",
+    "strategic_expansions": 80,
+    "successors_generated": 410,
+    "successors_retained": 131,
+    "tactical_nodes": 24548,
+    "trajectory_digest": "ae82528f056989ab",
+    "tt": {
+      "improved": 12,
+      "new": 120,
+      "suppressed": 279
+    }
+  }
+}

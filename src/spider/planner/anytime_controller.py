@@ -972,6 +972,7 @@ class ControllerTelemetry:
     registry_request_combinations_observed: Dict[str, int] = field(default_factory=dict)
     registry_duplicate_subscriber_coalesces: int = 0
     registry_duplicate_live_representations_prevented: int = 0
+    registry_special_interests_shared_with_existing_handle: int = 0
     registry_subscriber_live_representations_used: int = 0
     registry_subscriber_add_events: int = 0
     registry_subscriber_remove_events: int = 0
@@ -9519,6 +9520,9 @@ def _publish_registry_telemetry(
     ]
     telemetry.registry_duplicate_live_representations_prevented = snapshot[
         "duplicate_live_representations_prevented"
+    ]
+    telemetry.registry_special_interests_shared_with_existing_handle = snapshot[
+        "special_interests_shared_with_existing_handle"
     ]
     telemetry.registry_subscriber_live_representations_used = snapshot[
         "subscriber_live_representations_used"

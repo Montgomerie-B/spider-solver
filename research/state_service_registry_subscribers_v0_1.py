@@ -181,6 +181,9 @@ def compact_result(opening: SpiderState, result, *, arm: str) -> dict:
         "duplicate_live_representations_prevented": (
             telemetry.registry_duplicate_live_representations_prevented
         ),
+        "special_interests_shared_with_existing_handle": (
+            telemetry.registry_special_interests_shared_with_existing_handle
+        ),
         "live_representations_used": telemetry.registry_subscriber_live_representations_used,
         "add_events": telemetry.registry_subscriber_add_events,
         "remove_events": telemetry.registry_subscriber_remove_events,
@@ -271,6 +274,22 @@ def checkpoint_path(deal: str, arm: str) -> Path:
     return CHECKPOINT_DIR / f"{deal}_{arm.lower()}.json"
 
 
+def _normalize_result_metrics(result: dict) -> bool:
+    """Correct the pre-audit label without changing any measured run outcome."""
+
+    subscriber = result["registry"]["subscribers"]
+    if "special_interests_shared_with_existing_handle" in subscriber:
+        return False
+    subscriber["special_interests_shared_with_existing_handle"] = subscriber.get(
+        "duplicate_live_representations_prevented", 0
+    )
+    # Registry v0.1 already supplied one heap handle, so the old reservation
+    # annotations represented independent ownership claims, not duplicate
+    # live handles.  The actual prevented-live-duplicate count is therefore 0.
+    subscriber["duplicate_live_representations_prevented"] = 0
+    return True
+
+
 def execute() -> dict:
     entries = {
         item["panel_entry"]: item
@@ -286,6 +305,8 @@ def execute() -> dict:
                 checkpoint = json.loads(path.read_text(encoding="utf-8"))
                 if checkpoint.get("config_fingerprint") == _fingerprint():
                     print(f"RESUME {deal} {arm}", flush=True)
+                    if _normalize_result_metrics(checkpoint["result"]):
+                        _write_json(path, checkpoint)
                     runs[deal][arm] = checkpoint["result"]
                     continue
             print(f"START {deal} {arm}", flush=True)
@@ -380,6 +401,12 @@ def build_result(runs: dict) -> dict:
     for run in subscriber_runs:
         for name, count in run["registry"]["subscribers"]["request_combinations_observed"].items():
             combinations[name] = combinations.get(name, 0) + count
+    ownership_bytes = sum(
+        runs[deal][OWNERSHIP]["registry"]["approximate_bytes"] for deal in DEALS
+    )
+    subscriber_bytes = sum(
+        run["registry"]["approximate_bytes"] for run in subscriber_runs
+    )
     aggregate = {
         "registry_states": sum(run["registry"]["states"] for run in subscriber_runs),
         "registry_service_requests": sum(run["registry"]["service_requests"] for run in subscriber_runs),
@@ -388,10 +415,39 @@ def build_result(runs: dict) -> dict:
             kind: _sum_kind(subscriber_runs, "attachments_by_kind", kind)
             for kind in ("ORDINARY", "COMPLETION_CASH_OUT", "EPOCH_TRANSITION")
         },
+        "subscriber_attachments": sum(
+            run["registry"]["subscribers"]["attachments"]
+            for run in subscriber_runs
+        ),
+        "subscriber_remove_events": sum(
+            run["registry"]["subscribers"]["remove_events"]
+            for run in subscriber_runs
+        ),
+        "duplicate_subscriber_coalesces": sum(
+            run["registry"]["subscribers"]["duplicate_subscriber_coalesces"]
+            for run in subscriber_runs
+        ),
+        "peak_subscriber_quota_usage": {
+            kind: max(
+                run["registry"]["subscribers"]["peak_quota_usage"].get(kind, 0)
+                for run in subscriber_runs
+            )
+            for kind in ("COMPLETION_CASH_OUT", "EPOCH_TRANSITION")
+        },
         "request_combinations_observed": combinations,
         "old_independent_ownership_claims": sum(run["reservation_ownership"]["old_independent_claims"] for run in subscriber_runs),
+        "old_independent_live_representations": 0,
         "duplicate_live_representations_prevented": sum(run["registry"]["subscribers"]["duplicate_live_representations_prevented"] for run in subscriber_runs),
+        "special_interests_shared_with_existing_handle": sum(run["registry"]["subscribers"]["special_interests_shared_with_existing_handle"] for run in subscriber_runs),
         "subscriber_live_representations_used": sum(run["registry"]["subscribers"]["live_representations_used"] for run in subscriber_runs),
+        "executions_avoided_by_subscriber_sharing": sum(
+            max(
+                0,
+                runs[deal][OWNERSHIP]["registry"]["service_executions"]
+                - runs[deal][SUBSCRIBERS]["registry"]["service_executions"],
+            )
+            for deal in DEALS
+        ),
         "shared_executions": sum(run["registry"]["subscribers"]["shared_executions"] for run in subscriber_runs),
         "executions_satisfying_multiple_subscribers": sum(run["registry"]["subscribers"]["executions_satisfying_multiple_subscribers"] for run in subscriber_runs),
         "cheaper_arrival_updates": sum(run["registry"]["cheaper_arrival_updates"] for run in subscriber_runs),
@@ -400,7 +456,10 @@ def build_result(runs: dict) -> dict:
         "shared_request_deferrals": sum(run["registry"]["subscribers"]["shared_request_deferrals"] for run in subscriber_runs),
         "shared_request_reactivations": sum(run["registry"]["subscribers"]["shared_request_reactivations"] for run in subscriber_runs),
         "service_executions": sum(run["registry"]["service_executions"] for run in subscriber_runs),
-        "approximate_bytes": sum(run["registry"]["approximate_bytes"] for run in subscriber_runs),
+        "subscriber_arm_approximate_bytes": subscriber_bytes,
+        "ownership_arm_approximate_bytes": ownership_bytes,
+        "approximate_byte_delta": subscriber_bytes - ownership_bytes,
+        "approximate_memory_ratio": subscriber_bytes / ownership_bytes,
         "elapsed_ratio_median": statistics.median(elapsed_ratios),
         "elapsed_ratio_min": min(elapsed_ratios),
         "elapsed_ratio_max": max(elapsed_ratios),

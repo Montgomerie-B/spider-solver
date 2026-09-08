@@ -131,6 +131,7 @@ class RegistryMetrics:
     subscriber_remove_events: int = 0
     duplicate_subscriber_coalesces: int = 0
     duplicate_live_representations_prevented: int = 0
+    special_interests_shared_with_existing_handle: int = 0
     subscriber_live_representations_used: int = 0
     shared_executions: int = 0
     executions_satisfying_multiple_subscribers: int = 0
@@ -257,8 +258,12 @@ class StateServiceRegistry:
             self.metrics.subscriber_attachments_by_kind[name] = (
                 self.metrics.subscriber_attachments_by_kind.get(name, 0) + 1
             )
-            if request.status is ServiceStatus.LIVE and active_before:
-                self.metrics.duplicate_live_representations_prevented += 1
+            if (
+                request.status is ServiceStatus.LIVE
+                and active_before
+                and kind is not ServiceSubscriberKind.ORDINARY
+            ):
+                self.metrics.special_interests_shared_with_existing_handle += 1
             if (
                 request.status is ServiceStatus.LIVE
                 and kind is not ServiceSubscriberKind.ORDINARY
@@ -574,6 +579,9 @@ class StateServiceRegistry:
             ),
             "duplicate_live_representations_prevented": (
                 self.metrics.duplicate_live_representations_prevented
+            ),
+            "special_interests_shared_with_existing_handle": (
+                self.metrics.special_interests_shared_with_existing_handle
             ),
             "subscriber_live_representations_used": (
                 self.metrics.subscriber_live_representations_used
