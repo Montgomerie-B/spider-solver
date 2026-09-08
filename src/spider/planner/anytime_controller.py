@@ -313,6 +313,11 @@ from spider.planner.source_completion import (
     classify_completion_loss,
     classify_source_expiry,
 )
+from spider.planner.state_service_registry import (
+    ServiceCoverageMode,
+    ServiceRequestKey,
+    StateServiceRegistry,
+)
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.state_identity import (
     CanonicalStateKey,
@@ -486,6 +491,9 @@ class AnytimeControllerConfig:
         default_factory=WholeDealSchedulerConfig
     )
     max_scheduler_objectives_in_portfolio: int = 1
+    enable_state_service_registry: bool = False
+    state_service_registry_max_states: int = 100_000
+    state_service_registry_max_requests: int = 500_000
     deal_timing_config: DealTimingConfig = field(
         default_factory=lambda: DealTimingConfig(
             max_preparation_projects=2,
@@ -513,6 +521,11 @@ class AnytimeControllerConfig:
             raise ValueError("scheduler objectives must fit inside the existing successor portfolio")
         if not 0 <= int(self.max_credit_level) <= 4:
             raise ValueError("maximum credit level must be in 0..4")
+        if (
+            self.state_service_registry_max_states <= 0
+            or self.state_service_registry_max_requests <= 0
+        ):
+            raise ValueError("state-service registry limits must be positive")
         if len(self.tactical_max_cost_by_credit) != 5:
             raise ValueError("tactical cost schedule must contain five credit levels")
         if tuple(sorted(self.tactical_max_cost_by_credit)) != self.tactical_max_cost_by_credit:
@@ -932,6 +945,19 @@ class ControllerTelemetry:
     tt_improved: int = 0
     tt_suppressed: int = 0
     exact_loop_suppressed: int = 0
+    registry_enabled: bool = False
+    registry_states: int = 0
+    registry_service_requests: int = 0
+    registry_status_counts: Dict[str, int] = field(default_factory=dict)
+    registry_cheaper_arrival_updates: int = 0
+    registry_reopening_events: int = 0
+    registry_eviction_deferrals: int = 0
+    registry_reactivations: int = 0
+    registry_duplicate_request_coalesces: int = 0
+    registry_stale_handles_rejected_before_analysis: int = 0
+    registry_live_handle_invariant_violations: int = 0
+    registry_service_executions: int = 0
+    registry_approximate_bytes: int = 0
     actionability_cache_hits: int = 0
     actionability_cache_misses: int = 0
     inaccessible_retry_suppressed: int = 0
@@ -9153,6 +9179,85 @@ def _record_transition(
         )
 
 
+_CURRENT_SERVICE_ADAPTER_CONTEXT = ("BEST_ARRIVAL_STRATEGIC_NODE_V0_1",)
+
+
+def _registry_request(
+    registry: StateServiceRegistry,
+    state_key: CanonicalStateKey,
+    credit_level: StrategicCreditLevel,
+):
+    """Request current successor coverage without widening exact-state identity."""
+
+    return registry.request_service(
+        state_key,
+        int(credit_level),
+        coverage_mode=ServiceCoverageMode.CURRENT_STRATEGIC_SUCCESSORS,
+        adapter_context=_CURRENT_SERVICE_ADAPTER_CONTEXT,
+    )
+
+
+def _activate_registry_pending(
+    registry: StateServiceRegistry,
+    state_key: CanonicalStateKey,
+    frontier: List[Tuple[Tuple, int, StrategicSearchNode]],
+    uid: int,
+    *,
+    preferred_key: Optional[ServiceRequestKey] = None,
+    preferred_handle_id: Optional[int] = None,
+) -> int:
+    """Give each pending request one handle backed by the best legal witness."""
+
+    arrival = registry.arrival(state_key)
+    if arrival is None or not isinstance(arrival.witness, StrategicSearchNode):
+        raise ValueError("strategic service requires a StrategicSearchNode witness")
+    pending = list(registry.pending_requests(state_key))
+    if preferred_key is not None:
+        pending.sort(key=lambda item: item.key != preferred_key)
+    for request in pending:
+        if request.key == preferred_key and preferred_handle_id is not None:
+            handle_id = preferred_handle_id
+        else:
+            uid += 1
+            handle_id = uid
+        witness = replace(
+            arrival.witness,
+            node_id=handle_id,
+            credit_level=StrategicCreditLevel(request.key.strategic_credit),
+        )
+        if registry.activate(request.key, handle_id):
+            heapq.heappush(frontier, (_node_priority(witness), handle_id, witness))
+    return uid
+
+
+def _publish_registry_telemetry(
+    registry: Optional[StateServiceRegistry],
+    telemetry: ControllerTelemetry,
+) -> None:
+    if registry is None:
+        return
+    snapshot = registry.snapshot()
+    telemetry.registry_enabled = True
+    telemetry.registry_states = snapshot["states"]
+    telemetry.registry_service_requests = snapshot["service_requests"]
+    telemetry.registry_status_counts = snapshot["status_counts"]
+    telemetry.registry_cheaper_arrival_updates = snapshot["cheaper_arrival_updates"]
+    telemetry.registry_reopening_events = snapshot["reopening_events"]
+    telemetry.registry_eviction_deferrals = snapshot["eviction_deferrals"]
+    telemetry.registry_reactivations = snapshot["reactivations"]
+    telemetry.registry_duplicate_request_coalesces = snapshot[
+        "duplicate_request_coalesces"
+    ]
+    telemetry.registry_stale_handles_rejected_before_analysis = snapshot[
+        "stale_handles_rejected_before_analysis"
+    ]
+    telemetry.registry_live_handle_invariant_violations = snapshot[
+        "live_handle_invariant_violations"
+    ]
+    telemetry.registry_service_executions = snapshot["service_executions"]
+    telemetry.registry_approximate_bytes = snapshot["approximate_bytes"]
+
+
 def solve_anytime(
     initial_state: SpiderState,
     cards: Sequence[Card],
@@ -9186,6 +9291,21 @@ def solve_anytime(
     )
     supplied_record = incumbent if isinstance(incumbent, IncumbentRecord) else None
     telemetry = ControllerTelemetry()
+    registry: Optional[StateServiceRegistry] = None
+    if config.enable_state_service_registry:
+        if (
+            config.frontier_priority_schema != FrontierPrioritySchema.COMMON_STAGE0
+            or config.strategic_credit_propagation
+            != StrategicCreditPropagation.STATE_LOCAL
+        ):
+            raise ValueError(
+                "StateServiceRegistry v0.1 requires COMMON_STAGE0 + STATE_LOCAL"
+            )
+        registry = StateServiceRegistry(
+            max_states=config.state_service_registry_max_states,
+            max_requests=config.state_service_registry_max_requests,
+        )
+        telemetry.registry_enabled = True
     resource_allocator = _resource_allocator_for_config(config)
     checkpoint_profiles: List[FoundationCheckpointProfile] = []
     pre_foundation_profiles: List[PreFoundationGeometry] = []
@@ -9393,7 +9513,20 @@ def solve_anytime(
     epoch_transition_spent_ids: set[str] = set()
     frontier: List[Tuple[Tuple, int, StrategicSearchNode]] = []
     uid = 0
-    heapq.heappush(frontier, (_node_priority(root), uid, root))
+    if registry is None:
+        heapq.heappush(frontier, (_node_priority(root), uid, root))
+    else:
+        root_key = canonical_state_key(root.state)
+        registry.admit_arrival(root_key, root.g, root)
+        root_request = _registry_request(registry, root_key, root.credit_level)
+        uid = _activate_registry_pending(
+            registry,
+            root_key,
+            frontier,
+            uid,
+            preferred_key=root_request.key,
+            preferred_handle_id=root.node_id,
+        )
     expansion_credits: set[Tuple[CanonicalStateKey, int]] = set()
     actionability_cache: Dict[ActionabilityCacheKey, ProjectActionability] = {}
     dependency_closure_cache: Dict = {}
@@ -9429,6 +9562,13 @@ def solve_anytime(
             telemetry=telemetry,
         )
         _priority, _sequence, node = heapq.heappop(frontier)
+        running_request: Optional[ServiceRequestKey] = None
+        if registry is not None:
+            service_start = registry.begin(node.node_id)
+            if not service_start.accepted:
+                continue
+            running_request = service_start.request_key
+            assert running_request is not None
         if (
             node.incoming_edge is not None
             and node.incoming_edge.receiver_uncover_followup is not None
@@ -9514,6 +9654,11 @@ def solve_anytime(
                     ),
                 )
             except AnalysisResourceLimit:
+                if registry is not None and running_request is not None:
+                    registry.defer_running(
+                        running_request,
+                        reason="ANALYSIS_RESOURCE_LIMIT",
+                    )
                 telemetry.optional_analyses_skipped += 1
                 stop_reason = "deadline before fresh Stage-1 expansion analysis"
                 break
@@ -9568,11 +9713,12 @@ def solve_anytime(
             config,
             elapsed_seconds=elapsed,
         )
-        expansion_key = (canonical_state_key(node.state), int(node.credit_level))
-        if expansion_key in expansion_credits:
-            telemetry.exact_loop_suppressed += 1
-            continue
-        expansion_credits.add(expansion_key)
+        if registry is None:
+            expansion_key = (canonical_state_key(node.state), int(node.credit_level))
+            if expansion_key in expansion_credits:
+                telemetry.exact_loop_suppressed += 1
+                continue
+            expansion_credits.add(expansion_key)
 
         # Rebuild the proof budget under a newly installed incumbent without
         # changing heuristic analysis or deal-timing semantics.
@@ -9590,11 +9736,15 @@ def solve_anytime(
                 ),
             )
         if node.analysis.budget.proof_prunable:
+            if registry is not None and running_request is not None:
+                registry.proof_prune(running_request)
             telemetry.proof_pruned += 1
             telemetry.count_suppression("admissible incumbent bound")
             continue
 
         if node.state.is_solved():
+            if registry is not None and running_request is not None:
+                registry.complete(running_request, outcome="TERMINAL_STATE_CHECKED")
             telemetry.solution_candidates += 1
             verified = verify_complete_candidate(
                 initial_state,
@@ -9945,6 +10095,11 @@ def solve_anytime(
             config.target_foundation_count is not None
             and m.foundation_count >= config.target_foundation_count
         ):
+            if registry is not None and running_request is not None:
+                registry.defer_running(
+                    running_request,
+                    reason="TARGET_FOUNDATION_STOP_BEFORE_EXPANSION",
+                )
             stop_reason = "target-foundation milestone"
             break
 
@@ -9952,6 +10107,11 @@ def solve_anytime(
             config.stop_after_first_foundation
             and m.foundation_count > len(initial_state.foundations)
         ):
+            if registry is not None and running_request is not None:
+                registry.defer_running(
+                    running_request,
+                    reason="FIRST_FOUNDATION_STOP_BEFORE_EXPANSION",
+                )
             stop_reason = "first-foundation milestone"
             break
 
@@ -9969,6 +10129,8 @@ def solve_anytime(
             dependency_closure_cache=dependency_closure_cache,
             resource_allocator=resource_allocator,
         )
+        if registry is not None and running_request is not None:
+            registry.complete(running_request, outcome="SUCCESSORS_GENERATED")
         telemetry.generated += len(successors)
         _trace_expansion(node, successors, telemetry, config, current_incumbent_cost)
         cash_out_assessments: List[CompletionHarvestAssessment] = []
@@ -10055,6 +10217,20 @@ def solve_anytime(
                 if successor.kind == StrategicActionKind.CAMPAIGN_CORRIDOR:
                     telemetry.corridors_suppressed_by_tt += 1
                 telemetry.count_suppression("exact state reached at no lower g")
+                if registry is not None:
+                    suppressed_key = canonical_state_key(successor.end_state)
+                    deferred_request = _registry_request(
+                        registry,
+                        suppressed_key,
+                        StrategicCreditLevel.CLEAN,
+                    )
+                    uid = _activate_registry_pending(
+                        registry,
+                        suppressed_key,
+                        frontier,
+                        uid,
+                        preferred_key=deferred_request.key,
+                    )
                 continue
             if successor.receiver_uncover_followup is not None:
                 telemetry.receiver_uncover_tt_admitted += 1
@@ -10880,7 +11056,24 @@ def solve_anytime(
                     telemetry.proof_pruned += 1
                     telemetry.count_suppression("admissible incumbent bound")
                     continue
-            heapq.heappush(frontier, (_node_priority(child), uid, child))
+            if registry is None:
+                heapq.heappush(frontier, (_node_priority(child), uid, child))
+            else:
+                child_key = canonical_state_key(child.state)
+                registry.admit_arrival(child_key, child.g, child)
+                child_request = _registry_request(
+                    registry,
+                    child_key,
+                    child.credit_level,
+                )
+                uid = _activate_registry_pending(
+                    registry,
+                    child_key,
+                    frontier,
+                    uid,
+                    preferred_key=child_request.key,
+                    preferred_handle_id=child.node_id,
+                )
             telemetry.retained += 1
             telemetry.lazy_children_admitted += 1
             telemetry.advanced_descendants_admitted += int(
@@ -10924,11 +11117,24 @@ def solve_anytime(
         # coverage.  Each (state, credit) expands at most once.
         if int(node.credit_level) < int(config.max_credit_level):
             next_credit = StrategicCreditLevel(int(node.credit_level) + 1)
-            widened_key = (canonical_state_key(node.state), int(next_credit))
-            if widened_key not in expansion_credits:
-                uid += 1
-                widened = replace(node, node_id=uid, credit_level=next_credit)
-                heapq.heappush(frontier, (_node_priority(widened), uid, widened))
+            if registry is not None:
+                state_key = canonical_state_key(node.state)
+                widened_request = _registry_request(registry, state_key, next_credit)
+                uid = _activate_registry_pending(
+                    registry,
+                    state_key,
+                    frontier,
+                    uid,
+                    preferred_key=widened_request.key,
+                )
+            else:
+                widened_key = (canonical_state_key(node.state), int(next_credit))
+                if widened_key in expansion_credits:
+                    widened_key = None
+                if widened_key is not None:
+                    uid += 1
+                    widened = replace(node, node_id=uid, credit_level=next_credit)
+                    heapq.heappush(frontier, (_node_priority(widened), uid, widened))
 
         frontier = _reserve_completion_representative(
             frontier,
@@ -10943,6 +11149,9 @@ def solve_anytime(
             telemetry=telemetry,
         )
         if len(frontier) > config.max_frontier_size:
+            registry_handles_before_trim = (
+                {item[1] for item in frontier} if registry is not None else set()
+            )
             mature_before = {
                 item[1]: item[2]
                 for item in frontier
@@ -10971,11 +11180,16 @@ def solve_anytime(
             telemetry.frontier_trimmed += 1
             telemetry.heuristic_pruned += 1
             telemetry.count_suppression("bounded frontier trim; not proof")
+            if registry is not None:
+                retained_handle_ids = {item[1] for item in frontier}
+                for handle_id in registry_handles_before_trim - retained_handle_ids:
+                    registry.defer_handle(handle_id)
 
     telemetry.tt_new = tt.new_entries
     telemetry.tt_improved = tt.improvements
     telemetry.tt_suppressed = max(telemetry.tt_suppressed, tt.suppressions)
     telemetry.component_timings = deadline.timing_snapshot()
+    _publish_registry_telemetry(registry, telemetry)
     _publish_tactical_resource_telemetry(
         telemetry,
         resource_allocator.ledger,
