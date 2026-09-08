@@ -313,6 +313,11 @@ from spider.planner.source_completion import (
     classify_completion_loss,
     classify_source_expiry,
 )
+from spider.planner.foundation_conversion_funnel import (
+    FoundationConversionFunnel,
+    FoundationFunnelFailure,
+    FoundationFunnelStage,
+)
 from spider.planner.state_service_registry import (
     ServiceCoverageMode,
     ServiceRequestKey,
@@ -497,6 +502,8 @@ class AnytimeControllerConfig:
     enable_state_service_registry: bool = False
     enable_state_service_subscribers: bool = False
     enable_strategic_project_continuation: bool = False
+    enable_foundation_conversion_funnel: bool = False
+    enable_foundation_demand_bridge: bool = False
     state_service_registry_max_states: int = 100_000
     state_service_registry_max_requests: int = 500_000
     deal_timing_config: DealTimingConfig = field(
@@ -538,6 +545,15 @@ class AnytimeControllerConfig:
         ):
             raise ValueError(
                 "strategic-project continuation requires registry subscribers"
+            )
+        if self.enable_foundation_conversion_funnel and not self.enable_strategic_project_continuation:
+            raise ValueError("foundation conversion funnel requires StrategicProject lifecycle")
+        if self.enable_foundation_demand_bridge and not (
+            self.enable_strategic_project_continuation
+            and self.enable_tactical_resource_allocation
+        ):
+            raise ValueError(
+                "foundation demand bridge requires StrategicProject lifecycle and tactical allocation"
             )
         if len(self.tactical_max_cost_by_credit) != 5:
             raise ValueError("tactical cost schedule must contain five credit levels")
@@ -996,6 +1012,7 @@ class ControllerTelemetry:
     registry_subscriber_orphan_deferrals: int = 0
     strategic_projects_enabled: bool = False
     strategic_project_snapshot: Dict[str, object] = field(default_factory=dict)
+    foundation_conversion_funnel: Dict[str, object] = field(default_factory=dict)
     actionability_cache_hits: int = 0
     actionability_cache_misses: int = 0
     inaccessible_retry_suppressed: int = 0
@@ -2207,6 +2224,7 @@ def analyze_strategic_state(
             campaign_suits=campaign_suits,
             construction=construction,
             continuation_objective_id=continuation_objective_id,
+            enable_foundation_demand_bridge=config.enable_foundation_demand_bridge,
             deal_available=state.can_deal(MW_RULES),
         )
         if config.enable_tactical_resource_allocation
@@ -6599,6 +6617,165 @@ def _milestone_conversion_successors(
     ]
 
 
+def _funnel_successor_identity(successor: StrategicSuccessor) -> Tuple[object, ...]:
+    return (
+        successor.kind,
+        successor.actions,
+        canonical_state_key(successor.end_state),
+        successor.source_project_id,
+    )
+
+
+def _successor_matches_funnel_campaign(
+    parent: StrategicSearchNode,
+    successor: StrategicSuccessor,
+    campaign_id: str,
+) -> bool:
+    if successor.source_project_id == campaign_id:
+        return True
+    if len(successor.end_state.foundations) <= len(parent.state.foundations):
+        return False
+    suit = campaign_id.split("#", 1)[0].lower()
+    new_foundations = successor.end_state.foundations[len(parent.state.foundations):]
+    return any(sequence and sequence[0].suit == suit for sequence in new_foundations)
+
+
+def _record_project_analysis_funnel(
+    funnel: FoundationConversionFunnel,
+    node: StrategicSearchNode,
+    *,
+    project_id: str,
+    campaign_id: str,
+    request_key: ServiceRequestKey,
+    expansion: int,
+) -> None:
+    assert node.analysis is not None
+    state_key = canonical_state_key(node.state)
+    campaign = next(
+        (
+            item
+            for item in node.analysis.economic.campaign_portfolio.campaigns
+            if item.label == campaign_id
+        ),
+        None,
+    )
+    if campaign is None:
+        funnel.drop(
+            FoundationFunnelStage.CANDIDATE_AVAILABLE,
+            FoundationFunnelStage.CAMPAIGN_ANALYSED,
+            FoundationFunnelFailure.CAMPAIGN_INVALIDATED,
+            expansion=expansion,
+            project_id=project_id,
+            campaign_id=campaign_id,
+            state_key=state_key,
+            request_key=request_key,
+            evidence="fresh campaign portfolio no longer contains the named campaign",
+        )
+        return
+    path = next(
+        (item for item in node.analysis.critical_paths if item.campaign_id == campaign_id),
+        None,
+    )
+    dependency_count = len(path.entries) if path is not None else 0
+    terminal = bool(path is not None and path.terminal_qualified)
+    funnel.record(
+        FoundationFunnelStage.CAMPAIGN_ANALYSED,
+        expansion=expansion,
+        project_id=project_id,
+        campaign_id=campaign_id,
+        state_key=state_key,
+        actions=node.actions,
+        request_key=request_key,
+        details={
+            "campaign_epoch": campaign.current_epoch,
+            "dependency_count": dependency_count,
+            "terminal_ready": terminal,
+            "missing_intervals": int(bool(path and path.interval_missing)),
+            "buried_sources": sum(
+                item.kind == CampaignDependencyType.SOURCE_BURIED
+                for item in (path.entries if path is not None else ())
+            ),
+            "receiver_blocked": bool(path and path.receiver_missing),
+            "workspace_blocked": bool(path and path.workspace_required),
+            "stock_supply_waiting": bool(path and path.supplied_asset_waiting),
+        },
+    )
+    if terminal:
+        funnel.record(
+            FoundationFunnelStage.TERMINAL_READY,
+            expansion=expansion,
+            project_id=project_id,
+            campaign_id=campaign_id,
+            state_key=state_key,
+            actions=node.actions,
+            request_key=request_key,
+        )
+    if path is None or (not path.entries and not terminal):
+        funnel.drop(
+            FoundationFunnelStage.CAMPAIGN_ANALYSED,
+            FoundationFunnelStage.ACTIONABLE_PREREQUISITE,
+            FoundationFunnelFailure.NO_ACTIONABLE_PREREQUISITE,
+            expansion=expansion,
+            project_id=project_id,
+            campaign_id=campaign_id,
+            state_key=state_key,
+            request_key=request_key,
+            evidence="fresh critical path exposes neither a prerequisite nor terminal operation",
+        )
+        return
+    funnel.record(
+        FoundationFunnelStage.ACTIONABLE_PREREQUISITE,
+        expansion=expansion,
+        project_id=project_id,
+        campaign_id=campaign_id,
+        state_key=state_key,
+        actions=node.actions,
+        request_key=request_key,
+        details={
+            "target_dependency": path.bottleneck_dependency_id or "terminal",
+            "bottleneck_kind": path.bottleneck_kind.value if path.bottleneck_kind else "terminal",
+        },
+    )
+    demands = (
+        tuple(
+            item
+            for item in node.analysis.tactical_demands.demands
+            if item.campaign_id == campaign_id
+            and item.realizer
+            not in (TacticalRealizerKind.DEAL_TIMING, TacticalRealizerKind.RAW_FALLBACK)
+        )
+        if node.analysis.tactical_demands is not None
+        else ()
+    )
+    if not demands:
+        funnel.drop(
+            FoundationFunnelStage.ACTIONABLE_PREREQUISITE,
+            FoundationFunnelStage.TACTICAL_DEMAND_DERIVED,
+            FoundationFunnelFailure.DEMAND_NOT_DERIVED,
+            expansion=expansion,
+            project_id=project_id,
+            campaign_id=campaign_id,
+            state_key=state_key,
+            request_key=request_key,
+            evidence="no campaign-scoped tactical demand exists in fresh analysis",
+        )
+    for demand in demands:
+        funnel.record(
+            FoundationFunnelStage.TACTICAL_DEMAND_DERIVED,
+            expansion=expansion,
+            project_id=project_id,
+            campaign_id=campaign_id,
+            state_key=state_key,
+            actions=node.actions,
+            request_key=request_key,
+            details={
+                "demand_kind": demand.realizer.value,
+                "objective": demand.objective.value,
+                "target_dependency": demand.target_dependency_id or "",
+            },
+        )
+
+
 def generate_strategic_successors(
     node: StrategicSearchNode,
     cards: Sequence[Card],
@@ -6614,6 +6791,9 @@ def generate_strategic_successors(
     deadline: Optional[SearchDeadline] = None,
     dependency_closure_cache: Optional[DependencyClosureCache] = None,
     resource_allocator: Optional[TacticalResourceAllocator] = None,
+    foundation_funnel: Optional[FoundationConversionFunnel] = None,
+    funnel_project_id: Optional[str] = None,
+    funnel_request_key: Optional[ServiceRequestKey] = None,
 ) -> Tuple[StrategicSuccessor, ...]:
     """Generate a replay-verified portfolio in an explicit resource order.
 
@@ -6629,6 +6809,7 @@ def generate_strategic_successors(
         max(0.01, _remaining_controller_time(started, config))
     )
     allocator = resource_allocator or _resource_allocator_for_config(config)
+    ledger_before = allocator.ledger
     if resource_allocator is None:
         allocator.begin_expansion()
     allowed = set(allowed_frontier_tiers(node.credit_level))
@@ -7309,6 +7490,145 @@ def generate_strategic_successors(
     if raw_fallback_enabled(node.credit_level):
         raw.extend(_raw_move_successors(node))
 
+    funnel_campaign_id = (
+        node.continuation_credit.objective_id
+        if node.continuation_credit is not None and node.continuation_credit.is_live
+        else None
+    )
+    relevant_raw = tuple(
+        item
+        for item in raw
+        if funnel_campaign_id is not None
+        and _successor_matches_funnel_campaign(node, item, funnel_campaign_id)
+        and item.independent_replay_verified
+        and item.actions
+    )
+    if foundation_funnel is not None and funnel_project_id and funnel_campaign_id:
+        ledger_after = allocator.ledger
+        new_grants = ledger_after.grants[len(ledger_before.grants):]
+        granted_request_ids = {item.request_id for item in new_grants}
+        for request in ledger_after.requests[len(ledger_before.requests):]:
+            if (
+                request.key.campaign_id == funnel_campaign_id
+                and request.request_id not in granted_request_ids
+            ):
+                foundation_funnel.drop(
+                    FoundationFunnelStage.TACTICAL_DEMAND_DERIVED,
+                    FoundationFunnelStage.ALLOCATOR_GRANT,
+                    FoundationFunnelFailure.TACTICAL_GRANT_DENIED,
+                    expansion=telemetry.expanded,
+                    project_id=funnel_project_id,
+                    campaign_id=funnel_campaign_id,
+                    state_key=canonical_state_key(node.state),
+                    request_key=funnel_request_key,
+                    evidence=(
+                        f"allocator denied {request.key.realizer.value} within the "
+                        "unchanged per-expansion ceiling or suspended exact-state demand"
+                    ),
+                )
+        for grant in new_grants:
+            if grant.key.campaign_id != funnel_campaign_id:
+                continue
+            foundation_funnel.record(
+                FoundationFunnelStage.ALLOCATOR_GRANT,
+                expansion=telemetry.expanded,
+                project_id=funnel_project_id,
+                campaign_id=funnel_campaign_id,
+                state_key=canonical_state_key(node.state),
+                actions=node.actions,
+                request_key=funnel_request_key,
+                details={
+                    "demand_kind": grant.key.realizer.value,
+                    "nodes": grant.nodes_granted,
+                    "seconds_ms": int(round(grant.seconds_granted * 1000)),
+                    "cost": grant.max_added_cost,
+                },
+            )
+        for outcome in ledger_after.outcomes[len(ledger_before.outcomes):]:
+            if outcome.key.campaign_id != funnel_campaign_id:
+                continue
+            foundation_funnel.record(
+                FoundationFunnelStage.REALISER_INVOKED,
+                expansion=telemetry.expanded,
+                project_id=funnel_project_id,
+                campaign_id=funnel_campaign_id,
+                state_key=canonical_state_key(node.state),
+                actions=node.actions,
+                request_key=funnel_request_key,
+                details={"realizer": outcome.key.realizer.value},
+            )
+            if outcome.legal_successor_count == 0:
+                foundation_funnel.drop(
+                    FoundationFunnelStage.REALISER_INVOKED,
+                    FoundationFunnelStage.REPLAYABLE_PROGRESS_RETURNED,
+                    (
+                        FoundationFunnelFailure.REMOVAL_NO_RESULT
+                        if outcome.key.realizer
+                        in (
+                            TacticalRealizerKind.TERMINAL_ASSEMBLY,
+                            TacticalRealizerKind.CAMPAIGN_REMOVAL,
+                        )
+                        else FoundationFunnelFailure.REALISER_NO_RESULT
+                    ),
+                    expansion=telemetry.expanded,
+                    project_id=funnel_project_id,
+                    campaign_id=funnel_campaign_id,
+                    state_key=canonical_state_key(node.state),
+                    request_key=funnel_request_key,
+                    evidence=(
+                        f"{outcome.key.realizer.value} returned no legal replayable successor: "
+                        f"{outcome.reason}"
+                    ),
+                )
+        removal_requests = tuple(
+            item
+            for item in ledger_after.requests[len(ledger_before.requests):]
+            if item.key.campaign_id == funnel_campaign_id
+            and item.key.realizer
+            in (
+                TacticalRealizerKind.TERMINAL_ASSEMBLY,
+                TacticalRealizerKind.CAMPAIGN_REMOVAL,
+            )
+        )
+        for request in removal_requests:
+            foundation_funnel.record(
+                FoundationFunnelStage.REMOVAL_REQUESTED,
+                expansion=telemetry.expanded,
+                project_id=funnel_project_id,
+                campaign_id=funnel_campaign_id,
+                state_key=canonical_state_key(node.state),
+                actions=node.actions,
+                request_key=funnel_request_key,
+                details={"demand_kind": request.key.realizer.value},
+            )
+        for successor in relevant_raw:
+            stage = (
+                FoundationFunnelStage.FOUNDATION_GENERATED
+                if len(successor.end_state.foundations) > len(node.state.foundations)
+                else FoundationFunnelStage.REPLAYABLE_PROGRESS_RETURNED
+            )
+            foundation_funnel.record(
+                FoundationFunnelStage.REPLAYABLE_PROGRESS_RETURNED,
+                expansion=telemetry.expanded,
+                project_id=funnel_project_id,
+                campaign_id=funnel_campaign_id,
+                state_key=canonical_state_key(successor.end_state),
+                actions=node.actions + successor.actions,
+                request_key=funnel_request_key,
+                details={"realizer": successor.kind.value},
+            )
+            if stage == FoundationFunnelStage.FOUNDATION_GENERATED:
+                foundation_funnel.record(
+                    stage,
+                    expansion=telemetry.expanded,
+                    project_id=funnel_project_id,
+                    campaign_id=funnel_campaign_id,
+                    state_key=canonical_state_key(successor.end_state),
+                    actions=node.actions + successor.actions,
+                    request_key=funnel_request_key,
+                    details={"foundation_count": len(successor.end_state.foundations)},
+                )
+
     scheduler_annotated = _annotate_scheduler_successors(
         node, raw, config, telemetry
     )
@@ -7327,6 +7647,35 @@ def generate_strategic_successors(
         retained,
         maximum=config.max_successors_per_expansion,
     )
+    if foundation_funnel is not None and funnel_project_id and funnel_campaign_id:
+        dedup_ids = {_funnel_successor_identity(item) for item in deduplicated}
+        retained_ids = {_funnel_successor_identity(item) for item in retained}
+        final_ids = {_funnel_successor_identity(item) for item in final}
+        for successor in relevant_raw:
+            identity = _funnel_successor_identity(successor)
+            if identity not in dedup_ids:
+                reason = FoundationFunnelFailure.SUCCESSOR_DEDUP_DROPPED
+                evidence = "candidate deduplication removed the replayable campaign successor"
+            elif identity not in final_ids:
+                reason = (
+                    FoundationFunnelFailure.PORTFOLIO_DROPPED
+                    if identity not in retained_ids
+                    else FoundationFunnelFailure.RETENTION_DROPPED
+                )
+                evidence = "bounded successor selection removed the replayable campaign successor"
+            else:
+                continue
+            foundation_funnel.drop(
+                FoundationFunnelStage.REPLAYABLE_PROGRESS_RETURNED,
+                FoundationFunnelStage.PROGRESS_RETAINED,
+                reason,
+                expansion=telemetry.expanded,
+                project_id=funnel_project_id,
+                campaign_id=funnel_campaign_id,
+                state_key=canonical_state_key(successor.end_state),
+                request_key=funnel_request_key,
+                evidence=evidence,
+            )
     telemetry.closure_successors_admitted += sum(
         item.kind == StrategicActionKind.CAMPAIGN_DEPENDENCY_CLOSURE
         for item in final
@@ -9791,6 +10140,11 @@ def solve_anytime(
     )
     supplied_record = incumbent if isinstance(incumbent, IncumbentRecord) else None
     telemetry = ControllerTelemetry()
+    foundation_funnel = (
+        FoundationConversionFunnel()
+        if config.enable_foundation_conversion_funnel
+        else None
+    )
     registry: Optional[StateServiceRegistry] = None
     projects: Optional[StrategicProjectRegistry] = None
     if config.enable_state_service_registry:
@@ -10095,6 +10449,8 @@ def solve_anytime(
         _priority, _sequence, node = heapq.heappop(frontier)
         running_request: Optional[ServiceRequestKey] = None
         running_project_request = False
+        funnel_project_id: Optional[str] = None
+        funnel_campaign_id: Optional[str] = None
         if registry is not None:
             if config.enable_state_service_subscribers:
                 node = _node_with_registry_subscriber_entitlements(node, registry)
@@ -10253,6 +10609,37 @@ def solve_anytime(
                 continuation_events_seen,
                 elapsed_seconds=elapsed,
             )
+            selected_projects = tuple(
+                item
+                for item in projects.projects_for_request(running_request)
+                if item.selected_candidate == running_request
+            )
+            if selected_projects and node.continuation_credit is not None:
+                selected_project = selected_projects[0]
+                funnel_project_id = selected_project.project_id
+                funnel_campaign_id = selected_project.target.campaign_id
+                if foundation_funnel is not None:
+                    _record_project_analysis_funnel(
+                        foundation_funnel,
+                        node,
+                        project_id=funnel_project_id,
+                        campaign_id=funnel_campaign_id,
+                        request_key=running_request,
+                        expansion=telemetry.expanded,
+                    )
+                    if foundation_funnel.has_stage(
+                        funnel_campaign_id,
+                        FoundationFunnelStage.PROGRESS_RETAINED,
+                    ):
+                        foundation_funnel.record(
+                            FoundationFunnelStage.PROJECT_CONTINUATION_SERVICED,
+                            expansion=telemetry.expanded,
+                            project_id=funnel_project_id,
+                            campaign_id=funnel_campaign_id,
+                            state_key=canonical_state_key(node.state),
+                            actions=node.actions,
+                            request_key=running_request,
+                        )
         else:
             node = _refresh_same_campaign_continuation(
                 node,
@@ -10689,6 +11076,9 @@ def solve_anytime(
             deadline=deadline,
             dependency_closure_cache=dependency_closure_cache,
             resource_allocator=resource_allocator,
+            foundation_funnel=foundation_funnel,
+            funnel_project_id=funnel_project_id,
+            funnel_request_key=running_request,
         )
         if registry is not None and running_request is not None:
             registry.complete(running_request, outcome="SUCCESSORS_GENERATED")
@@ -10785,6 +11175,27 @@ def solve_anytime(
                 if successor.kind == StrategicActionKind.CAMPAIGN_CORRIDOR:
                     telemetry.corridors_suppressed_by_tt += 1
                 telemetry.count_suppression("exact state reached at no lower g")
+                if (
+                    foundation_funnel is not None
+                    and funnel_project_id is not None
+                    and funnel_campaign_id is not None
+                    and _successor_matches_funnel_campaign(
+                        node, successor, funnel_campaign_id
+                    )
+                    and successor.independent_replay_verified
+                    and successor.actions
+                ):
+                    foundation_funnel.drop(
+                        FoundationFunnelStage.REPLAYABLE_PROGRESS_RETURNED,
+                        FoundationFunnelStage.PROGRESS_RETAINED,
+                        FoundationFunnelFailure.TT_DOMINATED,
+                        expansion=telemetry.expanded,
+                        project_id=funnel_project_id,
+                        campaign_id=funnel_campaign_id,
+                        state_key=canonical_state_key(successor.end_state),
+                        request_key=running_request,
+                        evidence="exact TT retained an equal/lower-g structural duplicate",
+                    )
                 if registry is not None:
                     suppressed_key = canonical_state_key(successor.end_state)
                     # The TT can contain an arrival that was eliminated by an
@@ -11637,6 +12048,7 @@ def solve_anytime(
                     continue
             if registry is None:
                 heapq.heappush(frontier, (_node_priority(child), uid, child))
+                retained_request_key = running_request
             else:
                 child_key = canonical_state_key(child.state)
                 disposition = registry.admit_arrival(child_key, child.g, child)
@@ -11645,6 +12057,7 @@ def solve_anytime(
                     child_key,
                     child.credit_level,
                 )
+                retained_request_key = child_request.key
                 if projects is not None:
                     arrival = registry.arrival(child_key)
                     assert arrival is not None
@@ -11655,13 +12068,33 @@ def solve_anytime(
                                 arrival_version=arrival.version,
                             )
                     if project_continuation is not None:
-                        projects.attach_continuation(
+                        attached_project = projects.attach_continuation(
                             project_continuation,
                             child_request.key,
                             priority_information=project_priority or (),
                             arrival_version=arrival.version,
                             expansion=telemetry.expanded,
                         )
+                        if foundation_funnel is not None:
+                            foundation_funnel.record(
+                                FoundationFunnelStage.PROJECT_EXISTS,
+                                expansion=telemetry.expanded,
+                                project_id=attached_project.project_id,
+                                campaign_id=attached_project.target.campaign_id,
+                                state_key=child_key,
+                                actions=child.actions,
+                                request_key=child_request.key,
+                            )
+                            foundation_funnel.record(
+                                FoundationFunnelStage.CANDIDATE_AVAILABLE,
+                                expansion=telemetry.expanded,
+                                project_id=attached_project.project_id,
+                                campaign_id=attached_project.target.campaign_id,
+                                state_key=child_key,
+                                actions=child.actions,
+                                request_key=child_request.key,
+                                details={"arrival_version": arrival.version},
+                            )
                 uid = _activate_registry_pending(
                     registry,
                     child_key,
@@ -11694,6 +12127,61 @@ def solve_anytime(
                 config,
                 elapsed_seconds=time.perf_counter() - started,
             )
+            if (
+                foundation_funnel is not None
+                and funnel_project_id is not None
+                and funnel_campaign_id is not None
+                and _successor_matches_funnel_campaign(
+                    node, child_successor, funnel_campaign_id
+                )
+                and child_successor.independent_replay_verified
+                and child_successor.actions
+            ):
+                child_key = canonical_state_key(child.state)
+                foundation_funnel.record(
+                    FoundationFunnelStage.PROGRESS_RETAINED,
+                    expansion=telemetry.expanded,
+                    project_id=funnel_project_id,
+                    campaign_id=funnel_campaign_id,
+                    state_key=child_key,
+                    actions=child.actions,
+                    request_key=retained_request_key,
+                    details={
+                        "registry_admitted": registry is not None,
+                        "observed_in_successor_loop": True,
+                    },
+                )
+                if len(child.state.foundations) > len(node.state.foundations):
+                    foundation_funnel.record(
+                        FoundationFunnelStage.FOUNDATION_RETAINED,
+                        expansion=telemetry.expanded,
+                        project_id=funnel_project_id,
+                        campaign_id=funnel_campaign_id,
+                        state_key=child_key,
+                        actions=child.actions,
+                        request_key=retained_request_key,
+                        details={"foundation_count": len(child.state.foundations)},
+                    )
+                    replay = initial_state.clone()
+                    replay_cost = replay_actions(replay, list(child.actions))
+                    if (
+                        replay_cost == child.g
+                        and canonical_state_key(replay) == child_key
+                        and len(replay.foundations) == len(child.state.foundations)
+                    ):
+                        foundation_funnel.record(
+                            FoundationFunnelStage.FOUNDATION_REPLAY_VERIFIED,
+                            expansion=telemetry.expanded,
+                            project_id=funnel_project_id,
+                            campaign_id=funnel_campaign_id,
+                            state_key=child_key,
+                            actions=child.actions,
+                            request_key=retained_request_key,
+                            details={
+                                "corrected_cost": replay_cost,
+                                "foundation_count": len(replay.foundations),
+                            },
+                        )
 
         if active_cash_out is not None:
             harvest = combine_completion_harvest(
@@ -11811,6 +12299,8 @@ def solve_anytime(
     telemetry.component_timings = deadline.timing_snapshot()
     _publish_registry_telemetry(registry, telemetry)
     _publish_strategic_project_telemetry(projects, telemetry)
+    if foundation_funnel is not None:
+        telemetry.foundation_conversion_funnel = foundation_funnel.snapshot()
     _publish_tactical_resource_telemetry(
         telemetry,
         resource_allocator.ledger,

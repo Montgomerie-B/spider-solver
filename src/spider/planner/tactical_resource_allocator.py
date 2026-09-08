@@ -405,6 +405,7 @@ def derive_tactical_demands(
     campaign_suits: Optional[Mapping[str, str]] = None,
     construction: Optional[StructuralConstructionAnalysis] = None,
     continuation_objective_id: Optional[str] = None,
+    enable_foundation_demand_bridge: bool = False,
     deal_available: bool = False,
 ) -> TacticalDemandPortfolio:
     """Translate fresh structural facts into an inspectable tactical portfolio."""
@@ -438,6 +439,31 @@ def derive_tactical_demands(
                 continuation_attention=continuation,
             )
             demands.append(base)
+            if enable_foundation_demand_bridge and continuation:
+                demands.append(
+                    TacticalDemand(
+                        objective=objective,
+                        realizer=TacticalRealizerKind.CAMPAIGN_CURRENT_EPOCH,
+                        reason=(
+                            "selected StrategicProject candidate exposes its existing "
+                            f"current-epoch campaign realiser for {leading.dependency_id}"
+                        ),
+                        campaign_id=summary.campaign_id,
+                        campaign_suit=campaign_suits.get(summary.campaign_id),
+                        target_dependency_id=leading.dependency_id,
+                        prerequisites=leading.prerequisites,
+                        initial_tier=TacticalResourceTier.PROBE,
+                        downstream_unlock_count=leading.downstream_dependencies_unlocked,
+                        source_depth=leading.source_depth,
+                        receiver_missing=summary.receiver_missing,
+                        workspace_required=summary.workspace_required,
+                        supplied_asset_waiting=summary.supplied_asset_waiting,
+                        interval_missing=summary.interval_missing,
+                        overlay_present=summary.overlay_present,
+                        terminal_qualified=summary.terminal_qualified,
+                        continuation_attention=True,
+                    )
+                )
 
         qualified = summary.terminal_qualified
         removal_reason = (

@@ -1,0 +1,868 @@
+{
+  "config_fingerprint": "f5e86b86ea61decaebbcd2ff5ca67a15c3de5a6b3b2012fdcd2d7b2f04cd3fff",
+  "result": {
+    "arm": "FOUNDATION_DEMAND_BRIDGE",
+    "best_progress_replay": {
+      "corrected_cost": 25,
+      "cost_matches": true,
+      "expected_g": 25,
+      "state_matches": true
+    },
+    "deepest_stage": "F7_REPLAYABLE_PROGRESS_RETURNED",
+    "demand_kinds": {
+      "CAMPAIGN_CURRENT_EPOCH": 2,
+      "CAMPAIGN_REMOVAL": 2,
+      "DEPENDENCY_CLOSURE": 2
+    },
+    "elapsed_s": 595.7185965999961,
+    "first_foundation": null,
+    "funnel": {
+      "deepest_stage": "F7_REPLAYABLE_PROGRESS_RETURNED",
+      "drops": [
+        {
+          "campaign_id": "D#1",
+          "evidence": "exact TT retained an equal/lower-g structural duplicate",
+          "expansion": 217,
+          "from": "F7_REPLAYABLE_PROGRESS_RETURNED",
+          "project_id": "3fb0988e163b6f8c",
+          "reason": "TT_DOMINATED",
+          "request_digest": "84706425fe756923",
+          "state_digest": "5ecbdcb5c3251d92",
+          "to": "F8_PROGRESS_RETAINED"
+        },
+        {
+          "campaign_id": "D#1",
+          "evidence": "exact TT retained an equal/lower-g structural duplicate",
+          "expansion": 297,
+          "from": "F7_REPLAYABLE_PROGRESS_RETURNED",
+          "project_id": "3fb0988e163b6f8c",
+          "reason": "TT_DOMINATED",
+          "request_digest": "87d38f0dd3aa1451",
+          "state_digest": "8856ac9d8986e512",
+          "to": "F8_PROGRESS_RETAINED"
+        }
+      ],
+      "events": [
+        {
+          "action_count": 7,
+          "campaign_id": "C#1",
+          "details": {},
+          "expansion": 5,
+          "project_id": "273a2ea6a6c772bc",
+          "request_digest": "77fe0757d2724626",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "bf5a42ecfefd5ff4",
+          "trajectory_digest": "3660e48f236e340c"
+        },
+        {
+          "action_count": 7,
+          "campaign_id": "C#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 5,
+          "project_id": "273a2ea6a6c772bc",
+          "request_digest": "77fe0757d2724626",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "bf5a42ecfefd5ff4",
+          "trajectory_digest": "3660e48f236e340c"
+        },
+        {
+          "action_count": 8,
+          "campaign_id": "C#1",
+          "details": {},
+          "expansion": 6,
+          "project_id": "273a2ea6a6c772bc",
+          "request_digest": "22c1b42805b28b34",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "4a9c3b4f295f77f2",
+          "trajectory_digest": "0683232bb0a5f2c2"
+        },
+        {
+          "action_count": 8,
+          "campaign_id": "C#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 6,
+          "project_id": "273a2ea6a6c772bc",
+          "request_digest": "22c1b42805b28b34",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "4a9c3b4f295f77f2",
+          "trajectory_digest": "0683232bb0a5f2c2"
+        },
+        {
+          "action_count": 21,
+          "campaign_id": "D#1",
+          "details": {},
+          "expansion": 43,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "e5b5a6d7a3c905c3",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "7724c88f520d09e7",
+          "trajectory_digest": "48b27d37720dbc07"
+        },
+        {
+          "action_count": 21,
+          "campaign_id": "D#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 43,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "e5b5a6d7a3c905c3",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "7724c88f520d09e7",
+          "trajectory_digest": "48b27d37720dbc07"
+        },
+        {
+          "action_count": 23,
+          "campaign_id": "D#1",
+          "details": {},
+          "expansion": 188,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "33b9f679f005ef73",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "932409acb964c063",
+          "trajectory_digest": "d5f5dbf1af2eecbf"
+        },
+        {
+          "action_count": 23,
+          "campaign_id": "D#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 188,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "33b9f679f005ef73",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "932409acb964c063",
+          "trajectory_digest": "d5f5dbf1af2eecbf"
+        },
+        {
+          "action_count": 24,
+          "campaign_id": "D#1",
+          "details": {},
+          "expansion": 191,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "918ad8718757666f",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "74e22d244ad76a2c",
+          "trajectory_digest": "7bce31966ed6344b"
+        },
+        {
+          "action_count": 24,
+          "campaign_id": "D#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 191,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "918ad8718757666f",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "74e22d244ad76a2c",
+          "trajectory_digest": "7bce31966ed6344b"
+        },
+        {
+          "action_count": 22,
+          "campaign_id": "D#1",
+          "details": {},
+          "expansion": 198,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "75214a71d0b68620",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "22ae3370f60972fb",
+          "trajectory_digest": "df538d6d734df336"
+        },
+        {
+          "action_count": 22,
+          "campaign_id": "D#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 198,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "75214a71d0b68620",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "22ae3370f60972fb",
+          "trajectory_digest": "df538d6d734df336"
+        },
+        {
+          "action_count": 23,
+          "campaign_id": "D#1",
+          "details": {},
+          "expansion": 201,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "923a734abec26990",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "281a444ad1b164e6",
+          "trajectory_digest": "b1208c622583039c"
+        },
+        {
+          "action_count": 23,
+          "campaign_id": "D#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 201,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "923a734abec26990",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "281a444ad1b164e6",
+          "trajectory_digest": "b1208c622583039c"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {},
+          "expansion": 216,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 216,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {
+            "buried_sources": 3,
+            "campaign_epoch": 2,
+            "dependency_count": 12,
+            "missing_intervals": 1,
+            "receiver_blocked": true,
+            "stock_supply_waiting": false,
+            "terminal_ready": false,
+            "workspace_blocked": false
+          },
+          "expansion": 216,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F2_CAMPAIGN_ANALYSED",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {
+            "bottleneck_kind": "RECEIVER_MISSING",
+            "target_dependency": "receiver:d"
+          },
+          "expansion": 216,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F3_ACTIONABLE_PREREQUISITE",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {
+            "demand_kind": "CAMPAIGN_CURRENT_EPOCH",
+            "objective": "RECEIVER_CREATION",
+            "target_dependency": "receiver:d"
+          },
+          "expansion": 216,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F4_TACTICAL_DEMAND_DERIVED",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {
+            "demand_kind": "DEPENDENCY_CLOSURE",
+            "objective": "RECEIVER_CREATION",
+            "target_dependency": "receiver:d"
+          },
+          "expansion": 216,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F4_TACTICAL_DEMAND_DERIVED",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {
+            "demand_kind": "CAMPAIGN_REMOVAL",
+            "objective": "FOUNDATION_REMOVAL",
+            "target_dependency": "receiver:d"
+          },
+          "expansion": 216,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F4_TACTICAL_DEMAND_DERIVED",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {
+            "cost": 2,
+            "demand_kind": "DEPENDENCY_CLOSURE",
+            "nodes": 128,
+            "seconds_ms": 100
+          },
+          "expansion": 217,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F5_ALLOCATOR_GRANT",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 26,
+          "campaign_id": "D#1",
+          "details": {
+            "realizer": "DEPENDENCY_CLOSURE"
+          },
+          "expansion": 217,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F6_REALISER_INVOKED",
+          "state_digest": "ce3be341f610eccd",
+          "trajectory_digest": "bc7c8c262adbaec6"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "realizer": "CAMPAIGN_DEPENDENCY_CLOSURE"
+          },
+          "expansion": 217,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "84706425fe756923",
+          "stage": "F7_REPLAYABLE_PROGRESS_RETURNED",
+          "state_digest": "5ecbdcb5c3251d92",
+          "trajectory_digest": "79a7bf013fba568e"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {},
+          "expansion": 296,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F0_PROJECT_EXISTS",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "arrival_version": 1
+          },
+          "expansion": 296,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F1_CANDIDATE_AVAILABLE",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "buried_sources": 3,
+            "campaign_epoch": 2,
+            "dependency_count": 12,
+            "missing_intervals": 1,
+            "receiver_blocked": true,
+            "stock_supply_waiting": false,
+            "terminal_ready": false,
+            "workspace_blocked": false
+          },
+          "expansion": 296,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F2_CAMPAIGN_ANALYSED",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "bottleneck_kind": "RECEIVER_MISSING",
+            "target_dependency": "receiver:d"
+          },
+          "expansion": 296,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F3_ACTIONABLE_PREREQUISITE",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "demand_kind": "CAMPAIGN_CURRENT_EPOCH",
+            "objective": "RECEIVER_CREATION",
+            "target_dependency": "receiver:d"
+          },
+          "expansion": 296,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F4_TACTICAL_DEMAND_DERIVED",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "demand_kind": "DEPENDENCY_CLOSURE",
+            "objective": "RECEIVER_CREATION",
+            "target_dependency": "receiver:d"
+          },
+          "expansion": 296,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F4_TACTICAL_DEMAND_DERIVED",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "demand_kind": "CAMPAIGN_REMOVAL",
+            "objective": "FOUNDATION_REMOVAL",
+            "target_dependency": "receiver:d"
+          },
+          "expansion": 296,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F4_TACTICAL_DEMAND_DERIVED",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "cost": 2,
+            "demand_kind": "DEPENDENCY_CLOSURE",
+            "nodes": 128,
+            "seconds_ms": 100
+          },
+          "expansion": 297,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F5_ALLOCATOR_GRANT",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 27,
+          "campaign_id": "D#1",
+          "details": {
+            "realizer": "DEPENDENCY_CLOSURE"
+          },
+          "expansion": 297,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F6_REALISER_INVOKED",
+          "state_digest": "5ec54cfa1f9a7809",
+          "trajectory_digest": "3306a6bb93a273eb"
+        },
+        {
+          "action_count": 28,
+          "campaign_id": "D#1",
+          "details": {
+            "realizer": "CAMPAIGN_DEPENDENCY_CLOSURE"
+          },
+          "expansion": 297,
+          "project_id": "3fb0988e163b6f8c",
+          "request_digest": "87d38f0dd3aa1451",
+          "stage": "F7_REPLAYABLE_PROGRESS_RETURNED",
+          "state_digest": "8856ac9d8986e512",
+          "trajectory_digest": "911df37e5428d0e8"
+        }
+      ],
+      "per_campaign": {
+        "C#1": {
+          "F0_PROJECT_EXISTS": {
+            "entrants": 2,
+            "first_expansion": 5,
+            "unique_projects": 1,
+            "unique_states": 2
+          },
+          "F10_TERMINAL_READY": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F11_REMOVAL_REQUESTED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F12_FOUNDATION_GENERATED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F13_FOUNDATION_RETAINED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F14_FOUNDATION_REPLAY_VERIFIED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F1_CANDIDATE_AVAILABLE": {
+            "entrants": 2,
+            "first_expansion": 5,
+            "unique_projects": 1,
+            "unique_states": 2
+          },
+          "F2_CAMPAIGN_ANALYSED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F3_ACTIONABLE_PREREQUISITE": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F4_TACTICAL_DEMAND_DERIVED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F5_ALLOCATOR_GRANT": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F6_REALISER_INVOKED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F7_REPLAYABLE_PROGRESS_RETURNED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F8_PROGRESS_RETAINED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F9_PROJECT_CONTINUATION_SERVICED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          }
+        },
+        "D#1": {
+          "F0_PROJECT_EXISTS": {
+            "entrants": 7,
+            "first_expansion": 43,
+            "unique_projects": 1,
+            "unique_states": 7
+          },
+          "F10_TERMINAL_READY": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F11_REMOVAL_REQUESTED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F12_FOUNDATION_GENERATED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F13_FOUNDATION_RETAINED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F14_FOUNDATION_REPLAY_VERIFIED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F1_CANDIDATE_AVAILABLE": {
+            "entrants": 7,
+            "first_expansion": 43,
+            "unique_projects": 1,
+            "unique_states": 7
+          },
+          "F2_CAMPAIGN_ANALYSED": {
+            "entrants": 2,
+            "first_expansion": 216,
+            "unique_projects": 1,
+            "unique_states": 2
+          },
+          "F3_ACTIONABLE_PREREQUISITE": {
+            "entrants": 2,
+            "first_expansion": 216,
+            "unique_projects": 1,
+            "unique_states": 2
+          },
+          "F4_TACTICAL_DEMAND_DERIVED": {
+            "entrants": 6,
+            "first_expansion": 216,
+            "unique_projects": 1,
+            "unique_states": 2
+          },
+          "F5_ALLOCATOR_GRANT": {
+            "entrants": 2,
+            "first_expansion": 217,
+            "unique_projects": 1,
+            "unique_states": 2
+          },
+          "F6_REALISER_INVOKED": {
+            "entrants": 2,
+            "first_expansion": 217,
+            "unique_projects": 1,
+            "unique_states": 2
+          },
+          "F7_REPLAYABLE_PROGRESS_RETURNED": {
+            "entrants": 2,
+            "first_expansion": 217,
+            "unique_projects": 1,
+            "unique_states": 2
+          },
+          "F8_PROGRESS_RETAINED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          },
+          "F9_PROJECT_CONTINUATION_SERVICED": {
+            "entrants": 0,
+            "first_expansion": null,
+            "unique_projects": 0,
+            "unique_states": 0
+          }
+        }
+      },
+      "stages": {
+        "F0_PROJECT_EXISTS": {
+          "entrants": 9,
+          "first_expansion": 5,
+          "unique_projects": 2,
+          "unique_states": 9
+        },
+        "F10_TERMINAL_READY": {
+          "entrants": 0,
+          "first_expansion": null,
+          "unique_projects": 0,
+          "unique_states": 0
+        },
+        "F11_REMOVAL_REQUESTED": {
+          "entrants": 0,
+          "first_expansion": null,
+          "unique_projects": 0,
+          "unique_states": 0
+        },
+        "F12_FOUNDATION_GENERATED": {
+          "entrants": 0,
+          "first_expansion": null,
+          "unique_projects": 0,
+          "unique_states": 0
+        },
+        "F13_FOUNDATION_RETAINED": {
+          "entrants": 0,
+          "first_expansion": null,
+          "unique_projects": 0,
+          "unique_states": 0
+        },
+        "F14_FOUNDATION_REPLAY_VERIFIED": {
+          "entrants": 0,
+          "first_expansion": null,
+          "unique_projects": 0,
+          "unique_states": 0
+        },
+        "F1_CANDIDATE_AVAILABLE": {
+          "entrants": 9,
+          "first_expansion": 5,
+          "unique_projects": 2,
+          "unique_states": 9
+        },
+        "F2_CAMPAIGN_ANALYSED": {
+          "entrants": 2,
+          "first_expansion": 216,
+          "unique_projects": 1,
+          "unique_states": 2
+        },
+        "F3_ACTIONABLE_PREREQUISITE": {
+          "entrants": 2,
+          "first_expansion": 216,
+          "unique_projects": 1,
+          "unique_states": 2
+        },
+        "F4_TACTICAL_DEMAND_DERIVED": {
+          "entrants": 6,
+          "first_expansion": 216,
+          "unique_projects": 1,
+          "unique_states": 2
+        },
+        "F5_ALLOCATOR_GRANT": {
+          "entrants": 2,
+          "first_expansion": 217,
+          "unique_projects": 1,
+          "unique_states": 2
+        },
+        "F6_REALISER_INVOKED": {
+          "entrants": 2,
+          "first_expansion": 217,
+          "unique_projects": 1,
+          "unique_states": 2
+        },
+        "F7_REPLAYABLE_PROGRESS_RETURNED": {
+          "entrants": 2,
+          "first_expansion": 217,
+          "unique_projects": 1,
+          "unique_states": 2
+        },
+        "F8_PROGRESS_RETAINED": {
+          "entrants": 0,
+          "first_expansion": null,
+          "unique_projects": 0,
+          "unique_states": 0
+        },
+        "F9_PROJECT_CONTINUATION_SERVICED": {
+          "entrants": 0,
+          "first_expansion": null,
+          "unique_projects": 0,
+          "unique_states": 0
+        }
+      }
+    },
+    "maximum_foundations": 0,
+    "minimum_face_down": 37,
+    "projects": {
+      "approximate_bytes": 2024,
+      "candidate_defer_events": 0,
+      "candidate_reactivate_events": 0,
+      "candidate_replacements": 5,
+      "candidates_attached": 9,
+      "cheaper_arrival_revalidations": 0,
+      "maximum_candidates_per_project": 7,
+      "maximum_project_lifetime_expansions": 394,
+      "maximum_simultaneous_projects": 2,
+      "per_project": [
+        {
+          "campaign_id": "C#1",
+          "candidates": 2,
+          "kind": "SAME_CAMPAIGN_CONTINUATION",
+          "lifetime_expansions": 37,
+          "project_id": "273a2ea6a6c772bc",
+          "semantic_progress_events": 0,
+          "service_executions": 0,
+          "status": "RUNNABLE"
+        },
+        {
+          "campaign_id": "D#1",
+          "candidates": 7,
+          "kind": "SAME_CAMPAIGN_CONTINUATION",
+          "lifetime_expansions": 356,
+          "project_id": "3fb0988e163b6f8c",
+          "semantic_progress_events": 0,
+          "service_executions": 2,
+          "status": "RUNNABLE"
+        }
+      ],
+      "project_activity_events": 2,
+      "project_identity_collisions": 0,
+      "project_progress_events": 0,
+      "project_service_executions": 2,
+      "projects": 2,
+      "projects_achieved": 0,
+      "projects_blocked": 0,
+      "projects_created": 2,
+      "projects_exhausted": 0,
+      "projects_expired": 0,
+      "projects_invalidated": 0,
+      "projects_reused": 7,
+      "service_executions_without_progress": 2,
+      "service_requests_subscribed": 7,
+      "status_counts": {
+        "ACHIEVED": 0,
+        "BLOCKED": 0,
+        "EXHAUSTED": 0,
+        "INVALIDATED": 0,
+        "RUNNABLE": 2
+      }
+    },
+    "proof_pruned": 0,
+    "realizer_calls": {
+      "DEPENDENCY_CLOSURE": 2
+    },
+    "registry_handle_errors": 0,
+    "stage_counts": {
+      "F0_PROJECT_EXISTS": 9,
+      "F10_TERMINAL_READY": 0,
+      "F11_REMOVAL_REQUESTED": 0,
+      "F12_FOUNDATION_GENERATED": 0,
+      "F13_FOUNDATION_RETAINED": 0,
+      "F14_FOUNDATION_REPLAY_VERIFIED": 0,
+      "F1_CANDIDATE_AVAILABLE": 9,
+      "F2_CAMPAIGN_ANALYSED": 2,
+      "F3_ACTIONABLE_PREREQUISITE": 2,
+      "F4_TACTICAL_DEMAND_DERIVED": 6,
+      "F5_ALLOCATOR_GRANT": 2,
+      "F6_REALISER_INVOKED": 2,
+      "F7_REPLAYABLE_PROGRESS_RETURNED": 2,
+      "F8_PROGRESS_RETAINED": 0,
+      "F9_PROJECT_CONTINUATION_SERVICED": 0
+    },
+    "stock_rows_remaining": 3,
+    "stop_reason": "strategic expansion limit",
+    "strategic_expansions": 400,
+    "tactical_nodes": 51063,
+    "tt_suppressed": 1382
+  }
+}

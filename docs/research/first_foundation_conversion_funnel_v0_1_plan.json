@@ -1,0 +1,60 @@
+{
+  "arms": [
+    "PROJECT_BASELINE",
+    "FOUNDATION_DEMAND_BRIDGE"
+  ],
+  "base_sha": "2fe1bbda0f21dbc1aaf8961ba702f28bc0c31cf1",
+  "config": {
+    "incumbent": null,
+    "max_frontier_size": 256,
+    "max_strategic_credit": 4,
+    "max_strategic_expansions": 400,
+    "max_successors_per_expansion": 10,
+    "max_tactical_nodes": 300000,
+    "scheduler": true,
+    "seed": 0,
+    "tactical_allocation": true,
+    "target_foundation_count": 1,
+    "wall_clock_limit_s": 900.0
+  },
+  "config_fingerprint": "f5e86b86ea61decaebbcd2ff5ca67a15c3de5a6b3b2012fdcd2d7b2f04cd3fff",
+  "deals": [
+    "P0",
+    "P2",
+    "P7"
+  ],
+  "experiment": "first_foundation_conversion_funnel_v0_1",
+  "fixtures": {
+    "P0": {
+      "fixture_path": "deals/4925153.txt",
+      "fixture_sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+      "opening_digest": "c06565c127ccbc7a"
+    },
+    "P2": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P2.txt",
+      "fixture_sha256": "54892ee8d5c570f42ccc681a8793b759f02035e305fd58b56b5a0fd642fbaf9d",
+      "opening_digest": "4d67539f2e5b6949"
+    },
+    "P7": {
+      "fixture_path": "research/fixtures/workspace_service_panel_v0_1/P7.txt",
+      "fixture_sha256": "49b0438a7bff8a6cecf6c0af9bd4d03b70eecf8e23da0d9d31e281ed3d3ccff3",
+      "opening_digest": "3e1bac697f14bb19"
+    }
+  },
+  "run_order": {
+    "P0": [
+      "PROJECT_BASELINE",
+      "FOUNDATION_DEMAND_BRIDGE"
+    ],
+    "P2": [
+      "FOUNDATION_DEMAND_BRIDGE",
+      "PROJECT_BASELINE"
+    ],
+    "P7": [
+      "PROJECT_BASELINE",
+      "FOUNDATION_DEMAND_BRIDGE"
+    ]
+  },
+  "selection_rationale": "Mandatory frozen P0/P2/P7; a fourth fixture is allowed only if every mandatory control run stops before F3/F4.",
+  "status": "FROZEN_PRE_RUN"
+}
