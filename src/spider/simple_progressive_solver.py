@@ -1,4 +1,4 @@
-"""Simple progressive Spider solver — competing baseline v0.5.
+"""Simple progressive Spider solver — competing baseline v0.6.
 
 Straightforward backtracking: legal primitive actions, cheap deterministic
 ordering, exact-state transposition, cycle cuts, progressive relaxation,
@@ -8,6 +8,9 @@ v0.5 adds an optional best-reveal Deal probe: on a strict new face-down
 record at a stock depth, explore the engine-legal Deal child first, then
 resume the same A–D pass.  Default OFF.  Tiers, scores, bands, saturation,
 and TT are unchanged.
+
+v0.6 adds optional post-Deal continuation telemetry.  Default OFF.  Census
+and lineage reconstruction do not order moves, prune, or change TT.
 
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
@@ -25,6 +28,7 @@ from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
 from spider.packed_state import pack_state
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
+from spider.simple_post_deal_audit import PostDealAudit, inspect_state
 from spider.simple_reveal_stock_audit import RevealStockAudit, cheap_structure
 
 
@@ -152,6 +156,7 @@ class ProgressiveSearchResult:
     best_fd_by_stock_dealt: List[dict] = field(default_factory=list)
     audit: Optional[RevealStockAudit] = None
     probe_events: List[dict] = field(default_factory=list)
+    post_deal_audit: Optional[PostDealAudit] = None
 
     @property
     def stage_reached(self) -> int:
@@ -716,6 +721,9 @@ class _Frame:
         "probe_origin_dealt",
         "probe_event_index",
         "subtree_max_fnd",
+        "direct_expanded",
+        "exp_before_next_deal",
+        "watch_kind",
     )
 
     def __init__(
@@ -758,6 +766,9 @@ class _Frame:
         self.probe_origin_dealt = -1
         self.probe_event_index = -1
         self.subtree_max_fnd = 0
+        self.direct_expanded = 0
+        self.exp_before_next_deal = 0
+        self.watch_kind = None
 
 
 def _path_from_stack(stack: List[_Frame]) -> List[Action]:
@@ -838,6 +849,7 @@ def solve_progressive(
     enable_saturation: bool = True,
     enable_audit: bool = True,
     enable_best_reveal_deal_probe: bool = False,
+    enable_post_deal_audit: bool = False,
 ) -> ProgressiveSearchResult:
     """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
@@ -870,6 +882,9 @@ def solve_progressive(
     fd_stock_path: List[List[Action]] = [[] for _ in range(6)]
     fd_stock_meta[0] = (opening_fd, opening_stock, root_foundations, 0, 0)
     audit = RevealStockAudit() if enable_audit else None
+    pda = PostDealAudit() if enable_post_deal_audit else None
+    if pda is not None:
+        pda.watch(pack_state(root), origin="root")
     reveal_record_fd = [10**9] * 6
     reveal_seen_stock = [False] * 6
     probe_traces: List[dict] = []
@@ -948,7 +963,23 @@ def solve_progressive(
             frame = stack[-1]
             depth = len(stack) - 1
             if not frame.started:
+                covered_before = memory.max_covered_remaining(
+                    frame.key, pass_level
+                )
                 if consider_tt(frame.key, pass_level, frame.remaining) == "skip":
+                    if pda is not None and pda.is_watched(frame.key):
+                        pda.on_tt_skip(
+                            key=frame.key,
+                            pass_level=pass_level,
+                            remaining=frame.remaining,
+                            expansion=stats.states_expanded,
+                            depth=depth,
+                            fd=_face_down(working_state),
+                            foundations=len(working_state.foundations),
+                            stock_rows=_stock_rows(working_state),
+                            covered_remaining=covered_before,
+                            where="frame_start",
+                        )
                     path_keys.discard(frame.key)
                     if frame.snap is not None:
                         _restore(working_state, frame.snap)
@@ -968,16 +999,26 @@ def solve_progressive(
                 stats.states_by_stock_dealt[dealt] += 1
                 frame.fd = fd
                 frame.dealt = dealt
-                if audit is not None or enable_best_reveal_deal_probe:
+                if pda is not None and pda.is_watched(frame.key):
+                    frame.watch_kind = pda.watched[frame.key]["origin"]
+                if audit is not None or enable_best_reveal_deal_probe or pda is not None:
                     for ancestor in stack:
-                        if ancestor.from_deal or ancestor.from_probe_deal:
-                            ancestor.subtree_exp += 1
-                            if fd < ancestor.subtree_best_fd:
-                                ancestor.subtree_best_fd = fd
-                            if dealt > ancestor.dealt:
-                                ancestor.subtree_another_deal = True
-                            if foundations > ancestor.subtree_max_fnd:
-                                ancestor.subtree_max_fnd = foundations
+                        tracked = (
+                            ancestor.from_deal
+                            or ancestor.from_probe_deal
+                            or ancestor.watch_kind
+                        )
+                        if not tracked:
+                            continue
+                        ancestor.subtree_exp += 1
+                        if not ancestor.subtree_another_deal:
+                            ancestor.exp_before_next_deal += 1
+                        if fd < ancestor.subtree_best_fd:
+                            ancestor.subtree_best_fd = fd
+                        if dealt > ancestor.dealt:
+                            ancestor.subtree_another_deal = True
+                        if foundations > ancestor.subtree_max_fnd:
+                            ancestor.subtree_max_fnd = foundations
                 if new_key:
                     unique_stock_seen[dealt].add(frame.key)
                     if 0 <= pass_level < N_PASSES:
@@ -1019,6 +1060,10 @@ def solve_progressive(
                         frame.g,
                     )
                     fd_stock_path[dealt] = path()
+                    if pda is not None:
+                        pda.watch(
+                            frame.key, origin="best_fd", dealt=dealt, fd=fd
+                        )
 
                 r_key = (fd, -foundations, stock_rows, depth, frame.g)
                 if r_key < reveal_key:
@@ -1059,6 +1104,47 @@ def solve_progressive(
                     reveal_record_fd[dealt] = fd
                     stats.reveal_records[dealt] += 1
                     checkpoint = True
+                if pda is not None:
+                    if checkpoint:
+                        pda.watch(
+                            frame.key,
+                            origin="checkpoint_parent",
+                            dealt=dealt,
+                            fd=fd,
+                        )
+                    want_empty = stock_rows == 0 and fd <= pda.best_empty_fd
+                    if want_empty or pda.is_watched(frame.key):
+                        snap = inspect_state(working_state, rules=rules)
+                        if want_empty:
+                            pda.on_stock_empty(
+                                key=frame.key,
+                                pass_level=pass_level,
+                                remaining=frame.remaining,
+                                expansion=stats.states_expanded,
+                                depth=depth,
+                                snapshot=snap,
+                            )
+                        if pda.is_watched(frame.key):
+                            frame.watch_kind = pda.watched[frame.key]["origin"]
+                            if new_key:
+                                tt_status = "novel"
+                            elif covered_before >= 0:
+                                tt_status = "reopen"
+                            else:
+                                tt_status = "novel"
+                            pda.on_expand(
+                                key=frame.key,
+                                pass_level=pass_level,
+                                remaining=frame.remaining,
+                                expansion=stats.states_expanded,
+                                depth=depth,
+                                fd=fd,
+                                foundations=foundations,
+                                stock_rows=stock_rows,
+                                tt_status=tt_status,
+                                covered_remaining=covered_before,
+                                snapshot=snap,
+                            )
                 if frame.remaining <= 0:
                     frame.children = []
                     frame.index = 0
@@ -1107,6 +1193,29 @@ def solve_progressive(
             assert frame.children is not None
             if frame.index >= len(frame.children):
                 memory.mark_done(frame.key, pass_level, frame.remaining)
+                if pda is not None and (
+                    frame.from_deal or frame.from_probe_deal or frame.watch_kind
+                ):
+                    pop_reason = "children_exhausted"
+                    if not frame.children and frame.remaining <= 0:
+                        pop_reason = "depth_band"
+                    best_fd = (
+                        frame.fd
+                        if frame.subtree_best_fd >= 10**9
+                        else frame.subtree_best_fd
+                    )
+                    pda.on_frame_finished(
+                        key=frame.key,
+                        pass_level=pass_level,
+                        descendant_expansions=frame.subtree_exp,
+                        direct_expanded=frame.direct_expanded,
+                        exp_before_next_deal=frame.exp_before_next_deal,
+                        best_descendant_fd=best_fd,
+                        best_descendant_foundations=frame.subtree_max_fnd,
+                        next_deal_reached=frame.subtree_another_deal,
+                        pop_reason=pop_reason,
+                        from_deal=frame.from_deal,
+                    )
                 if audit is not None and frame.from_deal:
                     audit.on_deal_finished(
                         {
@@ -1152,6 +1261,9 @@ def solve_progressive(
             parent_struct = cheap_structure(working_state) if (
                 audit is not None and is_deal(action)
             ) else None
+            pre_deal_snap = None
+            if pda is not None and is_deal(action) and frame.probe_deal:
+                pre_deal_snap = inspect_state(working_state, rules=rules)
             snap = _capture(working_state, action)
             try:
                 cost = apply_action(working_state, action, rules=rules)
@@ -1162,10 +1274,28 @@ def solve_progressive(
             child_key = pack_state(working_state)
             if child_key in path_keys:
                 stats.path_cycles += 1
+                if pda is not None:
+                    pda.on_child_blocked(
+                        key=child_key,
+                        pass_level=pass_level,
+                        remaining=frame.remaining - 1,
+                        expansion=stats.states_expanded,
+                        depth=depth,
+                        kind="path_cycle",
+                    )
                 _restore(working_state, snap)
                 continue
             if child_key in frame.child_keys:
                 stats.duplicate_children += 1
+                if pda is not None:
+                    pda.on_child_blocked(
+                        key=child_key,
+                        pass_level=pass_level,
+                        remaining=frame.remaining - 1,
+                        expansion=stats.states_expanded,
+                        depth=depth,
+                        kind="child_dedup",
+                    )
                 _restore(working_state, snap)
                 continue
             frame.child_keys.add(child_key)
@@ -1196,6 +1326,38 @@ def solve_progressive(
             if tt_skip_child:
                 stats.tt_hits += 1
                 stats.tt_depth_prunes += 1
+                if pda is not None:
+                    pda.on_tt_skip(
+                        key=child_key,
+                        pass_level=pass_level,
+                        remaining=child_remaining,
+                        expansion=stats.states_expanded,
+                        depth=depth + 1,
+                        fd=_face_down(working_state),
+                        foundations=len(working_state.foundations),
+                        stock_rows=_stock_rows(working_state),
+                        covered_remaining=memory.max_covered_remaining(
+                            child_key, pass_level
+                        ),
+                        where="child_gen",
+                    )
+                    if is_deal(action) and frame.probe_deal and pre_deal_snap is not None:
+                        post_snap = inspect_state(working_state, rules=rules)
+                        pda.on_checkpoint_deal(
+                            parent_key=frame.key,
+                            child_key=child_key,
+                            dealt=parent_dealt,
+                            pass_level=pass_level,
+                            depth=depth,
+                            remaining=frame.remaining,
+                            pre=pre_deal_snap,
+                            post=post_snap,
+                            child_novel=child_key not in memory.seen,
+                            tt_skip=True,
+                            expanded=False,
+                            n_tableau=max(0, len(frame.children) - 1),
+                            probe=True,
+                        )
                 if is_deal(action) and audit is not None:
                     audit.on_deal_finished(
                         {
@@ -1227,6 +1389,8 @@ def solve_progressive(
                             "foundations": len(working_state.foundations),
                             "second_deal": False,
                             "path": _path_from_stack(stack),
+                            "child_key_hex": child_key.hex(),
+                            "parent_key_hex": frame.key.hex(),
                         }
                     )
                 _restore(working_state, snap)
@@ -1279,8 +1443,28 @@ def solve_progressive(
                         "foundations": len(working_state.foundations),
                         "second_deal": False,
                         "path": _path_from_stack(stack) + [("deal",)],
+                        "child_key_hex": child_key.hex(),
+                        "parent_key_hex": frame.key.hex(),
                     }
                 )
+            if pda is not None and is_deal(action) and frame.probe_deal:
+                post_snap = inspect_state(working_state, rules=rules)
+                pda.on_checkpoint_deal(
+                    parent_key=frame.key,
+                    child_key=child_key,
+                    dealt=parent_dealt,
+                    pass_level=pass_level,
+                    depth=depth,
+                    remaining=frame.remaining,
+                    pre=pre_deal_snap or post_snap,
+                    post=post_snap,
+                    child_novel=child_key not in memory.seen,
+                    tt_skip=False,
+                    expanded=True,
+                    n_tableau=max(0, len(frame.children) - 1),
+                    probe=True,
+                )
+            frame.direct_expanded += 1
             stack.append(child_frame)
         return "exhausted"
 
@@ -1305,6 +1489,8 @@ def solve_progressive(
         band_deadline = now + remaining_time / remaining_bands
         stats.depth_band_used = band
         bands_used.append(band)
+        if pda is not None:
+            pda.current_band = band
         for pass_level in range(0, max_pass + 1):
             stats.pass_reached = pass_level
             remaining_passes = max_pass + 1 - pass_level
@@ -1468,6 +1654,19 @@ def solve_progressive(
                 }
             )
 
+    if pda is not None:
+        pda.finalize(
+            opening=root,
+            fd_by_stock=fd_by_stock,
+            band_pass_reports=stats.band_pass_reports,
+            stop_reason=stop_reason,
+            max_pass=max_pass,
+            saturated_passes=stats.saturated_passes,
+            max_foundations=stats.max_foundations,
+            nodes=stats.states_expanded,
+            rules=rules,
+        )
+
     return ProgressiveSearchResult(
         solved=solved_path is not None,
         actions=list(actions),
@@ -1509,4 +1708,5 @@ def solve_progressive(
         best_fd_by_stock_dealt=fd_by_stock,
         audit=audit,
         probe_events=list(probe_traces),
+        post_deal_audit=pda,
     )
