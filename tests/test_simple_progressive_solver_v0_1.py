@@ -139,21 +139,28 @@ def test_4_active_path_cycle_prevention():
     result = solve_progressive(state, max_nodes=400, time_limit_s=2.0, target_foundations=8)
     assert result.stats.path_cycles + result.stats.inverses >= 1
     assert result.nodes <= 400
-    assert result.stop_reason in {"node limit", "time limit", "pass envelope"}
+    assert result.stop_reason in {
+        "node limit",
+        "time limit",
+        "pass envelope",
+        "band envelope",
+    }
 
 
 def test_5_tt_coverage_by_relaxation_level():
     tt = CoverageTT()
     key = b"exact-state"
-    assert not tt.skip(key, 0)
-    tt.mark_start(key, 0)
-    tt.mark_done(key, 0)
-    assert tt.skip(key, 0)
-    assert not tt.skip(key, 1)
-    tt.mark_start(key, 1)
-    tt.mark_done(key, 1)
-    assert tt.skip(key, 1)
-    assert tt.skip(key, 0)
+    assert not tt.skip(key, 0, 10)
+    tt.mark_start(key, 0, 10)
+    tt.mark_done(key, 0, 10)
+    assert tt.skip(key, 0, 10)
+    assert tt.skip(key, 0, 5)
+    assert not tt.skip(key, 0, 20)
+    assert not tt.skip(key, 1, 10)
+    tt.mark_start(key, 1, 10)
+    tt.mark_done(key, 1, 10)
+    assert tt.skip(key, 1, 10)
+    assert tt.skip(key, 0, 10)
 
 
 def test_6_direct_undo_suppression():

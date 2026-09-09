@@ -1,7 +1,11 @@
-"""Simple progressive Spider solver — competing baseline v0.1.
+"""Simple progressive Spider solver — competing baseline v0.2.
 
 Straightforward backtracking: legal primitive actions, cheap deterministic
-ordering, exact-state transposition, cycle cuts, and progressive relaxation.
+ordering, exact-state transposition, cycle cuts, progressive relaxation,
+and depth-banded DFS.
+
+v0.2 changes depth discipline only.  Move tiers, ordering, and Deal policy
+are unchanged from v0.1.
 
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
@@ -39,6 +43,8 @@ class Tier(IntEnum):
 N_PASSES = 4
 MAX_DEPTH_GUARD = 5000
 PREP_CANDIDATE_CAP = 8
+DEFAULT_DEPTH_BANDS: Tuple[int, ...] = (80, 160, 320, 640, 1280)
+_INF_REMAINING = 10**9
 
 
 @dataclass(frozen=True)
@@ -77,6 +83,19 @@ class SearchStats:
     peak_rss_mb: Optional[float] = None
     pass_reached: int = 0
     last_prep_action: Optional[SolverAction] = None
+    tt_depth_prunes: int = 0
+    tt_reopens: int = 0
+    expansions_by_depth_bucket: List[int] = field(
+        default_factory=lambda: [0, 0, 0, 0, 0]
+    )
+    states_by_stock_dealt: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
+    unique_by_stock_dealt: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
+    deals_executed_from_stock: List[int] = field(
+        default_factory=lambda: [0, 0, 0, 0, 0, 0]
+    )
+    unique_deal_parents: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
+    depth_band_used: int = 0
+    band_pass_reports: List[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -99,8 +118,26 @@ class ProgressiveSearchResult:
     identified_face_down: int = 0
     identified_stock_rows: int = 0
     states_per_sec: float = 0.0
+    depth_bands_used: List[int] = field(default_factory=list)
+    best_reveal_actions: List[Action] = field(default_factory=list)
+    best_reveal_fd: int = 0
+    best_reveal_stock: int = 0
+    best_reveal_foundations: int = 0
+    best_reveal_depth: int = 0
+    best_reveal_cost: int = 0
+    best_stock_actions: List[Action] = field(default_factory=list)
+    best_stock_fd: int = 0
+    best_stock_stock: int = 0
+    best_stock_foundations: int = 0
+    best_stock_depth: int = 0
+    best_stock_cost: int = 0
+    best_foundation_actions: List[Action] = field(default_factory=list)
+    best_foundation_fd: int = 0
+    best_foundation_stock: int = 0
+    best_foundation_foundations: int = 0
+    best_foundation_depth: int = 0
+    best_foundation_cost: int = 0
 
-    # First-cut compatibility aliases used by the previous harness.
     @property
     def stage_reached(self) -> int:
         return self.pass_reached
@@ -562,30 +599,78 @@ def ordered_actions(
     return [item[-1] for item in scored]
 
 
-class _CoverageTT:
-    """Exact coverage by packed canonical state and relaxation pass.
+def _depth_bucket(depth: int) -> int:
+    if depth < 80:
+        return 0
+    if depth < 160:
+        return 1
+    if depth < 320:
+        return 2
+    if depth < 640:
+        return 3
+    return 4
 
-    A state exhausted at pass p is not re-expanded at pass q <= p.
-    Broader (larger p) subsumes narrower.  A narrower visit does not claim
-    exhaustion of a wider pass.
+
+def _stock_dealt_index(opening_rows: int, current_rows: int) -> int:
+    dealt = opening_rows - current_rows
+    if dealt < 0:
+        return 0
+    if dealt > 5:
+        return 5
+    return dealt
+
+
+class _CoverageTT:
+    """Depth-aware exact coverage keyed by packed state and relaxation pass.
+
+    For each ``(state, pass)`` retain the maximum remaining-depth budget
+    already started (``seen``) or completely searched (``done``).
+
+    Skip when::
+
+        max_covered_remaining(state, pass) >= current_remaining_depth
+
+    Broader passes subsume narrower at the same remaining depth: exhaustion
+    at pass 2 remaining 80 covers pass 0 remaining 80, but not remaining 160.
+    A shallow remaining-depth exhaustion never suppresses a later visit with
+    more remaining depth.  Incomplete expansions are recorded in ``seen``
+    only, not ``done``.
     """
 
     def __init__(self) -> None:
-        self.seen: Dict[ExactKey, int] = {}
-        self.done: Dict[ExactKey, int] = {}
+        self.seen: Dict[ExactKey, List[int]] = {}
+        self.done: Dict[ExactKey, List[int]] = {}
 
-    def skip(self, key: ExactKey, pass_level: int) -> bool:
-        return self.seen.get(key, -1) >= pass_level or self.done.get(key, -1) >= pass_level
+    def _slot(self, store: Dict[ExactKey, List[int]], key: ExactKey) -> List[int]:
+        slot = store.get(key)
+        if slot is None:
+            slot = [-1, -1, -1, -1]
+            store[key] = slot
+        return slot
 
-    def mark_start(self, key: ExactKey, pass_level: int) -> None:
-        prev = self.seen.get(key, -1)
-        if pass_level > prev:
-            self.seen[key] = pass_level
+    def max_covered_remaining(self, key: ExactKey, pass_level: int) -> int:
+        best = -1
+        for store in (self.done, self.seen):
+            slot = store.get(key)
+            if slot is None:
+                continue
+            for index in range(pass_level, N_PASSES):
+                if slot[index] > best:
+                    best = slot[index]
+        return best
 
-    def mark_done(self, key: ExactKey, pass_level: int) -> None:
-        prev = self.done.get(key, -1)
-        if pass_level > prev:
-            self.done[key] = pass_level
+    def skip(self, key: ExactKey, pass_level: int, remaining: int = _INF_REMAINING) -> bool:
+        return self.max_covered_remaining(key, pass_level) >= remaining
+
+    def mark_start(self, key: ExactKey, pass_level: int, remaining: int = _INF_REMAINING) -> None:
+        slot = self._slot(self.seen, key)
+        if remaining > slot[pass_level]:
+            slot[pass_level] = remaining
+
+    def mark_done(self, key: ExactKey, pass_level: int, remaining: int = _INF_REMAINING) -> None:
+        slot = self._slot(self.done, key)
+        if remaining > slot[pass_level]:
+            slot[pass_level] = remaining
 
     def __len__(self) -> int:
         return len(self.seen)
@@ -603,6 +688,7 @@ class _Frame:
         "started",
         "child_keys",
         "prep_action",
+        "remaining",
     )
 
     def __init__(
@@ -617,6 +703,7 @@ class _Frame:
         tier: int,
         started: bool,
         prep_action: Optional[SolverAction] = None,
+        remaining: int = 0,
     ) -> None:
         self.children = children
         self.index = index
@@ -628,6 +715,7 @@ class _Frame:
         self.started = started
         self.child_keys: set = set()
         self.prep_action = prep_action
+        self.remaining = remaining
 
 
 def _path_from_stack(stack: List[_Frame]) -> List[Action]:
@@ -684,6 +772,16 @@ def unique_successor_actions(
 CoverageTT = _CoverageTT
 
 
+def _clip_depth_bands(
+    depth_bands: Optional[Sequence[int]], max_depth: int
+) -> Tuple[int, ...]:
+    source = tuple(depth_bands) if depth_bands is not None else DEFAULT_DEPTH_BANDS
+    clipped = tuple(band for band in source if 0 < band <= max_depth)
+    if clipped:
+        return clipped
+    return (max(1, min(max_depth, source[-1] if source else 80)),)
+
+
 def solve_progressive(
     root: SpiderState,
     *,
@@ -694,24 +792,35 @@ def solve_progressive(
     target_foundations: int = 8,
     prep_ply: int = 1,
     max_depth: int = MAX_DEPTH_GUARD,
+    depth_bands: Optional[Sequence[int]] = None,
 ) -> ProgressiveSearchResult:
-    """Iterative DFS with exact TT and progressive relaxation passes."""
+    """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
     started = time.perf_counter()
     stats = SearchStats()
     memory = _CoverageTT()
+    bands = _clip_depth_bands(depth_bands, max_depth)
     root_foundations = len(root.foundations)
-    identified_fd = _face_down(root)
-    identified_stock = _stock_rows(root)
-    progress_key = (root_foundations, -identified_fd, -identified_stock, 0)
-    progress_path: List[Action] = []
-    progress_cost = 0
+    opening_stock = _stock_rows(root)
+    opening_fd = _face_down(root)
+    reveal_key = (opening_fd, -root_foundations, opening_stock, 0, 0)
+    stock_key = (opening_stock, opening_fd, -root_foundations, 0, 0)
+    foundation_key = (-root_foundations, opening_fd, opening_stock, 0, 0)
+    reveal_path: List[Action] = []
+    stock_path: List[Action] = []
+    foundation_wit_path: List[Action] = []
+    reveal_meta = (opening_fd, opening_stock, root_foundations, 0, 0)
+    stock_meta = (opening_fd, opening_stock, root_foundations, 0, 0)
+    foundation_meta = (opening_fd, opening_stock, root_foundations, 0, 0)
     first_foundation_path: List[Action] = []
     first_foundation_cost = 0
     solved_path: Optional[List[Action]] = None
     solved_cost = 0
-    stop_reason = "pass envelope"
+    stop_reason = "band envelope"
     peak_rss = _rss_mb()
+    unique_stock_seen = [set() for _ in range(6)]
+    unique_deal_parent_seen = [set() for _ in range(6)]
+    bands_used: List[int] = []
 
     def reached_target(state: SpiderState) -> bool:
         if target_foundations >= 8:
@@ -738,15 +847,29 @@ def solve_progressive(
             if rss is not None and (peak_rss is None or rss > peak_rss):
                 peak_rss = rss
 
-    def dfs_pass(pass_level: int, node_cap: int, deadline: float) -> bool:
-        nonlocal identified_fd, identified_stock, progress_key, progress_path
-        nonlocal progress_cost, first_foundation_path, first_foundation_cost
+    def consider_tt(key: ExactKey, pass_level: int, remaining: int) -> str:
+        covered = memory.max_covered_remaining(key, pass_level)
+        if covered >= remaining:
+            stats.tt_hits += 1
+            stats.tt_depth_prunes += 1
+            return "skip"
+        if covered >= 0:
+            stats.tt_reopens += 1
+        return "search"
+
+    def dfs_pass(
+        pass_level: int, band: int, node_cap: int, deadline: float
+    ) -> str:
+        nonlocal reveal_key, stock_key, foundation_key
+        nonlocal reveal_path, stock_path, foundation_wit_path
+        nonlocal reveal_meta, stock_meta, foundation_meta
+        nonlocal first_foundation_path, first_foundation_cost
         nonlocal solved_path, solved_cost, stop_reason
 
         working_state = root.clone()
         root_key = pack_state(working_state)
-        if memory.skip(root_key, pass_level):
-            return False
+        if memory.skip(root_key, pass_level, band):
+            return "exhausted"
         stack = [
             _Frame(
                 children=None,
@@ -757,6 +880,7 @@ def solve_progressive(
                 g=0,
                 tier=-1,
                 started=False,
+                remaining=band,
             )
         ]
         path_keys = {root_key}
@@ -767,35 +891,56 @@ def solve_progressive(
                     "node limit" if stats.states_expanded >= node_cap else "time limit"
                 )
                 unwind(stack, working_state, path_keys)
-                return False
+                return "budget"
 
             frame = stack[-1]
             depth = len(stack) - 1
             if not frame.started:
-                if memory.skip(frame.key, pass_level):
-                    stats.tt_hits += 1
+                if consider_tt(frame.key, pass_level, frame.remaining) == "skip":
                     path_keys.discard(frame.key)
                     if frame.snap is not None:
                         _restore(working_state, frame.snap)
                     stack.pop()
                     continue
-                memory.mark_start(frame.key, pass_level)
+                new_key = frame.key not in memory.seen
+                memory.mark_start(frame.key, pass_level, frame.remaining)
                 frame.started = True
                 stats.states_expanded += 1
                 stats.max_depth = max(stats.max_depth, depth)
+                stats.expansions_by_depth_bucket[_depth_bucket(depth)] += 1
                 note_rss()
                 foundations = len(working_state.foundations)
                 fd = _face_down(working_state)
                 stock_rows = _stock_rows(working_state)
+                dealt = _stock_dealt_index(opening_stock, stock_rows)
+                stats.states_by_stock_dealt[dealt] += 1
+                if new_key:
+                    unique_stock_seen[dealt].add(frame.key)
                 if foundations > stats.max_foundations:
                     stats.max_foundations = foundations
-                candidate = (foundations, -fd, -stock_rows, -frame.g)
-                if candidate > progress_key:
-                    progress_key = candidate
-                    progress_path = _path_from_stack(stack)
-                    progress_cost = frame.g
-                    identified_fd = fd
-                    identified_stock = stock_rows
+                path_now = None
+
+                def path() -> List[Action]:
+                    nonlocal path_now
+                    if path_now is None:
+                        path_now = _path_from_stack(stack)
+                    return path_now
+
+                r_key = (fd, -foundations, stock_rows, depth, frame.g)
+                if r_key < reveal_key:
+                    reveal_key = r_key
+                    reveal_path = path()
+                    reveal_meta = (fd, stock_rows, foundations, depth, frame.g)
+                s_key = (stock_rows, fd, -foundations, depth, frame.g)
+                if s_key < stock_key:
+                    stock_key = s_key
+                    stock_path = path()
+                    stock_meta = (fd, stock_rows, foundations, depth, frame.g)
+                f_key = (-foundations, fd, stock_rows, depth, frame.g)
+                if f_key < foundation_key:
+                    foundation_key = f_key
+                    foundation_wit_path = path()
+                    foundation_meta = (fd, stock_rows, foundations, depth, frame.g)
                 if (
                     foundations > root_foundations
                     and stats.first_foundation_node is None
@@ -803,15 +948,15 @@ def solve_progressive(
                     stats.first_foundation_node = stats.states_expanded
                     stats.first_foundation_depth = depth
                     stats.first_foundation_pass = pass_level
-                    first_foundation_path = _path_from_stack(stack)
+                    first_foundation_path = path()
                     first_foundation_cost = frame.g
                 if reached_target(working_state):
-                    solved_path = _path_from_stack(stack)
+                    solved_path = path()
                     solved_cost = frame.g
                     stop_reason = "target reached"
                     unwind(stack, working_state, path_keys)
-                    return True
-                if depth >= max_depth:
+                    return "solved"
+                if frame.remaining <= 0:
                     frame.children = []
                     frame.index = 0
                     continue
@@ -828,7 +973,7 @@ def solve_progressive(
 
             assert frame.children is not None
             if frame.index >= len(frame.children):
-                memory.mark_done(frame.key, pass_level)
+                memory.mark_done(frame.key, pass_level, frame.remaining)
                 path_keys.discard(frame.key)
                 if frame.snap is not None:
                     _restore(working_state, frame.snap)
@@ -838,6 +983,9 @@ def solve_progressive(
             action = frame.children[frame.index]
             frame.index += 1
             child_tier = int(classify_tier(working_state, action))
+            parent_dealt = _stock_dealt_index(
+                opening_stock, _stock_rows(working_state)
+            )
             snap = _capture(working_state, action)
             try:
                 cost = apply_action(working_state, action, rules=rules)
@@ -855,13 +1003,18 @@ def solve_progressive(
                 _restore(working_state, snap)
                 continue
             frame.child_keys.add(child_key)
-            if memory.skip(child_key, pass_level):
+            child_remaining = frame.remaining - 1
+            if memory.skip(child_key, pass_level, child_remaining):
                 stats.tt_hits += 1
+                stats.tt_depth_prunes += 1
                 _restore(working_state, snap)
                 continue
             if is_deal(action):
                 stats.deals_executed += 1
                 stats.deal_now_choices += 1
+                stats.deals_executed_from_stock[parent_dealt] += 1
+                if frame.key not in unique_deal_parent_seen[parent_dealt]:
+                    unique_deal_parent_seen[parent_dealt].add(frame.key)
             elif frame.prep_action is not None and action == frame.prep_action:
                 stats.prepared_deal_choices += 1
             stats.expanded_by_tier[child_tier] += 1
@@ -876,17 +1029,17 @@ def solve_progressive(
                     g=frame.g + cost,
                     tier=child_tier,
                     started=False,
+                    remaining=child_remaining,
                 )
             )
-        return False
+        return "exhausted"
 
-    # Sequential widening: remaining budget split across remaining passes so
-    # a huge Tier-A graph cannot starve B/C/D.  Unused slice rolls forward.
-    # A narrower pass never marks a state exhausted for a wider pass.
-    for pass_level in range(0, max_pass + 1):
-        stats.pass_reached = pass_level
+    # Depth bands outer, A–D passes inner.  Remaining node/time budget is
+    # split across remaining (band, pass) cells so a huge shallow A-graph
+    # cannot starve later bands.  Unused slice rolls forward.
+    for band_index, band in enumerate(bands):
+        remaining_bands = len(bands) - band_index
         remaining_nodes = max(0, max_nodes - stats.states_expanded)
-        remaining_passes = max_pass + 1 - pass_level
         if remaining_nodes <= 0:
             stop_reason = "node limit"
             break
@@ -895,29 +1048,89 @@ def solve_progressive(
         if remaining_time <= 0:
             stop_reason = "time limit"
             break
-        node_cap = stats.states_expanded + max(1, remaining_nodes // remaining_passes)
-        deadline = now + remaining_time / remaining_passes
-        if dfs_pass(pass_level, node_cap, deadline):
-            break
-        if stats.states_expanded >= max_nodes:
-            stop_reason = "node limit"
+        band_cap = stats.states_expanded + max(1, remaining_nodes // remaining_bands)
+        band_deadline = now + remaining_time / remaining_bands
+        stats.depth_band_used = band
+        bands_used.append(band)
+        for pass_level in range(0, max_pass + 1):
+            stats.pass_reached = pass_level
+            remaining_passes = max_pass + 1 - pass_level
+            remaining_in_band = max(0, band_cap - stats.states_expanded)
+            if remaining_in_band <= 0:
+                break
+            now = time.perf_counter()
+            band_time_left = band_deadline - now
+            if band_time_left <= 0:
+                stop_reason = "time limit"
+                break
+            node_cap = stats.states_expanded + max(
+                1, remaining_in_band // remaining_passes
+            )
+            deadline = now + band_time_left / remaining_passes
+            before = {
+                "expanded": stats.states_expanded,
+                "generated": stats.states_generated,
+                "tt_hits": stats.tt_hits,
+                "prunes": stats.tt_depth_prunes,
+                "reopens": stats.tt_reopens,
+                "deals_c": stats.deals_considered,
+                "deals_x": stats.deals_executed,
+                "unique": len(memory),
+            }
+            slice_best_fd = reveal_meta[0]
+            slice_best_stock = stock_meta[1]
+            slice_best_fnd = stats.max_foundations
+            outcome = dfs_pass(pass_level, band, node_cap, deadline)
+            report = {
+                "band": band,
+                "pass": pass_level,
+                "expanded": stats.states_expanded - before["expanded"],
+                "generated": stats.states_generated - before["generated"],
+                "unique_total": len(memory),
+                "unique_new": len(memory) - before["unique"],
+                "tt_hits": stats.tt_hits - before["tt_hits"],
+                "depth_prunes": stats.tt_depth_prunes - before["prunes"],
+                "reopens": stats.tt_reopens - before["reopens"],
+                "max_depth": stats.max_depth,
+                "stop": outcome,
+                "face_down_best": reveal_meta[0],
+                "stock_best": stock_meta[1],
+                "max_foundations": stats.max_foundations,
+                "deals_considered": stats.deals_considered - before["deals_c"],
+                "deals_executed": stats.deals_executed - before["deals_x"],
+                "slice_face_down_best": slice_best_fd,
+                "slice_stock_best": slice_best_stock,
+                "slice_max_foundations": slice_best_fnd,
+            }
+            stats.band_pass_reports.append(report)
+            if outcome == "solved":
+                break
+            if stats.states_expanded >= max_nodes:
+                stop_reason = "node limit"
+                break
+            if time.perf_counter() - started >= time_limit_s:
+                stop_reason = "time limit"
+                break
+        if solved_path is not None or stats.states_expanded >= max_nodes:
             break
         if time.perf_counter() - started >= time_limit_s:
-            stop_reason = "time limit"
             break
 
+    for index in range(6):
+        stats.unique_by_stock_dealt[index] = len(unique_stock_seen[index])
+        stats.unique_deal_parents[index] = len(unique_deal_parent_seen[index])
     stats.unique_exact_states = len(memory)
     stats.peak_rss_mb = peak_rss if peak_rss is not None else _rss_mb()
     elapsed = time.perf_counter() - started
     actions = (
         solved_path
         if solved_path is not None
-        else (first_foundation_path or progress_path)
+        else (first_foundation_path or reveal_path)
     )
     cost = (
         solved_cost
         if solved_path is not None
-        else (first_foundation_cost if first_foundation_path else progress_cost)
+        else (first_foundation_cost if first_foundation_path else reveal_meta[4])
     )
     replay_ok = False
     if actions:
@@ -942,15 +1155,34 @@ def solve_progressive(
         elapsed_s=elapsed,
         pass_reached=stats.pass_reached,
         max_foundations=stats.max_foundations,
-        min_face_down=identified_fd,
-        min_stock_rows=identified_stock,
+        min_face_down=reveal_meta[0],
+        min_stock_rows=reveal_meta[1],
         foundation_path=list(first_foundation_path),
         foundation_cost=first_foundation_cost,
         stop_reason=stop_reason,
         replay_ok=replay_ok,
         stats=stats,
         first_foundation_actions=list(first_foundation_path),
-        identified_face_down=identified_fd,
-        identified_stock_rows=identified_stock,
+        identified_face_down=reveal_meta[0],
+        identified_stock_rows=reveal_meta[1],
         states_per_sec=(stats.states_expanded / elapsed if elapsed > 0 else 0.0),
+        depth_bands_used=list(bands_used),
+        best_reveal_actions=list(reveal_path),
+        best_reveal_fd=reveal_meta[0],
+        best_reveal_stock=reveal_meta[1],
+        best_reveal_foundations=reveal_meta[2],
+        best_reveal_depth=reveal_meta[3],
+        best_reveal_cost=reveal_meta[4],
+        best_stock_actions=list(stock_path),
+        best_stock_fd=stock_meta[0],
+        best_stock_stock=stock_meta[1],
+        best_stock_foundations=stock_meta[2],
+        best_stock_depth=stock_meta[3],
+        best_stock_cost=stock_meta[4],
+        best_foundation_actions=list(foundation_wit_path),
+        best_foundation_fd=foundation_meta[0],
+        best_foundation_stock=foundation_meta[1],
+        best_foundation_foundations=foundation_meta[2],
+        best_foundation_depth=foundation_meta[3],
+        best_foundation_cost=foundation_meta[4],
     )
