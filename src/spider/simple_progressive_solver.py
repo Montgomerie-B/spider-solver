@@ -1,13 +1,11 @@
-"""Simple progressive Spider solver — competing baseline v0.3.
+"""Simple progressive Spider solver — competing baseline v0.4.
 
 Straightforward backtracking: legal primitive actions, cheap deterministic
 ordering, exact-state transposition, cycle cuts, progressive relaxation,
-and depth-banded DFS.
+depth-banded DFS, and saturation-aware slice scheduling.
 
-v0.3 changes only slice scheduling: a completed (band, pass) cell with
-``unique_new == 0`` saturates that pass for later equivalent slices.
-Move tiers, ordering, Deal policy, depth bands, and the depth-aware TT
-contract are unchanged from v0.2.
+v0.4 adds reveal/stock coupling diagnostics only.  Search order, TT,
+saturation, Deal policy, and move tiers are unchanged from v0.3.
 
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
@@ -25,6 +23,7 @@ from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
 from spider.packed_state import pack_state
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
+from spider.simple_reveal_stock_audit import RevealStockAudit, cheap_structure
 
 
 TableauMove = Tuple[int, int, int]
@@ -144,6 +143,7 @@ class ProgressiveSearchResult:
     best_foundation_depth: int = 0
     best_foundation_cost: int = 0
     best_fd_by_stock_dealt: List[dict] = field(default_factory=list)
+    audit: Optional[RevealStockAudit] = None
 
     @property
     def stage_reached(self) -> int:
@@ -696,6 +696,14 @@ class _Frame:
         "child_keys",
         "prep_action",
         "remaining",
+        "fd",
+        "dealt",
+        "from_deal",
+        "subtree_exp",
+        "subtree_best_fd",
+        "subtree_another_deal",
+        "deal_index",
+        "deal_parent_key",
     )
 
     def __init__(
@@ -711,6 +719,7 @@ class _Frame:
         started: bool,
         prep_action: Optional[SolverAction] = None,
         remaining: int = 0,
+        from_deal: bool = False,
     ) -> None:
         self.children = children
         self.index = index
@@ -723,6 +732,14 @@ class _Frame:
         self.child_keys: set = set()
         self.prep_action = prep_action
         self.remaining = remaining
+        self.fd = 0
+        self.dealt = 0
+        self.from_deal = from_deal
+        self.subtree_exp = 0
+        self.subtree_best_fd = 10**9
+        self.subtree_another_deal = False
+        self.deal_index: Optional[int] = None
+        self.deal_parent_key: Optional[bytes] = None
 
 
 def _path_from_stack(stack: List[_Frame]) -> List[Action]:
@@ -801,6 +818,7 @@ def solve_progressive(
     max_depth: int = MAX_DEPTH_GUARD,
     depth_bands: Optional[Sequence[int]] = None,
     enable_saturation: bool = True,
+    enable_audit: bool = True,
 ) -> ProgressiveSearchResult:
     """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
@@ -832,6 +850,7 @@ def solve_progressive(
     fd_stock_meta = [(10**9, opening_stock, 0, 0, 0) for _ in range(6)]
     fd_stock_path: List[List[Action]] = [[] for _ in range(6)]
     fd_stock_meta[0] = (opening_fd, opening_stock, root_foundations, 0, 0)
+    audit = RevealStockAudit() if enable_audit else None
 
     def reached_target(state: SpiderState) -> bool:
         if target_foundations >= 8:
@@ -925,6 +944,16 @@ def solve_progressive(
                 stock_rows = _stock_rows(working_state)
                 dealt = _stock_dealt_index(opening_stock, stock_rows)
                 stats.states_by_stock_dealt[dealt] += 1
+                frame.fd = fd
+                frame.dealt = dealt
+                if audit is not None:
+                    for ancestor in stack:
+                        if ancestor.from_deal:
+                            ancestor.subtree_exp += 1
+                            if fd < ancestor.subtree_best_fd:
+                                ancestor.subtree_best_fd = fd
+                            if dealt > ancestor.dealt:
+                                ancestor.subtree_another_deal = True
                 if new_key:
                     unique_stock_seen[dealt].add(frame.key)
                     if 0 <= pass_level < N_PASSES:
@@ -938,6 +967,20 @@ def solve_progressive(
                     if path_now is None:
                         path_now = _path_from_stack(stack)
                     return path_now
+
+                if audit is not None:
+                    audit.on_expand(
+                        key=frame.key,
+                        fd=fd,
+                        stock_rows=stock_rows,
+                        foundations=foundations,
+                        depth=depth,
+                        cost=frame.g,
+                        dealt=dealt,
+                        node=stats.states_expanded,
+                        pass_level=pass_level,
+                        path=path(),
+                    )
 
                 prev_fd_stock = fd_stock_meta[dealt]
                 if fd < prev_fd_stock[0] or (
@@ -997,10 +1040,42 @@ def solve_progressive(
                 )
                 frame.prep_action = stats.last_prep_action
                 frame.index = 0
+                frame.deal_index = None
+                for index, child_action in enumerate(frame.children):
+                    if is_deal(child_action):
+                        frame.deal_index = index
+                        break
+                if audit is not None:
+                    deal_tier = None
+                    if frame.deal_index is not None:
+                        deal_tier = int(classify_tier(working_state, ("deal",)))
+                    audit.on_children(
+                        key=frame.key,
+                        dealt=dealt,
+                        children=frame.children,
+                        pass_level=pass_level,
+                        deal_tier=deal_tier,
+                        prep_action=frame.prep_action,
+                    )
 
             assert frame.children is not None
             if frame.index >= len(frame.children):
                 memory.mark_done(frame.key, pass_level, frame.remaining)
+                if audit is not None and frame.from_deal:
+                    audit.on_deal_finished(
+                        {
+                            "dealt": max(0, frame.dealt - 1),
+                            "parent_key": frame.deal_parent_key,
+                            "subtree_exp": frame.subtree_exp,
+                            "subtree_best_fd": (
+                                frame.fd
+                                if frame.subtree_best_fd >= 10**9
+                                else frame.subtree_best_fd
+                            ),
+                            "another_deal": frame.subtree_another_deal,
+                            "tt_skip": False,
+                        }
+                    )
                 path_keys.discard(frame.key)
                 if frame.snap is not None:
                     _restore(working_state, frame.snap)
@@ -1013,6 +1088,9 @@ def solve_progressive(
             parent_dealt = _stock_dealt_index(
                 opening_stock, _stock_rows(working_state)
             )
+            parent_struct = cheap_structure(working_state) if (
+                audit is not None and is_deal(action)
+            ) else None
             snap = _capture(working_state, action)
             try:
                 cost = apply_action(working_state, action, rules=rules)
@@ -1031,9 +1109,43 @@ def solve_progressive(
                 continue
             frame.child_keys.add(child_key)
             child_remaining = frame.remaining - 1
-            if memory.skip(child_key, pass_level, child_remaining):
+            tt_skip_child = memory.skip(child_key, pass_level, child_remaining)
+            if is_deal(action) and audit is not None and parent_struct is not None:
+                child_struct = cheap_structure(working_state)
+                ancestors = [
+                    (anc.dealt, anc.fd, anc.key, index)
+                    for index, anc in enumerate(stack)
+                ]
+                audit.on_deal(
+                    ancestor_frames=ancestors,
+                    parent_key=frame.key,
+                    parent_path=_path_from_stack(stack),
+                    parent_struct=parent_struct,
+                    child_struct=child_struct,
+                    child_key=child_key,
+                    ordinal=frame.deal_index if frame.deal_index is not None else 0,
+                    n_children=len(frame.children),
+                    remaining=frame.remaining,
+                    pass_level=pass_level,
+                    child_novel=child_key not in memory.seen,
+                    tt_skip=tt_skip_child,
+                    prep_followed=False,
+                    dealt=parent_dealt,
+                )
+            if tt_skip_child:
                 stats.tt_hits += 1
                 stats.tt_depth_prunes += 1
+                if is_deal(action) and audit is not None:
+                    audit.on_deal_finished(
+                        {
+                            "dealt": parent_dealt,
+                            "parent_key": frame.key,
+                            "subtree_exp": 0,
+                            "subtree_best_fd": _face_down(working_state),
+                            "another_deal": False,
+                            "tt_skip": True,
+                        }
+                    )
                 _restore(working_state, snap)
                 continue
             if is_deal(action):
@@ -1046,19 +1158,20 @@ def solve_progressive(
                 stats.prepared_deal_choices += 1
             stats.expanded_by_tier[child_tier] += 1
             path_keys.add(child_key)
-            stack.append(
-                _Frame(
-                    children=None,
-                    index=0,
-                    key=child_key,
-                    action=action,
-                    snap=snap,
-                    g=frame.g + cost,
-                    tier=child_tier,
-                    started=False,
-                    remaining=child_remaining,
-                )
+            child_frame = _Frame(
+                children=None,
+                index=0,
+                key=child_key,
+                action=action,
+                snap=snap,
+                g=frame.g + cost,
+                tier=child_tier,
+                started=False,
+                remaining=child_remaining,
+                from_deal=is_deal(action),
             )
+            child_frame.deal_parent_key = frame.key if is_deal(action) else None
+            stack.append(child_frame)
         return "exhausted"
 
     # Depth bands outer, A–D passes inner.  Remaining node/time budget is
@@ -1283,4 +1396,5 @@ def solve_progressive(
         best_foundation_depth=foundation_meta[3],
         best_foundation_cost=foundation_meta[4],
         best_fd_by_stock_dealt=fd_by_stock,
+        audit=audit,
     )
