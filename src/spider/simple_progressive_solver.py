@@ -1,11 +1,13 @@
-"""Simple progressive Spider solver — competing baseline v0.4.
+"""Simple progressive Spider solver — competing baseline v0.5.
 
 Straightforward backtracking: legal primitive actions, cheap deterministic
 ordering, exact-state transposition, cycle cuts, progressive relaxation,
 depth-banded DFS, and saturation-aware slice scheduling.
 
-v0.4 adds reveal/stock coupling diagnostics only.  Search order, TT,
-saturation, Deal policy, and move tiers are unchanged from v0.3.
+v0.5 adds an optional best-reveal Deal probe: on a strict new face-down
+record at a stock depth, explore the engine-legal Deal child first, then
+resume the same A–D pass.  Default OFF.  Tiers, scores, bands, saturation,
+and TT are unchanged.
 
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
@@ -101,6 +103,11 @@ class SearchStats:
     expansions_redirected: int = 0
     unique_by_pass: List[int] = field(default_factory=lambda: [0, 0, 0, 0])
     saturated_passes: List[int] = field(default_factory=list)
+    reveal_records: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
+    probe_fires: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
+    probe_entered: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
+    probe_tt_suppressed: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
+    probe_events: List[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -144,6 +151,7 @@ class ProgressiveSearchResult:
     best_foundation_cost: int = 0
     best_fd_by_stock_dealt: List[dict] = field(default_factory=list)
     audit: Optional[RevealStockAudit] = None
+    probe_events: List[dict] = field(default_factory=list)
 
     @property
     def stage_reached(self) -> int:
@@ -703,6 +711,11 @@ class _Frame:
         "subtree_another_deal",
         "deal_index",
         "deal_parent_key",
+        "probe_deal",
+        "from_probe_deal",
+        "probe_origin_dealt",
+        "probe_event_index",
+        "subtree_max_fnd",
     )
 
     def __init__(
@@ -719,6 +732,7 @@ class _Frame:
         prep_action: Optional[SolverAction] = None,
         remaining: int = 0,
         from_deal: bool = False,
+        from_probe_deal: bool = False,
     ) -> None:
         self.children = children
         self.index = index
@@ -739,6 +753,11 @@ class _Frame:
         self.subtree_another_deal = False
         self.deal_index: Optional[int] = None
         self.deal_parent_key: Optional[bytes] = None
+        self.probe_deal = False
+        self.from_probe_deal = from_probe_deal
+        self.probe_origin_dealt = -1
+        self.probe_event_index = -1
+        self.subtree_max_fnd = 0
 
 
 def _path_from_stack(stack: List[_Frame]) -> List[Action]:
@@ -818,6 +837,7 @@ def solve_progressive(
     depth_bands: Optional[Sequence[int]] = None,
     enable_saturation: bool = True,
     enable_audit: bool = True,
+    enable_best_reveal_deal_probe: bool = False,
 ) -> ProgressiveSearchResult:
     """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
@@ -850,6 +870,9 @@ def solve_progressive(
     fd_stock_path: List[List[Action]] = [[] for _ in range(6)]
     fd_stock_meta[0] = (opening_fd, opening_stock, root_foundations, 0, 0)
     audit = RevealStockAudit() if enable_audit else None
+    reveal_record_fd = [10**9] * 6
+    reveal_seen_stock = [False] * 6
+    probe_traces: List[dict] = []
 
     def reached_target(state: SpiderState) -> bool:
         if target_foundations >= 8:
@@ -945,14 +968,16 @@ def solve_progressive(
                 stats.states_by_stock_dealt[dealt] += 1
                 frame.fd = fd
                 frame.dealt = dealt
-                if audit is not None:
+                if audit is not None or enable_best_reveal_deal_probe:
                     for ancestor in stack:
-                        if ancestor.from_deal:
+                        if ancestor.from_deal or ancestor.from_probe_deal:
                             ancestor.subtree_exp += 1
                             if fd < ancestor.subtree_best_fd:
                                 ancestor.subtree_best_fd = fd
                             if dealt > ancestor.dealt:
                                 ancestor.subtree_another_deal = True
+                            if foundations > ancestor.subtree_max_fnd:
+                                ancestor.subtree_max_fnd = foundations
                 if new_key:
                     unique_stock_seen[dealt].add(frame.key)
                     if 0 <= pass_level < N_PASSES:
@@ -1025,6 +1050,15 @@ def solve_progressive(
                     stop_reason = "target reached"
                     unwind(stack, working_state, path_keys)
                     return "solved"
+                checkpoint = False
+                if not reveal_seen_stock[dealt]:
+                    reveal_seen_stock[dealt] = True
+                    reveal_record_fd[dealt] = fd
+                    stats.reveal_records[dealt] += 1
+                elif fd < reveal_record_fd[dealt]:
+                    reveal_record_fd[dealt] = fd
+                    stats.reveal_records[dealt] += 1
+                    checkpoint = True
                 if frame.remaining <= 0:
                     frame.children = []
                     frame.index = 0
@@ -1039,6 +1073,19 @@ def solve_progressive(
                 )
                 frame.prep_action = stats.last_prep_action
                 frame.index = 0
+                frame.probe_deal = False
+                if (
+                    enable_best_reveal_deal_probe
+                    and checkpoint
+                    and working_state.can_deal(rules=rules)
+                    and ("deal",) in working_state.enumerate_legal_actions(rules=rules)
+                ):
+                    without_deal = [
+                        action for action in frame.children if not is_deal(action)
+                    ]
+                    frame.children = [("deal",)] + without_deal
+                    frame.probe_deal = True
+                    stats.probe_fires[dealt] += 1
                 frame.deal_index = None
                 for index, child_action in enumerate(frame.children):
                     if is_deal(child_action):
@@ -1074,6 +1121,21 @@ def solve_progressive(
                             "another_deal": frame.subtree_another_deal,
                             "tt_skip": False,
                         }
+                    )
+                if frame.from_probe_deal and 0 <= frame.probe_event_index < len(
+                    probe_traces
+                ):
+                    event = probe_traces[frame.probe_event_index]
+                    event["descendant_expansions"] = frame.subtree_exp
+                    best_fd = frame.subtree_best_fd
+                    if best_fd < 10**9:
+                        event["best_descendant_fd"] = min(
+                            event["best_descendant_fd"], best_fd
+                        )
+                    event["second_deal"] = frame.subtree_another_deal
+                    event["deepest_dealt"] = max(event["deepest_dealt"], frame.dealt)
+                    event["foundations"] = max(
+                        event["foundations"], frame.subtree_max_fnd
                     )
                 path_keys.discard(frame.key)
                 if frame.snap is not None:
@@ -1145,6 +1207,28 @@ def solve_progressive(
                             "tt_skip": True,
                         }
                     )
+                if is_deal(action) and frame.probe_deal:
+                    stats.probe_tt_suppressed[parent_dealt] += 1
+                    probe_traces.append(
+                        {
+                            "dealt": parent_dealt,
+                            "pre_fd": frame.fd,
+                            "post_fd": _face_down(working_state),
+                            "pass": pass_level,
+                            "depth": depth,
+                            "n_tableau": max(0, len(frame.children) - 1),
+                            "deal_legal": True,
+                            "child_novel": child_key not in memory.seen,
+                            "tt_skip": True,
+                            "expanded": False,
+                            "descendant_expansions": 0,
+                            "best_descendant_fd": _face_down(working_state),
+                            "deepest_dealt": parent_dealt,
+                            "foundations": len(working_state.foundations),
+                            "second_deal": False,
+                            "path": _path_from_stack(stack),
+                        }
+                    )
                 _restore(working_state, snap)
                 continue
             if is_deal(action):
@@ -1153,10 +1237,13 @@ def solve_progressive(
                 stats.deals_executed_from_stock[parent_dealt] += 1
                 if frame.key not in unique_deal_parent_seen[parent_dealt]:
                     unique_deal_parent_seen[parent_dealt].add(frame.key)
+                if frame.probe_deal:
+                    stats.probe_entered[parent_dealt] += 1
             elif frame.prep_action is not None and action == frame.prep_action:
                 stats.prepared_deal_choices += 1
             stats.expanded_by_tier[child_tier] += 1
             path_keys.add(child_key)
+            is_probe_child = bool(frame.probe_deal and is_deal(action))
             child_frame = _Frame(
                 children=None,
                 index=0,
@@ -1168,8 +1255,32 @@ def solve_progressive(
                 started=False,
                 remaining=child_remaining,
                 from_deal=is_deal(action),
+                from_probe_deal=is_probe_child,
             )
             child_frame.deal_parent_key = frame.key if is_deal(action) else None
+            child_frame.probe_origin_dealt = parent_dealt if is_probe_child else -1
+            if is_probe_child:
+                child_frame.probe_event_index = len(probe_traces)
+                probe_traces.append(
+                    {
+                        "dealt": parent_dealt,
+                        "pre_fd": frame.fd,
+                        "post_fd": _face_down(working_state),
+                        "pass": pass_level,
+                        "depth": depth,
+                        "n_tableau": max(0, len(frame.children) - 1),
+                        "deal_legal": True,
+                        "child_novel": child_key not in memory.seen,
+                        "tt_skip": False,
+                        "expanded": True,
+                        "descendant_expansions": 0,
+                        "best_descendant_fd": _face_down(working_state),
+                        "deepest_dealt": parent_dealt + 1,
+                        "foundations": len(working_state.foundations),
+                        "second_deal": False,
+                        "path": _path_from_stack(stack) + [("deal",)],
+                    }
+                )
             stack.append(child_frame)
         return "exhausted"
 
@@ -1296,6 +1407,7 @@ def solve_progressive(
         if time.perf_counter() - started >= time_limit_s:
             break
     stats.saturated_passes = sorted(saturated_passes)
+    stats.probe_events = list(probe_traces)
 
     for index in range(6):
         stats.unique_by_stock_dealt[index] = len(unique_stock_seen[index])
@@ -1396,4 +1508,5 @@ def solve_progressive(
         best_foundation_cost=foundation_meta[4],
         best_fd_by_stock_dealt=fd_by_stock,
         audit=audit,
+        probe_events=list(probe_traces),
     )

@@ -1,0 +1,257 @@
+{
+  "arm": "CONTROL",
+  "cost": 33,
+  "deals_executed": 15925,
+  "elapsed_s": 947.023099099999,
+  "elapsed_wall_s": 947.1221320999975,
+  "fd_by_stock": [
+    {
+      "cost": 33,
+      "deals_completed": 0,
+      "depth": 33,
+      "face_down": 16,
+      "replay": {
+        "cost": 33,
+        "cost_matches": true,
+        "face_down": 16,
+        "foundations": 0,
+        "path_length": 33,
+        "solved": false,
+        "stock_rows": 5
+      },
+      "stock_rows": 5
+    },
+    {
+      "cost": 43,
+      "deals_completed": 1,
+      "depth": 43,
+      "face_down": 29,
+      "replay": {
+        "cost": 43,
+        "cost_matches": true,
+        "face_down": 29,
+        "foundations": 0,
+        "path_length": 43,
+        "solved": false,
+        "stock_rows": 4
+      },
+      "stock_rows": 4
+    },
+    {
+      "cost": 71,
+      "deals_completed": 2,
+      "depth": 71,
+      "face_down": 29,
+      "replay": {
+        "cost": 71,
+        "cost_matches": true,
+        "face_down": 29,
+        "foundations": 0,
+        "path_length": 71,
+        "solved": false,
+        "stock_rows": 3
+      },
+      "stock_rows": 3
+    },
+    {
+      "cost": 159,
+      "deals_completed": 3,
+      "depth": 159,
+      "face_down": 23,
+      "replay": {
+        "cost": 159,
+        "cost_matches": true,
+        "face_down": 23,
+        "foundations": 0,
+        "path_length": 159,
+        "solved": false,
+        "stock_rows": 2
+      },
+      "stock_rows": 2
+    },
+    {
+      "cost": 160,
+      "deals_completed": 4,
+      "depth": 160,
+      "face_down": 23,
+      "replay": {
+        "cost": 160,
+        "cost_matches": true,
+        "face_down": 23,
+        "foundations": 0,
+        "path_length": 160,
+        "solved": false,
+        "stock_rows": 1
+      },
+      "stock_rows": 1
+    },
+    {
+      "cost": 263,
+      "deals_completed": 5,
+      "depth": 263,
+      "face_down": 23,
+      "replay": {
+        "cost": 263,
+        "cost_matches": true,
+        "face_down": 23,
+        "foundations": 0,
+        "path_length": 263,
+        "solved": false,
+        "stock_rows": 0
+      },
+      "stock_rows": 0
+    }
+  ],
+  "first_foundation_node": null,
+  "max_depth": 610,
+  "max_foundations": 0,
+  "nodes": 800000,
+  "pass_reached": 3,
+  "path_length": 33,
+  "peak_rss_mb": 261.39453125,
+  "probe_entered": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "probe_fires": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "probe_tt_suppressed": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "probes": [],
+  "replay_ok": true,
+  "reveal": {
+    "cost": 33,
+    "cost_matches": true,
+    "face_down": 16,
+    "foundations": 0,
+    "path_length": 33,
+    "solved": false,
+    "stock_rows": 5
+  },
+  "reveal_records": [
+    29,
+    3,
+    1,
+    7,
+    6,
+    6
+  ],
+  "solved": false,
+  "states_by_stock_dealt": [
+    300148,
+    136,
+    209,
+    15101,
+    54921,
+    429485
+  ],
+  "states_per_sec": 844.752362176042,
+  "stock": {
+    "cost": 263,
+    "cost_matches": true,
+    "face_down": 23,
+    "foundations": 0,
+    "path_length": 263,
+    "solved": false,
+    "stock_rows": 0
+  },
+  "stock_depth_rows": [
+    {
+      "best_fd": 16,
+      "deal_in_pass": false,
+      "deal_legal": true,
+      "deals_completed": 0,
+      "later_dealt_fd": 31,
+      "lineage_dealt": false,
+      "post_fd": 31,
+      "pre_fd": 31,
+      "primary_loss_reason": "R3"
+    },
+    {
+      "best_fd": 29,
+      "deal_in_pass": true,
+      "deal_legal": true,
+      "deals_completed": 1,
+      "later_dealt_fd": 29,
+      "lineage_dealt": true,
+      "post_fd": 29,
+      "pre_fd": 29,
+      "primary_loss_reason": "R4"
+    },
+    {
+      "best_fd": 29,
+      "deal_in_pass": true,
+      "deal_legal": true,
+      "deals_completed": 2,
+      "later_dealt_fd": 29,
+      "lineage_dealt": true,
+      "post_fd": 29,
+      "pre_fd": 29,
+      "primary_loss_reason": "R5"
+    },
+    {
+      "best_fd": 23,
+      "deal_in_pass": true,
+      "deal_legal": true,
+      "deals_completed": 3,
+      "later_dealt_fd": 23,
+      "lineage_dealt": true,
+      "post_fd": 23,
+      "pre_fd": 23,
+      "primary_loss_reason": "R5"
+    },
+    {
+      "best_fd": 23,
+      "deal_in_pass": true,
+      "deal_legal": true,
+      "deals_completed": 4,
+      "later_dealt_fd": 24,
+      "lineage_dealt": false,
+      "post_fd": 24,
+      "pre_fd": 24,
+      "primary_loss_reason": "R7"
+    },
+    {
+      "best_fd": 23,
+      "deal_in_pass": false,
+      "deal_legal": false,
+      "deals_completed": 5,
+      "later_dealt_fd": null,
+      "lineage_dealt": false,
+      "post_fd": null,
+      "pre_fd": null,
+      "primary_loss_reason": "R8"
+    }
+  ],
+  "stop_reason": "node limit",
+  "strongest_zero_probe": null,
+  "tt_hits": 2609963,
+  "tt_prunes": 2609963,
+  "tt_reopens": 643825,
+  "unique": 155653,
+  "unique_by_stock_dealt": [
+    57982,
+    34,
+    83,
+    12139,
+    47919,
+    37496
+  ],
+  "unique_ratio": 0.19456625
+}
