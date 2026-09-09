@@ -1,0 +1,193 @@
+{
+  "arm": "PASS1",
+  "band_pass_reports": [
+    {
+      "band": 320,
+      "expanded": 837832,
+      "pass": 1,
+      "skipped": false,
+      "stop": "budget",
+      "unique_new": 30776
+    }
+  ],
+  "combined_replay": null,
+  "continuation_length": 0,
+  "elapsed_s": 1800.164555299998,
+  "elapsed_wall_s": 1800.1952375999972,
+  "first_foundation_depth": null,
+  "first_foundation_node": null,
+  "first_foundation_pass": null,
+  "foundation_actions_length": 0,
+  "max_depth": 277,
+  "max_foundations": 0,
+  "min_face_down": 14,
+  "nodes": 837832,
+  "pass_reached": 1,
+  "peak_rss_mb": 6267.5234375,
+  "replay_ok": false,
+  "root_tier_b": [
+    {
+      "action": [
+        2,
+        0,
+        1
+      ],
+      "best_descendant_fd": null,
+      "child_fd": 14,
+      "child_foundations": 0,
+      "child_key_hex": "53504b3101000000040b3a2c360835042302310b0d32291322050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "child_run": 1,
+      "cut": null,
+      "descendant_expansions": null,
+      "expanded": false,
+      "first_foundation": false,
+      "legal": true,
+      "longest_same_suit_run": 1,
+      "max_foundations": null,
+      "novel": false,
+      "replay_valid": true,
+      "tt_skip": false
+    },
+    {
+      "action": [
+        2,
+        3,
+        1
+      ],
+      "best_descendant_fd": null,
+      "child_fd": 14,
+      "child_foundations": 0,
+      "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00091413121d071d22332200062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "child_run": 1,
+      "cut": null,
+      "descendant_expansions": null,
+      "expanded": false,
+      "first_foundation": false,
+      "legal": true,
+      "longest_same_suit_run": 1,
+      "max_foundations": null,
+      "novel": false,
+      "replay_valid": true,
+      "tt_skip": false
+    },
+    {
+      "action": [
+        2,
+        8,
+        1
+      ],
+      "best_descendant_fd": null,
+      "child_fd": 14,
+      "child_foundations": 0,
+      "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+      "child_run": 1,
+      "cut": null,
+      "descendant_expansions": null,
+      "expanded": false,
+      "first_foundation": false,
+      "legal": true,
+      "longest_same_suit_run": 1,
+      "max_foundations": null,
+      "novel": false,
+      "replay_valid": true,
+      "tt_skip": false
+    },
+    {
+      "action": [
+        7,
+        2,
+        1
+      ],
+      "best_descendant_fd": null,
+      "child_fd": 14,
+      "child_foundations": 0,
+      "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010d3b2706153423323124162c1c220100081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000512272a0538000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "child_run": 1,
+      "cut": null,
+      "descendant_expansions": null,
+      "expanded": false,
+      "first_foundation": false,
+      "legal": true,
+      "longest_same_suit_run": 1,
+      "max_foundations": null,
+      "novel": false,
+      "replay_valid": true,
+      "tt_skip": false
+    }
+  ],
+  "solved": false,
+  "states_per_sec": 465.41967373664625,
+  "stop_reason": "time limit",
+  "structure": {
+    "best_adjacencies": {
+      "adjacencies": 33,
+      "depth": 65,
+      "empties": 0,
+      "expansion": 115419,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 3,
+      "mixed": 28,
+      "path_length": 65
+    },
+    "best_empties": {
+      "adjacencies": 16,
+      "depth": 0,
+      "empties": 0,
+      "expansion": 1,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 1,
+      "mixed": 17,
+      "path_length": 0
+    },
+    "best_fd": {
+      "adjacencies": 16,
+      "depth": 0,
+      "empties": 0,
+      "expansion": 1,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 1,
+      "mixed": 17,
+      "path_length": 0
+    },
+    "best_foundations": {
+      "adjacencies": 16,
+      "depth": 0,
+      "empties": 0,
+      "expansion": 1,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 1,
+      "mixed": 17,
+      "path_length": 0
+    },
+    "best_mixed": {
+      "adjacencies": 16,
+      "depth": 0,
+      "empties": 0,
+      "expansion": 1,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 1,
+      "mixed": 17,
+      "path_length": 0
+    },
+    "best_run": {
+      "adjacencies": 29,
+      "depth": 42,
+      "empties": 0,
+      "expansion": 115023,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 8,
+      "mixed": 23,
+      "path_length": 42
+    }
+  },
+  "tt_hits": 2416503,
+  "tt_reopens": 807056,
+  "unique": 30776,
+  "unique_ratio": 0.03673290110666578
+}

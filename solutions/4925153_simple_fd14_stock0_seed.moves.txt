@@ -1,0 +1,48 @@
+# v0.8 seed: 4925153 fd-14 stock-empty coupled witness
+# lineage: L_COUPLED_FD14_DEALS5_DEPTH43
+# primitive_moves: 43
+# mobilityware_moves: 43
+# digest: 53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010c3b2706153423323124162c1c2200081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925
+move 3 6 1
+move 6 8 2
+move 1 6 1
+move 6 8 2
+move 8 4 5
+move 3 2 1
+move 3 7 1
+move 9 3 1
+move 9 3 1
+move 10 3 1
+move 3 10 4
+move 8 1 1
+move 9 2 1
+move 9 3 1
+move 9 1 1
+move 6 1 1
+move 10 6 5
+move 6 5 6
+move 10 3 1
+move 5 9 7
+move 5 3 1
+move 5 3 1
+move 6 5 1
+move 5 6 2
+move 5 9 1
+move 8 5 1
+move 4 7 5
+move 3 8 1
+move 10 3 1
+move 10 5 1
+move 4 10 1
+move 4 10 1
+move 4 2 1
+move 5 3 2
+move 4 5 1
+move 4 8 1
+move 4 1 1
+move 8 4 3
+deal
+deal
+deal
+deal
+deal

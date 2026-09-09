@@ -532,6 +532,13 @@ class PostDealAudit:
     stock_empty_candidates: List[dict] = field(default_factory=list)
     best_empty_fd: int = field(default=10**9)
     empty_pass_b_children: List[dict] = field(default_factory=list)
+    track_structure: bool = False
+    best_fd_struct: Optional[dict] = field(default=None)
+    best_fnd_struct: Optional[dict] = field(default=None)
+    best_run_struct: Optional[dict] = field(default=None)
+    best_adj_struct: Optional[dict] = field(default=None)
+    best_empties_struct: Optional[dict] = field(default=None)
+    best_mixed_struct: Optional[dict] = field(default=None)
     lineage: Optional[dict] = field(default=None)
     summary: Optional[dict] = field(default=None)
     current_band: int = 0
@@ -549,6 +556,52 @@ class PostDealAudit:
 
     def is_watched(self, key: bytes) -> bool:
         return key in self.watched
+
+    def observe_structure(
+        self,
+        *,
+        fd: int,
+        foundations: int,
+        longest_run: int,
+        adjacencies: int,
+        empties: int,
+        mixed: int,
+        depth: int,
+        expansion: int,
+        path_fn,
+    ) -> None:
+        if not self.track_structure:
+            return
+        record = {
+            "fd": fd,
+            "foundations": foundations,
+            "longest_run": longest_run,
+            "adjacencies": adjacencies,
+            "empties": empties,
+            "mixed": mixed,
+            "depth": depth,
+            "expansion": expansion,
+        }
+
+        def take(current: Optional[dict], better: bool) -> Optional[dict]:
+            if not better:
+                return current
+            payload = dict(record)
+            payload["path"] = list(path_fn())
+            return payload
+
+        if self.best_fd_struct is None or fd < self.best_fd_struct["fd"]:
+            self.best_fd_struct = take(self.best_fd_struct, True)
+        if self.best_fnd_struct is None or foundations > self.best_fnd_struct["foundations"]:
+            self.best_fnd_struct = take(self.best_fnd_struct, True)
+        if self.best_run_struct is None or longest_run > self.best_run_struct["longest_run"]:
+            self.best_run_struct = take(self.best_run_struct, True)
+        if self.best_adj_struct is None or adjacencies > self.best_adj_struct["adjacencies"]:
+            self.best_adj_struct = take(self.best_adj_struct, True)
+        if self.best_empties_struct is None or empties > self.best_empties_struct["empties"]:
+            self.best_empties_struct = take(self.best_empties_struct, True)
+        if self.best_mixed_struct is None or mixed < self.best_mixed_struct["mixed"]:
+            self.best_mixed_struct = take(self.best_mixed_struct, True)
 
     def record_encounter(self, key: bytes, record: dict) -> None:
         if key not in self.watched:

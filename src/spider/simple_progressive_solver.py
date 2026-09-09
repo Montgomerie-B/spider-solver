@@ -15,6 +15,9 @@ and lineage reconstruction do not order moves, prune, or change TT.
 v0.7 optionally scopes saturation to ``(depth_band, pass)``.  Default OFF
 (cross-band, v0.3–v0.6).  Band-local mode does not clear TT coverage.
 
+v0.8 adds optional ``start_pass`` so a research search may begin at Pass 1.
+Default remains 0.  Ordinary whole-deal policy is unchanged.
+
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
 from canonical identity.
@@ -31,7 +34,12 @@ from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
 from spider.packed_state import pack_state
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
-from spider.simple_post_deal_audit import PostDealAudit, inspect_state
+from spider.simple_post_deal_audit import (
+    PostDealAudit,
+    _mixed_joins,
+    exposed_run_metrics,
+    inspect_state,
+)
 from spider.simple_reveal_stock_audit import RevealStockAudit, cheap_structure
 
 
@@ -896,6 +904,7 @@ def solve_progressive(
     enable_post_deal_audit: bool = False,
     enable_band_local_saturation: bool = False,
     audit_watch_keys: Optional[Sequence[bytes]] = None,
+    start_pass: int = 0,
 ) -> ProgressiveSearchResult:
     """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
@@ -930,6 +939,7 @@ def solve_progressive(
     audit = RevealStockAudit() if enable_audit else None
     pda = PostDealAudit() if enable_post_deal_audit else None
     if pda is not None:
+        pda.track_structure = True
         pda.watch(pack_state(root), origin="root")
         if audit_watch_keys:
             for key in audit_watch_keys:
@@ -1095,6 +1105,19 @@ def solve_progressive(
                         node=stats.states_expanded,
                         pass_level=pass_level,
                         path=path(),
+                    )
+                if pda is not None and pda.track_structure:
+                    runs = exposed_run_metrics(working_state)
+                    pda.observe_structure(
+                        fd=fd,
+                        foundations=foundations,
+                        longest_run=runs["longest_exposed_same_suit_run"],
+                        adjacencies=runs["exposed_same_suit_adjacencies"],
+                        empties=_empty_count(working_state),
+                        mixed=_mixed_joins(working_state),
+                        depth=depth,
+                        expansion=stats.states_expanded,
+                        path_fn=path,
                     )
 
                 prev_fd_stock = fd_stock_meta[dealt]
@@ -1543,6 +1566,7 @@ def solve_progressive(
     # the same (band, pass).  Saturation is scheduling only; the depth-aware
     # TT is unchanged and is never cleared.
     sat_book = SaturationBook(band_local=enable_band_local_saturation)
+    start_pass = max(0, min(int(start_pass), max_pass))
     for band_index, band in enumerate(bands):
         remaining_bands = len(bands) - band_index
         remaining_nodes = max(0, max_nodes - stats.states_expanded)
@@ -1560,7 +1584,7 @@ def solve_progressive(
         bands_used.append(band)
         if pda is not None:
             pda.current_band = band
-        for pass_level in range(0, max_pass + 1):
+        for pass_level in range(start_pass, max_pass + 1):
             stats.pass_reached = pass_level
             remaining_passes = max_pass + 1 - pass_level
             remaining_in_band = max(0, band_cap - stats.states_expanded)

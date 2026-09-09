@@ -1,0 +1,193 @@
+{
+  "arm": "PASS0",
+  "band_pass_reports": [
+    {
+      "band": 320,
+      "expanded": 5,
+      "pass": 0,
+      "skipped": false,
+      "stop": "exhausted",
+      "unique_new": 5
+    }
+  ],
+  "combined_replay": null,
+  "continuation_length": 0,
+  "elapsed_s": 0.027600199995504227,
+  "elapsed_wall_s": 0.03148890000011306,
+  "first_foundation_depth": null,
+  "first_foundation_node": null,
+  "first_foundation_pass": null,
+  "foundation_actions_length": 0,
+  "max_depth": 3,
+  "max_foundations": 0,
+  "min_face_down": 14,
+  "nodes": 5,
+  "pass_reached": 0,
+  "peak_rss_mb": 21.4921875,
+  "replay_ok": false,
+  "root_tier_b": [
+    {
+      "action": [
+        2,
+        0,
+        1
+      ],
+      "best_descendant_fd": null,
+      "child_fd": 14,
+      "child_foundations": 0,
+      "child_key_hex": "53504b3101000000040b3a2c360835042302310b0d32291322050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "child_run": 1,
+      "cut": null,
+      "descendant_expansions": null,
+      "expanded": false,
+      "first_foundation": false,
+      "legal": true,
+      "longest_same_suit_run": 1,
+      "max_foundations": null,
+      "novel": false,
+      "replay_valid": true,
+      "tt_skip": false
+    },
+    {
+      "action": [
+        2,
+        3,
+        1
+      ],
+      "best_descendant_fd": null,
+      "child_fd": 14,
+      "child_foundations": 0,
+      "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00091413121d071d22332200062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "child_run": 1,
+      "cut": null,
+      "descendant_expansions": null,
+      "expanded": false,
+      "first_foundation": false,
+      "legal": true,
+      "longest_same_suit_run": 1,
+      "max_foundations": null,
+      "novel": false,
+      "replay_valid": true,
+      "tt_skip": false
+    },
+    {
+      "action": [
+        2,
+        8,
+        1
+      ],
+      "best_descendant_fd": null,
+      "child_fd": 14,
+      "child_foundations": 0,
+      "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+      "child_run": 1,
+      "cut": null,
+      "descendant_expansions": null,
+      "expanded": false,
+      "first_foundation": false,
+      "legal": true,
+      "longest_same_suit_run": 1,
+      "max_foundations": null,
+      "novel": false,
+      "replay_valid": true,
+      "tt_skip": false
+    },
+    {
+      "action": [
+        7,
+        2,
+        1
+      ],
+      "best_descendant_fd": null,
+      "child_fd": 14,
+      "child_foundations": 0,
+      "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010d3b2706153423323124162c1c220100081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000512272a0538000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "child_run": 1,
+      "cut": null,
+      "descendant_expansions": null,
+      "expanded": false,
+      "first_foundation": false,
+      "legal": true,
+      "longest_same_suit_run": 1,
+      "max_foundations": null,
+      "novel": false,
+      "replay_valid": true,
+      "tt_skip": false
+    }
+  ],
+  "solved": false,
+  "states_per_sec": 181.15810757945397,
+  "stop_reason": "band envelope",
+  "structure": {
+    "best_adjacencies": {
+      "adjacencies": 19,
+      "depth": 3,
+      "empties": 0,
+      "expansion": 5,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 3,
+      "mixed": 16,
+      "path_length": 3
+    },
+    "best_empties": {
+      "adjacencies": 16,
+      "depth": 0,
+      "empties": 0,
+      "expansion": 1,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 1,
+      "mixed": 17,
+      "path_length": 0
+    },
+    "best_fd": {
+      "adjacencies": 16,
+      "depth": 0,
+      "empties": 0,
+      "expansion": 1,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 1,
+      "mixed": 17,
+      "path_length": 0
+    },
+    "best_foundations": {
+      "adjacencies": 16,
+      "depth": 0,
+      "empties": 0,
+      "expansion": 1,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 1,
+      "mixed": 17,
+      "path_length": 0
+    },
+    "best_mixed": {
+      "adjacencies": 19,
+      "depth": 3,
+      "empties": 0,
+      "expansion": 5,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 3,
+      "mixed": 16,
+      "path_length": 3
+    },
+    "best_run": {
+      "adjacencies": 19,
+      "depth": 3,
+      "empties": 0,
+      "expansion": 5,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 3,
+      "mixed": 16,
+      "path_length": 3
+    }
+  },
+  "tt_hits": 0,
+  "tt_reopens": 0,
+  "unique": 5,
+  "unique_ratio": 1.0
+}

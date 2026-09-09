@@ -1,0 +1,1736 @@
+{
+  "base_sha": "260fecd38e5fa70924b0d63714be647431dc752d",
+  "deal": "deals/4925153.txt",
+  "experiment": "simple_progressive_seeded_pass1_v0_8",
+  "interpretation": "Seed digest=53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010c3b2706153423323124162c1c2200081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925 ok=True fd=14 stock=0 fnd=0 cost=43. Pass0 nodes=5 unique=5 min_fd=14 fnd=0. Pass1 nodes=837832 unique=30776 min_fd=14 fnd=0 run=8 B expanded=0/4. Combined replay={'ok': True, 'cost': 85, 'fd': 14, 'foundations': 0, 'stock_rows': 0, 'solved': False, 'path_length': 85, 'longest_run': 8, 'adjacencies': 29}. Verdict SEEDED_PASS1_MAKES_STRUCTURAL_PROGRESS.",
+  "next_recommendation": "The good state is worth widening. Next: return to whole-deal scheduling and preserve Pass-0 budget in deeper bands so this seed can be generated and then granted Pass 1; do not add foundation heuristics.",
+  "note": "A+B continuation improved fd/run/adjacency/empties without a foundation",
+  "pass0": {
+    "arm": "PASS0",
+    "band_pass_reports": [
+      {
+        "band": 320,
+        "expanded": 5,
+        "pass": 0,
+        "skipped": false,
+        "stop": "exhausted",
+        "unique_new": 5
+      }
+    ],
+    "combined_replay": null,
+    "continuation_length": 0,
+    "elapsed_s": 0.027600199995504227,
+    "elapsed_wall_s": 0.03148890000011306,
+    "first_foundation_depth": null,
+    "first_foundation_node": null,
+    "first_foundation_pass": null,
+    "foundation_actions_length": 0,
+    "max_depth": 3,
+    "max_foundations": 0,
+    "min_face_down": 14,
+    "nodes": 5,
+    "pass_reached": 0,
+    "peak_rss_mb": 21.4921875,
+    "replay_ok": false,
+    "root_tier_b": [
+      {
+        "action": [
+          2,
+          0,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040b3a2c360835042302310b0d32291322050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          2,
+          3,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00091413121d071d22332200062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          2,
+          8,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          7,
+          2,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010d3b2706153423323124162c1c220100081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000512272a0538000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      }
+    ],
+    "solved": false,
+    "states_per_sec": 181.15810757945397,
+    "stop_reason": "band envelope",
+    "structure": {
+      "best_adjacencies": {
+        "adjacencies": 19,
+        "depth": 3,
+        "empties": 0,
+        "expansion": 5,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 3,
+        "mixed": 16,
+        "path_length": 3
+      },
+      "best_empties": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path_length": 0
+      },
+      "best_fd": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path_length": 0
+      },
+      "best_foundations": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path_length": 0
+      },
+      "best_mixed": {
+        "adjacencies": 19,
+        "depth": 3,
+        "empties": 0,
+        "expansion": 5,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 3,
+        "mixed": 16,
+        "path_length": 3
+      },
+      "best_run": {
+        "adjacencies": 19,
+        "depth": 3,
+        "empties": 0,
+        "expansion": 5,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 3,
+        "mixed": 16,
+        "path_length": 3
+      }
+    },
+    "tt_hits": 0,
+    "tt_reopens": 0,
+    "unique": 5,
+    "unique_ratio": 1.0
+  },
+  "pass1": {
+    "arm": "PASS1",
+    "band_pass_reports": [
+      {
+        "band": 320,
+        "expanded": 837832,
+        "pass": 1,
+        "skipped": false,
+        "stop": "budget",
+        "unique_new": 30776
+      }
+    ],
+    "combined_replay": {
+      "adjacencies": 29,
+      "cost": 85,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 8,
+      "ok": true,
+      "path_length": 85,
+      "solved": false,
+      "stock_rows": 0
+    },
+    "continuation_length": 0,
+    "elapsed_s": 1800.164555299998,
+    "elapsed_wall_s": 1800.1952375999972,
+    "first_foundation_depth": null,
+    "first_foundation_node": null,
+    "first_foundation_pass": null,
+    "foundation_actions_length": 0,
+    "max_depth": 277,
+    "max_foundations": 0,
+    "min_face_down": 14,
+    "nodes": 837832,
+    "pass_reached": 1,
+    "peak_rss_mb": 6267.5234375,
+    "replay_ok": false,
+    "root_tier_b": [
+      {
+        "action": [
+          2,
+          0,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040b3a2c360835042302310b0d32291322050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          2,
+          3,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00091413121d071d22332200062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          2,
+          8,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          7,
+          2,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010d3b2706153423323124162c1c220100081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000512272a0538000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      }
+    ],
+    "solved": false,
+    "states_per_sec": 465.41967373664625,
+    "stop_reason": "time limit",
+    "structure": {
+      "best_adjacencies": {
+        "adjacencies": 33,
+        "depth": 65,
+        "empties": 0,
+        "expansion": 115419,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 3,
+        "mixed": 28,
+        "path": [
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            3,
+            4,
+            1
+          ],
+          [
+            4,
+            9,
+            2
+          ],
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            4,
+            2,
+            1
+          ],
+          [
+            6,
+            1,
+            1
+          ],
+          [
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            8,
+            2
+          ],
+          [
+            8,
+            9,
+            2
+          ],
+          [
+            0,
+            4,
+            1
+          ],
+          [
+            9,
+            4,
+            2
+          ],
+          [
+            4,
+            8,
+            2
+          ],
+          [
+            2,
+            6,
+            1
+          ],
+          [
+            8,
+            4,
+            2
+          ],
+          [
+            4,
+            9,
+            2
+          ],
+          [
+            3,
+            4,
+            1
+          ],
+          [
+            6,
+            3,
+            1
+          ],
+          [
+            9,
+            8,
+            2
+          ],
+          [
+            2,
+            6,
+            1
+          ],
+          [
+            2,
+            1,
+            1
+          ],
+          [
+            8,
+            9,
+            2
+          ],
+          [
+            4,
+            8,
+            1
+          ],
+          [
+            9,
+            4,
+            2
+          ],
+          [
+            8,
+            9,
+            1
+          ],
+          [
+            4,
+            8,
+            2
+          ],
+          [
+            4,
+            2,
+            1
+          ],
+          [
+            8,
+            2,
+            2
+          ],
+          [
+            7,
+            9,
+            1
+          ],
+          [
+            5,
+            7,
+            1
+          ],
+          [
+            2,
+            8,
+            2
+          ],
+          [
+            7,
+            0,
+            2
+          ],
+          [
+            8,
+            2,
+            2
+          ],
+          [
+            4,
+            7,
+            1
+          ],
+          [
+            6,
+            4,
+            1
+          ],
+          [
+            5,
+            6,
+            1
+          ],
+          [
+            0,
+            5,
+            2
+          ],
+          [
+            2,
+            8,
+            2
+          ],
+          [
+            2,
+            7,
+            1
+          ],
+          [
+            8,
+            7,
+            2
+          ],
+          [
+            8,
+            2,
+            1
+          ],
+          [
+            1,
+            8,
+            5
+          ],
+          [
+            8,
+            3,
+            6
+          ],
+          [
+            7,
+            2,
+            2
+          ],
+          [
+            1,
+            4,
+            1
+          ],
+          [
+            1,
+            4,
+            1
+          ],
+          [
+            2,
+            7,
+            2
+          ],
+          [
+            4,
+            6,
+            2
+          ],
+          [
+            7,
+            2,
+            2
+          ],
+          [
+            0,
+            6,
+            1
+          ],
+          [
+            2,
+            7,
+            2
+          ],
+          [
+            8,
+            3,
+            1
+          ],
+          [
+            7,
+            2,
+            2
+          ],
+          [
+            9,
+            0,
+            1
+          ],
+          [
+            2,
+            7,
+            2
+          ],
+          [
+            9,
+            2,
+            1
+          ],
+          [
+            7,
+            9,
+            2
+          ],
+          [
+            0,
+            2,
+            1
+          ],
+          [
+            9,
+            7,
+            2
+          ],
+          [
+            0,
+            9,
+            1
+          ],
+          [
+            9,
+            3,
+            3
+          ],
+          [
+            1,
+            3,
+            1
+          ],
+          [
+            8,
+            0,
+            1
+          ],
+          [
+            8,
+            1,
+            1
+          ],
+          [
+            9,
+            8,
+            1
+          ],
+          [
+            1,
+            9,
+            1
+          ]
+        ],
+        "path_length": 65
+      },
+      "best_empties": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path": [],
+        "path_length": 0
+      },
+      "best_fd": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path": [],
+        "path_length": 0
+      },
+      "best_foundations": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path": [],
+        "path_length": 0
+      },
+      "best_mixed": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path": [],
+        "path_length": 0
+      },
+      "best_run": {
+        "adjacencies": 29,
+        "depth": 42,
+        "empties": 0,
+        "expansion": 115023,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 8,
+        "mixed": 23,
+        "path": [
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            3,
+            4,
+            1
+          ],
+          [
+            4,
+            9,
+            2
+          ],
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            4,
+            2,
+            1
+          ],
+          [
+            6,
+            1,
+            1
+          ],
+          [
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            8,
+            2
+          ],
+          [
+            8,
+            9,
+            2
+          ],
+          [
+            0,
+            4,
+            1
+          ],
+          [
+            9,
+            4,
+            2
+          ],
+          [
+            4,
+            8,
+            2
+          ],
+          [
+            2,
+            6,
+            1
+          ],
+          [
+            8,
+            4,
+            2
+          ],
+          [
+            4,
+            9,
+            2
+          ],
+          [
+            3,
+            4,
+            1
+          ],
+          [
+            6,
+            3,
+            1
+          ],
+          [
+            9,
+            8,
+            2
+          ],
+          [
+            2,
+            6,
+            1
+          ],
+          [
+            2,
+            1,
+            1
+          ],
+          [
+            8,
+            9,
+            2
+          ],
+          [
+            4,
+            8,
+            1
+          ],
+          [
+            9,
+            4,
+            2
+          ],
+          [
+            8,
+            9,
+            1
+          ],
+          [
+            4,
+            8,
+            2
+          ],
+          [
+            4,
+            2,
+            1
+          ],
+          [
+            8,
+            2,
+            2
+          ],
+          [
+            7,
+            9,
+            1
+          ],
+          [
+            5,
+            7,
+            1
+          ],
+          [
+            2,
+            8,
+            2
+          ],
+          [
+            7,
+            0,
+            2
+          ],
+          [
+            8,
+            2,
+            2
+          ],
+          [
+            4,
+            7,
+            1
+          ],
+          [
+            6,
+            4,
+            1
+          ],
+          [
+            5,
+            6,
+            1
+          ],
+          [
+            0,
+            5,
+            2
+          ],
+          [
+            2,
+            8,
+            2
+          ],
+          [
+            2,
+            7,
+            1
+          ],
+          [
+            8,
+            7,
+            2
+          ],
+          [
+            8,
+            2,
+            1
+          ],
+          [
+            1,
+            8,
+            5
+          ],
+          [
+            8,
+            3,
+            6
+          ]
+        ],
+        "path_length": 42
+      }
+    },
+    "tt_hits": 2416503,
+    "tt_reopens": 807056,
+    "unique": 30776,
+    "unique_ratio": 0.03673290110666578
+  },
+  "pass1_3m": null,
+  "pass1_witness": {
+    "arm": "PASS1_WITNESS",
+    "band_pass_reports": [
+      {
+        "band": 320,
+        "expanded": 150000,
+        "pass": 1,
+        "skipped": false,
+        "stop": "budget",
+        "unique_new": 9450
+      }
+    ],
+    "combined_replay": {
+      "adjacencies": 29,
+      "cost": 85,
+      "fd": 14,
+      "foundations": 0,
+      "longest_run": 8,
+      "ok": true,
+      "path_length": 85,
+      "solved": false,
+      "stock_rows": 0
+    },
+    "continuation_length": 42,
+    "elapsed_s": 291.74742680000054,
+    "elapsed_wall_s": 291.7580355999962,
+    "first_foundation_depth": null,
+    "first_foundation_node": null,
+    "first_foundation_pass": null,
+    "foundation_actions_length": 0,
+    "max_depth": 246,
+    "max_foundations": 0,
+    "min_face_down": 14,
+    "nodes": 150000,
+    "pass_reached": 1,
+    "peak_rss_mb": 1003.4296875,
+    "replay_ok": false,
+    "root_tier_b": [
+      {
+        "action": [
+          2,
+          0,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040b3a2c360835042302310b0d32291322050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          2,
+          3,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00091413121d071d22332200062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          2,
+          8,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      },
+      {
+        "action": [
+          7,
+          2,
+          1
+        ],
+        "best_descendant_fd": null,
+        "child_fd": 14,
+        "child_foundations": 0,
+        "child_key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010d3b2706153423323124162c1c220100081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000512272a0538000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "child_run": 1,
+        "cut": null,
+        "descendant_expansions": null,
+        "expanded": false,
+        "first_foundation": false,
+        "legal": true,
+        "longest_same_suit_run": 1,
+        "max_foundations": null,
+        "novel": false,
+        "replay_valid": true,
+        "tt_skip": false
+      }
+    ],
+    "solved": false,
+    "states_per_sec": 514.1433521634053,
+    "stop_reason": "node limit",
+    "structure": {
+      "best_adjacencies": {
+        "adjacencies": 33,
+        "depth": 65,
+        "empties": 0,
+        "expansion": 115419,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 3,
+        "mixed": 28,
+        "path": [
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            3,
+            4,
+            1
+          ],
+          [
+            4,
+            9,
+            2
+          ],
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            4,
+            2,
+            1
+          ],
+          [
+            6,
+            1,
+            1
+          ],
+          [
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            8,
+            2
+          ],
+          [
+            8,
+            9,
+            2
+          ],
+          [
+            0,
+            4,
+            1
+          ],
+          [
+            9,
+            4,
+            2
+          ],
+          [
+            4,
+            8,
+            2
+          ],
+          [
+            2,
+            6,
+            1
+          ],
+          [
+            8,
+            4,
+            2
+          ],
+          [
+            4,
+            9,
+            2
+          ],
+          [
+            3,
+            4,
+            1
+          ],
+          [
+            6,
+            3,
+            1
+          ],
+          [
+            9,
+            8,
+            2
+          ],
+          [
+            2,
+            6,
+            1
+          ],
+          [
+            2,
+            1,
+            1
+          ],
+          [
+            8,
+            9,
+            2
+          ],
+          [
+            4,
+            8,
+            1
+          ],
+          [
+            9,
+            4,
+            2
+          ],
+          [
+            8,
+            9,
+            1
+          ],
+          [
+            4,
+            8,
+            2
+          ],
+          [
+            4,
+            2,
+            1
+          ],
+          [
+            8,
+            2,
+            2
+          ],
+          [
+            7,
+            9,
+            1
+          ],
+          [
+            5,
+            7,
+            1
+          ],
+          [
+            2,
+            8,
+            2
+          ],
+          [
+            7,
+            0,
+            2
+          ],
+          [
+            8,
+            2,
+            2
+          ],
+          [
+            4,
+            7,
+            1
+          ],
+          [
+            6,
+            4,
+            1
+          ],
+          [
+            5,
+            6,
+            1
+          ],
+          [
+            0,
+            5,
+            2
+          ],
+          [
+            2,
+            8,
+            2
+          ],
+          [
+            2,
+            7,
+            1
+          ],
+          [
+            8,
+            7,
+            2
+          ],
+          [
+            8,
+            2,
+            1
+          ],
+          [
+            1,
+            8,
+            5
+          ],
+          [
+            8,
+            3,
+            6
+          ],
+          [
+            7,
+            2,
+            2
+          ],
+          [
+            1,
+            4,
+            1
+          ],
+          [
+            1,
+            4,
+            1
+          ],
+          [
+            2,
+            7,
+            2
+          ],
+          [
+            4,
+            6,
+            2
+          ],
+          [
+            7,
+            2,
+            2
+          ],
+          [
+            0,
+            6,
+            1
+          ],
+          [
+            2,
+            7,
+            2
+          ],
+          [
+            8,
+            3,
+            1
+          ],
+          [
+            7,
+            2,
+            2
+          ],
+          [
+            9,
+            0,
+            1
+          ],
+          [
+            2,
+            7,
+            2
+          ],
+          [
+            9,
+            2,
+            1
+          ],
+          [
+            7,
+            9,
+            2
+          ],
+          [
+            0,
+            2,
+            1
+          ],
+          [
+            9,
+            7,
+            2
+          ],
+          [
+            0,
+            9,
+            1
+          ],
+          [
+            9,
+            3,
+            3
+          ],
+          [
+            1,
+            3,
+            1
+          ],
+          [
+            8,
+            0,
+            1
+          ],
+          [
+            8,
+            1,
+            1
+          ],
+          [
+            9,
+            8,
+            1
+          ],
+          [
+            1,
+            9,
+            1
+          ]
+        ],
+        "path_length": 65
+      },
+      "best_empties": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path": [],
+        "path_length": 0
+      },
+      "best_fd": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path": [],
+        "path_length": 0
+      },
+      "best_foundations": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path": [],
+        "path_length": 0
+      },
+      "best_mixed": {
+        "adjacencies": 16,
+        "depth": 0,
+        "empties": 0,
+        "expansion": 1,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "mixed": 17,
+        "path": [],
+        "path_length": 0
+      },
+      "best_run": {
+        "adjacencies": 29,
+        "depth": 42,
+        "empties": 0,
+        "expansion": 115023,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 8,
+        "mixed": 23,
+        "path": [
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            3,
+            4,
+            1
+          ],
+          [
+            4,
+            9,
+            2
+          ],
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            4,
+            2,
+            1
+          ],
+          [
+            6,
+            1,
+            1
+          ],
+          [
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            8,
+            2
+          ],
+          [
+            8,
+            9,
+            2
+          ],
+          [
+            0,
+            4,
+            1
+          ],
+          [
+            9,
+            4,
+            2
+          ],
+          [
+            4,
+            8,
+            2
+          ],
+          [
+            2,
+            6,
+            1
+          ],
+          [
+            8,
+            4,
+            2
+          ],
+          [
+            4,
+            9,
+            2
+          ],
+          [
+            3,
+            4,
+            1
+          ],
+          [
+            6,
+            3,
+            1
+          ],
+          [
+            9,
+            8,
+            2
+          ],
+          [
+            2,
+            6,
+            1
+          ],
+          [
+            2,
+            1,
+            1
+          ],
+          [
+            8,
+            9,
+            2
+          ],
+          [
+            4,
+            8,
+            1
+          ],
+          [
+            9,
+            4,
+            2
+          ],
+          [
+            8,
+            9,
+            1
+          ],
+          [
+            4,
+            8,
+            2
+          ],
+          [
+            4,
+            2,
+            1
+          ],
+          [
+            8,
+            2,
+            2
+          ],
+          [
+            7,
+            9,
+            1
+          ],
+          [
+            5,
+            7,
+            1
+          ],
+          [
+            2,
+            8,
+            2
+          ],
+          [
+            7,
+            0,
+            2
+          ],
+          [
+            8,
+            2,
+            2
+          ],
+          [
+            4,
+            7,
+            1
+          ],
+          [
+            6,
+            4,
+            1
+          ],
+          [
+            5,
+            6,
+            1
+          ],
+          [
+            0,
+            5,
+            2
+          ],
+          [
+            2,
+            8,
+            2
+          ],
+          [
+            2,
+            7,
+            1
+          ],
+          [
+            8,
+            7,
+            2
+          ],
+          [
+            8,
+            2,
+            1
+          ],
+          [
+            1,
+            8,
+            5
+          ],
+          [
+            8,
+            3,
+            6
+          ]
+        ],
+        "path_length": 42
+      }
+    },
+    "tt_hits": 359752,
+    "tt_reopens": 140550,
+    "unique": 9450,
+    "unique_ratio": 0.063
+  },
+  "seed": {
+    "census": {
+      "a": 1,
+      "b": 4,
+      "c": 0,
+      "d": 0,
+      "deal_legal": false,
+      "deal_tier": null,
+      "has_broader_than_a": true,
+      "has_immediate_foundation_move": false,
+      "has_tier_a": true,
+      "immediate_foundation_moves": 0,
+      "landing_score": null,
+      "legal": 5,
+      "legal_tableau": 5,
+      "tableau_a": 1,
+      "tableau_b": 4,
+      "tableau_c": 0,
+      "tableau_d": 0
+    },
+    "cost": 43,
+    "digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010c3b2706153423323124162c1c2200081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+    "fd": 14,
+    "foundations": 0,
+    "ok": true,
+    "path_length": 43,
+    "proximity": {
+      "exposed_complete_ka_runs": 0,
+      "exposed_same_suit_adjacencies": 16,
+      "has_immediate_foundation_move": false,
+      "immediate_foundation_moves": 0,
+      "legal_tableau": 5,
+      "longest_exposed_same_suit_run": 1,
+      "movable_same_suit_blocks": 0,
+      "tableau_a": 1,
+      "tableau_b": 4,
+      "tableau_c": 0,
+      "tableau_d": 0
+    },
+    "stock_rows": 0
+  },
+  "verdict": "SEEDED_PASS1_MAKES_STRUCTURAL_PROGRESS"
+}
