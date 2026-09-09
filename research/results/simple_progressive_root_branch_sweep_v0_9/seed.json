@@ -1,0 +1,42 @@
+{
+  "census": {
+    "a": 1,
+    "b": 4,
+    "c": 0,
+    "d": 0,
+    "deal_legal": false,
+    "deal_tier": null,
+    "has_broader_than_a": true,
+    "has_immediate_foundation_move": false,
+    "has_tier_a": true,
+    "immediate_foundation_moves": 0,
+    "landing_score": null,
+    "legal": 5,
+    "legal_tableau": 5,
+    "tableau_a": 1,
+    "tableau_b": 4,
+    "tableau_c": 0,
+    "tableau_d": 0
+  },
+  "cost": 43,
+  "digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010c3b2706153423323124162c1c2200081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+  "empties": 0,
+  "fd": 14,
+  "foundations": 0,
+  "ok": true,
+  "path_length": 43,
+  "proximity": {
+    "exposed_complete_ka_runs": 0,
+    "exposed_same_suit_adjacencies": 16,
+    "has_immediate_foundation_move": false,
+    "immediate_foundation_moves": 0,
+    "legal_tableau": 5,
+    "longest_exposed_same_suit_run": 1,
+    "movable_same_suit_blocks": 0,
+    "tableau_a": 1,
+    "tableau_b": 4,
+    "tableau_c": 0,
+    "tableau_d": 0
+  },
+  "stock_rows": 0
+}

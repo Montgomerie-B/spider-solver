@@ -1,0 +1,1633 @@
+{
+  "arms": [
+    {
+      "action": [
+        2,
+        0,
+        1
+      ],
+      "band_pass": [
+        {
+          "band": 320,
+          "expanded": 250000,
+          "pass": 1,
+          "reopens": 238122,
+          "stop": "budget",
+          "unique_new": 11878
+        }
+      ],
+      "best_run_combined_replay": {
+        "adjacencies": 29,
+        "blocks": 5,
+        "cost": 85,
+        "empties": 0,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 8,
+        "ok": true,
+        "path_length": 85,
+        "stock_rows": 0
+      },
+      "canonical_equivalent": false,
+      "child_digest": "53504b3101000000040b3a2c360835042302310b0d32291322050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "elapsed_s": 507.5051853999976,
+      "elapsed_wall_s": 507.5238609000007,
+      "equivalent_actions": [
+        [
+          2,
+          0,
+          1
+        ]
+      ],
+      "first_foundation_depth": null,
+      "first_foundation_node": null,
+      "longest_run": 8,
+      "max_adjacencies": 33,
+      "max_blocks": 8,
+      "max_depth": 251,
+      "max_empties": 0,
+      "max_foundations": 0,
+      "min_fd": 14,
+      "name": "B_2_0_1",
+      "nodes": 250000,
+      "peak_rss_mb": 1800.41015625,
+      "progress_events": [
+        {
+          "adjacencies": 29,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 29,
+            "blocks": 5,
+            "cost": 85,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 85,
+            "stock_rows": 0
+          },
+          "cost": 41,
+          "depth": 41,
+          "empties": 0,
+          "expansion": 115022,
+          "fd": 14,
+          "foundations": 0,
+          "kind": "run_ge_8",
+          "longest_run": 8,
+          "path_length": 41
+        }
+      ],
+      "reopen_ratio": 0.952488,
+      "replay_ok": false,
+      "root_cost": 1,
+      "solved": false,
+      "states_per_sec": 492.60580422042165,
+      "stop_reason": "node limit",
+      "tier": 1,
+      "tier_name": "B",
+      "tt_hits": 670736,
+      "tt_prunes": 670736,
+      "tt_reopens": 238122,
+      "unique": 11878,
+      "unique_ratio": 0.047512,
+      "witnesses": {
+        "best_adjacencies": {
+          "adjacencies": 33,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 33,
+            "blocks": 5,
+            "cost": 108,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 3,
+            "ok": true,
+            "path_length": 108,
+            "stock_rows": 0
+          },
+          "cost": 64,
+          "depth": 64,
+          "empties": 0,
+          "expansion": 115418,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 3,
+          "mixed": 28,
+          "path_length": 64
+        },
+        "best_blocks": {
+          "adjacencies": 28,
+          "blocks": 8,
+          "combined_replay": {
+            "adjacencies": 28,
+            "blocks": 8,
+            "cost": 79,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 5,
+            "ok": true,
+            "path_length": 79,
+            "stock_rows": 0
+          },
+          "cost": 35,
+          "depth": 35,
+          "empties": 0,
+          "expansion": 871,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 5,
+          "mixed": 22,
+          "path_length": 35
+        },
+        "best_empties": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_fd": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_foundations": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_run": {
+          "adjacencies": 29,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 29,
+            "blocks": 5,
+            "cost": 85,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 85,
+            "stock_rows": 0
+          },
+          "cost": 41,
+          "depth": 41,
+          "empties": 0,
+          "expansion": 115022,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 8,
+          "mixed": 23,
+          "path_length": 41
+        }
+      }
+    },
+    {
+      "action": [
+        2,
+        3,
+        1
+      ],
+      "band_pass": [
+        {
+          "band": 320,
+          "expanded": 250000,
+          "pass": 1,
+          "reopens": 240489,
+          "stop": "budget",
+          "unique_new": 9511
+        }
+      ],
+      "best_run_combined_replay": {
+        "adjacencies": 26,
+        "blocks": 5,
+        "cost": 57,
+        "empties": 0,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 7,
+        "ok": true,
+        "path_length": 57,
+        "stock_rows": 0
+      },
+      "canonical_equivalent": false,
+      "child_digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00091413121d071d22332200062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "elapsed_s": 510.7210999000017,
+      "elapsed_wall_s": 510.7345922000022,
+      "equivalent_actions": [
+        [
+          2,
+          3,
+          1
+        ]
+      ],
+      "first_foundation_depth": null,
+      "first_foundation_node": null,
+      "longest_run": 7,
+      "max_adjacencies": 37,
+      "max_blocks": 8,
+      "max_depth": 163,
+      "max_empties": 0,
+      "max_foundations": 0,
+      "min_fd": 14,
+      "name": "B_2_3_1",
+      "nodes": 250000,
+      "peak_rss_mb": 1801.22265625,
+      "progress_events": [],
+      "reopen_ratio": 0.961956,
+      "replay_ok": false,
+      "root_cost": 1,
+      "solved": false,
+      "states_per_sec": 489.50395832275103,
+      "stop_reason": "node limit",
+      "tier": 1,
+      "tier_name": "B",
+      "tt_hits": 734996,
+      "tt_prunes": 734996,
+      "tt_reopens": 240489,
+      "unique": 9511,
+      "unique_ratio": 0.038044,
+      "witnesses": {
+        "best_adjacencies": {
+          "adjacencies": 37,
+          "blocks": 6,
+          "combined_replay": {
+            "adjacencies": 37,
+            "blocks": 6,
+            "cost": 115,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 5,
+            "ok": true,
+            "path_length": 115,
+            "stock_rows": 0
+          },
+          "cost": 71,
+          "depth": 71,
+          "empties": 0,
+          "expansion": 66309,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 5,
+          "mixed": 22,
+          "path_length": 71
+        },
+        "best_blocks": {
+          "adjacencies": 35,
+          "blocks": 8,
+          "combined_replay": {
+            "adjacencies": 35,
+            "blocks": 8,
+            "cost": 92,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 5,
+            "ok": true,
+            "path_length": 92,
+            "stock_rows": 0
+          },
+          "cost": 48,
+          "depth": 48,
+          "empties": 0,
+          "expansion": 97140,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 5,
+          "mixed": 20,
+          "path_length": 48
+        },
+        "best_empties": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_fd": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_foundations": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_run": {
+          "adjacencies": 26,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 26,
+            "blocks": 5,
+            "cost": 57,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 7,
+            "ok": true,
+            "path_length": 57,
+            "stock_rows": 0
+          },
+          "cost": 13,
+          "depth": 13,
+          "empties": 0,
+          "expansion": 14,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 7,
+          "mixed": 19,
+          "path_length": 13
+        }
+      }
+    },
+    {
+      "action": [
+        2,
+        8,
+        1
+      ],
+      "band_pass": [
+        {
+          "band": 320,
+          "expanded": 250000,
+          "pass": 1,
+          "reopens": 236214,
+          "stop": "budget",
+          "unique_new": 13786
+        }
+      ],
+      "best_run_combined_replay": {
+        "adjacencies": 32,
+        "blocks": 4,
+        "cost": 79,
+        "empties": 0,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 9,
+        "ok": true,
+        "path_length": 79,
+        "stock_rows": 0
+      },
+      "canonical_equivalent": false,
+      "child_digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+      "elapsed_s": 548.6276557999954,
+      "elapsed_wall_s": 548.6511778999993,
+      "equivalent_actions": [
+        [
+          2,
+          8,
+          1
+        ]
+      ],
+      "first_foundation_depth": null,
+      "first_foundation_node": null,
+      "longest_run": 9,
+      "max_adjacencies": 36,
+      "max_blocks": 8,
+      "max_depth": 243,
+      "max_empties": 0,
+      "max_foundations": 0,
+      "min_fd": 14,
+      "name": "B_2_8_1",
+      "nodes": 250000,
+      "peak_rss_mb": 1801.22265625,
+      "progress_events": [
+        {
+          "adjacencies": 30,
+          "blocks": 4,
+          "combined_replay": {
+            "adjacencies": 30,
+            "blocks": 4,
+            "cost": 76,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 76,
+            "stock_rows": 0
+          },
+          "cost": 32,
+          "depth": 32,
+          "empties": 0,
+          "expansion": 130880,
+          "fd": 14,
+          "foundations": 0,
+          "kind": "run_ge_8",
+          "longest_run": 8,
+          "path_length": 32
+        },
+        {
+          "adjacencies": 32,
+          "blocks": 4,
+          "combined_replay": {
+            "adjacencies": 32,
+            "blocks": 4,
+            "cost": 79,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 9,
+            "ok": true,
+            "path_length": 79,
+            "stock_rows": 0
+          },
+          "cost": 35,
+          "depth": 35,
+          "empties": 0,
+          "expansion": 130927,
+          "fd": 14,
+          "foundations": 0,
+          "kind": "run_ge_9",
+          "longest_run": 9,
+          "path_length": 35
+        }
+      ],
+      "reopen_ratio": 0.944856,
+      "replay_ok": false,
+      "root_cost": 1,
+      "solved": false,
+      "states_per_sec": 455.6824603299593,
+      "stop_reason": "node limit",
+      "tier": 1,
+      "tier_name": "B",
+      "tt_hits": 632691,
+      "tt_prunes": 632691,
+      "tt_reopens": 236214,
+      "unique": 13786,
+      "unique_ratio": 0.055144,
+      "witnesses": {
+        "best_adjacencies": {
+          "adjacencies": 36,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 36,
+            "blocks": 5,
+            "cost": 95,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 95,
+            "stock_rows": 0
+          },
+          "cost": 51,
+          "depth": 51,
+          "empties": 0,
+          "expansion": 144517,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 8,
+          "mixed": 25,
+          "path_length": 51
+        },
+        "best_blocks": {
+          "adjacencies": 27,
+          "blocks": 8,
+          "combined_replay": {
+            "adjacencies": 27,
+            "blocks": 8,
+            "cost": 69,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 5,
+            "ok": true,
+            "path_length": 69,
+            "stock_rows": 0
+          },
+          "cost": 25,
+          "depth": 25,
+          "empties": 0,
+          "expansion": 26,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 5,
+          "mixed": 23,
+          "path_length": 25
+        },
+        "best_empties": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_fd": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_foundations": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_run": {
+          "adjacencies": 32,
+          "blocks": 4,
+          "combined_replay": {
+            "adjacencies": 32,
+            "blocks": 4,
+            "cost": 79,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 9,
+            "ok": true,
+            "path_length": 79,
+            "stock_rows": 0
+          },
+          "cost": 35,
+          "depth": 35,
+          "empties": 0,
+          "expansion": 130927,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 9,
+          "mixed": 19,
+          "path_length": 35
+        }
+      }
+    },
+    {
+      "action": [
+        4,
+        1,
+        1
+      ],
+      "band_pass": [
+        {
+          "band": 320,
+          "expanded": 250000,
+          "pass": 1,
+          "reopens": 238122,
+          "stop": "budget",
+          "unique_new": 11878
+        }
+      ],
+      "best_run_combined_replay": {
+        "adjacencies": 29,
+        "blocks": 5,
+        "cost": 85,
+        "empties": 0,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 8,
+        "ok": true,
+        "path_length": 85,
+        "stock_rows": 0
+      },
+      "canonical_equivalent": false,
+      "child_digest": "53504b3101000000040a3a2c360835042302310b0d322913050a15191b11282d0c2b1a29010a0b1a19010c3b2706153423323124162c1c2200081413121d071d223300052d2421183400070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "elapsed_s": 517.3971349000058,
+      "elapsed_wall_s": 517.4143161000029,
+      "equivalent_actions": [
+        [
+          4,
+          1,
+          1
+        ]
+      ],
+      "first_foundation_depth": null,
+      "first_foundation_node": null,
+      "longest_run": 8,
+      "max_adjacencies": 33,
+      "max_blocks": 8,
+      "max_depth": 251,
+      "max_empties": 0,
+      "max_foundations": 0,
+      "min_fd": 14,
+      "name": "A_4_1_1",
+      "nodes": 250000,
+      "peak_rss_mb": 5573.1328125,
+      "progress_events": [
+        {
+          "adjacencies": 29,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 29,
+            "blocks": 5,
+            "cost": 85,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 85,
+            "stock_rows": 0
+          },
+          "cost": 41,
+          "depth": 41,
+          "empties": 0,
+          "expansion": 115022,
+          "fd": 14,
+          "foundations": 0,
+          "kind": "run_ge_8",
+          "longest_run": 8,
+          "path_length": 41
+        }
+      ],
+      "reopen_ratio": 0.952488,
+      "replay_ok": false,
+      "root_cost": 1,
+      "solved": false,
+      "states_per_sec": 483.18783220227147,
+      "stop_reason": "node limit",
+      "tier": 0,
+      "tier_name": "A",
+      "tt_hits": 670736,
+      "tt_prunes": 670736,
+      "tt_reopens": 238122,
+      "unique": 11878,
+      "unique_ratio": 0.047512,
+      "witnesses": {
+        "best_adjacencies": {
+          "adjacencies": 33,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 33,
+            "blocks": 5,
+            "cost": 108,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 3,
+            "ok": true,
+            "path_length": 108,
+            "stock_rows": 0
+          },
+          "cost": 64,
+          "depth": 64,
+          "empties": 0,
+          "expansion": 115418,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 3,
+          "mixed": 28,
+          "path_length": 64
+        },
+        "best_blocks": {
+          "adjacencies": 28,
+          "blocks": 8,
+          "combined_replay": {
+            "adjacencies": 28,
+            "blocks": 8,
+            "cost": 79,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 5,
+            "ok": true,
+            "path_length": 79,
+            "stock_rows": 0
+          },
+          "cost": 35,
+          "depth": 35,
+          "empties": 0,
+          "expansion": 871,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 5,
+          "mixed": 22,
+          "path_length": 35
+        },
+        "best_empties": {
+          "adjacencies": 17,
+          "blocks": 1,
+          "combined_replay": {
+            "adjacencies": 17,
+            "blocks": 1,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 2,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 2,
+          "mixed": 17,
+          "path_length": 0
+        },
+        "best_fd": {
+          "adjacencies": 17,
+          "blocks": 1,
+          "combined_replay": {
+            "adjacencies": 17,
+            "blocks": 1,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 2,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 2,
+          "mixed": 17,
+          "path_length": 0
+        },
+        "best_foundations": {
+          "adjacencies": 17,
+          "blocks": 1,
+          "combined_replay": {
+            "adjacencies": 17,
+            "blocks": 1,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 2,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 2,
+          "mixed": 17,
+          "path_length": 0
+        },
+        "best_run": {
+          "adjacencies": 29,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 29,
+            "blocks": 5,
+            "cost": 85,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 85,
+            "stock_rows": 0
+          },
+          "cost": 41,
+          "depth": 41,
+          "empties": 0,
+          "expansion": 115022,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 8,
+          "mixed": 23,
+          "path_length": 41
+        }
+      }
+    },
+    {
+      "action": [
+        7,
+        2,
+        1
+      ],
+      "band_pass": [
+        {
+          "band": 320,
+          "expanded": 250000,
+          "pass": 1,
+          "reopens": 239301,
+          "stop": "budget",
+          "unique_new": 10699
+        }
+      ],
+      "best_run_combined_replay": {
+        "adjacencies": 30,
+        "blocks": 5,
+        "cost": 71,
+        "empties": 0,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 8,
+        "ok": true,
+        "path_length": 71,
+        "stock_rows": 0
+      },
+      "canonical_equivalent": false,
+      "child_digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010d3b2706153423323124162c1c220100081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000512272a0538000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "elapsed_s": 545.8242567000052,
+      "elapsed_wall_s": 545.842133099999,
+      "equivalent_actions": [
+        [
+          7,
+          2,
+          1
+        ]
+      ],
+      "first_foundation_depth": null,
+      "first_foundation_node": null,
+      "longest_run": 8,
+      "max_adjacencies": 35,
+      "max_blocks": 9,
+      "max_depth": 320,
+      "max_empties": 0,
+      "max_foundations": 0,
+      "min_fd": 14,
+      "name": "B_7_2_1",
+      "nodes": 250000,
+      "peak_rss_mb": 5573.1328125,
+      "progress_events": [
+        {
+          "adjacencies": 30,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 30,
+            "blocks": 5,
+            "cost": 71,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 71,
+            "stock_rows": 0
+          },
+          "cost": 27,
+          "depth": 27,
+          "empties": 0,
+          "expansion": 17680,
+          "fd": 14,
+          "foundations": 0,
+          "kind": "run_ge_8",
+          "longest_run": 8,
+          "path_length": 27
+        }
+      ],
+      "reopen_ratio": 0.957204,
+      "replay_ok": false,
+      "root_cost": 1,
+      "solved": false,
+      "states_per_sec": 458.02288361362525,
+      "stop_reason": "node limit",
+      "tier": 1,
+      "tier_name": "B",
+      "tt_hits": 583825,
+      "tt_prunes": 583825,
+      "tt_reopens": 239301,
+      "unique": 10699,
+      "unique_ratio": 0.042796,
+      "witnesses": {
+        "best_adjacencies": {
+          "adjacencies": 35,
+          "blocks": 6,
+          "combined_replay": {
+            "adjacencies": 35,
+            "blocks": 6,
+            "cost": 94,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 3,
+            "ok": true,
+            "path_length": 94,
+            "stock_rows": 0
+          },
+          "cost": 50,
+          "depth": 50,
+          "empties": 0,
+          "expansion": 18936,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 3,
+          "mixed": 25,
+          "path_length": 50
+        },
+        "best_blocks": {
+          "adjacencies": 34,
+          "blocks": 9,
+          "combined_replay": {
+            "adjacencies": 34,
+            "blocks": 9,
+            "cost": 181,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 7,
+            "ok": true,
+            "path_length": 181,
+            "stock_rows": 0
+          },
+          "cost": 137,
+          "depth": 137,
+          "empties": 0,
+          "expansion": 148753,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 7,
+          "mixed": 30,
+          "path_length": 137
+        },
+        "best_empties": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_fd": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_foundations": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_run": {
+          "adjacencies": 30,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 30,
+            "blocks": 5,
+            "cost": 71,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 71,
+            "stock_rows": 0
+          },
+          "cost": 27,
+          "depth": 27,
+          "empties": 0,
+          "expansion": 17680,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 8,
+          "mixed": 22,
+          "path_length": 27
+        }
+      }
+    }
+  ],
+  "b_branches_searched": 4,
+  "base_sha": "46f43c8b756205715a0b3b284b3da17038ab5a32",
+  "deal": "deals/4925153.txt",
+  "efficiency_note": "Reopen/exp is 0.94-0.96 on every arm, so the v0.8 unique-collapse is common to all root branches, not A-first specific. Sequential process peak RSS grew from ~1800 to ~5573 MiB; later arms inherit process peak.",
+  "experiment": "simple_progressive_root_branch_sweep_v0_9",
+  "extensions": [
+    {
+      "action": [
+        2,
+        8,
+        1
+      ],
+      "band_pass": [
+        {
+          "band": 320,
+          "expanded": 705528,
+          "pass": 1,
+          "reopens": 679759,
+          "stop": "budget",
+          "unique_new": 25769
+        }
+      ],
+      "best_run_combined_replay": {
+        "adjacencies": 32,
+        "blocks": 4,
+        "cost": 79,
+        "empties": 0,
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 9,
+        "ok": true,
+        "path_length": 79,
+        "stock_rows": 0
+      },
+      "canonical_equivalent": false,
+      "child_digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+      "elapsed_s": 1800.145534299998,
+      "elapsed_wall_s": 1800.179805300002,
+      "equivalent_actions": [
+        [
+          2,
+          8,
+          1
+        ]
+      ],
+      "first_foundation_depth": null,
+      "first_foundation_node": null,
+      "longest_run": 9,
+      "max_adjacencies": 36,
+      "max_blocks": 8,
+      "max_depth": 293,
+      "max_empties": 0,
+      "max_foundations": 0,
+      "min_fd": 14,
+      "name": "B_2_8_1",
+      "nodes": 705528,
+      "peak_rss_mb": 5564.79296875,
+      "progress_events": [
+        {
+          "adjacencies": 30,
+          "blocks": 4,
+          "combined_replay": {
+            "adjacencies": 30,
+            "blocks": 4,
+            "cost": 76,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 76,
+            "stock_rows": 0
+          },
+          "cost": 32,
+          "depth": 32,
+          "empties": 0,
+          "expansion": 130880,
+          "fd": 14,
+          "foundations": 0,
+          "kind": "run_ge_8",
+          "longest_run": 8,
+          "path_length": 32
+        },
+        {
+          "adjacencies": 32,
+          "blocks": 4,
+          "combined_replay": {
+            "adjacencies": 32,
+            "blocks": 4,
+            "cost": 79,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 9,
+            "ok": true,
+            "path_length": 79,
+            "stock_rows": 0
+          },
+          "cost": 35,
+          "depth": 35,
+          "empties": 0,
+          "expansion": 130927,
+          "fd": 14,
+          "foundations": 0,
+          "kind": "run_ge_9",
+          "longest_run": 9,
+          "path_length": 35
+        }
+      ],
+      "reopen_ratio": 0.9634755814085337,
+      "replay_ok": false,
+      "root_cost": 1,
+      "solved": false,
+      "states_per_sec": 391.92831165972956,
+      "stop_reason": "time limit",
+      "tier": 1,
+      "tier_name": "B",
+      "tt_hits": 2110145,
+      "tt_prunes": 2110145,
+      "tt_reopens": 679759,
+      "unique": 25769,
+      "unique_ratio": 0.03652441859146625,
+      "witnesses": {
+        "best_adjacencies": {
+          "adjacencies": 36,
+          "blocks": 5,
+          "combined_replay": {
+            "adjacencies": 36,
+            "blocks": 5,
+            "cost": 95,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 8,
+            "ok": true,
+            "path_length": 95,
+            "stock_rows": 0
+          },
+          "cost": 51,
+          "depth": 51,
+          "empties": 0,
+          "expansion": 144517,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 8,
+          "mixed": 25,
+          "path_length": 51
+        },
+        "best_blocks": {
+          "adjacencies": 27,
+          "blocks": 8,
+          "combined_replay": {
+            "adjacencies": 27,
+            "blocks": 8,
+            "cost": 69,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 5,
+            "ok": true,
+            "path_length": 69,
+            "stock_rows": 0
+          },
+          "cost": 25,
+          "depth": 25,
+          "empties": 0,
+          "expansion": 26,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 5,
+          "mixed": 23,
+          "path_length": 25
+        },
+        "best_empties": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_fd": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_foundations": {
+          "adjacencies": 16,
+          "blocks": 0,
+          "combined_replay": {
+            "adjacencies": 16,
+            "blocks": 0,
+            "cost": 44,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 1,
+            "ok": true,
+            "path_length": 44,
+            "stock_rows": 0
+          },
+          "cost": 0,
+          "depth": 0,
+          "empties": 0,
+          "expansion": 1,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 1,
+          "mixed": 18,
+          "path_length": 0
+        },
+        "best_run": {
+          "adjacencies": 32,
+          "blocks": 4,
+          "combined_replay": {
+            "adjacencies": 32,
+            "blocks": 4,
+            "cost": 79,
+            "empties": 0,
+            "fd": 14,
+            "foundations": 0,
+            "longest_run": 9,
+            "ok": true,
+            "path_length": 79,
+            "stock_rows": 0
+          },
+          "cost": 35,
+          "depth": 35,
+          "empties": 0,
+          "expansion": 130927,
+          "fd": 14,
+          "foundations": 0,
+          "longest_run": 9,
+          "mixed": 19,
+          "path_length": 35
+        }
+      }
+    }
+  ],
+  "interpretation": "Seed ok=True fd=14 stock=0 fnd=0 empties=0. Distinct root children=5 B-searched=4. B_2_0_1: exp=250000 uniq=11878 fd=14 empty=0 run=8 adj=33 fnd=0 ratio=0.0475 reopen=0.95. B_2_3_1: exp=250000 uniq=9511 fd=14 empty=0 run=7 adj=37 fnd=0 ratio=0.0380 reopen=0.96. B_2_8_1: exp=250000 uniq=13786 fd=14 empty=0 run=9 adj=36 fnd=0 ratio=0.0551 reopen=0.94. A_4_1_1: exp=250000 uniq=11878 fd=14 empty=0 run=8 adj=33 fnd=0 ratio=0.0475 reopen=0.95. B_7_2_1: exp=250000 uniq=10699 fd=14 empty=0 run=8 adj=35 fnd=0 ratio=0.0428 reopen=0.96. Verdict ROOT_BRANCH_DIVERSIFICATION_IMPROVES_PROGRESS.",
+  "next_recommendation": "B_2_8_1 beat the A-first child on run length (9 vs 8). Its 1M extension stayed at fd 14, 0 empties, 0 foundations. Next: return to whole-deal scheduling and preserve Pass-0 budget so this seed can be generated and granted Pass 1; do not add production branch quotas.",
+  "note": "previously untested B branch(es) outperform A: [('B_2_8_1', 'run')]",
+  "ranking": "B_2_8_1 > B_7_2_1 > B_2_0_1 > A_4_1_1 > B_2_3_1",
+  "root_groups": [
+    {
+      "actions": [
+        [
+          2,
+          0,
+          1
+        ]
+      ],
+      "equivalent": false,
+      "key_hex": "53504b3101000000040b3a2c360835042302310b0d32291322050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "representative": [
+        2,
+        0,
+        1
+      ],
+      "tier": 1
+    },
+    {
+      "actions": [
+        [
+          2,
+          3,
+          1
+        ]
+      ],
+      "equivalent": false,
+      "key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00091413121d071d22332200062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "representative": [
+        2,
+        3,
+        1
+      ],
+      "tier": 1
+    },
+    {
+      "actions": [
+        [
+          2,
+          8,
+          1
+        ]
+      ],
+      "equivalent": false,
+      "key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+      "representative": [
+        2,
+        8,
+        1
+      ],
+      "tier": 1
+    },
+    {
+      "actions": [
+        [
+          4,
+          1,
+          1
+        ]
+      ],
+      "equivalent": false,
+      "key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050a15191b11282d0c2b1a29010a0b1a19010c3b2706153423323124162c1c2200081413121d071d223300052d2421183400070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "representative": [
+        4,
+        1,
+        1
+      ],
+      "tier": 0
+    },
+    {
+      "actions": [
+        [
+          7,
+          2,
+          1
+        ]
+      ],
+      "equivalent": false,
+      "key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010d3b2706153423323124162c1c220100081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000512272a0538000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "representative": [
+        7,
+        2,
+        1
+      ],
+      "tier": 1
+    }
+  ],
+  "seed": {
+    "census": {
+      "a": 1,
+      "b": 4,
+      "c": 0,
+      "d": 0,
+      "deal_legal": false,
+      "deal_tier": null,
+      "has_broader_than_a": true,
+      "has_immediate_foundation_move": false,
+      "has_tier_a": true,
+      "immediate_foundation_moves": 0,
+      "landing_score": null,
+      "legal": 5,
+      "legal_tableau": 5,
+      "tableau_a": 1,
+      "tableau_b": 4,
+      "tableau_c": 0,
+      "tableau_d": 0
+    },
+    "cost": 43,
+    "digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010c3b2706153423323124162c1c2200081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+    "empties": 0,
+    "fd": 14,
+    "foundations": 0,
+    "ok": true,
+    "path_length": 43,
+    "proximity": {
+      "exposed_complete_ka_runs": 0,
+      "exposed_same_suit_adjacencies": 16,
+      "has_immediate_foundation_move": false,
+      "immediate_foundation_moves": 0,
+      "legal_tableau": 5,
+      "longest_exposed_same_suit_run": 1,
+      "movable_same_suit_blocks": 0,
+      "tableau_a": 1,
+      "tableau_b": 4,
+      "tableau_c": 0,
+      "tableau_d": 0
+    },
+    "stock_rows": 0
+  },
+  "verdict": "ROOT_BRANCH_DIVERSIFICATION_IMPROVES_PROGRESS"
+}

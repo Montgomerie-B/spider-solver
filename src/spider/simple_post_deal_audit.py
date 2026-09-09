@@ -37,6 +37,34 @@ def key_hex(key: bytes) -> str:
     return key.hex()
 
 
+def canonical_root_children(
+    state: SpiderState, *, rules: MobilityWareRules = MW_RULES
+) -> List[dict]:
+    """Group legal root actions by exact child digest.  Read-only clones."""
+
+    sps = _solver()
+    groups: Dict[str, dict] = {}
+    order: List[str] = []
+    for action in sps.enumerate_actions(state, rules=rules):
+        child = state.clone()
+        sps.apply_action(child, action, rules=rules)
+        digest = pack_state(child).hex()
+        tier = int(sps.classify_tier(state, action))
+        if digest not in groups:
+            groups[digest] = {
+                "key_hex": digest,
+                "representative": action,
+                "tier": tier,
+                "actions": [],
+                "equivalent": False,
+            }
+            order.append(digest)
+        groups[digest]["actions"].append({"action": action, "tier": tier})
+        if len(groups[digest]["actions"]) > 1:
+            groups[digest]["equivalent"] = True
+    return [groups[digest] for digest in order]
+
+
 def _solver():
     from spider import simple_progressive_solver as sps
 
@@ -539,6 +567,8 @@ class PostDealAudit:
     best_adj_struct: Optional[dict] = field(default=None)
     best_empties_struct: Optional[dict] = field(default=None)
     best_mixed_struct: Optional[dict] = field(default=None)
+    best_blocks_struct: Optional[dict] = field(default=None)
+    progress_events: List[dict] = field(default_factory=list)
     lineage: Optional[dict] = field(default=None)
     summary: Optional[dict] = field(default=None)
     current_band: int = 0
@@ -569,6 +599,8 @@ class PostDealAudit:
         depth: int,
         expansion: int,
         path_fn,
+        blocks: int = 0,
+        cost: int = 0,
     ) -> None:
         if not self.track_structure:
             return
@@ -579,8 +611,10 @@ class PostDealAudit:
             "adjacencies": adjacencies,
             "empties": empties,
             "mixed": mixed,
+            "blocks": blocks,
             "depth": depth,
             "expansion": expansion,
+            "cost": cost,
         }
 
         def take(current: Optional[dict], better: bool) -> Optional[dict]:
@@ -602,6 +636,33 @@ class PostDealAudit:
             self.best_empties_struct = take(self.best_empties_struct, True)
         if self.best_mixed_struct is None or mixed < self.best_mixed_struct["mixed"]:
             self.best_mixed_struct = take(self.best_mixed_struct, True)
+        if self.best_blocks_struct is None or blocks > self.best_blocks_struct["blocks"]:
+            self.best_blocks_struct = take(self.best_blocks_struct, True)
+
+        seen = {item["kind"] for item in self.progress_events}
+        wanted = []
+        if fd < 14:
+            wanted.append("fd_below_14")
+        if empties >= 1:
+            wanted.append("first_empty")
+        if longest_run >= 8:
+            wanted.append("run_ge_8")
+        if longest_run >= 9:
+            wanted.append("run_ge_9")
+        if longest_run >= 10:
+            wanted.append("run_ge_10")
+        if foundations >= 1:
+            wanted.append("first_foundation")
+        if wanted and any(kind not in seen for kind in wanted):
+            path = list(path_fn())
+            for kind in wanted:
+                if kind in seen:
+                    continue
+                event = dict(record)
+                event["kind"] = kind
+                event["path"] = path
+                self.progress_events.append(event)
+                seen.add(kind)
 
     def record_encounter(self, key: bytes, record: dict) -> None:
         if key not in self.watched:

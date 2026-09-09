@@ -1118,6 +1118,8 @@ def solve_progressive(
                         depth=depth,
                         expansion=stats.states_expanded,
                         path_fn=path,
+                        blocks=runs["movable_same_suit_blocks"],
+                        cost=frame.g,
                     )
 
                 prev_fd_stock = fd_stock_meta[dealt]
