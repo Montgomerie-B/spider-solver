@@ -1,11 +1,13 @@
-"""Simple progressive Spider solver — competing baseline v0.2.
+"""Simple progressive Spider solver — competing baseline v0.3.
 
 Straightforward backtracking: legal primitive actions, cheap deterministic
 ordering, exact-state transposition, cycle cuts, progressive relaxation,
 and depth-banded DFS.
 
-v0.2 changes depth discipline only.  Move tiers, ordering, and Deal policy
-are unchanged from v0.1.
+v0.3 changes only slice scheduling: a completed (band, pass) cell with
+``unique_new == 0`` saturates that pass for later equivalent slices.
+Move tiers, ordering, Deal policy, depth bands, and the depth-aware TT
+contract are unchanged from v0.2.
 
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
@@ -96,6 +98,10 @@ class SearchStats:
     unique_deal_parents: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
     depth_band_used: int = 0
     band_pass_reports: List[dict] = field(default_factory=list)
+    slices_skipped: int = 0
+    expansions_redirected: int = 0
+    unique_by_pass: List[int] = field(default_factory=lambda: [0, 0, 0, 0])
+    saturated_passes: List[int] = field(default_factory=list)
 
 
 @dataclass
@@ -137,6 +143,7 @@ class ProgressiveSearchResult:
     best_foundation_foundations: int = 0
     best_foundation_depth: int = 0
     best_foundation_cost: int = 0
+    best_fd_by_stock_dealt: List[dict] = field(default_factory=list)
 
     @property
     def stage_reached(self) -> int:
@@ -793,6 +800,7 @@ def solve_progressive(
     prep_ply: int = 1,
     max_depth: int = MAX_DEPTH_GUARD,
     depth_bands: Optional[Sequence[int]] = None,
+    enable_saturation: bool = True,
 ) -> ProgressiveSearchResult:
     """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
@@ -821,6 +829,9 @@ def solve_progressive(
     unique_stock_seen = [set() for _ in range(6)]
     unique_deal_parent_seen = [set() for _ in range(6)]
     bands_used: List[int] = []
+    fd_stock_meta = [(10**9, opening_stock, 0, 0, 0) for _ in range(6)]
+    fd_stock_path: List[List[Action]] = [[] for _ in range(6)]
+    fd_stock_meta[0] = (opening_fd, opening_stock, root_foundations, 0, 0)
 
     def reached_target(state: SpiderState) -> bool:
         if target_foundations >= 8:
@@ -916,6 +927,8 @@ def solve_progressive(
                 stats.states_by_stock_dealt[dealt] += 1
                 if new_key:
                     unique_stock_seen[dealt].add(frame.key)
+                    if 0 <= pass_level < N_PASSES:
+                        stats.unique_by_pass[pass_level] += 1
                 if foundations > stats.max_foundations:
                     stats.max_foundations = foundations
                 path_now = None
@@ -925,6 +938,20 @@ def solve_progressive(
                     if path_now is None:
                         path_now = _path_from_stack(stack)
                     return path_now
+
+                prev_fd_stock = fd_stock_meta[dealt]
+                if fd < prev_fd_stock[0] or (
+                    fd == prev_fd_stock[0]
+                    and (depth, frame.g) < (prev_fd_stock[3], prev_fd_stock[4])
+                ):
+                    fd_stock_meta[dealt] = (
+                        fd,
+                        stock_rows,
+                        foundations,
+                        depth,
+                        frame.g,
+                    )
+                    fd_stock_path[dealt] = path()
 
                 r_key = (fd, -foundations, stock_rows, depth, frame.g)
                 if r_key < reveal_key:
@@ -1035,8 +1062,11 @@ def solve_progressive(
         return "exhausted"
 
     # Depth bands outer, A–D passes inner.  Remaining node/time budget is
-    # split across remaining (band, pass) cells so a huge shallow A-graph
-    # cannot starve later bands.  Unused slice rolls forward.
+    # split across remaining live (band, pass) cells.  A completed cell with
+    # unique_new == 0 saturates that pass: later equivalent slices of the
+    # same pass are not allocated.  Saturation is scheduling only; the
+    # depth-aware TT is unchanged.
+    saturated_passes: set = set()
     for band_index, band in enumerate(bands):
         remaining_bands = len(bands) - band_index
         remaining_nodes = max(0, max_nodes - stats.states_expanded)
@@ -1063,10 +1093,44 @@ def solve_progressive(
             if band_time_left <= 0:
                 stop_reason = "time limit"
                 break
-            node_cap = stats.states_expanded + max(
-                1, remaining_in_band // remaining_passes
+            would_allocate = max(1, remaining_in_band // remaining_passes)
+            if enable_saturation and pass_level in saturated_passes:
+                stats.slices_skipped += 1
+                stats.expansions_redirected += would_allocate
+                stats.band_pass_reports.append(
+                    {
+                        "band": band,
+                        "pass": pass_level,
+                        "expanded": 0,
+                        "generated": 0,
+                        "unique_total": len(memory),
+                        "unique_new": 0,
+                        "unique_new_per_expansion": 0.0,
+                        "tt_hits": 0,
+                        "depth_prunes": 0,
+                        "reopens": 0,
+                        "max_depth": stats.max_depth,
+                        "stop": "saturated",
+                        "face_down_best": reveal_meta[0],
+                        "stock_best": stock_meta[1],
+                        "max_foundations": stats.max_foundations,
+                        "deals_considered": 0,
+                        "deals_executed": 0,
+                        "saturation_triggered": False,
+                        "skipped": True,
+                        "budget_redirected": would_allocate,
+                    }
+                )
+                continue
+            remaining_live = sum(
+                1
+                for index in range(pass_level, max_pass + 1)
+                if not enable_saturation or index not in saturated_passes
             )
-            deadline = now + band_time_left / remaining_passes
+            node_cap = stats.states_expanded + max(
+                1, remaining_in_band // max(1, remaining_live)
+            )
+            deadline = now + band_time_left / max(1, remaining_live)
             before = {
                 "expanded": stats.states_expanded,
                 "generated": stats.states_generated,
@@ -1077,32 +1141,36 @@ def solve_progressive(
                 "deals_x": stats.deals_executed,
                 "unique": len(memory),
             }
-            slice_best_fd = reveal_meta[0]
-            slice_best_stock = stock_meta[1]
-            slice_best_fnd = stats.max_foundations
             outcome = dfs_pass(pass_level, band, node_cap, deadline)
-            report = {
-                "band": band,
-                "pass": pass_level,
-                "expanded": stats.states_expanded - before["expanded"],
-                "generated": stats.states_generated - before["generated"],
-                "unique_total": len(memory),
-                "unique_new": len(memory) - before["unique"],
-                "tt_hits": stats.tt_hits - before["tt_hits"],
-                "depth_prunes": stats.tt_depth_prunes - before["prunes"],
-                "reopens": stats.tt_reopens - before["reopens"],
-                "max_depth": stats.max_depth,
-                "stop": outcome,
-                "face_down_best": reveal_meta[0],
-                "stock_best": stock_meta[1],
-                "max_foundations": stats.max_foundations,
-                "deals_considered": stats.deals_considered - before["deals_c"],
-                "deals_executed": stats.deals_executed - before["deals_x"],
-                "slice_face_down_best": slice_best_fd,
-                "slice_stock_best": slice_best_stock,
-                "slice_max_foundations": slice_best_fnd,
-            }
-            stats.band_pass_reports.append(report)
+            expanded = stats.states_expanded - before["expanded"]
+            unique_new = len(memory) - before["unique"]
+            saturation_triggered = enable_saturation and unique_new == 0
+            if saturation_triggered:
+                saturated_passes.add(pass_level)
+            stats.band_pass_reports.append(
+                {
+                    "band": band,
+                    "pass": pass_level,
+                    "expanded": expanded,
+                    "generated": stats.states_generated - before["generated"],
+                    "unique_total": len(memory),
+                    "unique_new": unique_new,
+                    "unique_new_per_expansion": unique_new / max(1, expanded),
+                    "tt_hits": stats.tt_hits - before["tt_hits"],
+                    "depth_prunes": stats.tt_depth_prunes - before["prunes"],
+                    "reopens": stats.tt_reopens - before["reopens"],
+                    "max_depth": stats.max_depth,
+                    "stop": outcome,
+                    "face_down_best": reveal_meta[0],
+                    "stock_best": stock_meta[1],
+                    "max_foundations": stats.max_foundations,
+                    "deals_considered": stats.deals_considered - before["deals_c"],
+                    "deals_executed": stats.deals_executed - before["deals_x"],
+                    "saturation_triggered": saturation_triggered,
+                    "skipped": False,
+                    "budget_redirected": 0,
+                }
+            )
             if outcome == "solved":
                 break
             if stats.states_expanded >= max_nodes:
@@ -1115,6 +1183,7 @@ def solve_progressive(
             break
         if time.perf_counter() - started >= time_limit_s:
             break
+    stats.saturated_passes = sorted(saturated_passes)
 
     for index in range(6):
         stats.unique_by_stock_dealt[index] = len(unique_stock_seen[index])
@@ -1146,6 +1215,34 @@ def solve_progressive(
                 replay_ok = replay_ok and len(probe.foundations) >= stats.max_foundations
         except (ValueError, AssertionError):
             replay_ok = False
+
+    fd_by_stock: List[dict] = []
+    for dealt in range(6):
+        meta = fd_stock_meta[dealt]
+        if meta[0] >= 10**9:
+            fd_by_stock.append(
+                {
+                    "deals_completed": dealt,
+                    "face_down": None,
+                    "stock_rows": None,
+                    "foundations": None,
+                    "depth": None,
+                    "cost": None,
+                    "actions": [],
+                }
+            )
+        else:
+            fd_by_stock.append(
+                {
+                    "deals_completed": dealt,
+                    "face_down": meta[0],
+                    "stock_rows": meta[1],
+                    "foundations": meta[2],
+                    "depth": meta[3],
+                    "cost": meta[4],
+                    "actions": list(fd_stock_path[dealt]),
+                }
+            )
 
     return ProgressiveSearchResult(
         solved=solved_path is not None,
@@ -1185,4 +1282,5 @@ def solve_progressive(
         best_foundation_foundations=foundation_meta[2],
         best_foundation_depth=foundation_meta[3],
         best_foundation_cost=foundation_meta[4],
+        best_fd_by_stock_dealt=fd_by_stock,
     )
