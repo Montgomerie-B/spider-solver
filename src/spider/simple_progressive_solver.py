@@ -1,4 +1,4 @@
-"""Simple progressive Spider solver — competing baseline v0.6.
+"""Simple progressive Spider solver — competing baseline v0.7.
 
 Straightforward backtracking: legal primitive actions, cheap deterministic
 ordering, exact-state transposition, cycle cuts, progressive relaxation,
@@ -11,6 +11,9 @@ and TT are unchanged.
 
 v0.6 adds optional post-Deal continuation telemetry.  Default OFF.  Census
 and lineage reconstruction do not order moves, prune, or change TT.
+
+v0.7 optionally scopes saturation to ``(depth_band, pass)``.  Default OFF
+(cross-band, v0.3–v0.6).  Band-local mode does not clear TT coverage.
 
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
@@ -107,6 +110,8 @@ class SearchStats:
     expansions_redirected: int = 0
     unique_by_pass: List[int] = field(default_factory=lambda: [0, 0, 0, 0])
     saturated_passes: List[int] = field(default_factory=list)
+    saturated_band_passes: List[dict] = field(default_factory=list)
+    band_local_saturation: bool = False
     reveal_records: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
     probe_fires: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
     probe_entered: List[int] = field(default_factory=lambda: [0, 0, 0, 0, 0, 0])
@@ -695,6 +700,45 @@ class _CoverageTT:
         return len(self.seen)
 
 
+class SaturationBook:
+    """Scheduling-only saturation.  Not a proof of exhaustion.
+
+    Cross-band (default): a pass marked saturated is skipped in later bands.
+    Band-local: saturation is keyed by ``(band, pass)`` and does not inherit.
+    The depth-aware TT is never cleared.
+    """
+
+    def __init__(self, *, band_local: bool = False) -> None:
+        self.band_local = band_local
+        self._global: set = set()
+        self._cells: set = set()
+
+    def is_saturated(self, pass_level: int, band: int) -> bool:
+        if self.band_local:
+            return (band, pass_level) in self._cells
+        return pass_level in self._global
+
+    def mark(self, pass_level: int, band: int) -> None:
+        self._cells.add((band, pass_level))
+        self._global.add(pass_level)
+
+    def inherited(self, pass_level: int, band: int) -> bool:
+        """True iff a skip would come from a shallower band's global flag."""
+
+        if self.band_local:
+            return False
+        return pass_level in self._global and (band, pass_level) not in self._cells
+
+    def passes(self) -> List[int]:
+        return sorted(self._global)
+
+    def cells(self) -> List[dict]:
+        return [
+            {"band": band, "pass": pass_level}
+            for band, pass_level in sorted(self._cells)
+        ]
+
+
 class _Frame:
     __slots__ = (
         "children",
@@ -850,6 +894,8 @@ def solve_progressive(
     enable_audit: bool = True,
     enable_best_reveal_deal_probe: bool = False,
     enable_post_deal_audit: bool = False,
+    enable_band_local_saturation: bool = False,
+    audit_watch_keys: Optional[Sequence[bytes]] = None,
 ) -> ProgressiveSearchResult:
     """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
@@ -885,6 +931,10 @@ def solve_progressive(
     pda = PostDealAudit() if enable_post_deal_audit else None
     if pda is not None:
         pda.watch(pack_state(root), origin="root")
+        if audit_watch_keys:
+            for key in audit_watch_keys:
+                pda.watch(bytes(key), origin="seeded")
+    stats.band_local_saturation = bool(enable_band_local_saturation)
     reveal_record_fd = [10**9] * 6
     reveal_seen_stock = [False] * 6
     probe_traces: List[dict] = []
@@ -1255,8 +1305,13 @@ def solve_progressive(
             action = frame.children[frame.index]
             frame.index += 1
             child_tier = int(classify_tier(working_state, action))
-            parent_dealt = _stock_dealt_index(
-                opening_stock, _stock_rows(working_state)
+            parent_stock_rows = _stock_rows(working_state)
+            parent_dealt = _stock_dealt_index(opening_stock, parent_stock_rows)
+            parent_watched_empty = (
+                pda is not None
+                and pass_level >= 1
+                and parent_stock_rows == 0
+                and pda.is_watched(frame.key)
             )
             parent_struct = cheap_structure(working_state) if (
                 audit is not None and is_deal(action)
@@ -1301,6 +1356,19 @@ def solve_progressive(
             frame.child_keys.add(child_key)
             child_remaining = frame.remaining - 1
             tt_skip_child = memory.skip(child_key, pass_level, child_remaining)
+            if parent_watched_empty and child_tier == int(Tier.B):
+                pda.note_empty_b_child(
+                    parent_key=frame.key,
+                    action=action,
+                    child_key=child_key,
+                    pass_level=pass_level,
+                    band=band,
+                    novel=child_key not in memory.seen,
+                    tt_skip=tt_skip_child,
+                    expanded=not tt_skip_child,
+                    fd=_face_down(working_state),
+                    foundations=len(working_state.foundations),
+                )
             if is_deal(action) and audit is not None and parent_struct is not None:
                 child_struct = cheap_structure(working_state)
                 ancestors = [
@@ -1470,10 +1538,11 @@ def solve_progressive(
 
     # Depth bands outer, A–D passes inner.  Remaining node/time budget is
     # split across remaining live (band, pass) cells.  A completed cell with
-    # unique_new == 0 saturates that pass: later equivalent slices of the
-    # same pass are not allocated.  Saturation is scheduling only; the
-    # depth-aware TT is unchanged.
-    saturated_passes: set = set()
+    # unique_new == 0 saturates that pass.  Cross-band (default) skips the
+    # pass in later bands.  Band-local saturation skips only later slices of
+    # the same (band, pass).  Saturation is scheduling only; the depth-aware
+    # TT is unchanged and is never cleared.
+    sat_book = SaturationBook(band_local=enable_band_local_saturation)
     for band_index, band in enumerate(bands):
         remaining_bands = len(bands) - band_index
         remaining_nodes = max(0, max_nodes - stats.states_expanded)
@@ -1503,7 +1572,8 @@ def solve_progressive(
                 stop_reason = "time limit"
                 break
             would_allocate = max(1, remaining_in_band // remaining_passes)
-            if enable_saturation and pass_level in saturated_passes:
+            inherited = enable_saturation and sat_book.inherited(pass_level, band)
+            if enable_saturation and sat_book.is_saturated(pass_level, band):
                 stats.slices_skipped += 1
                 stats.expansions_redirected += would_allocate
                 stats.band_pass_reports.append(
@@ -1527,6 +1597,9 @@ def solve_progressive(
                         "deals_executed": 0,
                         "saturation_triggered": False,
                         "skipped": True,
+                        "scheduled": False,
+                        "saturation_inherited": inherited,
+                        "band_local": enable_band_local_saturation,
                         "budget_redirected": would_allocate,
                     }
                 )
@@ -1534,7 +1607,7 @@ def solve_progressive(
             remaining_live = sum(
                 1
                 for index in range(pass_level, max_pass + 1)
-                if not enable_saturation or index not in saturated_passes
+                if not enable_saturation or not sat_book.is_saturated(index, band)
             )
             node_cap = stats.states_expanded + max(
                 1, remaining_in_band // max(1, remaining_live)
@@ -1555,7 +1628,7 @@ def solve_progressive(
             unique_new = len(memory) - before["unique"]
             saturation_triggered = enable_saturation and unique_new == 0
             if saturation_triggered:
-                saturated_passes.add(pass_level)
+                sat_book.mark(pass_level, band)
             stats.band_pass_reports.append(
                 {
                     "band": band,
@@ -1577,6 +1650,9 @@ def solve_progressive(
                     "deals_executed": stats.deals_executed - before["deals_x"],
                     "saturation_triggered": saturation_triggered,
                     "skipped": False,
+                    "scheduled": True,
+                    "saturation_inherited": False,
+                    "band_local": enable_band_local_saturation,
                     "budget_redirected": 0,
                 }
             )
@@ -1592,7 +1668,8 @@ def solve_progressive(
             break
         if time.perf_counter() - started >= time_limit_s:
             break
-    stats.saturated_passes = sorted(saturated_passes)
+    stats.saturated_passes = sat_book.passes()
+    stats.saturated_band_passes = sat_book.cells()
     stats.probe_events = list(probe_traces)
 
     for index in range(6):

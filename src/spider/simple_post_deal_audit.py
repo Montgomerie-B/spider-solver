@@ -531,6 +531,7 @@ class PostDealAudit:
     stock_empty_best: Optional[dict] = field(default=None)
     stock_empty_candidates: List[dict] = field(default_factory=list)
     best_empty_fd: int = field(default=10**9)
+    empty_pass_b_children: List[dict] = field(default_factory=list)
     lineage: Optional[dict] = field(default=None)
     summary: Optional[dict] = field(default=None)
     current_band: int = 0
@@ -757,6 +758,36 @@ class PostDealAudit:
                 child["next_deal_reached"] = next_deal_reached
                 child["pop_reason"] = pop_reason
                 break
+
+    def note_empty_b_child(
+        self,
+        *,
+        parent_key: bytes,
+        action: Any,
+        child_key: bytes,
+        pass_level: int,
+        band: int,
+        novel: bool,
+        tt_skip: bool,
+        expanded: bool,
+        fd: int,
+        foundations: int,
+    ) -> None:
+        self.watch(child_key, origin="empty_tier_b_child", parent_key_hex=parent_key.hex())
+        self.empty_pass_b_children.append(
+            {
+                "parent_key_hex": parent_key.hex(),
+                "child_key_hex": child_key.hex(),
+                "action": list(action) if isinstance(action, tuple) else action,
+                "pass": pass_level,
+                "band": band,
+                "novel": novel,
+                "tt_covered": tt_skip,
+                "expanded": expanded,
+                "fd": fd,
+                "foundations": foundations,
+            }
+        )
 
     def on_stock_empty(
         self,

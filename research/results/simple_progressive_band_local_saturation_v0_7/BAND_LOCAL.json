@@ -1,0 +1,1425 @@
+{
+  "arm": "BAND_LOCAL",
+  "band_local": true,
+  "checkpoint_coverage": {
+    "first_broader_band": {
+      "80": 0,
+      "160": 0,
+      "320": 0,
+      "640": 0,
+      "1280": 0
+    },
+    "later_pass1": 0,
+    "later_pass2": 0,
+    "later_pass3": 0,
+    "never_widened": 130,
+    "pass0_only": 130,
+    "reopened_wider": 0,
+    "total": 130
+  },
+  "deals_executed": 16058,
+  "elapsed_s": 1175.8629524999997,
+  "elapsed_wall_s": 1175.9247021000047,
+  "empty_tier_b_children": [],
+  "fd_by_stock": [
+    {
+      "cost": 33,
+      "deals_completed": 0,
+      "depth": 33,
+      "face_down": 16,
+      "foundations": 0,
+      "replay": {
+        "adjacencies": 16,
+        "blocks": 5,
+        "cost": 33,
+        "cost_matches": true,
+        "face_down": 16,
+        "foundations": 0,
+        "longest_run": 6,
+        "path_length": 33,
+        "solved": false,
+        "stock_rows": 5
+      },
+      "stock_rows": 5
+    },
+    {
+      "cost": 34,
+      "deals_completed": 1,
+      "depth": 34,
+      "face_down": 16,
+      "foundations": 0,
+      "replay": {
+        "adjacencies": 16,
+        "blocks": 0,
+        "cost": 34,
+        "cost_matches": true,
+        "face_down": 16,
+        "foundations": 0,
+        "longest_run": 1,
+        "path_length": 34,
+        "solved": false,
+        "stock_rows": 4
+      },
+      "stock_rows": 4
+    },
+    {
+      "cost": 35,
+      "deals_completed": 2,
+      "depth": 35,
+      "face_down": 16,
+      "foundations": 0,
+      "replay": {
+        "adjacencies": 16,
+        "blocks": 0,
+        "cost": 35,
+        "cost_matches": true,
+        "face_down": 16,
+        "foundations": 0,
+        "longest_run": 1,
+        "path_length": 35,
+        "solved": false,
+        "stock_rows": 3
+      },
+      "stock_rows": 3
+    },
+    {
+      "cost": 36,
+      "deals_completed": 3,
+      "depth": 36,
+      "face_down": 16,
+      "foundations": 0,
+      "replay": {
+        "adjacencies": 16,
+        "blocks": 0,
+        "cost": 36,
+        "cost_matches": true,
+        "face_down": 16,
+        "foundations": 0,
+        "longest_run": 1,
+        "path_length": 36,
+        "solved": false,
+        "stock_rows": 2
+      },
+      "stock_rows": 2
+    },
+    {
+      "cost": 37,
+      "deals_completed": 4,
+      "depth": 37,
+      "face_down": 16,
+      "foundations": 0,
+      "replay": {
+        "adjacencies": 16,
+        "blocks": 0,
+        "cost": 37,
+        "cost_matches": true,
+        "face_down": 16,
+        "foundations": 0,
+        "longest_run": 1,
+        "path_length": 37,
+        "solved": false,
+        "stock_rows": 1
+      },
+      "stock_rows": 1
+    },
+    {
+      "cost": 38,
+      "deals_completed": 5,
+      "depth": 38,
+      "face_down": 16,
+      "foundations": 0,
+      "replay": {
+        "adjacencies": 16,
+        "blocks": 0,
+        "cost": 38,
+        "cost_matches": true,
+        "face_down": 16,
+        "foundations": 0,
+        "longest_run": 1,
+        "path_length": 38,
+        "solved": false,
+        "stock_rows": 0
+      },
+      "stock_rows": 0
+    }
+  ],
+  "first_foundation_depth": null,
+  "first_foundation_node": null,
+  "first_foundation_pass": null,
+  "foundation_replay": null,
+  "lineage": {
+    "lineage_id": "L_COUPLED_FD16_DEALS5_DEPTH38",
+    "n_deals": 5,
+    "path_length": 38,
+    "replay_ok": true,
+    "segments": [
+      {
+        "continuation": {
+          "best_descendant_fd": 16,
+          "best_descendant_foundations": 0,
+          "descendant_expansions": 20,
+          "direct_expanded": 3,
+          "exp_before_next_deal": 2,
+          "expanded_at_pass": 3,
+          "matched_checkpoint": true,
+          "next_deal_reached": true,
+          "pop_reason": "children_exhausted"
+        },
+        "deal_index": 1,
+        "post": {
+          "census": {
+            "a": 2,
+            "b": 5,
+            "c": 0,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": true,
+            "immediate_foundation_moves": 0,
+            "landing_score": -12,
+            "legal": 8,
+            "legal_tableau": 7,
+            "tableau_a": 2,
+            "tableau_b": 5,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 34,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 48,
+          "key_hex": "53504b310100002804063a2c360835042332310b050515191b11282d0c2b1a2901053b2706153424020231122d1d00041413122400030d0c26040818360a2a28070605040302090003171627000323020800093d3c3b3a3938372635131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 4,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 20,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49264,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 46,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        },
+        "pre": {
+          "census": {
+            "a": 0,
+            "b": 0,
+            "c": 8,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": false,
+            "immediate_foundation_moves": 0,
+            "landing_score": -10,
+            "legal": 9,
+            "legal_tableau": 8,
+            "tableau_a": 0,
+            "tableau_b": 0,
+            "tableau_c": 8,
+            "tableau_d": 0
+          },
+          "depth": 33,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 38,
+          "key_hex": "53504b310100003204053a2c36083504233231050415191b11282d0c2b1a01043b27061534020131122d000314131200020d0c040718360a2a28070605040302000217160002230200083d3c3b3a39383726131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b0b29241d242609270835",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 6,
+            "movable_same_suit_blocks": 5
+          },
+          "stock_rows": 5,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 1,
+                "encounters": 20,
+                "expanded": true,
+                "first_expansion": 49263,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 47,
+                "tt_skip": true,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        }
+      },
+      {
+        "continuation": {
+          "best_descendant_fd": 16,
+          "best_descendant_foundations": 0,
+          "descendant_expansions": 14,
+          "direct_expanded": 2,
+          "exp_before_next_deal": 2,
+          "expanded_at_pass": 2,
+          "matched_checkpoint": true,
+          "next_deal_reached": true,
+          "pop_reason": "children_exhausted"
+        },
+        "deal_index": 2,
+        "post": {
+          "census": {
+            "a": 1,
+            "b": 3,
+            "c": 0,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": true,
+            "immediate_foundation_moves": 0,
+            "landing_score": -10,
+            "legal": 5,
+            "legal_tableau": 4,
+            "tableau_a": 1,
+            "tableau_b": 3,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 35,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 58,
+          "key_hex": "53504b310100001e04073a2c360835042332310b0d050615191b11282d0c2b1a290101063b270615342416020331122d1d070005141312242100040d0c2621040918360a2a28070605040302091100041716272a00042302081c000a3d3c3b3a39383726352b131a2233193717013325290b1c22343c3d381b09320a2c1d183903052514",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 3,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 14,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49265,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 45,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        },
+        "pre": {
+          "census": {
+            "a": 2,
+            "b": 5,
+            "c": 0,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": true,
+            "immediate_foundation_moves": 0,
+            "landing_score": -12,
+            "legal": 8,
+            "legal_tableau": 7,
+            "tableau_a": 2,
+            "tableau_b": 5,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 34,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 48,
+          "key_hex": "53504b310100002804063a2c360835042332310b050515191b11282d0c2b1a2901053b2706153424020231122d1d00041413122400030d0c26040818360a2a28070605040302090003171627000323020800093d3c3b3a3938372635131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 4,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 20,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49264,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 46,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        }
+      },
+      {
+        "continuation": {
+          "best_descendant_fd": 16,
+          "best_descendant_foundations": 0,
+          "descendant_expansions": 12,
+          "direct_expanded": 1,
+          "exp_before_next_deal": 2,
+          "expanded_at_pass": 1,
+          "matched_checkpoint": true,
+          "next_deal_reached": true,
+          "pop_reason": "children_exhausted"
+        },
+        "deal_index": 3,
+        "post": {
+          "census": {
+            "a": 0,
+            "b": 7,
+            "c": 0,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": false,
+            "immediate_foundation_moves": 0,
+            "landing_score": -10,
+            "legal": 8,
+            "legal_tableau": 7,
+            "tableau_a": 0,
+            "tableau_b": 7,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 36,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 68,
+          "key_hex": "53504b310100001404083a2c360835042332310b0d32050715191b11282d0c2b1a29010a01073b2706153424162c020431122d1d071d000614131224211800050d0c262139040a18360a2a2807060504030209110300051716272a0500052302081c25000b3d3c3b3a39383726352b14131a2233193717013325290b1c22343c3d381b09",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 2,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 12,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49266,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 44,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        },
+        "pre": {
+          "census": {
+            "a": 1,
+            "b": 3,
+            "c": 0,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": true,
+            "immediate_foundation_moves": 0,
+            "landing_score": -10,
+            "legal": 5,
+            "legal_tableau": 4,
+            "tableau_a": 1,
+            "tableau_b": 3,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 35,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 58,
+          "key_hex": "53504b310100001e04073a2c360835042332310b0d050615191b11282d0c2b1a290101063b270615342416020331122d1d070005141312242100040d0c2621040918360a2a28070605040302091100041716272a00042302081c000a3d3c3b3a39383726352b131a2233193717013325290b1c22343c3d381b09320a2c1d183903052514",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 3,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 14,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49265,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 45,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        }
+      },
+      {
+        "continuation": {
+          "best_descendant_fd": 16,
+          "best_descendant_foundations": 0,
+          "descendant_expansions": 11,
+          "direct_expanded": 3,
+          "exp_before_next_deal": 2,
+          "expanded_at_pass": 3,
+          "matched_checkpoint": true,
+          "next_deal_reached": true,
+          "pop_reason": "children_exhausted"
+        },
+        "deal_index": 4,
+        "post": {
+          "census": {
+            "a": 2,
+            "b": 6,
+            "c": 0,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": true,
+            "immediate_foundation_moves": 0,
+            "landing_score": -8,
+            "legal": 9,
+            "legal_tableau": 8,
+            "tableau_a": 2,
+            "tableau_b": 6,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 37,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 78,
+          "key_hex": "53504b310100000a04093a2c360835042332310b0d3229050815191b11282d0c2b1a29010a0b01083b2706153424162c1c020531122d1d071d2200071413122421183400060d0c2621393c040b18360a2a280706050403020911033d00061716272a053800062302081c251b000c3d3c3b3a39383726352b1409131a2233193717013325",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 1,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 11,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49267,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 43,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        },
+        "pre": {
+          "census": {
+            "a": 0,
+            "b": 7,
+            "c": 0,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": false,
+            "immediate_foundation_moves": 0,
+            "landing_score": -10,
+            "legal": 8,
+            "legal_tableau": 7,
+            "tableau_a": 0,
+            "tableau_b": 7,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 36,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 68,
+          "key_hex": "53504b310100001404083a2c360835042332310b0d32050715191b11282d0c2b1a29010a01073b2706153424162c020431122d1d071d000614131224211800050d0c262139040a18360a2a2807060504030209110300051716272a0500052302081c25000b3d3c3b3a39383726352b14131a2233193717013325290b1c22343c3d381b09",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 2,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 12,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49266,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 44,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        }
+      },
+      {
+        "continuation": {
+          "best_descendant_fd": 16,
+          "best_descendant_foundations": 0,
+          "descendant_expansions": 5,
+          "direct_expanded": 1,
+          "exp_before_next_deal": 5,
+          "expanded_at_pass": 1,
+          "matched_checkpoint": true,
+          "next_deal_reached": false,
+          "pop_reason": "children_exhausted"
+        },
+        "deal_index": 5,
+        "post": {
+          "census": {
+            "a": 1,
+            "b": 4,
+            "c": 0,
+            "d": 0,
+            "deal_legal": false,
+            "deal_tier": null,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": true,
+            "immediate_foundation_moves": 0,
+            "landing_score": null,
+            "legal": 5,
+            "legal_tableau": 5,
+            "tableau_a": 1,
+            "tableau_b": 4,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 38,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 88,
+          "key_hex": "53504b3101000000040a3a2c360835042332310b0d322913050915191b11282d0c2b1a29010a0b1a01093b2706153424162c1c22020631122d1d071d22330008141312242118341900070d0c2621393c37040c18360a2a280706050403020911033d1700071716272a05380100072302081c251b33000d3d3c3b3a39383726352b140925",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 0,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 5,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49268,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 42,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        },
+        "pre": {
+          "census": {
+            "a": 2,
+            "b": 6,
+            "c": 0,
+            "d": 1,
+            "deal_legal": true,
+            "deal_tier": 3,
+            "has_broader_than_a": true,
+            "has_immediate_foundation_move": false,
+            "has_tier_a": true,
+            "immediate_foundation_moves": 0,
+            "landing_score": -8,
+            "legal": 9,
+            "legal_tableau": 8,
+            "tableau_a": 2,
+            "tableau_b": 6,
+            "tableau_c": 0,
+            "tableau_d": 0
+          },
+          "depth": 37,
+          "empties": 0,
+          "fd": 16,
+          "foundations": 0,
+          "fu": 78,
+          "key_hex": "53504b310100000a04093a2c360835042332310b0d3229050815191b11282d0c2b1a29010a0b01083b2706153424162c1c020531122d1d071d2200071413122421183400060d0c2621393c040b18360a2a280706050403020911033d00061716272a053800062302081c251b000c3d3c3b3a39383726352b1409131a2233193717013325",
+          "proximity": {
+            "exposed_complete_ka_runs": 0,
+            "exposed_same_suit_adjacencies": 16,
+            "has_immediate_foundation_move": false,
+            "immediate_foundation_moves": 0,
+            "longest_exposed_same_suit_run": 1,
+            "movable_same_suit_blocks": 0
+          },
+          "stock_rows": 1,
+          "wider_pass": {
+            "first_pass": 0,
+            "passes": {
+              "0": {
+                "best_progress_fd": 16,
+                "best_progress_foundations": 0,
+                "descendants": 11,
+                "encounters": 1,
+                "expanded": true,
+                "first_expansion": 49267,
+                "newly_permitted_vs_first_pass": 0,
+                "pass": 0,
+                "remaining": 43,
+                "tt_skip": false,
+                "tt_status": "novel"
+              },
+              "1": null,
+              "2": null,
+              "3": null
+            },
+            "seen": true,
+            "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+            "suppression_reason": "node budget ended"
+          }
+        }
+      }
+    ],
+    "source": {
+      "cost": 38,
+      "deals_completed": 5,
+      "depth": 38,
+      "face_down": 16,
+      "foundations": 0,
+      "stock_rows": 0
+    },
+    "terminal": {
+      "census": {
+        "a": 1,
+        "b": 4,
+        "c": 0,
+        "d": 0,
+        "deal_legal": false,
+        "deal_tier": null,
+        "has_broader_than_a": true,
+        "has_immediate_foundation_move": false,
+        "has_tier_a": true,
+        "immediate_foundation_moves": 0,
+        "landing_score": null,
+        "legal": 5,
+        "legal_tableau": 5,
+        "tableau_a": 1,
+        "tableau_b": 4,
+        "tableau_c": 0,
+        "tableau_d": 0
+      },
+      "depth": 38,
+      "empties": 0,
+      "fd": 16,
+      "foundations": 0,
+      "fu": 88,
+      "key_hex": "53504b3101000000040a3a2c360835042332310b0d322913050915191b11282d0c2b1a29010a0b1a01093b2706153424162c1c22020631122d1d071d22330008141312242118341900070d0c2621393c37040c18360a2a280706050403020911033d1700071716272a05380100072302081c251b33000d3d3c3b3a39383726352b140925",
+      "proximity": {
+        "exposed_complete_ka_runs": 0,
+        "exposed_same_suit_adjacencies": 16,
+        "has_immediate_foundation_move": false,
+        "immediate_foundation_moves": 0,
+        "longest_exposed_same_suit_run": 1,
+        "movable_same_suit_blocks": 0
+      },
+      "stock_rows": 0,
+      "wider_pass": {
+        "first_pass": 0,
+        "passes": {
+          "0": {
+            "best_progress_fd": 16,
+            "best_progress_foundations": 0,
+            "descendants": 5,
+            "encounters": 1,
+            "expanded": true,
+            "first_expansion": 49268,
+            "newly_permitted_vs_first_pass": 0,
+            "pass": 0,
+            "remaining": 42,
+            "tt_skip": false,
+            "tt_status": "novel"
+          },
+          "1": null,
+          "2": null,
+          "3": null
+        },
+        "seen": true,
+        "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+        "suppression_reason": "node budget ended"
+      }
+    }
+  },
+  "max_depth": 356,
+  "max_foundations": 0,
+  "nodes": 1000000,
+  "pass_reached": 3,
+  "peak_rss_mb": 252.1796875,
+  "probe_entered": [
+    28,
+    27,
+    26,
+    25,
+    24,
+    0
+  ],
+  "probe_fires": [
+    28,
+    27,
+    26,
+    25,
+    24,
+    0
+  ],
+  "replay_ok": true,
+  "saturated_band_passes": [
+    {
+      "band": 160,
+      "pass": 1
+    },
+    {
+      "band": 160,
+      "pass": 2
+    },
+    {
+      "band": 320,
+      "pass": 0
+    },
+    {
+      "band": 320,
+      "pass": 1
+    },
+    {
+      "band": 320,
+      "pass": 2
+    },
+    {
+      "band": 640,
+      "pass": 0
+    },
+    {
+      "band": 640,
+      "pass": 1
+    },
+    {
+      "band": 640,
+      "pass": 2
+    },
+    {
+      "band": 640,
+      "pass": 3
+    },
+    {
+      "band": 1280,
+      "pass": 0
+    },
+    {
+      "band": 1280,
+      "pass": 1
+    },
+    {
+      "band": 1280,
+      "pass": 2
+    },
+    {
+      "band": 1280,
+      "pass": 3
+    }
+  ],
+  "saturated_passes": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "schedule": [
+    {
+      "band": 80,
+      "budget_redirected": 0,
+      "depth_prunes": 79062,
+      "expanded": 50000,
+      "pass": 0,
+      "reopens": 2459,
+      "saturation_inherited": false,
+      "saturation_triggered": false,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 79062,
+      "unique_new": 47541
+    },
+    {
+      "band": 80,
+      "budget_redirected": 0,
+      "depth_prunes": 104740,
+      "expanded": 50000,
+      "pass": 1,
+      "reopens": 42558,
+      "saturation_inherited": false,
+      "saturation_triggered": false,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 104740,
+      "unique_new": 7441
+    },
+    {
+      "band": 80,
+      "budget_redirected": 0,
+      "depth_prunes": 113886,
+      "expanded": 50000,
+      "pass": 2,
+      "reopens": 46516,
+      "saturation_inherited": false,
+      "saturation_triggered": false,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 113886,
+      "unique_new": 3000
+    },
+    {
+      "band": 80,
+      "budget_redirected": 0,
+      "depth_prunes": 29353,
+      "expanded": 50000,
+      "pass": 3,
+      "reopens": 5609,
+      "saturation_inherited": false,
+      "saturation_triggered": false,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 29353,
+      "unique_new": 44354
+    },
+    {
+      "band": 160,
+      "budget_redirected": 0,
+      "depth_prunes": 80073,
+      "expanded": 50000,
+      "pass": 0,
+      "reopens": 49410,
+      "saturation_inherited": false,
+      "saturation_triggered": false,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 80073,
+      "unique_new": 590
+    },
+    {
+      "band": 160,
+      "budget_redirected": 0,
+      "depth_prunes": 102923,
+      "expanded": 50000,
+      "pass": 1,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 102923,
+      "unique_new": 0
+    },
+    {
+      "band": 160,
+      "budget_redirected": 0,
+      "depth_prunes": 109263,
+      "expanded": 50000,
+      "pass": 2,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 109263,
+      "unique_new": 0
+    },
+    {
+      "band": 160,
+      "budget_redirected": 0,
+      "depth_prunes": 32834,
+      "expanded": 50000,
+      "pass": 3,
+      "reopens": 7299,
+      "saturation_inherited": false,
+      "saturation_triggered": false,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 32834,
+      "unique_new": 42701
+    },
+    {
+      "band": 320,
+      "budget_redirected": 0,
+      "depth_prunes": 80073,
+      "expanded": 50000,
+      "pass": 0,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 80073,
+      "unique_new": 0
+    },
+    {
+      "band": 320,
+      "budget_redirected": 0,
+      "depth_prunes": 102788,
+      "expanded": 50000,
+      "pass": 1,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 102788,
+      "unique_new": 0
+    },
+    {
+      "band": 320,
+      "budget_redirected": 0,
+      "depth_prunes": 109099,
+      "expanded": 50000,
+      "pass": 2,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 109099,
+      "unique_new": 0
+    },
+    {
+      "band": 320,
+      "budget_redirected": 0,
+      "depth_prunes": 111931,
+      "expanded": 50000,
+      "pass": 3,
+      "reopens": 47898,
+      "saturation_inherited": false,
+      "saturation_triggered": false,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 111931,
+      "unique_new": 2102
+    },
+    {
+      "band": 640,
+      "budget_redirected": 0,
+      "depth_prunes": 80073,
+      "expanded": 50000,
+      "pass": 0,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 80073,
+      "unique_new": 0
+    },
+    {
+      "band": 640,
+      "budget_redirected": 0,
+      "depth_prunes": 102788,
+      "expanded": 50000,
+      "pass": 1,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 102788,
+      "unique_new": 0
+    },
+    {
+      "band": 640,
+      "budget_redirected": 0,
+      "depth_prunes": 109099,
+      "expanded": 50000,
+      "pass": 2,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 109099,
+      "unique_new": 0
+    },
+    {
+      "band": 640,
+      "budget_redirected": 0,
+      "depth_prunes": 110825,
+      "expanded": 50000,
+      "pass": 3,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 110825,
+      "unique_new": 0
+    },
+    {
+      "band": 1280,
+      "budget_redirected": 0,
+      "depth_prunes": 80073,
+      "expanded": 50000,
+      "pass": 0,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 80073,
+      "unique_new": 0
+    },
+    {
+      "band": 1280,
+      "budget_redirected": 0,
+      "depth_prunes": 102788,
+      "expanded": 50000,
+      "pass": 1,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 102788,
+      "unique_new": 0
+    },
+    {
+      "band": 1280,
+      "budget_redirected": 0,
+      "depth_prunes": 109099,
+      "expanded": 50000,
+      "pass": 2,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 109099,
+      "unique_new": 0
+    },
+    {
+      "band": 1280,
+      "budget_redirected": 0,
+      "depth_prunes": 110825,
+      "expanded": 50000,
+      "pass": 3,
+      "reopens": 50000,
+      "saturation_inherited": false,
+      "saturation_triggered": true,
+      "scheduled": true,
+      "skipped": false,
+      "stop": "budget",
+      "tt_hits": 110825,
+      "unique_new": 0
+    }
+  ],
+  "seeded_lifecycle": [
+    {
+      "first_pass": 0,
+      "key_hex": "53504b310100003204053a2c36083504230231050415191b11282d0c2b1a01073b27061534233231000314131200012d00020d0c040718360a2a2807060504030200011200083d3c3b3a3938372600021716131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b0b29241d242609270835",
+      "passes": {
+        "0": null,
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "seen": false,
+      "suppression_reason": "node budget ended"
+    },
+    {
+      "first_pass": 0,
+      "key_hex": "53504b310100002804063a2c360835042302310b050515191b11282d0c2b1a2901083b270615342332312400041413121d00022d2400030d0c26040818360a2a28070605040302090002122700093d3c3b3a39383726080003171635131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b",
+      "passes": {
+        "0": null,
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "seen": false,
+      "suppression_reason": "node budget ended"
+    },
+    {
+      "first_pass": 0,
+      "key_hex": "53504b310100001e04073a2c360835042302310b0d050615191b11282d0c2b1a290101093b27061534233231241600051413121d0700032d242100040d0c2621040918360a2a280706050403020911000312272a000a3d3c3b3a39383726081c00041716352b131a2233193717013325290b1c22343c3d381b09320a2c1d183903052514",
+      "passes": {
+        "0": null,
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "seen": false,
+      "suppression_reason": "node budget ended"
+    },
+    {
+      "first_pass": 0,
+      "key_hex": "53504b310100001404083a2c360835042302310b0d32050715191b11282d0c2b1a29010a010a3b2706153423323124162c00061413121d071d00042d24211800050d0c262139040a18360a2a28070605040302091103000412272a05000b3d3c3b3a39383726081c2500051716352b14131a2233193717013325290b1c22343c3d381b09",
+      "passes": {
+        "0": null,
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "seen": false,
+      "suppression_reason": "node budget ended"
+    },
+    {
+      "first_pass": 0,
+      "key_hex": "53504b310100000a04093a2c360835042302310b0d3229050815191b11282d0c2b1a29010a0b010b3b2706153423323124162c1c00071413121d071d2200052d2421183400060d0c2621393c040b18360a2a280706050403020911033d000512272a0538000c3d3c3b3a39383726081c251b00061716352b1409131a2233193717013325",
+      "passes": {
+        "0": null,
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "seen": false,
+      "suppression_reason": "node budget ended"
+    },
+    {
+      "first_pass": 0,
+      "key_hex": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010c3b2706153423323124162c1c2200081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+      "passes": {
+        "0": null,
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "seen": false,
+      "suppression_reason": "node budget ended"
+    }
+  ],
+  "slices_skipped": 0,
+  "solved": false,
+  "states_per_sec": 850.4392436838853,
+  "stock_empty": {
+    "census": {
+      "a": 1,
+      "b": 4,
+      "c": 0,
+      "d": 0,
+      "deal_legal": false,
+      "deal_tier": null,
+      "has_broader_than_a": true,
+      "has_immediate_foundation_move": false,
+      "has_tier_a": true,
+      "immediate_foundation_moves": 0,
+      "landing_score": null,
+      "legal": 5,
+      "legal_tableau": 5,
+      "tableau_a": 1,
+      "tableau_b": 4,
+      "tableau_c": 0,
+      "tableau_d": 0
+    },
+    "depth": 38,
+    "empties": 0,
+    "expansion": 49268,
+    "fd": 16,
+    "foundations": 0,
+    "fu": 88,
+    "key_hex": "53504b3101000000040a3a2c360835042332310b0d322913050915191b11282d0c2b1a29010a0b1a01093b2706153424162c1c22020631122d1d071d22330008141312242118341900070d0c2621393c37040c18360a2a280706050403020911033d1700071716272a05380100072302081c251b33000d3d3c3b3a39383726352b140925",
+    "pass": 0,
+    "proximity": {
+      "exposed_complete_ka_runs": 0,
+      "exposed_same_suit_adjacencies": 16,
+      "has_immediate_foundation_move": false,
+      "immediate_foundation_moves": 0,
+      "longest_exposed_same_suit_run": 1,
+      "movable_same_suit_blocks": 0
+    },
+    "wider_pass": {
+      "first_pass": 0,
+      "passes": {
+        "0": {
+          "best_progress_fd": 16,
+          "best_progress_foundations": 0,
+          "descendants": 5,
+          "encounters": 1,
+          "expanded": true,
+          "first_event_expansion": 49268,
+          "first_expansion": 49268,
+          "newly_permitted_vs_first_pass": 0,
+          "pass": 0,
+          "remaining": 42,
+          "tt_skip": false,
+          "tt_status": "novel"
+        },
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "seen": true,
+      "suppression_detail": "wider_slice_ran_but_state_not_reached later_slice_expansions=750000 stop=node limit first_band=80",
+      "suppression_reason": "node budget ended"
+    }
+  },
+  "stop_reason": "node limit",
+  "tt_hits": 1861595,
+  "tt_prunes": 1861595,
+  "tt_reopens": 851749,
+  "unique": 147729,
+  "unique_ratio": 0.147729
+}
