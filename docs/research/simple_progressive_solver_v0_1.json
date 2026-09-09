@@ -1,90 +1,171 @@
 {
-  "any_solved": false,
   "base_sha": "a10578240dd10d2c3c8a4b385ed2534ec341967f",
-  "config": {
-    "max_nodes": 200000,
-    "max_stage": 4,
-    "target_foundations": 1,
-    "time_limit_s": 180.0
-  },
-  "deals": [
-    "P0",
-    "P2",
-    "P7"
+  "deal": "deals/4925153.txt",
+  "e3_skip": "E3 estimate 11551s exceeds bounded run",
+  "envelopes": [
+    {
+      "max_nodes": 100000,
+      "name": "E1",
+      "time_limit_s": 300.0
+    },
+    {
+      "max_nodes": 1000000,
+      "name": "E2",
+      "time_limit_s": 1500.0
+    },
+    {
+      "max_nodes": 10000000,
+      "name": "E3",
+      "time_limit_s": 2400.0
+    }
   ],
   "experiment": "simple_progressive_solver_v0_1",
-  "note": "no foundation, but uncovered to 7 face-down vs strategic-controller 0-foundation ceiling",
+  "next_recommendation": "Add iterative deepening on primitive depth (bands well above the 174-move human line, e.g. 80/160/320) so the same A–D exact-TT solver spends nodes on distinct early positions instead of 5000-move shuffles; do not add a controller.",
+  "rss_calibration_20k": {
+    "nodes": 20000,
+    "unique_exact_states": 19478,
+    "peak_rss_mb": 28.27734375,
+    "implied_kib_per_unique": 0.45,
+    "implied_e2_rss_gb": 0.5
+  },
+  "note": "E2 expanded 1000000 exact states at 866/s with joint fd=6; no foundation yet",
+  "primary_envelope": "E2",
   "runs": {
-    "P0": {
-      "cost": 40,
-      "elapsed_s": 178.7658793999999,
-      "elapsed_wall_s": 178.76614950000112,
+    "E1": {
+      "cost": 39,
+      "elapsed_s": 119.20343630000025,
+      "elapsed_wall_s": 119.2106230999998,
+      "envelope": "E1",
+      "first_foundation_path_length": 0,
+      "identified_face_down": 17,
+      "identified_stock_rows": 5,
       "max_foundations": 0,
-      "min_face_down": 11,
-      "min_stock_rows": 0,
-      "nodes": 197282,
+      "max_nodes": 100000,
+      "nodes": 100000,
       "opening_face_down": 44,
       "opening_stock_rows": 5,
-      "path_length": 40,
+      "pass_reached": 3,
+      "path_length": 39,
       "replay": {
         "cost_matches": true,
-        "face_down": 11,
+        "face_down": 17,
         "foundations": 0,
+        "mobilityware_moves": 39,
+        "path_length": 39,
         "solved": false,
         "stock_rows": 5
       },
       "replay_ok": true,
       "solved": false,
-      "stage_reached": 4,
-      "stop_reason": "stage envelope"
+      "states_per_sec": 838.9019906131665,
+      "stats": {
+        "considered_by_tier": [
+          180466,
+          331372,
+          605677,
+          74576
+        ],
+        "deal_now_choices": 6,
+        "deals_considered": 75260,
+        "deals_executed": 6,
+        "duplicate_children": 0,
+        "expanded_by_tier": [
+          37796,
+          51918,
+          10278,
+          4
+        ],
+        "first_foundation_depth": null,
+        "first_foundation_node": null,
+        "first_foundation_pass": null,
+        "inverses": 69204,
+        "max_depth": 3321,
+        "max_foundations": 0,
+        "path_cycles": 116162,
+        "peak_rss_mb": null,
+        "prep_calls": 50260,
+        "prep_nodes": 191283,
+        "prepared_deal_choices": 6124,
+        "states_expanded": 100000,
+        "states_generated": 403467,
+        "tt_hit_rate": 0.6519426819208587,
+        "tt_hits": 187309,
+        "unique_exact_states": 99478
+      },
+      "stop_reason": "node limit",
+      "time_limit_s": 300.0
     },
-    "P2": {
-      "cost": 158,
-      "elapsed_s": 166.85861179999847,
-      "elapsed_wall_s": 166.8596372000011,
+    "E2": {
+      "cost": 78,
+      "elapsed_s": 1155.1025551000002,
+      "elapsed_wall_s": 1155.1900073999986,
+      "envelope": "E2",
+      "first_foundation_path_length": 0,
+      "identified_face_down": 6,
+      "identified_stock_rows": 4,
       "max_foundations": 0,
-      "min_face_down": 7,
-      "min_stock_rows": 0,
-      "nodes": 195423,
+      "max_nodes": 1000000,
+      "nodes": 1000000,
       "opening_face_down": 44,
       "opening_stock_rows": 5,
-      "path_length": 171,
+      "pass_reached": 3,
+      "path_length": 80,
       "replay": {
         "cost_matches": true,
-        "face_down": 7,
+        "face_down": 6,
         "foundations": 0,
+        "mobilityware_moves": 78,
+        "path_length": 80,
         "solved": false,
-        "stock_rows": 5
+        "stock_rows": 4
       },
       "replay_ok": true,
       "solved": false,
-      "stage_reached": 4,
-      "stop_reason": "stage envelope"
-    },
-    "P7": {
-      "cost": 49,
-      "elapsed_s": 130.32526700000017,
-      "elapsed_wall_s": 130.3255878,
-      "max_foundations": 0,
-      "min_face_down": 23,
-      "min_stock_rows": 0,
-      "nodes": 183242,
-      "opening_face_down": 44,
-      "opening_stock_rows": 5,
-      "path_length": 49,
-      "replay": {
-        "cost_matches": true,
-        "face_down": 23,
-        "foundations": 0,
-        "solved": false,
-        "stock_rows": 5
+      "states_per_sec": 865.7239961809515,
+      "stats": {
+        "considered_by_tier": [
+          1764884,
+          3171204,
+          7690190,
+          693531
+        ],
+        "deal_now_choices": 244,
+        "deals_considered": 697597,
+        "deals_executed": 244,
+        "duplicate_children": 0,
+        "expanded_by_tier": [
+          356584,
+          543553,
+          99856,
+          4
+        ],
+        "first_foundation_depth": null,
+        "first_foundation_node": null,
+        "first_foundation_pass": null,
+        "inverses": 643156,
+        "max_depth": 5000,
+        "max_foundations": 0,
+        "path_cycles": 1014072,
+        "peak_rss_mb": null,
+        "prep_calls": 447597,
+        "prep_nodes": 1770418,
+        "prepared_deal_choices": 54254,
+        "states_expanded": 1000000,
+        "states_generated": 4113206,
+        "tt_hit_rate": 0.6773295275426675,
+        "tt_hits": 2099137,
+        "unique_exact_states": 999478
       },
-      "replay_ok": true,
-      "solved": false,
-      "stage_reached": 4,
-      "stop_reason": "stage envelope"
+      "stop_reason": "node limit",
+      "time_limit_s": 1500.0
     }
   },
-  "total_foundations": 0,
-  "verdict": "SIMPLE_SOLVER_NO_FOUNDATION_BUT_DEEPER"
+  "strategic_controller_ref": {
+    "expansions": 400,
+    "expansions_per_sec": 0.7547169811320755,
+    "first_foundations": 0,
+    "seconds": 530.0,
+    "source": "docs/research/project_intent_coalescing_v0_1.json P0 CURRENT_FUNNEL"
+  },
+  "verdict": "SIMPLE_SOLVER_SEARCH_PROMISING"
 }

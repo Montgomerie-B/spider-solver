@@ -2,84 +2,131 @@
 
 ## 1. Verdict
 
-`SIMPLE_SOLVER_NO_FOUNDATION_BUT_DEEPER`
+`SIMPLE_SOLVER_SEARCH_PROMISING` — E2 expanded 1000000 exact states at 866/s with joint fd=6; no foundation yet.
 
-No foundation on P0/P2/P7. Cheap ordering plus exact memory plus
-backtracking plus relaxation **does** uncover far deeper than the
-strategic controller's recent 0-foundation ceiling, but it does not
-convert that uncovering into a completed suit in this envelope.
+Competing solver, not a patch to the strategic controller.  Objective:
+any replay-valid complete solution of deal 4925153.  Move count is not
+optimised toward the 119-move external benchmark or the 172-move canonical line.
 
-This is a competing solver, not a patch to the strategic controller.
+## 2. Solver architecture
 
-## 2. Solver contract
+One iterative DFS over ordinary legal Spider actions (tableau transfer and
+stock Deal).  Working state is mutated in place with column/stock snapshots
+for backtracking.  Children are ordered by a four-tier desirability band,
+then a cheap local score.  Exact packed identity (`pack_state`, same fields
+as `canonical_state_key`) plus the current relaxation pass is the
+transposition key.  Inverse moves, ancestor recurrence, and equivalent
+child states are suppressed locally.  Passes 0–3 widen permission from
+Tier A through D; remaining node/time budget is split across remaining
+passes so a huge A-graph cannot starve later tiers.  Deal is a planned
+action scored from the known next stock row, with a 1-ply (optional 2-ply)
+preparation lookahead.  No controller, scheduler, allocator, campaign,
+registry, project, or reservation objects.
 
-Reuses only:
+## 3. Move tiers/order
 
-* engine / cards / rules;
-* legal move generation, apply, flip, K-A removal;
-* stock Deal legality (Unrestricted Deal);
-* `canonical_state_key`;
-* `replay_actions`.
+| Tier | Pass | Meaning |
+| --- | ---: | --- |
+| A | 0 | foundation, reveal, same-suit extend, create empty, strongly constructive Deal |
+| B | 1 | mixed build, king-to-empty, moderate Deal, same-suit after a join-break |
+| C | 2 | join-break rework, consume empty, mediocre Deal |
+| D | 3 | remaining legal actions, including badly landing Deals |
 
-Does **not** import `anytime_controller`, scheduler, campaigns, registry,
-StrategicProject, or the resource planner.
+Within a permitted tier: foundation > reveal > empty > same-suit length,
+minus join-break / last-empty consumption.  An identified 1-ply Deal prep
+is boosted ahead of Deal-now.
 
-Relaxation stages (equal node/time slices):
+## 4. Exact-memory/backtracking model
 
-| Stage | Allowed |
-| --- | --- |
-| STRICT | same-suit extend, uncover (no join-break) |
-| BUILD | + mixed descending, king-to-empty |
-| SPACE | + create empty, non-king empty park |
-| DEAL | + stock deal |
-| ANY | + same-suit join-breaks |
+TT stores the highest pass at which a packed exact state was started and
+the highest pass at which it finished.  Skip if `seen` or `done` coverage
+is at least the current pass.  Broader coverage subsumes narrower.
+A pass-0 exhaustion does not mark pass 3.  Incomplete expansions (budget
+abort) are not marked done.  Path keys prevent ancestor recurrence.
 
-Exact TT stores `(g, expanded_stage)` and re-expands only when g improves
-or the stage is strictly looser.
+## 5. Perfect-information Deal planning
 
-## 3. Envelope
+Next row is `state.stock[-10:]` landing on columns 1–10.  Signals: same-suit
+parent, mixed rank adjacency, empty landings, buried tops, buried same-suit
+runs of length ≥ 3.  1-ply lookahead applies up to 8 cheap A/B tableau
+moves, scores the resulting Deal, and restores.  Prep is skipped on pass 0
+so A-only search stays cheap; 2-ply is attempted only when that candidate
+set is tiny.  Unrestricted Deal legality is obeyed (empties do not block
+Deal under `MW_RULES`).
 
-200,000 nodes, 180s wall, target 1 foundation, all five stages.
-Deals: frozen P0 (`4925153`), P2, P7.
+## 6. Throughput benchmark
 
-## 4. Natural results (joint trajectories)
+| Envelope | Expanded | Unique | s | states/s | TT hit rate | Peak RSS MiB | Max depth |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| E1 | 100000 | 99478 | 119.2 | 838.9 | 0.652 | n/a* | 3321 |
+| E2 | 1000000 | 999478 | 1155.1 | 865.7 | 0.677 | n/a* | 5000 |
+| E3 | — | — | — | — | — | — | — |
 
-Replay of the single best progress path per deal — not mixed extrema.
+\*E1/E2 ran before the Windows RSS HANDLE fix.  A later 20k-node calibration
+sampled **28.3 MiB** peak (about 9 MiB above a 19 MiB interpreter), ≈0.45 KiB
+extra per unique state, implying on the order of **0.5 GiB** at E2's 999k
+unique keys.  Memory is not the limiter.
 
-| Deal | Foundations | Path fd (from 44) | Path stock rows | Cost | Length | Nodes | Time | Stage | Replay |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| P0 | 0 | **11** | 5 | 40 | 40 | 197282 | 178.8s | 4 | OK |
-| P2 | 0 | **7** | 5 | 158 | 171 | 195423 | 166.9s | 4 | OK |
-| P7 | 0 | **23** | 5 | 49 | 49 | 183242 | 130.3s | 4 | OK |
+Strategic-controller historical rate (coalescing v0.1 P0, 400 expansions
+in ~530s): **0.75 strategic expansions/s**.
+These are not semantically equivalent to primitive exact-state expansions.
 
-Search-wide minima (different states, not combined with the path above):
-P0/P2/P7 also visited stock-row 0 positions.
+## 7. 4925153 search results
 
-## 5. Comparison to strategic controller
+- E1: solved=False foundations=0 joint fd=17 stock_rows=5 cost=39 length=39 pass=3 nodes=100000 unique=99478 gen=403467 tt_hits=187309 dups=0 cycles=116162 inverses=69204 depth=3321 tiers considered=[180466, 331372, 605677, 74576] expanded=[37796, 51918, 10278, 4] deals considered/executed=75260/6 deal-now=6 prepared=6124 prep calls/nodes=50260/191283 stop=node limit replay=True replay_fd=17 replay_stock=5.
+- E2: solved=False foundations=0 joint fd=6 stock_rows=4 cost=78 length=80 pass=3 nodes=1000000 unique=999478 gen=4113206 tt_hits=2099137 dups=0 cycles=1014072 inverses=643156 depth=5000 tiers considered=[1764884, 3171204, 7690190, 693531] expanded=[356584, 543553, 99856, 4] deals considered/executed=697597/244 deal-now=244 prepared=54254 prep calls/nodes=447597/1770418 stop=node limit replay=True replay_fd=6 replay_stock=4.
+- E3: skipped (E3 estimate 11551s exceeds bounded run).
 
-Recent 400-expansion 4-suit strategic runs, including project-intent
-coalescing, still report **0 foundations**. Typical early strategic
-face-down on 4925153 remained in the high 30s when first fully-revealed
-columns appeared.
+## 8. First-foundation result
 
-This baseline, with no campaign analysis, reached **11 / 7 / 23**
-face-down on a replayable path while still holding all 5 stock rows.
-That supports “simple ordering increases useful density” and does **not**
-yet support “brute-force finishes a foundation in this budget.”
+No replay-valid foundation on 4925153 in the completed envelopes.
 
-## 6. Integrity
+## 9. Complete-solution result
 
-* Source states unmodified (cloned).
-* Paths replay through `replay_actions`; cost matches.
-* Solver source does not import the strategic controller.
-* Controller does not import this solver.
-* Production default of the anytime controller is unchanged.
+No complete solution in the completed envelopes.
 
-Full pytest: `2060 passed, 37 xfailed, 2 failed` in 1351s. The two failures are
-the pre-existing frozen workspace-service panel hash mismatches.
+## 10. Search-space anatomy
 
-## 7. Exactly one next recommendation
+On E2, legal moves considered by tier A/B/C/D = [1764884, 3171204, 7690190, 693531].
+Expanded by tier = [356584, 543553, 99856, 4].
+Duplicate children removed = 0; path cycles = 1014072; inverses = 643156.
+Deals considered 697597, executed 244; prep lookahead calls 447597 using 1770418 nodes.
 
-Give the **same** isolated solver a larger node/time envelope (and/or
-iterative deepening on path length) before judging the hypothesis
-settled. Do not merge it into the strategic controller.
+Branching is dominated by ordinary tableau transfers (C is common among
+*considered* moves, A/B among *expanded* moves).  Deal is sparse: 244
+executed vs 4.1M generated children.  Exact TT and inverse/path-cycle cuts
+are the main reducers (TT hit rate 0.677; 1.01M ancestor cycles; 0.64M
+inverses).  Unique states ≈ expanded (999478 / 1000000), so the envelope
+almost never exhausted a position — it walked new exact states down a deep
+corridor.  E2 hit the implementation depth guard of **5000** (human line is
+~174 commands).  The best joint replayable state is much shallower: 80
+primitive moves, face-down 6 / stock 4.  That is uncovering progress, not a
+foundation, and it shows DFS+constructive-first spending most nodes on
+long A/B shuffles rather than on many distinct early Deal-preparation
+positions.
+
+## 11. Comparison with strategic-controller granularity
+
+Simple solver primitive exact-state rate on E2: **865.7/s**.
+Strategic controller recent 4-suit 400-expansion runs: about **0.75 strategic expansions/s** (~530s wall,
+each expansion itself a tactical search of up to 300k nodes plus campaign
+machinery).  Memory here is one packed exact key per visited state
+(999478 unique; E2 RSS unsampled, 20k calibration extrapolates ~0.5 GiB).
+Do not treat the two expansion types as equivalent.  The comparison is
+granularity: this solver asks how far cheap ordered exact backtracking
+gets when the unit of search is a legal Spider action.
+
+Strategic controller first foundations on 4925153 in those runs: **0**.
+This solver first foundations: **0**; complete solution: **False**.
+
+## 12. One next bounded recommendation
+
+Add iterative deepening on primitive depth (bands well above the 174-move human line, e.g. 80/160/320) so the same A–D exact-TT solver spends nodes on distinct early positions instead of 5000-move shuffles; do not add a controller.
+
+## Integrity
+
+Base SHA `a10578240dd10d2c3c8a4b385ed2534ec341967f`. Independent envelopes from `deals/4925153.txt`.
+Human canonical line was not used to seed, train, or guide search.
+Returned paths replay through `replay_actions`. Solver does not import
+planner policy. Anytime controller is unchanged.
+
