@@ -318,6 +318,11 @@ from spider.planner.foundation_conversion_funnel import (
     FoundationFunnelFailure,
     FoundationFunnelStage,
 )
+from spider.planner.project_intent_coalescing import (
+    ProjectIntentCoalescingTelemetry,
+    ProjectIntentSuppressionKind,
+    consider_suppressed_project_progress,
+)
 from spider.planner.state_service_registry import (
     ServiceCoverageMode,
     ServiceRequestKey,
@@ -504,6 +509,7 @@ class AnytimeControllerConfig:
     enable_strategic_project_continuation: bool = False
     enable_foundation_conversion_funnel: bool = False
     enable_foundation_demand_bridge: bool = False
+    enable_project_intent_coalescing: bool = False
     state_service_registry_max_states: int = 100_000
     state_service_registry_max_requests: int = 500_000
     deal_timing_config: DealTimingConfig = field(
@@ -548,6 +554,13 @@ class AnytimeControllerConfig:
             )
         if self.enable_foundation_conversion_funnel and not self.enable_strategic_project_continuation:
             raise ValueError("foundation conversion funnel requires StrategicProject lifecycle")
+        if self.enable_project_intent_coalescing and not (
+            self.enable_strategic_project_continuation
+            and self.enable_state_service_registry
+        ):
+            raise ValueError(
+                "project-intent coalescing requires StrategicProject lifecycle and registry"
+            )
         if self.enable_foundation_demand_bridge and not (
             self.enable_strategic_project_continuation
             and self.enable_tactical_resource_allocation
@@ -1013,6 +1026,7 @@ class ControllerTelemetry:
     strategic_projects_enabled: bool = False
     strategic_project_snapshot: Dict[str, object] = field(default_factory=dict)
     foundation_conversion_funnel: Dict[str, object] = field(default_factory=dict)
+    project_intent_coalescing: Dict[str, object] = field(default_factory=dict)
     actionability_cache_hits: int = 0
     actionability_cache_misses: int = 0
     inaccessible_retry_suppressed: int = 0
@@ -6776,6 +6790,55 @@ def _record_project_analysis_funnel(
         )
 
 
+def _consider_funnel_intent(
+    *,
+    node: StrategicSearchNode,
+    successor: StrategicSuccessor,
+    campaign_id: str,
+    project_id: str,
+    registry: Optional[StateServiceRegistry],
+    projects: Optional[StrategicProjectRegistry],
+    config: AnytimeControllerConfig,
+    expansion: int,
+    suppression: ProjectIntentSuppressionKind,
+    intent_telemetry: Optional[ProjectIntentCoalescingTelemetry],
+    foundation_funnel: Optional[FoundationConversionFunnel],
+    request_key: Optional[ServiceRequestKey] = None,
+) -> bool:
+    if projects is None or registry is None:
+        return False
+    child_key = canonical_state_key(successor.end_state)
+    arrival = registry.arrival(child_key)
+    priority: Tuple = ()
+    if arrival is not None and isinstance(arrival.witness, StrategicSearchNode):
+        priority = _node_priority(arrival.witness)
+    credit = None
+    intent_campaign = successor.source_project_id or campaign_id
+    if (
+        node.continuation_credit is not None
+        and node.continuation_credit.objective_id == intent_campaign
+    ):
+        credit = node.continuation_credit
+    elif successor.continuation_credit is not None:
+        credit = successor.continuation_credit
+    record = consider_suppressed_project_progress(
+        registry=registry,
+        projects=projects,
+        campaign_id=intent_campaign,
+        project_id=project_id,
+        child_key=child_key,
+        credit=credit,
+        expansion=expansion,
+        suppression=suppression,
+        transfer=config.enable_project_intent_coalescing,
+        request_key=request_key,
+        priority_information=priority,
+        funnel=foundation_funnel,
+        telemetry=intent_telemetry,
+    )
+    return record.transferred
+
+
 def generate_strategic_successors(
     node: StrategicSearchNode,
     cards: Sequence[Card],
@@ -6794,6 +6857,10 @@ def generate_strategic_successors(
     foundation_funnel: Optional[FoundationConversionFunnel] = None,
     funnel_project_id: Optional[str] = None,
     funnel_request_key: Optional[ServiceRequestKey] = None,
+    registry: Optional[StateServiceRegistry] = None,
+    projects: Optional[StrategicProjectRegistry] = None,
+    intent_telemetry: Optional[ProjectIntentCoalescingTelemetry] = None,
+    pending_same_child: Optional[List[Tuple[CanonicalStateKey, StrategicSuccessor]]] = None,
 ) -> Tuple[StrategicSuccessor, ...]:
     """Generate a replay-verified portfolio in an explicit resource order.
 
@@ -7676,6 +7743,33 @@ def generate_strategic_successors(
                 request_key=funnel_request_key,
                 evidence=evidence,
             )
+            child_key = canonical_state_key(successor.end_state)
+            if any(canonical_state_key(item.end_state) == child_key for item in final):
+                if pending_same_child is not None:
+                    pending_same_child.append((child_key, successor))
+            else:
+                suppression = (
+                    ProjectIntentSuppressionKind.SAME_EXPANSION_DEDUP
+                    if reason is FoundationFunnelFailure.SUCCESSOR_DEDUP_DROPPED
+                    else (
+                        ProjectIntentSuppressionKind.PORTFOLIO
+                        if reason is FoundationFunnelFailure.PORTFOLIO_DROPPED
+                        else ProjectIntentSuppressionKind.RETENTION
+                    )
+                )
+                _consider_funnel_intent(
+                    node=node,
+                    successor=successor,
+                    campaign_id=funnel_campaign_id,
+                    project_id=funnel_project_id,
+                    registry=registry,
+                    projects=projects,
+                    config=config,
+                    expansion=telemetry.expanded,
+                    suppression=suppression,
+                    intent_telemetry=intent_telemetry,
+                    foundation_funnel=foundation_funnel,
+                )
     telemetry.closure_successors_admitted += sum(
         item.kind == StrategicActionKind.CAMPAIGN_DEPENDENCY_CLOSURE
         for item in final
@@ -10145,6 +10239,11 @@ def solve_anytime(
         if config.enable_foundation_conversion_funnel
         else None
     )
+    intent_telemetry = (
+        ProjectIntentCoalescingTelemetry()
+        if config.enable_strategic_project_continuation
+        else None
+    )
     registry: Optional[StateServiceRegistry] = None
     projects: Optional[StrategicProjectRegistry] = None
     if config.enable_state_service_registry:
@@ -11064,6 +11163,7 @@ def solve_anytime(
             break
 
         resource_allocator.begin_expansion()
+        pending_same_child: List[Tuple[CanonicalStateKey, StrategicSuccessor]] = []
         successors = generate_strategic_successors(
             node,
             cards,
@@ -11079,6 +11179,10 @@ def solve_anytime(
             foundation_funnel=foundation_funnel,
             funnel_project_id=funnel_project_id,
             funnel_request_key=running_request,
+            registry=registry,
+            projects=projects,
+            intent_telemetry=intent_telemetry,
+            pending_same_child=pending_same_child,
         )
         if registry is not None and running_request is not None:
             registry.complete(running_request, outcome="SUCCESSORS_GENERATED")
@@ -11196,6 +11300,29 @@ def solve_anytime(
                         request_key=running_request,
                         evidence="exact TT retained an equal/lower-g structural duplicate",
                     )
+                transferred_intent = False
+                if (
+                    funnel_project_id is not None
+                    and funnel_campaign_id is not None
+                    and _successor_matches_funnel_campaign(
+                        node, successor, funnel_campaign_id
+                    )
+                    and successor.independent_replay_verified
+                    and successor.actions
+                ):
+                    transferred_intent = _consider_funnel_intent(
+                        node=node,
+                        successor=successor,
+                        campaign_id=funnel_campaign_id,
+                        project_id=funnel_project_id,
+                        registry=registry,
+                        projects=projects,
+                        config=config,
+                        expansion=telemetry.expanded,
+                        suppression=ProjectIntentSuppressionKind.TT_DOMINATED,
+                        intent_telemetry=intent_telemetry,
+                        foundation_funnel=foundation_funnel,
+                    )
                 if registry is not None:
                     suppressed_key = canonical_state_key(successor.end_state)
                     # The TT can contain an arrival that was eliminated by an
@@ -11214,6 +11341,7 @@ def solve_anytime(
                             frontier,
                             uid,
                             preferred_key=deferred_request.key,
+                            projects=projects if transferred_intent else None,
                         )
                 continue
             if successor.receiver_uncover_followup is not None:
@@ -12095,6 +12223,24 @@ def solve_anytime(
                                 request_key=child_request.key,
                                 details={"arrival_version": arrival.version},
                             )
+                    if funnel_project_id is not None and funnel_campaign_id is not None:
+                        for extra_key, extra_successor in pending_same_child:
+                            if extra_key != child_key:
+                                continue
+                            _consider_funnel_intent(
+                                node=node,
+                                successor=extra_successor,
+                                campaign_id=funnel_campaign_id,
+                                project_id=funnel_project_id,
+                                registry=registry,
+                                projects=projects,
+                                config=config,
+                                expansion=telemetry.expanded,
+                                suppression=ProjectIntentSuppressionKind.SAME_EXPANSION_DEDUP,
+                                intent_telemetry=intent_telemetry,
+                                foundation_funnel=foundation_funnel,
+                                request_key=child_request.key,
+                            )
                 uid = _activate_registry_pending(
                     registry,
                     child_key,
@@ -12301,6 +12447,8 @@ def solve_anytime(
     _publish_strategic_project_telemetry(projects, telemetry)
     if foundation_funnel is not None:
         telemetry.foundation_conversion_funnel = foundation_funnel.snapshot()
+    if intent_telemetry is not None:
+        telemetry.project_intent_coalescing = intent_telemetry.snapshot()
     _publish_tactical_resource_telemetry(
         telemetry,
         resource_allocator.ledger,
