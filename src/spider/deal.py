@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 from .cards import Card
@@ -19,10 +20,27 @@ def cards_from_tokens(tokens: list[str]) -> list[Card]:
     return [Card.parse(t) for t in tokens if t.strip().lower() != "spider"]
 
 
-def load_deal(path: Path) -> list[Card]:
-    cards = cards_from_tokens(tokens_from_file(path))
+def validate_four_suit_two_deck(cards: list[Card]) -> None:
+    """A 4-suit two-deck deal has exactly two of each suit/rank."""
+
     if len(cards) != 104:
         raise ValueError(f"deal must contain 104 cards, got {len(cards)}")
+    counts = Counter((card.suit, int(card.rank)) for card in cards)
+    expected = {(suit, rank) for suit in "shdc" for rank in range(1, 14)}
+    missing = expected - set(counts)
+    extra = set(counts) - expected
+    bad_copy = {key: n for key, n in counts.items() if n != 2}
+    if missing or extra or bad_copy:
+        raise ValueError(
+            "deal is not two complete 4-suit decks "
+            f"(missing={sorted(missing)}, extra={sorted(extra)}, "
+            f"non_double={sorted(bad_copy.items())})"
+        )
+
+
+def load_deal(path: Path) -> list[Card]:
+    cards = cards_from_tokens(tokens_from_file(path))
+    validate_four_suit_two_deck(cards)
     return cards
 
 

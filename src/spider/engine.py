@@ -81,7 +81,10 @@ class SpiderState:
         return cls.is_desc_run(cards) and cls.is_same_suit(cards)
 
     def can_move(self, src: int, dst: int, k: int) -> bool:
-        if src == dst or k <= 0 or k > len(self.columns[src].face_up):
+        n = len(self.columns)
+        if not (0 <= src < n and 0 <= dst < n) or src == dst or k <= 0:
+            return False
+        if k > len(self.columns[src].face_up):
             return False
         run = self.columns[src].face_up[-k:]
         if not self.is_movable_run(run):
@@ -154,8 +157,12 @@ class SpiderState:
     def can_deal(self, rules: MobilityWareRules = MW_RULES) -> bool:
         """Whether one stock row may legally be dealt under ``rules``.
 
-        A fully open non-empty column remains a populated column and therefore
-        does not block a standard deal.  Only a structurally empty column does.
+        Under default ``MW_RULES`` (Unrestricted Deal) a remaining stock row
+        may be dealt whether or not tableau columns are empty and whether or
+        not tableau moves remain.  Remaining tableau play never makes Deal
+        illegal.  The restricted comparison profile
+        (``can_deal_into_empty=False``) rejects Deal only when a column is
+        structurally empty.
         """
         if len(self.stock) < 10:
             return False
@@ -177,6 +184,20 @@ class SpiderState:
                     if self.can_move(src, dst, k):
                         moves.append((src, dst, k))
         return moves
+
+    def enumerate_legal_actions(
+        self, rules: MobilityWareRules = MW_RULES
+    ) -> List[Tuple]:
+        """All legal primitive actions: tableau transfers plus Deal if legal.
+
+        Tableau heuristics must not be used here.  If Deal is legal under
+        ``rules``, it is included even when tableau moves remain and even
+        when columns are empty (Unrestricted Deal).
+        """
+        actions: List[Tuple] = list(self.enumerate_moves())
+        if self.can_deal(rules=rules):
+            actions.append(("deal",))
+        return actions
 
     def top_row(self) -> list[Optional[Card]]:
         return [col.top() for col in self.columns]

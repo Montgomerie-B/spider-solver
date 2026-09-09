@@ -30,6 +30,8 @@ class Card:
         if r not in RANK_MAP and not r.isdigit():
             raise ValueError(f"bad rank token {tok}")
         rank = RANK_MAP[r] if r in RANK_MAP else int(r)
+        if not 1 <= rank <= 13:
+            raise ValueError(f"rank out of range in {tok}")
         if suit not in "shdc":
             raise ValueError(f"bad suit in {tok}")
         return Card(suit, rank)
@@ -43,6 +45,10 @@ class Card:
         suit = t[-1]
         r = t[:-1]
         rank = RANK_MAP[r] if r in RANK_MAP else int(r)
+        if not 1 <= rank <= 13:
+            raise ValueError(f"rank out of range in {notation}")
+        if suit not in "shdc":
+            raise ValueError(f"bad suit in {notation}")
         return Card(suit, rank)
 
 

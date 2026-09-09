@@ -42,8 +42,6 @@ def test_run_size_requires_anchor_run_to_reach_top():
 
 
 def test_same_suit_run_through_ace():
-    up = [Card.parse(f"{r}s") for r in "kqjt98765432a".replace("t", "10")]
-    # Build Ks..As: use helper
     up = [Card("s", r) for r in (13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)]
     assert _run_size_for_anchor(up, Card.parse("qs"), use_run=True) == 12
 

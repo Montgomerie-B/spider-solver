@@ -219,10 +219,9 @@ def is_deal(action: SolverAction) -> bool:
 def enumerate_actions(
     state: SpiderState, *, rules: MobilityWareRules = MW_RULES
 ) -> List[SolverAction]:
-    actions: List[SolverAction] = list(state.enumerate_moves())
-    if state.can_deal(rules=rules):
-        actions.append(("deal",))
-    return actions
+    """Legal primitives from the engine.  Tiers may order, not omit, these."""
+
+    return list(state.enumerate_legal_actions(rules=rules))
 
 
 def evaluate_deal_landings(

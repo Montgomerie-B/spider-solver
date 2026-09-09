@@ -38,6 +38,9 @@ class MobilityWareRules:
 
 MW_RULES = MobilityWareRules()
 
+# Comparison-only restricted Deal profile.  Not the benchmark.
+RESTRICTED_DEAL_RULES = MobilityWareRules(can_deal_into_empty=False)
+
 # Explicit legacy rules object for reproducing the withdrawn 163 total.
 LEGACY_MW_RULES = MobilityWareRules(
     zero_cost_move_to_empty=True,
