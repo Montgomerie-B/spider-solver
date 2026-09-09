@@ -1,0 +1,90 @@
+{
+  "any_solved": false,
+  "base_sha": "a10578240dd10d2c3c8a4b385ed2534ec341967f",
+  "config": {
+    "max_nodes": 200000,
+    "max_stage": 4,
+    "target_foundations": 1,
+    "time_limit_s": 180.0
+  },
+  "deals": [
+    "P0",
+    "P2",
+    "P7"
+  ],
+  "experiment": "simple_progressive_solver_v0_1",
+  "note": "no foundation, but uncovered to 7 face-down vs strategic-controller 0-foundation ceiling",
+  "runs": {
+    "P0": {
+      "cost": 40,
+      "elapsed_s": 178.7658793999999,
+      "elapsed_wall_s": 178.76614950000112,
+      "max_foundations": 0,
+      "min_face_down": 11,
+      "min_stock_rows": 0,
+      "nodes": 197282,
+      "opening_face_down": 44,
+      "opening_stock_rows": 5,
+      "path_length": 40,
+      "replay": {
+        "cost_matches": true,
+        "face_down": 11,
+        "foundations": 0,
+        "solved": false,
+        "stock_rows": 5
+      },
+      "replay_ok": true,
+      "solved": false,
+      "stage_reached": 4,
+      "stop_reason": "stage envelope"
+    },
+    "P2": {
+      "cost": 158,
+      "elapsed_s": 166.85861179999847,
+      "elapsed_wall_s": 166.8596372000011,
+      "max_foundations": 0,
+      "min_face_down": 7,
+      "min_stock_rows": 0,
+      "nodes": 195423,
+      "opening_face_down": 44,
+      "opening_stock_rows": 5,
+      "path_length": 171,
+      "replay": {
+        "cost_matches": true,
+        "face_down": 7,
+        "foundations": 0,
+        "solved": false,
+        "stock_rows": 5
+      },
+      "replay_ok": true,
+      "solved": false,
+      "stage_reached": 4,
+      "stop_reason": "stage envelope"
+    },
+    "P7": {
+      "cost": 49,
+      "elapsed_s": 130.32526700000017,
+      "elapsed_wall_s": 130.3255878,
+      "max_foundations": 0,
+      "min_face_down": 23,
+      "min_stock_rows": 0,
+      "nodes": 183242,
+      "opening_face_down": 44,
+      "opening_stock_rows": 5,
+      "path_length": 49,
+      "replay": {
+        "cost_matches": true,
+        "face_down": 23,
+        "foundations": 0,
+        "solved": false,
+        "stock_rows": 5
+      },
+      "replay_ok": true,
+      "solved": false,
+      "stage_reached": 4,
+      "stop_reason": "stage envelope"
+    }
+  },
+  "total_foundations": 0,
+  "verdict": "SIMPLE_SOLVER_NO_FOUNDATION_BUT_DEEPER"
+}

@@ -1,0 +1,31 @@
+{
+  "config": {
+    "max_nodes": 200000,
+    "max_stage": 4,
+    "target_foundations": 1,
+    "time_limit_s": 180.0
+  },
+  "result": {
+    "cost": 40,
+    "elapsed_s": 178.7658793999999,
+    "elapsed_wall_s": 178.76614950000112,
+    "max_foundations": 0,
+    "min_face_down": 11,
+    "min_stock_rows": 0,
+    "nodes": 197282,
+    "opening_face_down": 44,
+    "opening_stock_rows": 5,
+    "path_length": 40,
+    "replay": {
+      "cost_matches": true,
+      "face_down": 11,
+      "foundations": 0,
+      "solved": false,
+      "stock_rows": 5
+    },
+    "replay_ok": true,
+    "solved": false,
+    "stage_reached": 4,
+    "stop_reason": "stage envelope"
+  }
+}
