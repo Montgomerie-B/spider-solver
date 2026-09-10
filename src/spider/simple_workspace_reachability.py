@@ -15,7 +15,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
-from spider.packed_state import pack_state, unpack_state
+from spider.packed_state import pack_search_identity, pack_state, unpack_state
 from spider.rules import MW_RULES, MobilityWareRules
 from spider.simple_post_deal_audit import exposed_run_metrics
 from spider.simple_progressive_solver import (
@@ -157,8 +157,10 @@ class LayeredReachabilityResult:
     last_layer_generated: int = 0
     last_layer_duplicates: int = 0
     visited_hex: List[str] = field(default_factory=list)
+    visited_identity_hex: List[str] = field(default_factory=list)
     skipped_expand_parents: int = 0
     parent_fd_counts: Dict[int, int] = field(default_factory=dict)
+    classifier_surprises: int = 0
 
 
 def face_down_count(state: SpiderState) -> int:
@@ -219,6 +221,48 @@ def is_hard_progress(
     return fd < start_fd or foundations > start_foundations
 
 
+def post_stock_identity(state: SpiderState) -> bytes:
+    """Research-only exact identity: ordered if stock remains, column quotient at stock=0."""
+
+    return pack_search_identity(state, post_stock_column_symmetry=True)
+
+
+def engine_tableau_actions(
+    state: SpiderState, *, rules: MobilityWareRules = MW_RULES
+) -> Tuple[List[Action], List[dict]]:
+    """Engine-legal tableau primitives.  Deal is omitted.  Tier D is reported, not dropped."""
+
+    actions: List[Action] = []
+    surprises: List[dict] = []
+    for action in state.enumerate_legal_actions(rules=rules):
+        if action == ("deal",):
+            continue
+        tier = int(classify_tier(state, action))
+        if tier > MAX_TIER:
+            src, dst, k = action  # type: ignore[misc]
+            surprises.append({"action": [src, dst, k], "tier": tier})
+        actions.append(action)
+    return actions, surprises
+
+
+def stock0_tableau_classifier_complete(
+    state: SpiderState, *, rules: MobilityWareRules = MW_RULES
+) -> dict:
+    """Whether every engine-legal stock=0 tableau action is admitted by A+B+C."""
+
+    if state.stock:
+        raise ValueError("stock0 classifier completeness is undefined while stock remains")
+    actions, surprises = engine_tableau_actions(state, rules=rules)
+    engine_n = sum(1 for action in state.enumerate_legal_actions(rules=rules) if action != ("deal",))
+    return {
+        "stock": len(state.stock),
+        "engine_tableau": engine_n,
+        "admitted": len(actions),
+        "surprises": surprises,
+        "complete": engine_n == len(actions) and not surprises,
+    }
+
+
 def reconstruct_actions(
     node: int, parent: Sequence[int], src: Sequence[int], dst: Sequence[int], k: Sequence[int]
 ) -> List[Action]:
@@ -249,6 +293,7 @@ def layered_reachability(
     expand_only_fd: Optional[int] = None,
     include_visited_hex: bool = False,
     identity_fn: Optional[Callable[[SpiderState], bytes]] = None,
+    all_legal_tableau: bool = False,
 ) -> LayeredReachabilityResult:
     """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known).
 
@@ -266,6 +311,8 @@ def layered_reachability(
     ``pack_state`` representative for every identity class so generated
     moves and replay paths keep physical column indices.  Do not pass a
     function that silently replaces production identity.
+    ``all_legal_tableau`` expands every engine-legal tableau action, including
+    any classifier-D surprise; Deal is still omitted.
     """
 
     started = time.perf_counter()
@@ -361,6 +408,7 @@ def layered_reachability(
     last_layer_duplicates = 0
     skipped_expand_parents = 0
     parent_fd_counts: Dict[int, int] = {}
+    classifier_surprises = 0
     peak_rss = _rss_mb()
     stop_reason = "max depth"
     witnesses: Dict[str, dict] = {}
@@ -491,11 +539,16 @@ def layered_reachability(
                 continue
             state = unpack_state(keys[node])
             parent_empties = empty_column_indices(state)
-            for action in enumerate_actions(state, rules=rules):
-                if action == ("deal",):
-                    continue
+            if all_legal_tableau:
+                action_iter, surprises = engine_tableau_actions(state, rules=rules)
+                classifier_surprises += len(surprises)
+            else:
+                action_iter = [
+                    action for action in enumerate_actions(state, rules=rules) if action != ("deal",)
+                ]
+            for action in action_iter:
                 tier = int(classify_tier(state, action))
-                if tier > MAX_TIER:
+                if not all_legal_tableau and tier > MAX_TIER:
                     continue
                 src, dst, k = action  # type: ignore[misc]
                 dest_was_empty = state.columns[dst].is_empty()
@@ -810,6 +863,388 @@ def layered_reachability(
         last_layer_generated=last_layer_generated,
         last_layer_duplicates=last_layer_duplicates,
         visited_hex=[k.hex() for k in keys] if include_visited_hex else [],
+        visited_identity_hex=[k.hex() for k in idents] if include_visited_hex else [],
         skipped_expand_parents=skipped_expand_parents,
         parent_fd_counts=parent_fd_counts,
+        classifier_surprises=classifier_surprises,
     )
+
+
+@dataclass
+class PlateauReachabilityResult:
+    unique: int
+    generated: int
+    duplicate_skips: int
+    exit_edges: int
+    exit_classes: int
+    completed_generated_depth: int
+    completed_expanded_depth: int
+    elapsed_s: float
+    peak_rss_mb: Optional[float]
+    stop_reason: str
+    exhausted: bool
+    min_fd: int
+    max_foundations: int
+    max_empties: int
+    max_run: int
+    max_adjacencies: int
+    max_blocks: int
+    empty0: int
+    empty1: int
+    empty_ge2: int
+    classifier_surprises: int
+    surprise_samples: List[dict] = field(default_factory=list)
+    exits: List[dict] = field(default_factory=list)
+    foundation_witness: Optional[dict] = None
+    fd_le_10_witness: Optional[dict] = None
+    layers: List[dict] = field(default_factory=list)
+    root_digest: str = ""
+    root_symmetry_digest: str = ""
+    plateau_fd: int = 12
+
+
+def plateau_reachability(
+    seed: SpiderState,
+    *,
+    plateau_fd: int = 12,
+    identity_fn: Optional[Callable[[SpiderState], bytes]] = None,
+    max_unique: int = 1_500_000,
+    time_limit_s: float = 1800.0,
+    rss_abort_mb: float = 4 * 1024.0,
+    rules: MobilityWareRules = MW_RULES,
+    checkpoints: Sequence[int] = CHECKPOINT_DEPTHS,
+    max_depth: int = 10_000,
+) -> PlateauReachabilityResult:
+    """First-visit BFS of the fd-preserving plateau.
+
+    Enqueues only children that keep ``fd == plateau_fd`` and foundations 0.
+    fd11/foundation0 children are recorded as exits and not expanded.
+    Uses every engine-legal tableau action.  Deal is omitted.
+    Concrete ordered representatives are retained for replay.
+    """
+
+    if identity_fn is None:
+        identity_fn = pack_state
+    started = time.perf_counter()
+    if seed.stock:
+        raise ValueError("plateau_reachability is post-stock only")
+    root_metrics = _metrics(seed)
+    if root_metrics["fd"] != plateau_fd or root_metrics["foundations"] != 0:
+        raise ValueError(
+            f"seed is fd={root_metrics['fd']} fnd={root_metrics['foundations']}, "
+            f"expected fd={plateau_fd} fnd=0"
+        )
+
+    ids: Dict[bytes, int] = {}
+    keys: List[bytes] = []
+    idents: List[bytes] = []
+    parent: List[int] = []
+    src_a: List[int] = []
+    dst_a: List[int] = []
+    k_a: List[int] = []
+    depth_of: List[int] = []
+    empty_mask_of: List[int] = []
+    empty_count_of: List[int] = []
+    path_events: List[List[str]] = []
+
+    def add_plateau_node(
+        concrete: bytes,
+        ident: bytes,
+        parent_id: int,
+        src: int,
+        dst: int,
+        k: int,
+        depth: int,
+        metrics: dict,
+        events: List[str],
+    ) -> int:
+        node = len(keys)
+        ids[ident] = node
+        keys.append(concrete)
+        idents.append(ident)
+        parent.append(parent_id)
+        src_a.append(src)
+        dst_a.append(dst)
+        k_a.append(k)
+        depth_of.append(depth)
+        empties = metrics["empties"]
+        empty_count_of.append(len(empties))
+        empty_mask_of.append(sum(1 << i for i in empties))
+        path_events.append(events)
+        return node
+
+    root_concrete = pack_state(seed)
+    root_ident = identity_fn(seed)
+    add_plateau_node(root_concrete, root_ident, -1, -1, -1, -1, 0, root_metrics, [])
+    layers: List[List[int]] = [[0]]
+    generated = 0
+    duplicate_skips = 0
+    exit_edges = 0
+    exits: Dict[bytes, dict] = {}
+    classifier_surprises = 0
+    surprise_samples: List[dict] = []
+    min_fd = root_metrics["fd"]
+    max_foundations = root_metrics["foundations"]
+    max_empties = len(root_metrics["empties"])
+    max_run = root_metrics["longest_run"]
+    max_adjacencies = root_metrics["adjacencies"]
+    max_blocks = root_metrics["blocks"]
+    peak_rss = _rss_mb()
+    stop_reason = "frontier empty"
+    foundation_witness: Optional[dict] = None
+    fd_le_10_witness: Optional[dict] = None
+    layer_reports: List[dict] = []
+    last_expanded = -1
+    last_generated = 0
+    deadline = started + time_limit_s
+
+    def note_rss() -> bool:
+        nonlocal peak_rss
+        rss = _rss_mb()
+        if rss is not None and (peak_rss is None or rss > peak_rss):
+            peak_rss = rss
+        return rss_abort_mb is not None and rss is not None and rss >= rss_abort_mb
+
+    found_foundation = False
+    incomplete = False
+
+    for depth in range(0, max_depth):
+        if found_foundation:
+            break
+        if time.perf_counter() >= deadline:
+            stop_reason = "time limit"
+            incomplete = True
+            break
+        if note_rss():
+            stop_reason = "rss abort"
+            incomplete = True
+            break
+        if depth >= len(layers) or not layers[depth]:
+            stop_reason = "frontier empty"
+            break
+        frontier = layers[depth]
+        next_ids: List[int] = []
+        gen_here = 0
+        dups_here = 0
+        exits_here = 0
+        by_tier = [0, 0, 0, 0]
+        for node in frontier:
+            if found_foundation:
+                break
+            if time.perf_counter() >= deadline:
+                stop_reason = "time limit"
+                incomplete = True
+                break
+            if (len(keys) & 2047) == 0 and note_rss():
+                stop_reason = "rss abort"
+                incomplete = True
+                break
+            state = unpack_state(keys[node])
+            parent_empties = empty_column_indices(state)
+            action_iter, surprises = engine_tableau_actions(state, rules=rules)
+            classifier_surprises += len(surprises)
+            if surprises and len(surprise_samples) < 8:
+                surprise_samples.extend(surprises[: 8 - len(surprise_samples)])
+            for action in action_iter:
+                src, dst, k = action  # type: ignore[misc]
+                dest_was_empty = state.columns[dst].is_empty()
+                source_becomes_empty = (
+                    k == len(state.columns[src].face_up) and not state.columns[src].face_down
+                )
+                tier = int(classify_tier(state, action))
+                snap = _capture(state, action)
+                try:
+                    apply_action(state, action, rules=rules)
+                    generated += 1
+                    gen_here += 1
+                    if 0 <= tier < len(by_tier):
+                        by_tier[tier] += 1
+                    child_metrics = _metrics(state)
+                    min_fd = min(min_fd, child_metrics["fd"])
+                    max_foundations = max(max_foundations, child_metrics["foundations"])
+                    max_empties = max(max_empties, len(child_metrics["empties"]))
+                    max_run = max(max_run, child_metrics["longest_run"])
+                    max_adjacencies = max(max_adjacencies, child_metrics["adjacencies"])
+                    max_blocks = max(max_blocks, child_metrics["blocks"])
+                    events = empty_transition_events(
+                        parent_empties,
+                        child_metrics["empties"],
+                        dest_was_empty=dest_was_empty,
+                        source_became_empty=source_becomes_empty,
+                    )
+                    ident = identity_fn(state)
+                    if child_metrics["foundations"] >= 1:
+                        found_foundation = True
+                        stop_reason = "foundation"
+                        foundation_witness = {
+                            "depth": depth + 1,
+                            "fd": child_metrics["fd"],
+                            "foundations": child_metrics["foundations"],
+                            "actions": [list(a) for a in reconstruct_actions(node, parent, src_a, dst_a, k_a)]
+                            + [[src, dst, k]],
+                            "ordered_digest": pack_state(state).hex(),
+                            "symmetry_digest": ident.hex(),
+                            "empties": list(child_metrics["empties"]),
+                            "reveal_action": [src, dst, k],
+                        }
+                        break
+                    if child_metrics["fd"] <= plateau_fd - 2:
+                        if fd_le_10_witness is None:
+                            fd_le_10_witness = {
+                                "depth": depth + 1,
+                                "fd": child_metrics["fd"],
+                                "foundations": child_metrics["foundations"],
+                                "actions": [list(a) for a in reconstruct_actions(node, parent, src_a, dst_a, k_a)]
+                                + [[src, dst, k]],
+                                "ordered_digest": pack_state(state).hex(),
+                                "symmetry_digest": ident.hex(),
+                                "empties": list(child_metrics["empties"]),
+                                "reveal_action": [src, dst, k],
+                            }
+                        continue
+                    if child_metrics["fd"] == plateau_fd - 1 and child_metrics["foundations"] == 0:
+                        exit_edges += 1
+                        exits_here += 1
+                        if ident not in exits:
+                            parent_path = reconstruct_actions(node, parent, src_a, dst_a, k_a)
+                            full = parent_path + [(src, dst, k)]
+                            exits[ident] = {
+                                "symmetry_digest": ident.hex(),
+                                "ordered_digest": pack_state(state).hex(),
+                                "actions": [list(a) for a in full],
+                                "depth": depth + 1,
+                                "empties": list(child_metrics["empties"]),
+                                "parent_empties": list(parent_empties),
+                                "longest_run": child_metrics["longest_run"],
+                                "adjacencies": child_metrics["adjacencies"],
+                                "blocks": child_metrics["blocks"],
+                                "fd": child_metrics["fd"],
+                                "foundations": child_metrics["foundations"],
+                                "path_events": path_events[node] + events,
+                                "reveal_action": [src, dst, k],
+                                "hits": 1,
+                            }
+                        else:
+                            exits[ident]["hits"] += 1
+                        continue
+                    if child_metrics["fd"] != plateau_fd or child_metrics["foundations"] != 0:
+                        continue
+                    if ident in ids:
+                        duplicate_skips += 1
+                        dups_here += 1
+                        continue
+                    if len(keys) >= max_unique:
+                        stop_reason = "unique limit"
+                        incomplete = True
+                        break
+                    child_id = add_plateau_node(
+                        pack_state(state),
+                        ident,
+                        node,
+                        src,
+                        dst,
+                        k,
+                        depth + 1,
+                        child_metrics,
+                        path_events[node] + events,
+                    )
+                    next_ids.append(child_id)
+                finally:
+                    _restore(state, snap)
+            if incomplete or found_foundation:
+                break
+        n_zero = sum(1 for i in frontier if empty_count_of[i] == 0)
+        n_one = sum(1 for i in frontier if empty_count_of[i] == 1)
+        n_two = sum(1 for i in frontier if empty_count_of[i] >= 2)
+        layer_reports.append(
+            {
+                "depth": depth,
+                "frontier_size": len(frontier),
+                "cumulative_unique": len(keys),
+                "generated_successors": gen_here,
+                "exact_duplicate_skips": dups_here,
+                "exit_edges": exits_here,
+                "exit_classes": len(exits),
+                "a_children": by_tier[0],
+                "b_children": by_tier[1],
+                "c_children": by_tier[2],
+                "d_children": by_tier[3],
+                "states_empty_0": n_zero,
+                "states_empty_1": n_one,
+                "states_empty_ge2": n_two,
+                "min_fd": min_fd,
+                "max_foundations": max_foundations,
+                "max_run": max_run,
+                "expanded": not incomplete and not found_foundation,
+            }
+        )
+        if incomplete or found_foundation:
+            last_generated = max(last_generated, depth + 1)
+            break
+        last_expanded = depth
+        if next_ids:
+            layers.append(next_ids)
+            last_generated = depth + 1
+        else:
+            stop_reason = "frontier empty"
+            break
+        if depth + 1 in checkpoints:
+            print(
+                f"CHECKPOINT plateau_depth={depth + 1} unique={len(keys)} frontier={len(next_ids)} "
+                f"exits={len(exits)} edges={exit_edges} min_fd={min_fd} empties={max_empties} "
+                f"run={max_run}",
+                flush=True,
+            )
+
+    empty0 = sum(1 for n in empty_count_of if n == 0)
+    empty1 = sum(1 for n in empty_count_of if n == 1)
+    empty_ge2 = sum(1 for n in empty_count_of if n >= 2)
+    elapsed = time.perf_counter() - started
+    exhausted = stop_reason == "frontier empty" and not incomplete and not found_foundation
+
+    exit_rows = []
+    for rec in exits.values():
+        walk = seed.clone()
+        try:
+            rec["local_cost"] = replay_actions(walk, [tuple(a) for a in rec["actions"]])
+            rec["legal"] = len(engine_tableau_actions(walk)[0])
+            rec["replay_ok"] = True
+        except (ValueError, AssertionError) as exc:
+            rec["local_cost"] = None
+            rec["legal"] = None
+            rec["replay_ok"] = False
+            rec["replay_error"] = str(exc)
+        exit_rows.append(rec)
+
+    return PlateauReachabilityResult(
+        unique=len(keys),
+        generated=generated,
+        duplicate_skips=duplicate_skips,
+        exit_edges=exit_edges,
+        exit_classes=len(exits),
+        completed_generated_depth=last_generated,
+        completed_expanded_depth=last_expanded,
+        elapsed_s=elapsed,
+        peak_rss_mb=peak_rss if peak_rss is not None else _rss_mb(),
+        stop_reason=stop_reason,
+        exhausted=exhausted,
+        min_fd=min_fd,
+        max_foundations=max_foundations,
+        max_empties=max_empties,
+        max_run=max_run,
+        max_adjacencies=max_adjacencies,
+        max_blocks=max_blocks,
+        empty0=empty0,
+        empty1=empty1,
+        empty_ge2=empty_ge2,
+        classifier_surprises=classifier_surprises,
+        surprise_samples=surprise_samples,
+        exits=exit_rows,
+        foundation_witness=foundation_witness,
+        fd_le_10_witness=fd_le_10_witness,
+        layers=layer_reports,
+        root_digest=root_concrete.hex(),
+        root_symmetry_digest=root_ident.hex(),
+        plateau_fd=plateau_fd,
+    )
+

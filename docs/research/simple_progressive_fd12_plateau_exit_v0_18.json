@@ -1,0 +1,1460 @@
+{
+  "base_sha": "3392f920d3d0bcffecb20c8c5dbd7182f83afd4e",
+  "classifier_dead": {
+    "admitted": 5,
+    "complete": true,
+    "engine_tableau": 5,
+    "stock": 0,
+    "surprises": []
+  },
+  "classifier_dead_complete": true,
+  "classifier_fd12": {
+    "admitted": 6,
+    "complete": true,
+    "engine_tableau": 6,
+    "stock": 0,
+    "surprises": []
+  },
+  "classifier_fd12_complete": true,
+  "classifier_surprise": null,
+  "comparison": {
+    "empties_after_reveal": {
+      "direct": [],
+      "new": []
+    },
+    "empties_before_reveal": {
+      "direct": [],
+      "new": []
+    },
+    "fd_after_reveal": {
+      "direct": 11,
+      "new": 11
+    },
+    "in_known_dead_region": {
+      "direct": true,
+      "new": false
+    },
+    "legal": {
+      "direct": 5,
+      "new": 5
+    },
+    "plateau_setup_moves": {
+      "direct": 0,
+      "new": 2
+    },
+    "reaches_fd10": {
+      "direct": false,
+      "new": false
+    },
+    "run": {
+      "direct": 6,
+      "new": 6
+    },
+    "start_fd": {
+      "direct": 12,
+      "new": 12
+    }
+  },
+  "dead_pruning_integrated": false,
+  "dead_region": {
+    "classifier_surprises": 0,
+    "completed_expanded_depth": 13,
+    "completed_generated_depth": 13,
+    "duplicate_skips": 7705,
+    "elapsed_s": 3.3207515999965835,
+    "exhausted": true,
+    "first_depth": {
+      "fd_le_11": 1,
+      "fd_le_12": 1
+    },
+    "generated": 9432,
+    "matches_expected": true,
+    "max_empties": 0,
+    "max_foundations": 0,
+    "min_fd": 11,
+    "peak_rss_mb": 23.484375,
+    "size": 1728,
+    "source_count": 1,
+    "stop_reason": "frontier empty",
+    "unique": 1728
+  },
+  "direct_dead_exit": {
+    "actions": [
+      [
+        1,
+        0,
+        1
+      ]
+    ],
+    "adjacencies": 39,
+    "blocks": 4,
+    "class": "KNOWN_DEAD_EXIT",
+    "depth": 1,
+    "empties": [],
+    "fd": 11,
+    "foundations": 0,
+    "hits": 1,
+    "legal": 5,
+    "local_cost": 1,
+    "longest_run": 6,
+    "ordered_digest": "53504b3101000000040c3a2c360835042302310b0d1c3b1a2928030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "parent_empties": [],
+    "path_events": [],
+    "replay_ok": true,
+    "reveal_action": [
+      1,
+      0,
+      1
+    ],
+    "symmetry_digest": "535053310100000000022d0c00032d2c2b00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a191817161534333231030115191b11040c3a2c360835042302310b0d1c3b1a2928041118360a2a280706050403020911033d3c0b0a290827"
+  },
+  "earliest_known_dead_depth": 1,
+  "earliest_new_exit_depth": 3,
+  "exit_classes": 8640,
+  "exit_edges": 8640,
+  "experiment": "simple_progressive_fd12_plateau_exit_v0_18",
+  "fd10": false,
+  "fd10_witness": null,
+  "fd12": {
+    "a": 3,
+    "adjacencies": 38,
+    "b": 1,
+    "blocks": 3,
+    "c": 2,
+    "cost": 110,
+    "d": 0,
+    "empties": [],
+    "fd": 12,
+    "foundations": 0,
+    "legal": 6,
+    "longest_run": 6,
+    "ordered_digest": "53504b3101000000040b3a2c360835042302310b0d1c3b1a29040115191b112800032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "path_length": 110,
+    "replay_ok": true,
+    "stock": 0,
+    "symmetry_digest": "535053310100000000022d0c00032d2c2b00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a191817161534333231040115191b1128040b3a2c360835042302310b0d1c3b1a29041118360a2a280706050403020911033d3c0b0a290827"
+  },
+  "foundation": false,
+  "foundation_witness": null,
+  "interpretation": "Verdict FD12_PLATEAU_HAS_NEW_FD11_EXITS_BUT_THEY_STALL. plateau unique=20736 exhausted=True exit_classes=8640 known_dead=720 new=7920 fd10=False foundation=False.",
+  "known_dead_exit_classes": 720,
+  "new_exit_classes": 7920,
+  "new_exits": [
+    {
+      "actions": [
+        [
+          5,
+          6,
+          1
+        ],
+        [
+          5,
+          0,
+          2
+        ],
+        [
+          1,
+          5,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 3,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 3,
+      "longest_run": 6,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00060d0c26213928041218360a2a280706050403020911033d3c0b0a29082706000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        5,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00060d0c26213928000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041218360a2a280706050403020911033d3c0b0a29082706",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          0,
+          1
+        ],
+        [
+          1,
+          6,
+          2
+        ]
+      ],
+      "adjacencies": 40,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 3,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 3,
+      "longest_run": 6,
+      "ordered_digest": "53504b3101000000040c3a2c360835042302310b0d1c3b1a2908030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a292827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        6,
+        2
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a191817161534333231030115191b11040c3a2c360835042302310b0d1c3b1a2908041118360a2a280706050403020911033d3c0b0a292827",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          1,
+          8,
+          1
+        ]
+      ],
+      "adjacencies": 38,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 3,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 6,
+      "local_cost": 3,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100063d3c3b3a3928000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        8,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00063d3c3b3a392800080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          5,
+          6,
+          1
+        ],
+        [
+          5,
+          0,
+          2
+        ],
+        [
+          1,
+          5,
+          1
+        ]
+      ],
+      "adjacencies": 36,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 4,
+      "longest_run": 6,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100022d2c00121413121d071d1c1b1a19181716153433323100032d0c2b00060d0c26213928041218360a2a280706050403020911033d3c0b0a29082706000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        5,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d2c00032d0c2b00060d0c26213928000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041218360a2a280706050403020911033d3c0b0a29082706",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          0,
+          1
+        ],
+        [
+          1,
+          6,
+          2
+        ]
+      ],
+      "adjacencies": 39,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 4,
+      "longest_run": 6,
+      "ordered_digest": "53504b3101000000040c3a2c360835042302310b0d1c3b1a2908030115191b1100022d2c00121413121d071d1c1b1a19181716153433323100032d0c2b00080d0c262139383706041118360a2a280706050403020911033d3c0b0a292827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        6,
+        2
+      ],
+      "symmetry_digest": "535053310100000000022d2c00032d0c2b00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a191817161534333231030115191b11040c3a2c360835042302310b0d1c3b1a2908041118360a2a280706050403020911033d3c0b0a292827",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          1,
+          8,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 6,
+      "local_cost": 4,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100022d2c00121413121d071d1c1b1a19181716153433323100032d0c2b00080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100063d3c3b3a3928000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        8,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d2c00032d0c2b00063d3c3b3a392800080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          5,
+          6,
+          1
+        ],
+        [
+          5,
+          0,
+          2
+        ],
+        [
+          6,
+          0,
+          1
+        ],
+        [
+          1,
+          5,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 3,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 4,
+      "longest_run": 6,
+      "ordered_digest": "53504b3101000000040e3a2c360835042302310b0d1c3b1a29383706030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00060d0c26213928041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        5,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00060d0c26213928000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a191817161534333231030115191b11040e3a2c360835042302310b0d1c3b1a29383706041118360a2a280706050403020911033d3c0b0a290827",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          5,
+          6,
+          1
+        ],
+        [
+          5,
+          0,
+          2
+        ],
+        [
+          8,
+          6,
+          5
+        ],
+        [
+          1,
+          5,
+          1
+        ]
+      ],
+      "adjacencies": 36,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 4,
+      "local_cost": 4,
+      "longest_run": 5,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00060d0c26213928041718360a2a280706050403020911033d3c0b0a290827062524232221000812272a052413320100083d3c3b3a39383726000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        5,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00060d0c26213928000812272a052413320100083d3c3b3a39383726000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041718360a2a280706050403020911033d3c0b0a290827062524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          5,
+          6,
+          1
+        ],
+        [
+          5,
+          0,
+          2
+        ],
+        [
+          8,
+          0,
+          6
+        ],
+        [
+          1,
+          5,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 7,
+      "local_cost": 4,
+      "longest_run": 7,
+      "ordered_digest": "53504b310100000004133a2c360835042302310b0d1c3b1a293837262524232221030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00060d0c26213928041218360a2a280706050403020911033d3c0b0a29082706000812272a052413320100073d3c3b3a393837000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        5,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00060d0c2621392800073d3c3b3a393837000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11041218360a2a280706050403020911033d3c0b0a2908270604133a2c360835042302310b0d1c3b1a293837262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          5,
+          6,
+          1
+        ],
+        [
+          8,
+          5,
+          6
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          1,
+          8,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 4,
+      "longest_run": 6,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c000d0d0c2621393837262524232221041218360a2a280706050403020911033d3c0b0a29082706000812272a052413320100063d3c3b3a3928000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        8,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00063d3c3b3a3928000812272a0524133201000b1716352b14092534332201000d0d0c262139383726252423222100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041218360a2a280706050403020911033d3c0b0a29082706",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          6,
+          1
+        ]
+      ],
+      "adjacencies": 39,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 4,
+      "longest_run": 6,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a290827030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041018360a2a280706050403020911033d3c0b0a2928000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        6,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a290827041018360a2a280706050403020911033d3c0b0a2928",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          0,
+          1
+        ],
+        [
+          8,
+          5,
+          5
+        ],
+        [
+          1,
+          6,
+          2
+        ]
+      ],
+      "adjacencies": 39,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 4,
+      "local_cost": 4,
+      "longest_run": 5,
+      "ordered_digest": "53504b3101000000040c3a2c360835042302310b0d1c3b1a2908030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c000d0d0c2621393837062524232221041118360a2a280706050403020911033d3c0b0a292827000812272a052413320100083d3c3b3a39383726000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        6,
+        2
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b000812272a052413320100083d3c3b3a39383726000b1716352b14092534332201000d0d0c262139383706252423222100121413121d071d1c1b1a191817161534333231030115191b11040c3a2c360835042302310b0d1c3b1a2908041118360a2a280706050403020911033d3c0b0a292827",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          0,
+          1
+        ],
+        [
+          8,
+          1,
+          6
+        ],
+        [
+          1,
+          6,
+          8
+        ]
+      ],
+      "adjacencies": 41,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 8,
+      "local_cost": 4,
+      "longest_run": 9,
+      "ordered_digest": "53504b3101000000040c3a2c360835042302310b0d1c3b1a2908030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041718360a2a280706050403020911033d3c0b0a292827262524232221000812272a052413320100073d3c3b3a393837000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        6,
+        8
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00073d3c3b3a39383700080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11040c3a2c360835042302310b0d1c3b1a2908041718360a2a280706050403020911033d3c0b0a292827262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          8,
+          1,
+          6
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          1,
+          8,
+          8
+        ]
+      ],
+      "adjacencies": 39,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 6,
+      "local_cost": 4,
+      "longest_run": 8,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041018360a2a280706050403020911033d3c0b0a2908000812272a0524133201000d3d3c3b3a392827262524232221000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        8,
+        8
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39282726252423222100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041018360a2a280706050403020911033d3c0b0a2908",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          8,
+          5,
+          5
+        ],
+        [
+          8,
+          6,
+          1
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          1,
+          8,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 5,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 4,
+      "longest_run": 5,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c000d0d0c2621393837062524232221041218360a2a280706050403020911033d3c0b0a29082726000812272a052413320100063d3c3b3a3928000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        8,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00063d3c3b3a3928000812272a0524133201000b1716352b14092534332201000d0d0c262139383706252423222100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041218360a2a280706050403020911033d3c0b0a29082726",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          5,
+          8,
+          1
+        ],
+        [
+          5,
+          0,
+          2
+        ],
+        [
+          1,
+          5,
+          1
+        ]
+      ],
+      "adjacencies": 38,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 6,
+      "local_cost": 4,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00060d0c26213928041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100083d3c3b3a39383706000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        5,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00060d0c26213928000812272a052413320100083d3c3b3a39383706000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          5,
+          0,
+          1
+        ],
+        [
+          1,
+          8,
+          1
+        ]
+      ],
+      "adjacencies": 38,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 6,
+      "local_cost": 4,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040e3a2c360835042302310b0d1c3b1a29383706030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00070d0c2621393837041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100063d3c3b3a3928000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        8,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00063d3c3b3a392800070d0c2621393837000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11040e3a2c360835042302310b0d1c3b1a29383706041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          6,
+          0,
+          6
+        ],
+        [
+          1,
+          8,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 3,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 5,
+      "local_cost": 4,
+      "longest_run": 6,
+      "ordered_digest": "53504b310100000004133a2c360835042302310b0d1c3b1a293837262524232221030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a052413320100063d3c3b3a3928000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        8,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00063d3c3b3a392800080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11041118360a2a280706050403020911033d3c0b0a29082704133a2c360835042302310b0d1c3b1a293837262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          8,
+          2,
+          2
+        ],
+        [
+          1,
+          2,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 4,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 6,
+      "local_cost": 4,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100062d2c2b3a392800121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100033d3c3b000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        2,
+        1
+      ],
+      "symmetry_digest": "535053310100000000022d0c00033d3c3b00062d2c2b3a392800080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          8,
+          4,
+          3
+        ],
+        [
+          1,
+          4,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 5,
+      "class": "NEW_FD11_EXIT",
+      "depth": 4,
+      "empties": [],
+      "fd": 11,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 6,
+      "local_cost": 4,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a293837030115191b1100032d2c2b00121413121d071d1c1b1a19181716153433323100062d0c3b3a392800080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100023d3c000b1716352b14092534332201",
+      "parent_empties": [],
+      "path_events": [],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        4,
+        1
+      ],
+      "symmetry_digest": "535053310100000000023d3c00032d2c2b00062d0c3b3a392800080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231030115191b11040d3a2c360835042302310b0d1c3b1a293837041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "workspace": {
+        "consumed": 0,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [],
+        "empty_sequence": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "end_empties": [],
+        "events": [],
+        "first_empty_use": null,
+        "recreated": 0,
+        "second_empty": 0,
+        "start_empties": [],
+        "transferred": 0
+      }
+    }
+  ],
+  "next_recommendation": "This minimum-depth fd12 cannot reach fd10: its plateau exhausts, and every fd11 exit — including those outside the original 1,728-state dead region — exhausts without fd10 or a foundation. Next: backtrack one hard-progress level and look for a different fd12 checkpoint; do not add primitive slack around this same fd12 state.",
+  "note": "new fd11 exit classes exist but their reachable region has no fd10/foundation",
+  "phase1": {
+    "classifier_surprises": 0,
+    "completed_expanded_depth": 18,
+    "completed_generated_depth": 18,
+    "duplicate_skips": 116209,
+    "elapsed_s": 38.96551529999124,
+    "empty0": 20736,
+    "empty1": 0,
+    "empty_ge2": 0,
+    "exhausted": true,
+    "exit_classes": 8640,
+    "exit_edges": 8640,
+    "fd_le_10_witness": null,
+    "first_depth": {},
+    "generated": 145584,
+    "max_adjacencies": 41,
+    "max_blocks": 8,
+    "max_empties": 0,
+    "max_foundations": 0,
+    "max_run": 9,
+    "min_fd": 11,
+    "peak_rss_mb": 59.60546875,
+    "source_count": 1,
+    "stop_reason": "frontier empty",
+    "surprise_samples": [],
+    "unique": 20736
+  },
+  "phase2": {
+    "classifier_surprises": 0,
+    "completed_expanded_depth": 3,
+    "completed_generated_depth": 3,
+    "duplicate_skips": 86184,
+    "elapsed_s": 32.39939059999597,
+    "first_depth": {
+      "fd_le_11": 1,
+      "fd_le_12": 1
+    },
+    "generated": 97272,
+    "max_empties": 0,
+    "max_foundations": 0,
+    "min_fd": 11,
+    "peak_rss_mb": 122.8359375,
+    "source_count": 7920,
+    "stop_reason": "frontier empty",
+    "unique": 19008
+  },
+  "phase2_skip_reason": null,
+  "production_unchanged": true,
+  "quotient_integrated": false,
+  "two_move_slack": false,
+  "verdict": "FD12_PLATEAU_HAS_NEW_FD11_EXITS_BUT_THEY_STALL",
+  "viable_fd11": null
+}
