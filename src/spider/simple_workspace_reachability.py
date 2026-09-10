@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
@@ -248,6 +248,7 @@ def layered_reachability(
     stream_last: bool = False,
     expand_only_fd: Optional[int] = None,
     include_visited_hex: bool = False,
+    identity_fn: Optional[Callable[[SpiderState], bytes]] = None,
 ) -> LayeredReachabilityResult:
     """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known).
 
@@ -259,6 +260,12 @@ def layered_reachability(
     primitive depth.  ``stream_last`` inspects the final generated depth without
     retaining non-candidate children as a future frontier.
     ``sources`` starts a multi-source frontier; later exact states collapse once.
+
+    ``identity_fn`` is research-only duplicate detection (default
+    ``pack_state``).  The first-visit table stores a concrete ordered
+    ``pack_state`` representative for every identity class so generated
+    moves and replay paths keep physical column indices.  Do not pass a
+    function that silently replaces production identity.
     """
 
     started = time.perf_counter()
@@ -278,10 +285,13 @@ def layered_reachability(
             ]
         if seed is None:
             seed = source_states[0]
+    if identity_fn is None:
+        identity_fn = pack_state
     root_metrics = _metrics(source_states[0])
     initial_empty = root_metrics["empties"]
     ids: Dict[bytes, int] = {}
     keys: List[bytes] = []
+    idents: List[bytes] = []
     parent: List[int] = []
     src_a: List[int] = []
     dst_a: List[int] = []
@@ -297,13 +307,15 @@ def layered_reachability(
     max_empties = 0
     layer0: List[int] = []
     for origin_id, source in enumerate(source_states):
-        key = pack_state(source)
-        if key in ids:
-            multiplicity[key] = multiplicity.get(key, 1) + 1
+        concrete = pack_state(source)
+        ident = identity_fn(source)
+        if ident in ids:
+            multiplicity[ident] = multiplicity.get(ident, 1) + 1
             continue
         node = len(keys)
-        ids[key] = node
-        keys.append(key)
+        ids[ident] = node
+        keys.append(concrete)
+        idents.append(ident)
         parent.append(-1)
         src_a.append(-1)
         dst_a.append(-1)
@@ -312,7 +324,7 @@ def layered_reachability(
         metrics = _metrics(source)
         fd_of.append(metrics["fd"])
         origin.append(origin_id)
-        multiplicity[key] = 1
+        multiplicity[ident] = 1
         source_node.append(node)
         layer0.append(node)
         min_fd = min(min_fd, metrics["fd"])
@@ -496,16 +508,17 @@ def layered_reachability(
                     generated += 1
                     gen_here += 1
                     by_tier[tier] += 1
-                    child_key = pack_state(state)
+                    child_concrete = pack_state(state)
+                    child_ident = identity_fn(state)
                     if streaming:
                         last_layer_generated += 1
-                    if child_key in ids:
+                    if child_ident in ids:
                         duplicate_skips += 1
                         dups_here += 1
                         if streaming:
                             last_layer_duplicates += 1
-                        multiplicity[child_key] = multiplicity.get(child_key, 1) + 1
-                        if origin[ids[child_key]] != origin[node]:
+                        multiplicity[child_ident] = multiplicity.get(child_ident, 1) + 1
+                        if origin[ids[child_ident]] != origin[node]:
                             cross_origin_dups += 1
                         continue
                     child_empties = empty_column_indices(state)
@@ -537,8 +550,9 @@ def layered_reachability(
                         source_became_empty=source_becomes_empty,
                     )
                     child_id = len(keys)
-                    ids[child_key] = child_id
-                    keys.append(child_key)
+                    ids[child_ident] = child_id
+                    keys.append(child_concrete)
+                    idents.append(child_ident)
                     parent.append(node)
                     src_a.append(src)
                     dst_a.append(dst)
@@ -546,7 +560,7 @@ def layered_reachability(
                     depth_of.append(depth + 1)
                     fd_of.append(child_metrics["fd"])
                     origin.append(origin[node])
-                    multiplicity[child_key] = 1
+                    multiplicity[child_ident] = 1
                     fnd_of.append(child_metrics["foundations"])
                     run_of.append(child_metrics["longest_run"])
                     empty_count_of.append(len(child_empties))
@@ -731,7 +745,7 @@ def layered_reachability(
                     "longest_run": run_of[node],
                     "empties": list(empties),
                     "actions": [list(act) for act in reconstruct_actions(node, parent, src_a, dst_a, k_a)],
-                    "hits": multiplicity.get(keys[node], 1),
+                    "hits": multiplicity.get(idents[node], 1),
                     "origin": origin[node],
                     "parent_fd": None if parent[node] < 0 else fd_of[parent[node]],
                     "parent_digest": None if parent[node] < 0 else keys[parent[node]].hex(),

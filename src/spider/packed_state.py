@@ -14,13 +14,14 @@ Authoritative equality is exact bytes equality.
 from __future__ import annotations
 
 import struct
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from .cards import Card
 from .engine import Column, SpiderState
 from .state_identity import CanonicalStateKey, card_tuple, canonical_state_key
 
 PACKED_MAGIC = b"SPK1"
+PACKED_SYMMETRY_MAGIC = b"SPS1"
 PACKED_VERSION = 1
 SUIT_IDX = {"s": 0, "h": 1, "d": 2, "c": 3}
 IDX_SUIT = "shdc"
@@ -34,27 +35,148 @@ def _dec_card(b: int) -> Card:
     return Card(IDX_SUIT[(b >> 4) & 0x3], b & 0x0F)
 
 
-def pack_state(state: SpiderState) -> bytes:
-    """Pack SpiderState into immutable exact key bytes."""
-    parts: List[bytes] = [PACKED_MAGIC, bytes([PACKED_VERSION])]
-    found = sorted(
-        [tuple(card_tuple(c) for c in seq) for seq in state.foundations]
+def _column_blob(col: Column) -> bytes:
+    """Exact encoding of one tableau column: face-down order then face-up order."""
+    n_fd = len(col.face_down)
+    n_fu = len(col.face_up)
+    if n_fd > 255 or n_fu > 255:
+        raise ValueError("column too deep for u8 packing")
+    return (
+        bytes([n_fd, n_fu])
+        + bytes(_enc_card(c) for c in col.face_down)
+        + bytes(_enc_card(c) for c in col.face_up)
     )
-    parts.append(bytes([len(found)]))
-    parts.append(struct.pack(">H", len(state.stock)))
-    for col in state.columns:
-        n_fd = len(col.face_down)
-        n_fu = len(col.face_up)
-        if n_fd > 255 or n_fu > 255:
-            raise ValueError("column too deep for u8 packing")
-        parts.append(bytes([n_fd, n_fu]))
-        parts.append(bytes(_enc_card(c) for c in col.face_down))
-        parts.append(bytes(_enc_card(c) for c in col.face_up))
-    parts.append(bytes(_enc_card(c) for c in state.stock))
+
+
+def _foundations_sorted(state: SpiderState) -> List[Tuple[Tuple[str, int], ...]]:
+    return sorted(tuple(card_tuple(c) for c in seq) for seq in state.foundations)
+
+
+def _append_foundations(parts: List[bytes], found: Sequence[Sequence[Tuple[str, int]]]) -> None:
     for seq in found:
         parts.append(bytes([len(seq)]))
         parts.append(bytes((SUIT_IDX[s] << 4) | (r & 0x0F) for s, r in seq))
+
+
+def pack_state(state: SpiderState) -> bytes:
+    """Pack SpiderState into immutable exact key bytes.
+
+    Tableau columns are serialised in physical order 0..9.  This is the
+    production/default exact identity.  Do not replace it with a quotient.
+    """
+    parts: List[bytes] = [PACKED_MAGIC, bytes([PACKED_VERSION])]
+    found = _foundations_sorted(state)
+    parts.append(bytes([len(found)]))
+    parts.append(struct.pack(">H", len(state.stock)))
+    for col in state.columns:
+        parts.append(_column_blob(col))
+    parts.append(bytes(_enc_card(c) for c in state.stock))
+    _append_foundations(parts, found)
     return b"".join(parts)
+
+
+def pack_post_stock_symmetry_state(state: SpiderState) -> bytes:
+    """Research-only exact post-stock tableau-column permutation key.
+
+    Defined only when ``state.stock`` is empty.  Each complete column is
+    encoded exactly (face-down order and face-up order preserved) and the
+    ten encodings are sorted lexicographically, so whole-column permutation
+    is an identity and card/order/foundation differences are not.
+
+    This is an exact game automorphism at stock=0, not a heuristic.  It
+    must not be used as production identity and must not be applied while
+    stock remains (future deal rows land left-to-right on physical columns).
+    """
+    if state.stock:
+        raise ValueError(
+            "post-stock column symmetry is undefined while stock remains"
+        )
+    found = _foundations_sorted(state)
+    col_blobs = sorted(_column_blob(col) for col in state.columns)
+    parts: List[bytes] = [PACKED_SYMMETRY_MAGIC, bytes([PACKED_VERSION])]
+    parts.append(bytes([len(found)]))
+    parts.append(struct.pack(">H", 0))
+    parts.extend(col_blobs)
+    _append_foundations(parts, found)
+    return b"".join(parts)
+
+
+def pack_search_identity(
+    state: SpiderState, *, post_stock_column_symmetry: bool = False
+) -> bytes:
+    """Search identity.  Default is ordered ``pack_state``.
+
+    When ``post_stock_column_symmetry`` is true and stock is empty, use the
+    research-only column-permutation quotient.  Stock-bearing states always
+    keep ordered exact identity so the quotient cannot leak into deals.
+    """
+    if post_stock_column_symmetry and not state.stock:
+        return pack_post_stock_symmetry_state(state)
+    return pack_state(state)
+
+
+def _column_identity_tuple(col: Column) -> Tuple[Tuple[Tuple[str, int], ...], Tuple[Tuple[str, int], ...]]:
+    return (
+        tuple(card_tuple(c) for c in col.face_down),
+        tuple(card_tuple(c) for c in col.face_up),
+    )
+
+
+def permute_tableau_columns(state: SpiderState, perm: Sequence[int]) -> SpiderState:
+    """Return a clone with ``new.columns[i] = old.columns[perm[i]]``.
+
+    Stock and foundations are copied unchanged.  ``perm`` must be a
+    permutation of ``0..len(columns)-1``.
+    """
+    n = len(state.columns)
+    if len(perm) != n or sorted(perm) != list(range(n)):
+        raise ValueError("perm must be a permutation of column indices")
+    columns = [
+        Column(list(state.columns[src].face_down), list(state.columns[src].face_up))
+        for src in perm
+    ]
+    return SpiderState(
+        columns,
+        list(state.stock),
+        [list(seq) for seq in state.foundations],
+    )
+
+
+def column_permutation_mapping(
+    a: SpiderState, b: SpiderState
+) -> Optional[List[int]]:
+    """If ``b`` is a whole-column permutation of ``a``, map a-index → b-index.
+
+    Duplicate identical columns are matched with multiplicity.  Returns
+    ``None`` when the column multisets differ.  Stock and foundations are
+    not required to match; callers that need full-state equivalence should
+    check those separately.
+    """
+    if len(a.columns) != len(b.columns):
+        return None
+    used = [False] * len(b.columns)
+    mapping = [-1] * len(a.columns)
+    b_ids = [_column_identity_tuple(col) for col in b.columns]
+    for i, col in enumerate(a.columns):
+        want = _column_identity_tuple(col)
+        found = False
+        for j, have in enumerate(b_ids):
+            if not used[j] and have == want:
+                used[j] = True
+                mapping[i] = j
+                found = True
+                break
+        if not found:
+            return None
+    return mapping
+
+
+def remap_tableau_action(
+    action: Tuple[int, int, int], old_to_new: Sequence[int]
+) -> Tuple[int, int, int]:
+    """Rewrite a tableau move through a column-index mapping."""
+    src, dst, k = action
+    return (int(old_to_new[src]), int(old_to_new[dst]), int(k))
 
 
 def pack_canonical_key(key: CanonicalStateKey) -> bytes:
