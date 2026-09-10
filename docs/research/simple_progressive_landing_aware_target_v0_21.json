@@ -1,0 +1,1710 @@
+{
+  "base_sha": "ac60bd3c0a8981b355f0d16cbc5c0f102c7661fb",
+  "classifier_complete": true,
+  "column7_tested": false,
+  "downstream": null,
+  "experiment": "simple_progressive_landing_aware_target_v0_21",
+  "fd10": false,
+  "fd10_witness": null,
+  "fd13": {
+    "cost": 102,
+    "empties": [
+      2
+    ],
+    "fd": 13,
+    "foundations": 0,
+    "ordered_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "path": 102,
+    "replay_ok": true,
+    "stock": 0,
+    "symmetry_digest": "5350533101000000000000022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104093a2c360835042302310b0d1c3b041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29"
+  },
+  "foundation": false,
+  "foundation_witness": null,
+  "fu7_witness": {
+    "actions": [
+      [
+        0,
+        4,
+        1
+      ],
+      [
+        0,
+        2,
+        1
+      ]
+    ],
+    "block_count": 7,
+    "blocks": [
+      {
+        "cards": [
+          [
+            "s",
+            13
+          ]
+        ],
+        "head_rank": 13,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            11
+          ]
+        ],
+        "head_rank": 11,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "c",
+            1
+          ]
+        ],
+        "head_rank": 1,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            2
+          ]
+        ],
+        "head_rank": 2,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "d",
+            3
+          ]
+        ],
+        "head_rank": 3,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            4
+          ]
+        ],
+        "head_rank": 4,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "c",
+            5
+          ]
+        ],
+        "head_rank": 5,
+        "length": 1
+      }
+    ],
+    "depth": 2,
+    "empty_columns": [],
+    "expansion": 2,
+    "face_up": [
+      [
+        "c",
+        5
+      ],
+      [
+        "s",
+        4
+      ],
+      [
+        "d",
+        3
+      ],
+      [
+        "s",
+        2
+      ],
+      [
+        "c",
+        1
+      ],
+      [
+        "s",
+        11
+      ],
+      [
+        "s",
+        13
+      ]
+    ],
+    "kind": "record",
+    "landing_obstruction": 1,
+    "legal_destinations": [],
+    "relaxed_clearance": 8,
+    "target_fu": 7,
+    "top_block_head": 13,
+    "top_block_length": 1,
+    "unique": 23
+  },
+  "heuristic_proof_authority": false,
+  "interpretation": "Verdict LANDING_AWARE_BREAKS_FU7_BARRIER. min_fu=5 min_blocks=5 min_obst=0 min_rel=6 exits=0 stall=TARGET_STILL_TOO_FRAGMENTED.",
+  "known_dead_exits": 0,
+  "new_exits": 0,
+  "next_recommendation": "Landing awareness moved the column-1 metric but did not finish the reveal. Next: do not add another heuristic or raise this budget; reassess before trying column 7.",
+  "note": "target FU fell below 7 but no complete reveal was reached",
+  "production_unchanged": true,
+  "records": [
+    {
+      "actions": [
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "block_count": 8,
+      "blocks": [
+        {
+          "cards": [
+            [
+              "h",
+              12
+            ]
+          ],
+          "head_rank": 12,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              13
+            ]
+          ],
+          "head_rank": 13,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              11
+            ]
+          ],
+          "head_rank": 11,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              1
+            ]
+          ],
+          "head_rank": 1,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              2
+            ]
+          ],
+          "head_rank": 2,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "d",
+              3
+            ]
+          ],
+          "head_rank": 3,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              4
+            ]
+          ],
+          "head_rank": 4,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              5
+            ]
+          ],
+          "head_rank": 5,
+          "length": 1
+        }
+      ],
+      "depth": 1,
+      "empty_columns": [],
+      "expansion": 1,
+      "face_up": [
+        [
+          "c",
+          5
+        ],
+        [
+          "s",
+          4
+        ],
+        [
+          "d",
+          3
+        ],
+        [
+          "s",
+          2
+        ],
+        [
+          "c",
+          1
+        ],
+        [
+          "s",
+          11
+        ],
+        [
+          "s",
+          13
+        ],
+        [
+          "h",
+          12
+        ]
+      ],
+      "kind": "record",
+      "landing_obstruction": 1,
+      "legal_destinations": [],
+      "relaxed_clearance": 9,
+      "target_fu": 8,
+      "top_block_head": 12,
+      "top_block_length": 1,
+      "unique": 2
+    },
+    {
+      "actions": [
+        [
+          0,
+          4,
+          1
+        ]
+      ],
+      "block_count": 8,
+      "blocks": [
+        {
+          "cards": [
+            [
+              "h",
+              12
+            ]
+          ],
+          "head_rank": 12,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              13
+            ]
+          ],
+          "head_rank": 13,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              11
+            ]
+          ],
+          "head_rank": 11,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              1
+            ]
+          ],
+          "head_rank": 1,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              2
+            ]
+          ],
+          "head_rank": 2,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "d",
+              3
+            ]
+          ],
+          "head_rank": 3,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              4
+            ]
+          ],
+          "head_rank": 4,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              5
+            ]
+          ],
+          "head_rank": 5,
+          "length": 1
+        }
+      ],
+      "depth": 1,
+      "empty_columns": [
+        2
+      ],
+      "expansion": 1,
+      "face_up": [
+        [
+          "c",
+          5
+        ],
+        [
+          "s",
+          4
+        ],
+        [
+          "d",
+          3
+        ],
+        [
+          "s",
+          2
+        ],
+        [
+          "c",
+          1
+        ],
+        [
+          "s",
+          11
+        ],
+        [
+          "s",
+          13
+        ],
+        [
+          "h",
+          12
+        ]
+      ],
+      "kind": "record",
+      "landing_obstruction": 99,
+      "legal_destinations": [
+        2
+      ],
+      "relaxed_clearance": 8,
+      "target_fu": 8,
+      "top_block_head": 12,
+      "top_block_length": 1,
+      "unique": 3
+    },
+    {
+      "actions": [
+        [
+          0,
+          4,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "block_count": 7,
+      "blocks": [
+        {
+          "cards": [
+            [
+              "s",
+              13
+            ]
+          ],
+          "head_rank": 13,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              11
+            ]
+          ],
+          "head_rank": 11,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              1
+            ]
+          ],
+          "head_rank": 1,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              2
+            ]
+          ],
+          "head_rank": 2,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "d",
+              3
+            ]
+          ],
+          "head_rank": 3,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              4
+            ]
+          ],
+          "head_rank": 4,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              5
+            ]
+          ],
+          "head_rank": 5,
+          "length": 1
+        }
+      ],
+      "depth": 2,
+      "empty_columns": [],
+      "expansion": 2,
+      "face_up": [
+        [
+          "c",
+          5
+        ],
+        [
+          "s",
+          4
+        ],
+        [
+          "d",
+          3
+        ],
+        [
+          "s",
+          2
+        ],
+        [
+          "c",
+          1
+        ],
+        [
+          "s",
+          11
+        ],
+        [
+          "s",
+          13
+        ]
+      ],
+      "kind": "record",
+      "landing_obstruction": 1,
+      "legal_destinations": [],
+      "relaxed_clearance": 8,
+      "target_fu": 7,
+      "top_block_head": 13,
+      "top_block_length": 1,
+      "unique": 23
+    },
+    {
+      "actions": [
+        [
+          0,
+          4,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          1,
+          4,
+          1
+        ],
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          2,
+          6
+        ],
+        [
+          0,
+          8,
+          1
+        ],
+        [
+          1,
+          8,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          1,
+          6
+        ]
+      ],
+      "block_count": 7,
+      "blocks": [
+        {
+          "cards": [
+            [
+              "s",
+              13
+            ],
+            [
+              "s",
+              12
+            ]
+          ],
+          "head_rank": 13,
+          "length": 2
+        },
+        {
+          "cards": [
+            [
+              "s",
+              11
+            ]
+          ],
+          "head_rank": 11,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              1
+            ]
+          ],
+          "head_rank": 1,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              2
+            ]
+          ],
+          "head_rank": 2,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "d",
+              3
+            ]
+          ],
+          "head_rank": 3,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              4
+            ]
+          ],
+          "head_rank": 4,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              5
+            ]
+          ],
+          "head_rank": 5,
+          "length": 1
+        }
+      ],
+      "depth": 10,
+      "empty_columns": [
+        2
+      ],
+      "expansion": 4067,
+      "face_up": [
+        [
+          "c",
+          5
+        ],
+        [
+          "s",
+          4
+        ],
+        [
+          "d",
+          3
+        ],
+        [
+          "s",
+          2
+        ],
+        [
+          "c",
+          1
+        ],
+        [
+          "s",
+          11
+        ],
+        [
+          "s",
+          13
+        ],
+        [
+          "s",
+          12
+        ]
+      ],
+      "kind": "record",
+      "landing_obstruction": 99,
+      "legal_destinations": [
+        2
+      ],
+      "relaxed_clearance": 7,
+      "target_fu": 8,
+      "top_block_head": 13,
+      "top_block_length": 2,
+      "unique": 17381
+    },
+    {
+      "actions": [
+        [
+          0,
+          4,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          1,
+          4,
+          1
+        ],
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          2,
+          6
+        ],
+        [
+          0,
+          8,
+          1
+        ],
+        [
+          1,
+          8,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          1,
+          6
+        ],
+        [
+          0,
+          2,
+          2
+        ]
+      ],
+      "block_count": 6,
+      "blocks": [
+        {
+          "cards": [
+            [
+              "s",
+              11
+            ]
+          ],
+          "head_rank": 11,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              1
+            ]
+          ],
+          "head_rank": 1,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              2
+            ]
+          ],
+          "head_rank": 2,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "d",
+              3
+            ]
+          ],
+          "head_rank": 3,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              4
+            ]
+          ],
+          "head_rank": 4,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              5
+            ]
+          ],
+          "head_rank": 5,
+          "length": 1
+        }
+      ],
+      "depth": 11,
+      "empty_columns": [],
+      "expansion": 4068,
+      "face_up": [
+        [
+          "c",
+          5
+        ],
+        [
+          "s",
+          4
+        ],
+        [
+          "d",
+          3
+        ],
+        [
+          "s",
+          2
+        ],
+        [
+          "c",
+          1
+        ],
+        [
+          "s",
+          11
+        ]
+      ],
+      "kind": "record",
+      "landing_obstruction": 99,
+      "legal_destinations": [
+        2
+      ],
+      "relaxed_clearance": 6,
+      "target_fu": 6,
+      "top_block_head": 11,
+      "top_block_length": 1,
+      "unique": 17386
+    },
+    {
+      "actions": [
+        [
+          0,
+          4,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          1,
+          4,
+          1
+        ],
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          2,
+          6
+        ],
+        [
+          0,
+          8,
+          1
+        ],
+        [
+          1,
+          8,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          1,
+          6
+        ],
+        [
+          0,
+          2,
+          2
+        ],
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "block_count": 5,
+      "blocks": [
+        {
+          "cards": [
+            [
+              "c",
+              1
+            ]
+          ],
+          "head_rank": 1,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              2
+            ]
+          ],
+          "head_rank": 2,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "d",
+              3
+            ]
+          ],
+          "head_rank": 3,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "s",
+              4
+            ]
+          ],
+          "head_rank": 4,
+          "length": 1
+        },
+        {
+          "cards": [
+            [
+              "c",
+              5
+            ]
+          ],
+          "head_rank": 5,
+          "length": 1
+        }
+      ],
+      "depth": 12,
+      "empty_columns": [],
+      "expansion": 4069,
+      "face_up": [
+        [
+          "c",
+          5
+        ],
+        [
+          "s",
+          4
+        ],
+        [
+          "d",
+          3
+        ],
+        [
+          "s",
+          2
+        ],
+        [
+          "c",
+          1
+        ]
+      ],
+      "kind": "record",
+      "landing_obstruction": 1,
+      "legal_destinations": [],
+      "relaxed_clearance": 6,
+      "target_fu": 5,
+      "top_block_head": 1,
+      "top_block_length": 1,
+      "unique": 17415
+    }
+  ],
+  "root_audit": {
+    "block_count": 9,
+    "blocks": [
+      {
+        "cards": [
+          [
+            "c",
+            11
+          ]
+        ],
+        "head_rank": 11,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "h",
+            12
+          ]
+        ],
+        "head_rank": 12,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            13
+          ]
+        ],
+        "head_rank": 13,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            11
+          ]
+        ],
+        "head_rank": 11,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "c",
+            1
+          ]
+        ],
+        "head_rank": 1,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            2
+          ]
+        ],
+        "head_rank": 2,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "d",
+            3
+          ]
+        ],
+        "head_rank": 3,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            4
+          ]
+        ],
+        "head_rank": 4,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "c",
+            5
+          ]
+        ],
+        "head_rank": 5,
+        "length": 1
+      }
+    ],
+    "empty_columns": [
+      2
+    ],
+    "face_up": [
+      [
+        "c",
+        5
+      ],
+      [
+        "s",
+        4
+      ],
+      [
+        "d",
+        3
+      ],
+      [
+        "s",
+        2
+      ],
+      [
+        "c",
+        1
+      ],
+      [
+        "s",
+        11
+      ],
+      [
+        "s",
+        13
+      ],
+      [
+        "h",
+        12
+      ],
+      [
+        "c",
+        11
+      ]
+    ],
+    "face_up_count": 9,
+    "landing_obstruction": 0,
+    "legal_destinations": [
+      2,
+      4
+    ],
+    "legal_landing": true,
+    "physical_column_0": 0,
+    "physical_column_1": 1,
+    "present": true,
+    "relaxed_clearance": 9,
+    "top_block_head": 11,
+    "top_block_length": 1
+  },
+  "root_targets": [
+    {
+      "exposed_run": 1,
+      "face_up_count": 9,
+      "fd_count": 4,
+      "physical_column_0": 0,
+      "physical_column_1": 1,
+      "signature": [
+        [
+          "c",
+          10
+        ],
+        [
+          "d",
+          12
+        ],
+        [
+          "c",
+          6
+        ],
+        [
+          "s",
+          8
+        ]
+      ],
+      "signature_key": "c10,d12,c6,s8"
+    },
+    {
+      "exposed_run": 1,
+      "face_up_count": 5,
+      "fd_count": 5,
+      "physical_column_0": 1,
+      "physical_column_1": 2,
+      "signature": [
+        [
+          "h",
+          5
+        ],
+        [
+          "h",
+          9
+        ],
+        [
+          "h",
+          11
+        ],
+        [
+          "h",
+          1
+        ],
+        [
+          "d",
+          8
+        ]
+      ],
+      "signature_key": "h5,h9,h11,h1,d8"
+    },
+    {
+      "exposed_run": 1,
+      "face_up_count": 17,
+      "fd_count": 4,
+      "physical_column_0": 6,
+      "physical_column_1": 7,
+      "signature": [
+        [
+          "h",
+          8
+        ],
+        [
+          "c",
+          6
+        ],
+        [
+          "s",
+          10
+        ],
+        [
+          "d",
+          10
+        ]
+      ],
+      "signature_key": "h8,c6,s10,d10"
+    }
+  ],
+  "search": {
+    "duplicate_skips": 1368821,
+    "elapsed_s": 600.0009750000027,
+    "exit_classes": 0,
+    "expansions": 286614,
+    "first_reveal_depth": null,
+    "first_reveal_unique": null,
+    "fu_decreases": 153591,
+    "fu_increases": 110572,
+    "fu_returns": 264151,
+    "generated": 1777043,
+    "max_depth": 34,
+    "min_block_count": 5,
+    "min_obstruction": 0,
+    "min_relaxed": 6,
+    "min_target_fu": 5,
+    "off_target_reveals": 0,
+    "peak_rss_mb": 235.296875,
+    "stop_reason": "time limit",
+    "unique": 408223
+  },
+  "stall_class": "TARGET_STILL_TOO_FRAGMENTED",
+  "stall_sample": [
+    {
+      "block_count": 6,
+      "depth": 11,
+      "empty_exists": false,
+      "expansion": 4069,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 12,
+      "empty_exists": false,
+      "expansion": 4070,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 12,
+      "empty_exists": false,
+      "expansion": 4178,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 12,
+      "empty_exists": false,
+      "expansion": 4179,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 12,
+      "empty_exists": false,
+      "expansion": 4180,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 12,
+      "empty_exists": false,
+      "expansion": 4289,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 12,
+      "empty_exists": false,
+      "expansion": 4290,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 12,
+      "empty_exists": false,
+      "expansion": 4291,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 12,
+      "empty_exists": false,
+      "expansion": 4292,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4071,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4072,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4073,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4074,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4075,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4076,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4181,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 5,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4293,
+      "fu": 5,
+      "landing_obstruction": 1,
+      "legal_landing": false,
+      "relaxed": 6,
+      "top_block_head": 1,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4401,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4402,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4403,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4404,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4405,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4406,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4407,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4408,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4409,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4410,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4411,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4412,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4413,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4414,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    },
+    {
+      "block_count": 6,
+      "depth": 13,
+      "empty_exists": false,
+      "expansion": 4523,
+      "fu": 6,
+      "landing_obstruction": 0,
+      "legal_landing": true,
+      "relaxed": 6,
+      "top_block_head": 11,
+      "top_block_length": 1
+    }
+  ],
+  "v20_baseline": {
+    "elapsed_s": 406.0,
+    "expansions": 198884,
+    "generated": 1392280,
+    "max_depth": 24,
+    "min_fu": 7,
+    "target_fu_root": 9,
+    "target_reveal": false,
+    "unique": 500000
+  },
+  "verdict": "LANDING_AWARE_BREAKS_FU7_BARRIER"
+}
