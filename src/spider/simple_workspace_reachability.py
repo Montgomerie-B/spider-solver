@@ -140,6 +140,26 @@ class LayeredReachabilityResult:
     fd12_same_depth: List[dict] = field(default_factory=list)
     initial_empty: Tuple[int, ...] = ()
     processing_log: List[dict] = field(default_factory=list)
+    root_digest: str = ""
+    fresh_tt: bool = True
+    imported_keys: int = 0
+
+
+def is_hard_progress(
+    *,
+    start_fd: int,
+    start_foundations: int,
+    fd: int,
+    foundations: int,
+    empties: int = 0,
+    longest_run: int = 0,
+    adjacencies: int = 0,
+    blocks: int = 0,
+) -> bool:
+    """Ratchet trigger.  Empties/runs/adjacencies/blocks are ignored."""
+
+    del empties, longest_run, adjacencies, blocks
+    return fd < start_fd or foundations > start_foundations
 
 
 def reconstruct_actions(
@@ -163,8 +183,14 @@ def layered_reachability(
     rss_abort_mb: float = 8 * 1024.0,
     rules: MobilityWareRules = MW_RULES,
     checkpoints: Sequence[int] = CHECKPOINT_DEPTHS,
+    stop_fd: Optional[int] = None,
 ) -> LayeredReachabilityResult:
-    """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known)."""
+    """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known).
+
+    Each call allocates a fresh exact first-visit table.  There is no parameter
+    to import a previous visited set.  ``stop_fd`` stops at the first child
+    with face-down count <= that value (research harvest only).
+    """
 
     started = time.perf_counter()
     root_key = pack_state(seed)
@@ -275,9 +301,10 @@ def layered_reachability(
     last_generated = 0
     last_expanded = -1
     found_foundation = False
+    found_target_fd = False
 
     for depth in range(0, max_depth):
-        if found_foundation:
+        if found_foundation or found_target_fd:
             break
         if time.perf_counter() >= deadline:
             stop_reason = "time limit"
@@ -297,7 +324,7 @@ def layered_reachability(
         processing_log.append({"depth": depth, "expanding": len(frontier), "unique_before": len(keys)})
         incomplete = False
         for node in frontier:
-            if found_foundation:
+            if found_foundation or found_target_fd:
                 break
             if time.perf_counter() >= deadline:
                 stop_reason = "time limit"
@@ -376,10 +403,20 @@ def layered_reachability(
                         record_kind("run_ge_10", child_id)
                     if child_metrics["fd"] <= 12:
                         record_kind("fd_le_12", child_id)
+                    if child_metrics["fd"] <= 11:
+                        record_kind("fd_le_11", child_id)
+                    if child_metrics["fd"] <= 10:
+                        record_kind("fd_le_10", child_id)
+                    if child_metrics["fd"] <= 9:
+                        record_kind("fd_le_9", child_id)
                     if child_metrics["foundations"] >= 1:
                         record_kind("foundation", child_id)
                         found_foundation = True
                         stop_reason = "foundation"
+                        break
+                    if stop_fd is not None and child_metrics["fd"] <= stop_fd:
+                        found_target_fd = True
+                        stop_reason = f"fd <= {stop_fd}"
                         break
                 finally:
                     _restore(state, snap)
@@ -391,7 +428,7 @@ def layered_reachability(
         n_two = sum(1 for i in frontier if empty_count_of[i] >= 2)
         finish_layer_report(
             depth,
-            expanded=not incomplete and not found_foundation,
+            expanded=not incomplete and not found_foundation and not found_target_fd,
             gen=gen_here,
             dups=dups_here,
             by_tier=by_tier,
@@ -401,7 +438,7 @@ def layered_reachability(
         )
         if next_ids and depth + 1 == len(layers):
             layers.append(next_ids)
-        if found_foundation:
+        if found_foundation or found_target_fd:
             last_generated = max(last_generated, depth + 1)
             break
         if incomplete:
@@ -418,7 +455,7 @@ def layered_reachability(
                 f"min_fd={min_fd} run={max_run} fnd={max_foundations} empties={max_empties}",
                 flush=True,
             )
-        if found_foundation:
+        if found_foundation or found_target_fd:
             break
 
     # If we generated max_depth but did not expand it, still report occupancy of that frontier.
@@ -465,6 +502,8 @@ def layered_reachability(
     elapsed = time.perf_counter() - started
     if found_foundation:
         stop_reason = "foundation"
+    elif found_target_fd and stop_fd is not None:
+        stop_reason = f"fd <= {stop_fd}"
     elif last_generated >= max_depth and stop_reason == "max depth":
         stop_reason = "max depth"
 
@@ -489,4 +528,7 @@ def layered_reachability(
         fd12_same_depth=fd12_same_depth,
         initial_empty=initial_empty,
         processing_log=processing_log,
+        root_digest=root_key.hex(),
+        fresh_tt=True,
+        imported_keys=0,
     )
