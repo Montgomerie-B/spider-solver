@@ -1,0 +1,649 @@
+{
+  "base_sha": "d7be8cb2816bd91568980a90d67ee07e809367a6",
+  "deal": "deals/4925153.txt",
+  "empty_quality": "PRODUCTIVE_SHORT_TERM_WORKSPACE",
+  "experiment": "simple_progressive_workspace_transaction_v0_12",
+  "interpretation": "Verdict SHALLOW_WORKSPACE_REVEALS_FD12. Generated depth 8, unique=1000000, min_fd=11, max_empties=1, max_run=9, fnd=0, quality=PRODUCTIVE_SHORT_TERM_WORKSPACE.",
+  "next_recommendation": "Keep the shortest fd<=12 transaction as a research fixture. Next: test whether that eight-move consume/recreate/reveal sequence can be detected cheaply enough to influence ordering; do not add Pass 3 and do not return to deep DFS from this seed.",
+  "note": "fd 12 at depth 8",
+  "search": {
+    "completed_expanded_depth": 7,
+    "completed_generated_depth": 8,
+    "duplicate_skips": 2206355,
+    "elapsed_s": 557.9424566000089,
+    "expansion_order": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "first_depth": {
+      "empty_consumed": 1,
+      "empty_recreated": 3,
+      "empty_transferred": 1,
+      "fd_le_12": 8
+    },
+    "generated": 3206355,
+    "layers": [
+      {
+        "a_children": 1,
+        "b_children": 3,
+        "c_children": 18,
+        "cumulative_unique": 23,
+        "depth": 0,
+        "exact_duplicate_skips": 0,
+        "expanded": true,
+        "frontier_size": 1,
+        "generated_successors": 22,
+        "max_foundations": 0,
+        "max_run": 6,
+        "min_fd": 13,
+        "path_cycle_skips": 0,
+        "states_empty_0": 0,
+        "states_empty_1": 1,
+        "states_empty_ge2": 0
+      },
+      {
+        "a_children": 41,
+        "b_children": 62,
+        "c_children": 133,
+        "cumulative_unique": 159,
+        "depth": 1,
+        "exact_duplicate_skips": 100,
+        "expanded": true,
+        "frontier_size": 22,
+        "generated_successors": 236,
+        "max_foundations": 0,
+        "max_run": 9,
+        "min_fd": 13,
+        "path_cycle_skips": 0,
+        "states_empty_0": 17,
+        "states_empty_1": 5,
+        "states_empty_ge2": 0
+      },
+      {
+        "a_children": 253,
+        "b_children": 413,
+        "c_children": 668,
+        "cumulative_unique": 753,
+        "depth": 2,
+        "exact_duplicate_skips": 740,
+        "expanded": true,
+        "frontier_size": 136,
+        "generated_successors": 1334,
+        "max_foundations": 0,
+        "max_run": 9,
+        "min_fd": 13,
+        "path_cycle_skips": 0,
+        "states_empty_0": 120,
+        "states_empty_1": 16,
+        "states_empty_ge2": 0
+      },
+      {
+        "a_children": 1098,
+        "b_children": 1890,
+        "c_children": 3047,
+        "cumulative_unique": 3121,
+        "depth": 3,
+        "exact_duplicate_skips": 3667,
+        "expanded": true,
+        "frontier_size": 594,
+        "generated_successors": 6035,
+        "max_foundations": 0,
+        "max_run": 9,
+        "min_fd": 13,
+        "path_cycle_skips": 0,
+        "states_empty_0": 529,
+        "states_empty_1": 65,
+        "states_empty_ge2": 0
+      },
+      {
+        "a_children": 4615,
+        "b_children": 7399,
+        "c_children": 11607,
+        "cumulative_unique": 11478,
+        "depth": 4,
+        "exact_duplicate_skips": 15264,
+        "expanded": true,
+        "frontier_size": 2368,
+        "generated_successors": 23621,
+        "max_foundations": 0,
+        "max_run": 9,
+        "min_fd": 13,
+        "path_cycle_skips": 0,
+        "states_empty_0": 2138,
+        "states_empty_1": 230,
+        "states_empty_ge2": 0
+      },
+      {
+        "a_children": 17118,
+        "b_children": 25439,
+        "c_children": 38855,
+        "cumulative_unique": 38445,
+        "depth": 5,
+        "exact_duplicate_skips": 54445,
+        "expanded": true,
+        "frontier_size": 8357,
+        "generated_successors": 81412,
+        "max_foundations": 0,
+        "max_run": 9,
+        "min_fd": 13,
+        "path_cycle_skips": 0,
+        "states_empty_0": 7672,
+        "states_empty_1": 685,
+        "states_empty_ge2": 0
+      },
+      {
+        "a_children": 56460,
+        "b_children": 80610,
+        "c_children": 126839,
+        "cumulative_unique": 123518,
+        "depth": 6,
+        "exact_duplicate_skips": 178836,
+        "expanded": true,
+        "frontier_size": 26967,
+        "generated_successors": 263909,
+        "max_foundations": 0,
+        "max_run": 9,
+        "min_fd": 13,
+        "path_cycle_skips": 0,
+        "states_empty_0": 24820,
+        "states_empty_1": 2147,
+        "states_empty_ge2": 0
+      },
+      {
+        "a_children": 180032,
+        "b_children": 248949,
+        "c_children": 405670,
+        "cumulative_unique": 384710,
+        "depth": 7,
+        "exact_duplicate_skips": 573459,
+        "expanded": true,
+        "frontier_size": 85073,
+        "generated_successors": 834651,
+        "max_foundations": 0,
+        "max_run": 9,
+        "min_fd": 13,
+        "path_cycle_skips": 0,
+        "states_empty_0": 78270,
+        "states_empty_1": 6803,
+        "states_empty_ge2": 0
+      },
+      {
+        "a_children": 423591,
+        "b_children": 582393,
+        "c_children": 989151,
+        "cumulative_unique": 1000000,
+        "depth": 8,
+        "exact_duplicate_skips": 1379844,
+        "expanded": false,
+        "frontier_size": 261192,
+        "generated_successors": 1995135,
+        "max_foundations": 0,
+        "max_run": 9,
+        "min_fd": 12,
+        "path_cycle_skips": 0,
+        "states_empty_0": 241295,
+        "states_empty_1": 19897,
+        "states_empty_ge2": 0
+      }
+    ],
+    "max_empties": 1,
+    "max_foundations": 0,
+    "max_run": 9,
+    "min_fd": 11,
+    "path_cycle_skips": 0,
+    "peak_rss_mb": 452.015625,
+    "stop_reason": "unique limit",
+    "unique": 1000000,
+    "wall_s": 558.1166302000056
+  },
+  "seed": {
+    "adjacencies": 37,
+    "blocks": 3,
+    "cost": 102,
+    "digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "empties": [
+      2
+    ],
+    "fd": 13,
+    "foundations": 0,
+    "initial_empty_column": 2,
+    "longest_run": 6,
+    "ok": true,
+    "path_length": 102,
+    "stock_rows": 0
+  },
+  "use_interpretation": "Best hard witness timing=USE NOW first empty-use depth=1 tier=C column=2 consumed=True transferred=False.",
+  "v11_reference": {
+    "foundations": 0,
+    "longest_run": 9,
+    "max_depth": 2000,
+    "max_empties": 1,
+    "min_fd": 13,
+    "unique": 233865
+  },
+  "verdict": "SHALLOW_WORKSPACE_REVEALS_FD12",
+  "witnesses": {
+    "empty_consumed": {
+      "actions": [
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 3,
+      "combined_replay": {
+        "adjacencies": 37,
+        "blocks": 3,
+        "cost": 103,
+        "empties": [],
+        "fd": 13,
+        "foundations": 0,
+        "longest_run": 6,
+        "ok": true,
+        "path_length": 103,
+        "stock_rows": 0
+      },
+      "depth": 1,
+      "empties": [],
+      "empty_count": 0,
+      "empty_sequence": [
+        [
+          2
+        ],
+        []
+      ],
+      "fd": 13,
+      "first_empty_use": {
+        "action": [
+          0,
+          2,
+          1
+        ],
+        "after_ab_setup": false,
+        "after_c_rework": false,
+        "consumed": true,
+        "depth": 1,
+        "empty_column": 2,
+        "immediate": true,
+        "tier": 2,
+        "tier_name": "C",
+        "transferred": false
+      },
+      "foundations": 0,
+      "kind": "empty_consumed",
+      "local_cost": 1,
+      "local_path_length": 1,
+      "longest_run": 6,
+      "path_events": [
+        "EMPTY_CONSUMED"
+      ],
+      "total_cost": 103,
+      "total_path_length": 103,
+      "use_now_vs_wait": "USE NOW"
+    },
+    "empty_recreated": {
+      "actions": [
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          0,
+          1
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 3,
+      "combined_replay": {
+        "adjacencies": 37,
+        "blocks": 3,
+        "cost": 105,
+        "empties": [
+          2
+        ],
+        "fd": 13,
+        "foundations": 0,
+        "longest_run": 6,
+        "ok": true,
+        "path_length": 105,
+        "stock_rows": 0
+      },
+      "depth": 3,
+      "empties": [
+        2
+      ],
+      "empty_count": 1,
+      "empty_sequence": [
+        [
+          2
+        ],
+        [],
+        [],
+        [
+          2
+        ]
+      ],
+      "fd": 13,
+      "first_empty_use": {
+        "action": [
+          1,
+          2,
+          1
+        ],
+        "after_ab_setup": false,
+        "after_c_rework": false,
+        "consumed": true,
+        "depth": 1,
+        "empty_column": 2,
+        "immediate": true,
+        "tier": 2,
+        "tier_name": "C",
+        "transferred": false
+      },
+      "foundations": 0,
+      "kind": "empty_recreated",
+      "local_cost": 3,
+      "local_path_length": 3,
+      "longest_run": 6,
+      "path_events": [
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED"
+      ],
+      "total_cost": 105,
+      "total_path_length": 105,
+      "use_now_vs_wait": "USE NOW"
+    },
+    "empty_transferred": {
+      "actions": [
+        [
+          4,
+          2,
+          2
+        ]
+      ],
+      "adjacencies": 37,
+      "blocks": 3,
+      "combined_replay": {
+        "adjacencies": 37,
+        "blocks": 3,
+        "cost": 102,
+        "empties": [
+          4
+        ],
+        "fd": 13,
+        "foundations": 0,
+        "longest_run": 6,
+        "ok": true,
+        "path_length": 103,
+        "stock_rows": 0
+      },
+      "depth": 1,
+      "empties": [
+        4
+      ],
+      "empty_count": 1,
+      "empty_sequence": [
+        [
+          2
+        ],
+        [
+          4
+        ]
+      ],
+      "fd": 13,
+      "first_empty_use": {
+        "action": [
+          4,
+          2,
+          2
+        ],
+        "after_ab_setup": false,
+        "after_c_rework": false,
+        "consumed": false,
+        "depth": 1,
+        "empty_column": 2,
+        "immediate": true,
+        "tier": 1,
+        "tier_name": "B",
+        "transferred": true
+      },
+      "foundations": 0,
+      "kind": "empty_transferred",
+      "local_cost": 0,
+      "local_path_length": 1,
+      "longest_run": 6,
+      "path_events": [
+        "EMPTY_TRANSFERRED"
+      ],
+      "total_cost": 102,
+      "total_path_length": 103,
+      "use_now_vs_wait": "USE NOW"
+    },
+    "fd_le_12": {
+      "actions": [
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          4,
+          1
+        ],
+        [
+          2,
+          0,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          4,
+          1,
+          2
+        ],
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          1,
+          2,
+          3
+        ]
+      ],
+      "adjacencies": 38,
+      "blocks": 3,
+      "combined_replay": {
+        "adjacencies": 38,
+        "blocks": 3,
+        "cost": 110,
+        "empties": [],
+        "fd": 12,
+        "foundations": 0,
+        "longest_run": 6,
+        "ok": true,
+        "path_length": 110,
+        "stock_rows": 0
+      },
+      "depth": 8,
+      "empties": [],
+      "empty_count": 0,
+      "empty_sequence": [
+        [
+          2
+        ],
+        [],
+        [],
+        [],
+        [
+          2
+        ],
+        [],
+        [],
+        [
+          2
+        ],
+        []
+      ],
+      "fd": 12,
+      "first_empty_use": {
+        "action": [
+          1,
+          2,
+          1
+        ],
+        "after_ab_setup": false,
+        "after_c_rework": false,
+        "consumed": true,
+        "depth": 1,
+        "empty_column": 2,
+        "immediate": true,
+        "tier": 2,
+        "tier_name": "C",
+        "transferred": false
+      },
+      "foundations": 0,
+      "kind": "fd_le_12",
+      "local_cost": 8,
+      "local_path_length": 8,
+      "longest_run": 6,
+      "path_events": [
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED",
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED",
+        "EMPTY_CONSUMED"
+      ],
+      "total_cost": 110,
+      "total_path_length": 110,
+      "use_now_vs_wait": "USE NOW"
+    },
+    "fd_le_12_same_depth": [
+      {
+        "actions": [
+          [
+            1,
+            2,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            4,
+            1
+          ],
+          [
+            2,
+            0,
+            1
+          ],
+          [
+            1,
+            2,
+            1
+          ],
+          [
+            4,
+            1,
+            2
+          ],
+          [
+            2,
+            4,
+            1
+          ],
+          [
+            1,
+            2,
+            3
+          ]
+        ],
+        "combined_replay": {
+          "adjacencies": 38,
+          "blocks": 3,
+          "cost": 110,
+          "empties": [],
+          "fd": 12,
+          "foundations": 0,
+          "longest_run": 6,
+          "ok": true,
+          "path_length": 110,
+          "stock_rows": 0
+        },
+        "depth": 8,
+        "empties": [],
+        "empty_count": 0,
+        "fd": 12,
+        "fingerprint": [
+          true,
+          false,
+          true,
+          false,
+          1,
+          2
+        ],
+        "first_empty_use": {
+          "action": [
+            1,
+            2,
+            1
+          ],
+          "after_ab_setup": false,
+          "after_c_rework": false,
+          "consumed": true,
+          "depth": 1,
+          "empty_column": 2,
+          "immediate": true,
+          "tier": 2,
+          "tier_name": "C",
+          "transferred": false
+        },
+        "foundations": 0,
+        "kind": "fd_le_12",
+        "local_path_length": 8,
+        "longest_run": 6,
+        "path_events": [
+          "EMPTY_CONSUMED",
+          "EMPTY_RECREATED",
+          "EMPTY_CONSUMED",
+          "EMPTY_RECREATED",
+          "EMPTY_CONSUMED"
+        ],
+        "total_cost": 110,
+        "total_path_length": 110,
+        "use_now_vs_wait": "USE NOW"
+      }
+    ]
+  }
+}
