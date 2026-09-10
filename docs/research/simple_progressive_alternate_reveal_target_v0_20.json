@@ -1,0 +1,245 @@
+{
+  "alt1": {
+    "duplicate_skips": 892280,
+    "elapsed_s": 405.9887100000051,
+    "exit_classes": 0,
+    "expansions": 198884,
+    "fd_count": 4,
+    "first_reveal_depth": null,
+    "first_reveal_expansions": null,
+    "first_reveal_unique": null,
+    "fu_decreases": 622,
+    "fu_increases": 287824,
+    "fu_returns": 288438,
+    "generated": 1392280,
+    "max_depth": 24,
+    "min_target_fu": 7,
+    "name": "alt1",
+    "off_target_reveals": 0,
+    "peak_rss_mb": 297.31640625,
+    "root_face_up_count": 9,
+    "root_physical_column_1": 1,
+    "stop_reason": "unique limit",
+    "target_key": "c10,d12,c6,s8",
+    "unique": 500000
+  },
+  "alt1_exits": 0,
+  "alt1_new": 0,
+  "alt2": {
+    "duplicate_skips": 816083,
+    "elapsed_s": 386.71246589999646,
+    "exit_classes": 0,
+    "expansions": 181090,
+    "fd_count": 4,
+    "first_reveal_depth": null,
+    "first_reveal_expansions": null,
+    "first_reveal_unique": null,
+    "fu_decreases": 725,
+    "fu_increases": 310999,
+    "fu_returns": 311714,
+    "generated": 1316083,
+    "max_depth": 28,
+    "min_target_fu": 10,
+    "name": "alt2",
+    "off_target_reveals": 0,
+    "peak_rss_mb": 297.31640625,
+    "root_face_up_count": 17,
+    "root_physical_column_1": 7,
+    "stop_reason": "unique limit",
+    "target_key": "h8,c6,s10,d10",
+    "unique": 500000
+  },
+  "alt2_exits": 0,
+  "alt2_new": 0,
+  "base_sha": "5af74c3f204f23e92ff8573e833ec66de20c24af",
+  "classifier_complete": true,
+  "comparison": [
+    {
+      "exits": 1,
+      "known_dead": 1,
+      "name": "Known/easy col2",
+      "new": 0,
+      "reaches_fd10": false,
+      "root_fu": 5,
+      "unique": 100000
+    },
+    {
+      "exits": 0,
+      "known_dead": 0,
+      "name": "Alternate col1",
+      "new": 0,
+      "reaches_fd10": false,
+      "root_fu": 9,
+      "unique": 500000
+    },
+    {
+      "exits": 0,
+      "known_dead": 0,
+      "name": "Alternate col7",
+      "new": 0,
+      "reaches_fd10": false,
+      "root_fu": 17,
+      "unique": 500000
+    }
+  ],
+  "control": {
+    "duplicate_skips": 187426,
+    "elapsed_s": 88.19036239999696,
+    "exit_classes": 1,
+    "expansions": 42271,
+    "fd_count": 5,
+    "first_reveal_depth": 9,
+    "first_reveal_expansions": 42020,
+    "first_reveal_unique": 99300,
+    "fu_decreases": 63,
+    "fu_increases": 56311,
+    "fu_returns": 56366,
+    "generated": 287427,
+    "max_depth": 24,
+    "min_target_fu": 1,
+    "name": "control",
+    "off_target_reveals": 0,
+    "peak_rss_mb": 87.45703125,
+    "root_face_up_count": 5,
+    "root_physical_column_1": 2,
+    "stop_reason": "unique limit",
+    "target_key": "h5,h9,h11,h1,d8",
+    "unique": 100000
+  },
+  "control_exits": 1,
+  "control_failed": false,
+  "control_new": 0,
+  "downstream": [],
+  "downstream_skip": "no new alternate exits",
+  "experiment": "simple_progressive_alternate_reveal_target_v0_20",
+  "fd10": false,
+  "fd10_witness": null,
+  "fd13": {
+    "cost": 102,
+    "empties": [
+      2
+    ],
+    "fd": 13,
+    "foundations": 0,
+    "legal": 22,
+    "longest_run": 6,
+    "ordered_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "path_length": 102,
+    "replay_ok": true,
+    "stock": 0,
+    "symmetry_digest": "5350533101000000000000022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104093a2c360835042302310b0d1c3b041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29"
+  },
+  "foundation": false,
+  "foundation_witness": null,
+  "heuristic": "TARGET_FACE_UP_COUNT then depth then seq",
+  "heuristic_proof_authority": false,
+  "interpretation": "Verdict ALTERNATE_TARGETS_NOT_REACHED. control_exits=1 alt1_exits=0 alt2_exits=0 fd10=False foundation=False.",
+  "next_recommendation": "Cheap target-clearance cannot expose the harder stacks inside this envelope. Next: do not raise v0.19's breadth limit here; a later task may try a different treatment.",
+  "note": "the control succeeded, but neither alternative target could be revealed inside the bounded envelope",
+  "production_unchanged": true,
+  "root_targets": [
+    {
+      "exposed_run": 1,
+      "face_up_count": 9,
+      "fd_count": 4,
+      "physical_column_0": 0,
+      "physical_column_1": 1,
+      "signature": [
+        [
+          "c",
+          10
+        ],
+        [
+          "d",
+          12
+        ],
+        [
+          "c",
+          6
+        ],
+        [
+          "s",
+          8
+        ]
+      ],
+      "signature_key": "c10,d12,c6,s8"
+    },
+    {
+      "exposed_run": 1,
+      "face_up_count": 5,
+      "fd_count": 5,
+      "physical_column_0": 1,
+      "physical_column_1": 2,
+      "signature": [
+        [
+          "h",
+          5
+        ],
+        [
+          "h",
+          9
+        ],
+        [
+          "h",
+          11
+        ],
+        [
+          "h",
+          1
+        ],
+        [
+          "d",
+          8
+        ]
+      ],
+      "signature_key": "h5,h9,h11,h1,d8"
+    },
+    {
+      "exposed_run": 1,
+      "face_up_count": 17,
+      "fd_count": 4,
+      "physical_column_0": 6,
+      "physical_column_1": 7,
+      "signature": [
+        [
+          "h",
+          8
+        ],
+        [
+          "c",
+          6
+        ],
+        [
+          "s",
+          10
+        ],
+        [
+          "d",
+          10
+        ]
+      ],
+      "signature_key": "h8,c6,s10,d10"
+    }
+  ],
+  "v19_audit": {
+    "all_easy_column2": true,
+    "by_target": {
+      "h5,h9,h11,h1,d8": 18
+    },
+    "class_by_target": {
+      "h5,h9,h11,h1,d8:KNOWN_DEAD_FD12": 15,
+      "h5,h9,h11,h1,d8:NEW_FD12_EXIT": 3
+    },
+    "earliest_by_target": {
+      "h5,h9,h11,h1,d8": 8
+    },
+    "exit_count": 18,
+    "root_column_by_key": {
+      "c10,d12,c6,s8": 1,
+      "h5,h9,h11,h1,d8": 2,
+      "h8,c6,s10,d10": 7
+    }
+  },
+  "verdict": "ALTERNATE_TARGETS_NOT_REACHED",
+  "winning_target": null
+}
