@@ -152,6 +152,10 @@ class LayeredReachabilityResult:
     depth_expanded_frac: Optional[dict] = None
     cross_origin_dups: int = 0
     origin_paths: List[list] = field(default_factory=list)
+    stream_discarded: int = 0
+    keys_before_stream: int = 0
+    last_layer_generated: int = 0
+    last_layer_duplicates: int = 0
 
 
 def is_hard_progress(
@@ -196,6 +200,8 @@ def layered_reachability(
     checkpoints: Sequence[int] = CHECKPOINT_DEPTHS,
     stop_fd: Optional[int] = None,
     collect_fd: Optional[int] = None,
+    collect_exact_depth: Optional[int] = None,
+    stream_last: bool = False,
 ) -> LayeredReachabilityResult:
     """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known).
 
@@ -203,6 +209,9 @@ def layered_reachability(
     to import a previous visited set.  ``stop_fd`` stops at the first child
     with face-down count <= that value (research harvest only).
     ``collect_fd`` records every min-depth match and does not stop on the first.
+    ``collect_exact_depth`` restricts collection to first-seen states at that
+    primitive depth.  ``stream_last`` inspects the final generated depth without
+    retaining non-candidate children as a future frontier.
     ``sources`` starts a multi-source frontier; later exact states collapse once.
     """
 
@@ -288,6 +297,10 @@ def layered_reachability(
     cross_origin_dups = 0
     collect_nodes: List[int] = []
     collect_depth: Optional[int] = None
+    stream_discarded = 0
+    keys_before_stream = 0
+    last_layer_generated = 0
+    last_layer_duplicates = 0
     peak_rss = _rss_mb()
     stop_reason = "max depth"
     witnesses: Dict[str, dict] = {}
@@ -387,6 +400,9 @@ def layered_reachability(
             break
         expansion_order.append(depth)
         frontier = layers[depth]
+        streaming = stream_last and depth == max_depth - 1
+        if streaming:
+            keys_before_stream = len(keys)
         gen_here = 0
         dups_here = 0
         by_tier = [0, 0, 0, 0]
@@ -426,19 +442,39 @@ def layered_reachability(
                     gen_here += 1
                     by_tier[tier] += 1
                     child_key = pack_state(state)
+                    if streaming:
+                        last_layer_generated += 1
                     if child_key in ids:
                         duplicate_skips += 1
                         dups_here += 1
+                        if streaming:
+                            last_layer_duplicates += 1
                         multiplicity[child_key] = multiplicity.get(child_key, 1) + 1
                         if origin[ids[child_key]] != origin[node]:
                             cross_origin_dups += 1
                         continue
+                    child_empties = empty_column_indices(state)
+                    child_metrics = _metrics(state)
+                    if streaming:
+                        keep = (
+                            child_metrics["foundations"] >= 1
+                            or child_metrics["fd"] <= 10
+                            or (
+                                collect_fd is not None
+                                and child_metrics["fd"] == collect_fd
+                                and (
+                                    collect_exact_depth is None
+                                    or depth + 1 == collect_exact_depth
+                                )
+                            )
+                        )
+                        if not keep:
+                            stream_discarded += 1
+                            continue
                     if len(keys) >= max_unique:
                         stop_reason = "unique limit"
                         incomplete = True
                         break
-                    child_empties = empty_column_indices(state)
-                    child_metrics = _metrics(state)
                     events = empty_transition_events(
                         parent_empties,
                         child_empties,
@@ -463,12 +499,24 @@ def layered_reachability(
                     child_ever_zero = ever_zero[node] or len(child_empties) == 0
                     ever_zero.append(child_ever_zero)
                     path_events.append(path_events[node] + events)
-                    next_ids.append(child_id)
-                    if collect_fd is not None and child_metrics["fd"] <= collect_fd:
-                        if collect_depth is None:
-                            collect_depth = depth + 1
-                        if depth + 1 == collect_depth:
-                            collect_nodes.append(child_id)
+                    if not streaming:
+                        next_ids.append(child_id)
+                    if collect_fd is not None:
+                        match_fd = (
+                            child_metrics["fd"] == collect_fd
+                            if collect_exact_depth is not None
+                            else child_metrics["fd"] <= collect_fd
+                        )
+                        if match_fd:
+                            if collect_exact_depth is not None:
+                                if depth + 1 == collect_exact_depth:
+                                    collect_depth = collect_exact_depth
+                                    collect_nodes.append(child_id)
+                            else:
+                                if collect_depth is None:
+                                    collect_depth = depth + 1
+                                if depth + 1 == collect_depth:
+                                    collect_nodes.append(child_id)
                     min_fd = min(min_fd, child_metrics["fd"])
                     max_foundations = max(max_foundations, child_metrics["foundations"])
                     max_run = max(max_run, child_metrics["longest_run"])
@@ -531,6 +579,16 @@ def layered_reachability(
             }
             break
         last_expanded = depth
+        if streaming:
+            last_generated = depth + 1
+            stop_reason = "max depth"
+            print(
+                f"CHECKPOINT depth={depth + 1} unique={len(keys)} streamed={last_layer_generated} "
+                f"discarded={stream_discarded} candidates={len(collect_nodes)} "
+                f"min_fd={min_fd} run={max_run} fnd={max_foundations}",
+                flush=True,
+            )
+            break
         if next_ids:
             last_generated = depth + 1
         else:
@@ -588,7 +646,7 @@ def layered_reachability(
     collected: List[dict] = []
     collect_complete = False
     if collect_fd is not None:
-        if collect_depth is None:
+        if collect_exact_depth is None and collect_depth is None:
             for index, fdv in enumerate(fd_of):
                 if fdv <= collect_fd:
                     collect_depth = (
@@ -622,12 +680,15 @@ def layered_reachability(
                     "origin": origin[node],
                 }
             )
-        collect_complete = (
-            collect_depth is not None
-            and last_generated >= collect_depth
-            and incomplete_frac is None
-            and not found_target_fd
-        )
+        if collect_exact_depth is not None:
+            collect_complete = incomplete_frac is None and last_expanded >= collect_exact_depth - 1
+        else:
+            collect_complete = (
+                collect_depth is not None
+                and last_generated >= collect_depth
+                and incomplete_frac is None
+                and not found_target_fd
+            )
 
     for item in fd12_same_depth:
         item.pop("node", None)
@@ -673,4 +734,8 @@ def layered_reachability(
         depth_expanded_frac=incomplete_frac,
         cross_origin_dups=cross_origin_dups,
         origin_paths=[list(p) for p in source_paths],
+        stream_discarded=stream_discarded,
+        keys_before_stream=keys_before_stream,
+        last_layer_generated=last_layer_generated,
+        last_layer_duplicates=last_layer_duplicates,
     )
