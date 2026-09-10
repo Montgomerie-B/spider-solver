@@ -18,6 +18,10 @@ v0.7 optionally scopes saturation to ``(depth_band, pass)``.  Default OFF
 v0.8 adds optional ``start_pass`` so a research search may begin at Pass 1.
 Default remains 0.  Ordinary whole-deal policy is unchanged.
 
+v0.10 adds optional ``tt_mode="first_visit"``: heuristic first-solution
+coverage that expands each exact state at most once.  Default remains
+``depth_aware``.  First-visit mode has NO proof authority.
+
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
 from canonical identity.
@@ -41,6 +45,9 @@ from spider.simple_post_deal_audit import (
     inspect_state,
 )
 from spider.simple_reveal_stock_audit import RevealStockAudit, cheap_structure
+
+TT_MODE_DEPTH_AWARE = "depth_aware"
+TT_MODE_FIRST_VISIT = "first_visit"
 
 
 TableauMove = Tuple[int, int, int]
@@ -103,6 +110,10 @@ class SearchStats:
     last_prep_action: Optional[SolverAction] = None
     tt_depth_prunes: int = 0
     tt_reopens: int = 0
+    first_visit_skips: int = 0
+    tt_mode: str = TT_MODE_DEPTH_AWARE
+    unique_at: dict = field(default_factory=dict)
+    rss_abort: bool = False
     expansions_by_depth_bucket: List[int] = field(
         default_factory=lambda: [0, 0, 0, 0, 0]
     )
@@ -653,23 +664,17 @@ def _stock_dealt_index(opening_rows: int, current_rows: int) -> int:
 
 
 class _CoverageTT:
-    """Depth-aware exact coverage keyed by packed state and relaxation pass.
+    """Exact coverage keyed by packed state and relaxation pass.
 
-    For each ``(state, pass)`` retain the maximum remaining-depth budget
-    already started (``seen``) or completely searched (``done``).
-
-    Skip when::
-
-        max_covered_remaining(state, pass) >= current_remaining_depth
-
-    Broader passes subsume narrower at the same remaining depth: exhaustion
-    at pass 2 remaining 80 covers pass 0 remaining 80, but not remaining 160.
-    A shallow remaining-depth exhaustion never suppresses a later visit with
-    more remaining depth.  Incomplete expansions are recorded in ``seen``
-    only, not ``done``.
+    Default ``depth_aware`` mode is remaining-depth coverage and may be used
+    as a proof-relevant skip.  ``first_visit`` mode is heuristic
+    first-solution coverage: the first expansion of an exact state admits it,
+    and any later encounter is skipped even with more remaining depth.
+    First-visit skips have NO proof authority.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, first_visit: bool = False) -> None:
+        self.first_visit = first_visit
         self.seen: Dict[ExactKey, List[int]] = {}
         self.done: Dict[ExactKey, List[int]] = {}
 
@@ -692,6 +697,8 @@ class _CoverageTT:
         return best
 
     def skip(self, key: ExactKey, pass_level: int, remaining: int = _INF_REMAINING) -> bool:
+        if self.first_visit:
+            return key in self.seen
         return self.max_covered_remaining(key, pass_level) >= remaining
 
     def mark_start(self, key: ExactKey, pass_level: int, remaining: int = _INF_REMAINING) -> None:
@@ -905,12 +912,17 @@ def solve_progressive(
     enable_band_local_saturation: bool = False,
     audit_watch_keys: Optional[Sequence[bytes]] = None,
     start_pass: int = 0,
+    tt_mode: str = TT_MODE_DEPTH_AWARE,
+    rss_abort_mb: Optional[float] = None,
 ) -> ProgressiveSearchResult:
     """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
     started = time.perf_counter()
+    if tt_mode not in (TT_MODE_DEPTH_AWARE, TT_MODE_FIRST_VISIT):
+        raise ValueError(f"unknown tt_mode {tt_mode!r}")
     stats = SearchStats()
-    memory = _CoverageTT()
+    stats.tt_mode = tt_mode
+    memory = _CoverageTT(first_visit=tt_mode == TT_MODE_FIRST_VISIT)
     bands = _clip_depth_bands(depth_bands, max_depth)
     root_foundations = len(root.foundations)
     opening_stock = _stock_rows(root)
@@ -965,16 +977,33 @@ def solve_progressive(
                 _restore(working_state, frame.snap)
 
     def budget_exhausted(node_cap: int, deadline: float) -> bool:
-        return stats.states_expanded >= node_cap or time.perf_counter() >= deadline
+        return (
+            stats.states_expanded >= node_cap
+            or time.perf_counter() >= deadline
+            or stats.rss_abort
+        )
 
     def note_rss() -> None:
-        nonlocal peak_rss
-        if (stats.states_expanded & 2047) == 0:
+        nonlocal peak_rss, stop_reason
+        if rss_abort_mb is not None or (stats.states_expanded & 2047) == 0:
             rss = _rss_mb()
             if rss is not None and (peak_rss is None or rss > peak_rss):
                 peak_rss = rss
+            if (
+                rss_abort_mb is not None
+                and rss is not None
+                and rss >= rss_abort_mb
+            ):
+                stats.rss_abort = True
+                stop_reason = "rss abort"
 
     def consider_tt(key: ExactKey, pass_level: int, remaining: int) -> str:
+        if memory.first_visit:
+            if key in memory.seen:
+                stats.tt_hits += 1
+                stats.first_visit_skips += 1
+                return "skip"
+            return "search"
         covered = memory.max_covered_remaining(key, pass_level)
         if covered >= remaining:
             stats.tt_hits += 1
@@ -1051,6 +1080,8 @@ def solve_progressive(
                 stats.states_expanded += 1
                 stats.max_depth = max(stats.max_depth, depth)
                 stats.expansions_by_depth_bucket[_depth_bucket(depth)] += 1
+                if stats.states_expanded in (25_000, 50_000, 100_000, 250_000, 1_000_000):
+                    stats.unique_at[str(stats.states_expanded)] = len(memory)
                 note_rss()
                 foundations = len(working_state.foundations)
                 fd = _face_down(working_state)
@@ -1418,7 +1449,10 @@ def solve_progressive(
                 )
             if tt_skip_child:
                 stats.tt_hits += 1
-                stats.tt_depth_prunes += 1
+                if memory.first_visit:
+                    stats.first_visit_skips += 1
+                else:
+                    stats.tt_depth_prunes += 1
                 if pda is not None:
                     pda.on_tt_skip(
                         key=child_key,
