@@ -1,0 +1,290 @@
+{
+  "base_sha": "830b4d01a66c07974a6fe7c4941e86941d1c52e8",
+  "column7_tested": false,
+  "downstream": null,
+  "downstream_skip": "no OUTSIDE_KNOWN_DEAD target exit",
+  "experiment": "simple_progressive_fu5_target_conversion_v0_22",
+  "fd10": false,
+  "fd10_witness": null,
+  "first_target_exit": null,
+  "foundation": false,
+  "foundation_witness": null,
+  "fu5": {
+    "block_count": 5,
+    "blocks": [
+      {
+        "cards": [
+          [
+            "c",
+            1
+          ]
+        ],
+        "head_rank": 1,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            2
+          ]
+        ],
+        "head_rank": 2,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "d",
+            3
+          ]
+        ],
+        "head_rank": 3,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "s",
+            4
+          ]
+        ],
+        "head_rank": 4,
+        "length": 1
+      },
+      {
+        "cards": [
+          [
+            "c",
+            5
+          ]
+        ],
+        "head_rank": 5,
+        "length": 1
+      }
+    ],
+    "cost": 114,
+    "empties": [],
+    "face_up": [
+      [
+        "c",
+        5
+      ],
+      [
+        "s",
+        4
+      ],
+      [
+        "d",
+        3
+      ],
+      [
+        "s",
+        2
+      ],
+      [
+        "c",
+        1
+      ]
+    ],
+    "fd": 13,
+    "foundations": 0,
+    "landing_obstruction": 1,
+    "legal_destinations": [],
+    "local_depth": 12,
+    "ordered_digest": "53504b310100000004053a2c36083504230231050715191b11282d3c3b3a39383700030d0c0b00121413121d071d1c1b1a19181716153433323100052d2c3b1a2900080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100033d1c2b000b1716352b14092534332201",
+    "path_length": 114,
+    "replay_ok": true,
+    "stock": 0,
+    "symmetry_digest": "535053310100000000030d0c0b00033d1c2b00052d2c3b1a2900080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a19181716153433323104053a2c36083504230231041718360a2a280706050403020911033d3c0b0a290827262524232221050715191b11282d3c3b3a393837",
+    "target_fu": 5,
+    "top_block_head": 1
+  },
+  "fu_records": {},
+  "interpretation": "Verdict FU5_LOCAL_NO_CLEARANCE_PROGRESS. FU5 depth=12 min_fu=5 reveal=False known=0 outside=0.",
+  "known_dead_exits": 0,
+  "new_heuristic": false,
+  "next_recommendation": "FU5 does not convert under fair shallow search. Next: stop this target-clearance line and recommend backtracking to an earlier hard-progress state. Do not add another heuristic.",
+  "note": "no target FU below 5 and no reveal inside the completed shallow envelope",
+  "off_target_exits": 0,
+  "outside_known_dead": 0,
+  "production_unchanged": true,
+  "reproduction_failed": false,
+  "search": {
+    "completed_expanded_depth": 6,
+    "completed_generated_depth": 6,
+    "duplicate_skips": 355,
+    "elapsed_s": 0.19913130000350066,
+    "expansion_order": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "fu_record_depths": {},
+    "generated": 462,
+    "layers": [
+      {
+        "cumulative_unique": 7,
+        "depth": 0,
+        "exact_duplicate_skips": 0,
+        "expanded": true,
+        "frontier_size": 1,
+        "generated_successors": 6,
+        "min_block_count": 5,
+        "min_fd": 13,
+        "min_target_fu": 5,
+        "off_target_exits": 0,
+        "states_empty_0": 1,
+        "states_empty_1": 0,
+        "states_empty_ge2": 0,
+        "states_fu1": 0,
+        "states_fu2": 0,
+        "states_fu3": 0,
+        "states_fu4": 0,
+        "states_fu5": 1,
+        "target_exits": 0
+      },
+      {
+        "cumulative_unique": 23,
+        "depth": 1,
+        "exact_duplicate_skips": 14,
+        "expanded": true,
+        "frontier_size": 6,
+        "generated_successors": 30,
+        "min_block_count": 5,
+        "min_fd": 13,
+        "min_target_fu": 5,
+        "off_target_exits": 0,
+        "states_empty_0": 6,
+        "states_empty_1": 0,
+        "states_empty_ge2": 0,
+        "states_fu1": 0,
+        "states_fu2": 0,
+        "states_fu3": 0,
+        "states_fu4": 0,
+        "states_fu5": 6,
+        "target_exits": 0
+      },
+      {
+        "cumulative_unique": 50,
+        "depth": 2,
+        "exact_duplicate_skips": 41,
+        "expanded": true,
+        "frontier_size": 16,
+        "generated_successors": 68,
+        "min_block_count": 5,
+        "min_fd": 13,
+        "min_target_fu": 5,
+        "off_target_exits": 0,
+        "states_empty_0": 16,
+        "states_empty_1": 0,
+        "states_empty_ge2": 0,
+        "states_fu1": 0,
+        "states_fu2": 0,
+        "states_fu3": 0,
+        "states_fu4": 0,
+        "states_fu5": 16,
+        "target_exits": 0
+      },
+      {
+        "cumulative_unique": 81,
+        "depth": 3,
+        "exact_duplicate_skips": 80,
+        "expanded": true,
+        "frontier_size": 27,
+        "generated_successors": 111,
+        "min_block_count": 5,
+        "min_fd": 13,
+        "min_target_fu": 5,
+        "off_target_exits": 0,
+        "states_empty_0": 27,
+        "states_empty_1": 0,
+        "states_empty_ge2": 0,
+        "states_fu1": 0,
+        "states_fu2": 0,
+        "states_fu3": 0,
+        "states_fu4": 0,
+        "states_fu5": 27,
+        "target_exits": 0
+      },
+      {
+        "cumulative_unique": 102,
+        "depth": 4,
+        "exact_duplicate_skips": 112,
+        "expanded": true,
+        "frontier_size": 31,
+        "generated_successors": 133,
+        "min_block_count": 5,
+        "min_fd": 13,
+        "min_target_fu": 5,
+        "off_target_exits": 0,
+        "states_empty_0": 31,
+        "states_empty_1": 0,
+        "states_empty_ge2": 0,
+        "states_fu1": 0,
+        "states_fu2": 0,
+        "states_fu3": 0,
+        "states_fu4": 0,
+        "states_fu5": 31,
+        "target_exits": 0
+      },
+      {
+        "cumulative_unique": 108,
+        "depth": 5,
+        "exact_duplicate_skips": 84,
+        "expanded": true,
+        "frontier_size": 21,
+        "generated_successors": 90,
+        "min_block_count": 5,
+        "min_fd": 13,
+        "min_target_fu": 5,
+        "off_target_exits": 0,
+        "states_empty_0": 21,
+        "states_empty_1": 0,
+        "states_empty_ge2": 0,
+        "states_fu1": 0,
+        "states_fu2": 0,
+        "states_fu3": 0,
+        "states_fu4": 0,
+        "states_fu5": 21,
+        "target_exits": 0
+      },
+      {
+        "cumulative_unique": 108,
+        "depth": 6,
+        "exact_duplicate_skips": 24,
+        "expanded": true,
+        "frontier_size": 6,
+        "generated_successors": 24,
+        "min_block_count": 5,
+        "min_fd": 13,
+        "min_target_fu": 5,
+        "off_target_exits": 0,
+        "states_empty_0": 6,
+        "states_empty_1": 0,
+        "states_empty_ge2": 0,
+        "states_fu1": 0,
+        "states_fu2": 0,
+        "states_fu3": 0,
+        "states_fu4": 0,
+        "states_fu5": 6,
+        "target_exits": 0
+      }
+    ],
+    "min_block_count": 5,
+    "min_fd": 13,
+    "min_target_fu": 5,
+    "peak_rss_mb": 21.7890625,
+    "reveal_depth": null,
+    "stop_reason": "frontier empty",
+    "unique": 108
+  },
+  "target_exit_classes": 0,
+  "target_reveal": false,
+  "verdict": "FU5_LOCAL_NO_CLEARANCE_PROGRESS",
+  "workspace": null
+}

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import heapq
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
@@ -20,6 +21,7 @@ from spider.simple_progressive_solver import _capture, _restore, _rss_mb, apply_
 from spider.simple_workspace_reachability import (
     _metrics,
     empty_column_indices,
+    empty_transition_events,
     engine_tableau_actions,
     face_down_count,
     post_stock_identity,
@@ -644,4 +646,383 @@ def target_directed_plateau(
         fu7_witness=fu7_witness,
         stall_sample=stall_sample,
         root_audit=root_audit,
+    )
+
+
+@dataclass
+class TargetConversionResult:
+    unique: int
+    generated: int
+    duplicate_skips: int
+    completed_generated_depth: int
+    completed_expanded_depth: int
+    elapsed_s: float
+    peak_rss_mb: Optional[float]
+    stop_reason: str
+    min_target_fu: int
+    min_block_count: int
+    min_fd: int
+    target_exits: List[dict] = field(default_factory=list)
+    off_target_exits: List[dict] = field(default_factory=list)
+    fu_records: Dict[int, dict] = field(default_factory=dict)
+    foundation_witness: Optional[dict] = None
+    fd_le_11_witness: Optional[dict] = None
+    layers: List[dict] = field(default_factory=list)
+    expansion_order: List[int] = field(default_factory=list)
+    reveal_depth: Optional[int] = None
+
+
+def target_conversion_bfs(
+    seed: SpiderState,
+    target: FdSignature,
+    *,
+    plateau_fd: int = 13,
+    max_depth: int = 16,
+    max_unique: int = 1_000_000,
+    time_limit_s: float = 1200.0,
+    rss_abort_mb: float = 3 * 1024.0,
+    identity_fn=None,
+    rules: MobilityWareRules = MW_RULES,
+    checkpoints: Sequence[int] = (4, 8, 12, 16),
+) -> TargetConversionResult:
+    """Fair primitive-depth BFS on the fd plateau.  No heuristic ordering."""
+
+    if identity_fn is None:
+        identity_fn = post_stock_identity
+    if seed.stock:
+        raise ValueError("target_conversion_bfs is post-stock only")
+    root_metrics = _metrics(seed)
+    if root_metrics["fd"] != plateau_fd or root_metrics["foundations"] != 0:
+        raise ValueError("seed is not on the requested plateau")
+    if locate_target(seed, target) is None:
+        raise ValueError("target signature missing from seed")
+
+    started = time.perf_counter()
+    ids: Dict[bytes, int] = {}
+    keys: List[bytes] = []
+    parent: List[int] = []
+    src_a: List[int] = []
+    dst_a: List[int] = []
+    k_a: List[int] = []
+    depth_of: List[int] = []
+    fu_of: List[int] = []
+    blocks_of: List[int] = []
+    empty_count_of: List[int] = []
+
+    def add_node(concrete, ident, parent_id, src, dst, k, depth, fu, blocks, empty_n) -> int:
+        node = len(keys)
+        ids[ident] = node
+        keys.append(concrete)
+        parent.append(parent_id)
+        src_a.append(src)
+        dst_a.append(dst)
+        k_a.append(k)
+        depth_of.append(depth)
+        fu_of.append(fu)
+        blocks_of.append(blocks)
+        empty_count_of.append(empty_n)
+        return node
+
+    root_fu = target_face_up_count(seed, target) or 0
+    root_blocks = target_block_count(seed, target) or 0
+    add_node(pack_state(seed), identity_fn(seed), -1, -1, -1, -1, 0, root_fu, root_blocks, len(root_metrics["empties"]))
+    layers_ids: List[List[int]] = [[0]]
+    generated = 0
+    duplicate_skips = 0
+    min_target_fu = root_fu
+    min_block_count = root_blocks
+    min_fd = root_metrics["fd"]
+    fu_records: Dict[int, dict] = {}
+    target_exits: Dict[bytes, dict] = {}
+    off_target_exits: Dict[bytes, dict] = {}
+    foundation_witness = None
+    fd_le_11_witness = None
+    layer_reports: List[dict] = []
+    expansion_order: List[int] = []
+    reveal_depth: Optional[int] = None
+    peak_rss = _rss_mb()
+    stop_reason = "max depth"
+    deadline = started + time_limit_s
+    last_expanded = -1
+    last_generated = 0
+
+    def note_rss() -> bool:
+        nonlocal peak_rss
+        rss = _rss_mb()
+        if rss is not None and (peak_rss is None or rss > peak_rss):
+            peak_rss = rss
+        return rss_abort_mb is not None and rss is not None and rss >= rss_abort_mb
+
+    def snapshot(node: int, extra: dict) -> dict:
+        actions = reconstruct_actions(node, parent, src_a, dst_a, k_a)
+        return {"actions": [list(a) for a in actions], "depth": depth_of[node], **extra}
+
+    found_foundation = False
+    incomplete = False
+
+    for depth in range(0, max_depth):
+        if found_foundation:
+            break
+        if reveal_depth is not None and depth >= reveal_depth:
+            stop_reason = "target reveal"
+            break
+        if time.perf_counter() >= deadline:
+            stop_reason = "time limit"
+            incomplete = True
+            break
+        if note_rss():
+            stop_reason = "rss abort"
+            incomplete = True
+            break
+        if depth >= len(layers_ids) or not layers_ids[depth]:
+            stop_reason = "frontier empty"
+            break
+        frontier = layers_ids[depth]
+        expansion_order.append(depth)
+        next_ids: List[int] = []
+        gen_here = 0
+        dups_here = 0
+        exits_here = 0
+        off_here = 0
+        for node in frontier:
+            if found_foundation:
+                break
+            if time.perf_counter() >= deadline:
+                stop_reason = "time limit"
+                incomplete = True
+                break
+            if (len(keys) & 2047) == 0 and note_rss():
+                stop_reason = "rss abort"
+                incomplete = True
+                break
+            state = unpack_state(keys[node])
+            parent_fd = face_down_count(state)
+            parent_sigs = tuple(face_down_signature(col) for col in state.columns)
+            actions, _s = engine_tableau_actions(state, rules=rules)
+            for action in actions:
+                src, dst, k = action  # type: ignore[misc]
+                snap = _capture(state, action)
+                try:
+                    apply_action(state, action, rules=rules)
+                    generated += 1
+                    gen_here += 1
+                    child_metrics = _metrics(state)
+                    ident = identity_fn(state)
+                    min_fd = min(min_fd, child_metrics["fd"])
+                    if child_metrics["foundations"] >= 1:
+                        found_foundation = True
+                        stop_reason = "foundation"
+                        foundation_witness = {
+                            "depth": depth + 1,
+                            "fd": child_metrics["fd"],
+                            "foundations": child_metrics["foundations"],
+                            "actions": [list(a) for a in reconstruct_actions(node, parent, src_a, dst_a, k_a)]
+                            + [[src, dst, k]],
+                            "ordered_digest": pack_state(state).hex(),
+                            "symmetry_digest": ident.hex(),
+                        }
+                        break
+                    if child_metrics["fd"] <= plateau_fd - 2:
+                        if fd_le_11_witness is None:
+                            fd_le_11_witness = {
+                                "depth": depth + 1,
+                                "fd": child_metrics["fd"],
+                                "actions": [list(a) for a in reconstruct_actions(node, parent, src_a, dst_a, k_a)]
+                                + [[src, dst, k]],
+                            }
+                        continue
+                    if child_metrics["fd"] == plateau_fd - 1 and child_metrics["foundations"] == 0:
+                        changed = [
+                            i for i in range(10) if face_down_signature(state.columns[i]) != parent_sigs[i]
+                        ]
+                        hit = child_metrics["fd"] == parent_fd - 1 and len(changed) == 1 and parent_sigs[changed[0]] == target
+                        rec = {
+                            "symmetry_digest": ident.hex(),
+                            "ordered_digest": pack_state(state).hex(),
+                            "actions": [list(a) for a in reconstruct_actions(node, parent, src_a, dst_a, k_a)]
+                            + [[src, dst, k]],
+                            "depth": depth + 1,
+                            "empties": list(child_metrics["empties"]),
+                            "longest_run": child_metrics["longest_run"],
+                            "adjacencies": child_metrics["adjacencies"],
+                            "blocks": child_metrics["blocks"],
+                            "fd": child_metrics["fd"],
+                            "reveal_action": [src, dst, k],
+                            "hits": 1,
+                        }
+                        if hit:
+                            exits_here += 1
+                            if reveal_depth is None:
+                                reveal_depth = depth + 1
+                            if ident not in target_exits:
+                                target_exits[ident] = rec
+                            else:
+                                target_exits[ident]["hits"] += 1
+                        else:
+                            off_here += 1
+                            if ident not in off_target_exits:
+                                off_target_exits[ident] = rec
+                            else:
+                                off_target_exits[ident]["hits"] += 1
+                        continue
+                    if child_metrics["fd"] != plateau_fd or child_metrics["foundations"] != 0:
+                        continue
+                    child_fu = target_face_up_count(state, target)
+                    if child_fu is None:
+                        continue
+                    child_blocks = target_block_count(state, target) or 0
+                    min_target_fu = min(min_target_fu, child_fu)
+                    min_block_count = min(min_block_count, child_blocks)
+                    if ident in ids:
+                        duplicate_skips += 1
+                        dups_here += 1
+                        continue
+                    if len(keys) >= max_unique:
+                        stop_reason = "unique limit"
+                        incomplete = True
+                        break
+                    child_id = add_node(
+                        pack_state(state),
+                        ident,
+                        node,
+                        src,
+                        dst,
+                        k,
+                        depth + 1,
+                        child_fu,
+                        child_blocks,
+                        len(child_metrics["empties"]),
+                    )
+                    next_ids.append(child_id)
+                    for thresh in (4, 3, 2, 1):
+                        if child_fu <= thresh and thresh not in fu_records:
+                            audit = target_stack_audit(state, target)
+                            fu_records[thresh] = {
+                                "threshold": thresh,
+                                "target_fu": child_fu,
+                                "depth": depth + 1,
+                                "block_count": child_blocks,
+                                "face_up": audit.get("face_up"),
+                                "blocks": audit.get("blocks"),
+                                "top_block_head": audit.get("top_block_head"),
+                                "legal_destinations": audit.get("legal_destinations"),
+                                "empty_columns": audit.get("empty_columns"),
+                                "actions": [list(a) for a in reconstruct_actions(child_id, parent, src_a, dst_a, k_a)],
+                            }
+                finally:
+                    _restore(state, snap)
+            if incomplete or found_foundation:
+                break
+        fu_hist = Counter()
+        for nid in frontier:
+            fu_hist[fu_of[nid]] += 1
+        n_zero = sum(1 for i in frontier if empty_count_of[i] == 0)
+        n_one = sum(1 for i in frontier if empty_count_of[i] == 1)
+        n_two = sum(1 for i in frontier if empty_count_of[i] >= 2)
+        layer_reports.append(
+            {
+                "depth": depth,
+                "frontier_size": len(frontier),
+                "cumulative_unique": len(keys),
+                "generated_successors": gen_here,
+                "exact_duplicate_skips": dups_here,
+                "min_target_fu": min((fu_of[i] for i in frontier), default=min_target_fu),
+                "min_block_count": min((blocks_of[i] for i in frontier), default=min_block_count),
+                "states_fu5": fu_hist.get(5, 0),
+                "states_fu4": fu_hist.get(4, 0),
+                "states_fu3": fu_hist.get(3, 0),
+                "states_fu2": fu_hist.get(2, 0),
+                "states_fu1": fu_hist.get(1, 0),
+                "states_empty_0": n_zero,
+                "states_empty_1": n_one,
+                "states_empty_ge2": n_two,
+                "target_exits": exits_here,
+                "off_target_exits": off_here,
+                "min_fd": min_fd,
+                "expanded": not incomplete and not found_foundation,
+            }
+        )
+        if incomplete or found_foundation:
+            last_generated = max(last_generated, depth + 1)
+            break
+        last_expanded = depth
+        if next_ids:
+            layers_ids.append(next_ids)
+            last_generated = depth + 1
+        else:
+            stop_reason = "frontier empty"
+            break
+        if depth + 1 in checkpoints:
+            print(
+                f"CHECKPOINT depth={depth + 1} unique={len(keys)} frontier={len(next_ids)} "
+                f"min_fu={min_target_fu} exits={len(target_exits)} min_fd={min_fd}",
+                flush=True,
+            )
+        if reveal_depth is not None:
+            stop_reason = "target reveal"
+            break
+
+    if last_generated == max_depth and last_generated < len(layers_ids) and last_generated not in {r["depth"] for r in layer_reports}:
+        frontier = layers_ids[last_generated]
+        fu_hist = Counter()
+        for nid in frontier:
+            fu_hist[fu_of[nid]] += 1
+        layer_reports.append(
+            {
+                "depth": last_generated,
+                "frontier_size": len(frontier),
+                "cumulative_unique": len(keys),
+                "generated_successors": 0,
+                "exact_duplicate_skips": 0,
+                "min_target_fu": min((fu_of[i] for i in frontier), default=min_target_fu),
+                "min_block_count": min((blocks_of[i] for i in frontier), default=min_block_count),
+                "states_fu5": fu_hist.get(5, 0),
+                "states_fu4": fu_hist.get(4, 0),
+                "states_fu3": fu_hist.get(3, 0),
+                "states_fu2": fu_hist.get(2, 0),
+                "states_fu1": fu_hist.get(1, 0),
+                "states_empty_0": sum(1 for i in frontier if empty_count_of[i] == 0),
+                "states_empty_1": sum(1 for i in frontier if empty_count_of[i] == 1),
+                "states_empty_ge2": sum(1 for i in frontier if empty_count_of[i] >= 2),
+                "target_exits": 0,
+                "off_target_exits": 0,
+                "min_fd": min_fd,
+                "expanded": False,
+            }
+        )
+
+    def enrich(rec: dict) -> dict:
+        walk = seed.clone()
+        try:
+            rec["local_cost"] = replay_actions(walk, [tuple(a) for a in rec["actions"]])
+            rec["legal"] = len(engine_tableau_actions(walk)[0])
+            rec["replay_ok"] = True
+        except (ValueError, AssertionError) as exc:
+            rec["local_cost"] = None
+            rec["legal"] = None
+            rec["replay_ok"] = False
+            rec["replay_error"] = str(exc)
+        return rec
+
+    elapsed = time.perf_counter() - started
+    return TargetConversionResult(
+        unique=len(keys),
+        generated=generated,
+        duplicate_skips=duplicate_skips,
+        completed_generated_depth=last_generated,
+        completed_expanded_depth=last_expanded,
+        elapsed_s=elapsed,
+        peak_rss_mb=peak_rss if peak_rss is not None else _rss_mb(),
+        stop_reason=stop_reason,
+        min_target_fu=min_target_fu,
+        min_block_count=min_block_count,
+        min_fd=min_fd,
+        target_exits=[enrich(dict(r)) for r in target_exits.values()],
+        off_target_exits=[enrich(dict(r)) for r in off_target_exits.values()],
+        fu_records=fu_records,
+        foundation_witness=foundation_witness,
+        fd_le_11_witness=fd_le_11_witness,
+        layers=layer_reports,
+        expansion_order=expansion_order,
+        reveal_depth=reveal_depth,
     )
