@@ -1,0 +1,382 @@
+{
+  "alternative_arms": [],
+  "arms": [
+    {
+      "arm": "B_2_8_1",
+      "buried": [
+        {
+          "exposed_run": 1,
+          "face_up_count": 8,
+          "fd_count": 4,
+          "physical_column_0": 0,
+          "physical_column_1": 1,
+          "signature": [
+            [
+              "c",
+              10
+            ],
+            [
+              "d",
+              12
+            ],
+            [
+              "c",
+              6
+            ],
+            [
+              "s",
+              8
+            ]
+          ],
+          "signature_key": "c10,d12,c6,s8"
+        },
+        {
+          "exposed_run": 1,
+          "face_up_count": 5,
+          "fd_count": 5,
+          "physical_column_0": 1,
+          "physical_column_1": 2,
+          "signature": [
+            [
+              "h",
+              5
+            ],
+            [
+              "h",
+              9
+            ],
+            [
+              "h",
+              11
+            ],
+            [
+              "h",
+              1
+            ],
+            [
+              "d",
+              8
+            ]
+          ],
+          "signature_key": "h5,h9,h11,h1,d8"
+        },
+        {
+          "exposed_run": 1,
+          "face_up_count": 17,
+          "fd_count": 4,
+          "physical_column_0": 6,
+          "physical_column_1": 7,
+          "signature": [
+            [
+              "h",
+              8
+            ],
+            [
+              "c",
+              6
+            ],
+            [
+              "s",
+              10
+            ],
+            [
+              "d",
+              10
+            ]
+          ],
+          "signature_key": "h8,c6,s10,d10"
+        }
+      ],
+      "empty_class": "CURRENT_FD13_CLASS",
+      "empty_cost": 102,
+      "empty_empties": [
+        2
+      ],
+      "empty_ordered": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "empty_path": 102,
+      "empty_symmetry": "5350533101000000000000022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104093a2c360835042302310b0d1c3b041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29",
+      "fd13_adj": 37,
+      "fd13_blocks": 3,
+      "fd13_class": "CURRENT_FD13_CLASS",
+      "fd13_cost": 101,
+      "fd13_empties": [],
+      "fd13_legal": 5,
+      "fd13_ordered": "53504b310100000004083a2c360835042302310b0d1c050515191b11282d0c2b1a2900013b00121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "fd13_path": 101,
+      "fd13_run": 6,
+      "fd13_symmetry": "535053310100000000013b00022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104083a2c360835042302310b0d1c041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29",
+      "ordered_eq_b281": true,
+      "reveal_target": {
+        "appeared_after_signatures": [],
+        "fd_after": 13,
+        "fd_before": 14,
+        "missing_before_signatures": [
+          "c11"
+        ],
+        "physical_column_0_at_before": 2,
+        "physical_column_1_at_before": 3,
+        "prefix_present_after": false,
+        "prefix_signature_key": null,
+        "signature_key": "c11"
+      }
+    },
+    {
+      "arm": "B_2_0_1",
+      "buried": [
+        {
+          "exposed_run": 1,
+          "face_up_count": 8,
+          "fd_count": 4,
+          "physical_column_0": 0,
+          "physical_column_1": 1,
+          "signature": [
+            [
+              "c",
+              10
+            ],
+            [
+              "d",
+              12
+            ],
+            [
+              "c",
+              6
+            ],
+            [
+              "s",
+              8
+            ]
+          ],
+          "signature_key": "c10,d12,c6,s8"
+        },
+        {
+          "exposed_run": 1,
+          "face_up_count": 5,
+          "fd_count": 5,
+          "physical_column_0": 1,
+          "physical_column_1": 2,
+          "signature": [
+            [
+              "h",
+              5
+            ],
+            [
+              "h",
+              9
+            ],
+            [
+              "h",
+              11
+            ],
+            [
+              "h",
+              1
+            ],
+            [
+              "d",
+              8
+            ]
+          ],
+          "signature_key": "h5,h9,h11,h1,d8"
+        },
+        {
+          "exposed_run": 1,
+          "face_up_count": 17,
+          "fd_count": 4,
+          "physical_column_0": 6,
+          "physical_column_1": 7,
+          "signature": [
+            [
+              "h",
+              8
+            ],
+            [
+              "c",
+              6
+            ],
+            [
+              "s",
+              10
+            ],
+            [
+              "d",
+              10
+            ]
+          ],
+          "signature_key": "h8,c6,s10,d10"
+        }
+      ],
+      "empty_class": "CURRENT_FD13_CLASS",
+      "empty_cost": 109,
+      "empty_empties": [
+        2
+      ],
+      "empty_ordered": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "empty_path": 109,
+      "empty_symmetry": "5350533101000000000000022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104093a2c360835042302310b0d1c3b041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29",
+      "fd13_adj": 37,
+      "fd13_blocks": 3,
+      "fd13_class": "CURRENT_FD13_CLASS",
+      "fd13_cost": 108,
+      "fd13_empties": [],
+      "fd13_legal": 5,
+      "fd13_ordered": "53504b310100000004083a2c360835042302310b0d1c050515191b11282d0c2b1a2900013b00121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "fd13_path": 108,
+      "fd13_run": 6,
+      "fd13_symmetry": "535053310100000000013b00022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104083a2c360835042302310b0d1c041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29",
+      "ordered_eq_b281": true,
+      "reveal_target": {
+        "appeared_after_signatures": [],
+        "fd_after": 13,
+        "fd_before": 14,
+        "missing_before_signatures": [
+          "c11"
+        ],
+        "physical_column_0_at_before": 2,
+        "physical_column_1_at_before": 3,
+        "prefix_present_after": false,
+        "prefix_signature_key": null,
+        "signature_key": "c11"
+      }
+    },
+    {
+      "arm": "A_4_1_1",
+      "buried": [
+        {
+          "exposed_run": 1,
+          "face_up_count": 8,
+          "fd_count": 4,
+          "physical_column_0": 0,
+          "physical_column_1": 1,
+          "signature": [
+            [
+              "c",
+              10
+            ],
+            [
+              "d",
+              12
+            ],
+            [
+              "c",
+              6
+            ],
+            [
+              "s",
+              8
+            ]
+          ],
+          "signature_key": "c10,d12,c6,s8"
+        },
+        {
+          "exposed_run": 1,
+          "face_up_count": 5,
+          "fd_count": 5,
+          "physical_column_0": 1,
+          "physical_column_1": 2,
+          "signature": [
+            [
+              "h",
+              5
+            ],
+            [
+              "h",
+              9
+            ],
+            [
+              "h",
+              11
+            ],
+            [
+              "h",
+              1
+            ],
+            [
+              "d",
+              8
+            ]
+          ],
+          "signature_key": "h5,h9,h11,h1,d8"
+        },
+        {
+          "exposed_run": 1,
+          "face_up_count": 17,
+          "fd_count": 4,
+          "physical_column_0": 6,
+          "physical_column_1": 7,
+          "signature": [
+            [
+              "h",
+              8
+            ],
+            [
+              "c",
+              6
+            ],
+            [
+              "s",
+              10
+            ],
+            [
+              "d",
+              10
+            ]
+          ],
+          "signature_key": "h8,c6,s10,d10"
+        }
+      ],
+      "empty_class": "CURRENT_FD13_CLASS",
+      "empty_cost": 109,
+      "empty_empties": [
+        2
+      ],
+      "empty_ordered": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "empty_path": 109,
+      "empty_symmetry": "5350533101000000000000022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104093a2c360835042302310b0d1c3b041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29",
+      "fd13_adj": 37,
+      "fd13_blocks": 3,
+      "fd13_class": "CURRENT_FD13_CLASS",
+      "fd13_cost": 108,
+      "fd13_empties": [],
+      "fd13_legal": 5,
+      "fd13_ordered": "53504b310100000004083a2c360835042302310b0d1c050515191b11282d0c2b1a2900013b00121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "fd13_path": 108,
+      "fd13_run": 6,
+      "fd13_symmetry": "535053310100000000013b00022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104083a2c360835042302310b0d1c041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29",
+      "ordered_eq_b281": true,
+      "reveal_target": {
+        "appeared_after_signatures": [],
+        "fd_after": 13,
+        "fd_before": 14,
+        "missing_before_signatures": [
+          "c11"
+        ],
+        "physical_column_0_at_before": 2,
+        "physical_column_1_at_before": 3,
+        "prefix_present_after": false,
+        "prefix_signature_key": null,
+        "signature_key": "c11"
+      }
+    }
+  ],
+  "collapse": true,
+  "empty_class_members": {
+    "5350533101000000000000022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104093a2c360835042302310b0d1c3b041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29": [
+      "B_2_8_1",
+      "B_2_0_1",
+      "A_4_1_1"
+    ]
+  },
+  "empty_ordered_classes": 1,
+  "empty_symmetry_classes": 1,
+  "fd13_class_members": {
+    "535053310100000000013b00022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104083a2c360835042302310b0d1c041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29": [
+      "B_2_8_1",
+      "B_2_0_1",
+      "A_4_1_1"
+    ]
+  },
+  "fd13_ordered_classes": 1,
+  "fd13_symmetry_classes": 1,
+  "ok": true
+}

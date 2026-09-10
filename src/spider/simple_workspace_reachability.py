@@ -296,6 +296,7 @@ def layered_reachability(
     identity_fn: Optional[Callable[[SpiderState], bytes]] = None,
     all_legal_tableau: bool = False,
     dead_identities: Optional[Set[bytes]] = None,
+    stop_after_collect_layer: bool = False,
 ) -> LayeredReachabilityResult:
     """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known).
 
@@ -303,6 +304,8 @@ def layered_reachability(
     to import a previous visited set.  ``stop_fd`` stops at the first child
     with face-down count <= that value (research harvest only).
     ``collect_fd`` records every min-depth match and does not stop on the first.
+    ``stop_after_collect_layer`` finishes the parent layer that produced the
+    first ``collect_fd`` children, then stops (research harvest only).
     ``collect_exact_depth`` restricts collection to first-seen states at that
     primitive depth.  ``stream_last`` inspects the final generated depth without
     retaining non-candidate children as a future frontier.
@@ -727,6 +730,14 @@ def layered_reachability(
             last_generated = depth + 1
         else:
             stop_reason = "frontier empty"
+            break
+        if (
+            stop_after_collect_layer
+            and collect_fd is not None
+            and collect_depth is not None
+            and collect_depth == depth + 1
+        ):
+            stop_reason = "collect layer complete"
             break
         if depth + 1 in checkpoints:
             print(
