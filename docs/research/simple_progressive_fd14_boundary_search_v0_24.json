@@ -1,0 +1,1904 @@
+{
+  "base_sha": "cf32569a9826278c5cb3892ff078936aebda8ea8",
+  "branch": "agent/simple-progressive-fd14-boundary-search-v0-24",
+  "current_fd13": {
+    "adjacencies": 37,
+    "arm": "B_2_8_1",
+    "buried_face_down_stacks": [
+      {
+        "exposed_run": 1,
+        "face_up_count": 8,
+        "fd_count": 4,
+        "physical_column_0": 0,
+        "physical_column_1": 1,
+        "signature": [
+          [
+            "c",
+            10
+          ],
+          [
+            "d",
+            12
+          ],
+          [
+            "c",
+            6
+          ],
+          [
+            "s",
+            8
+          ]
+        ],
+        "signature_key": "c10,d12,c6,s8"
+      },
+      {
+        "exposed_run": 1,
+        "face_up_count": 5,
+        "fd_count": 5,
+        "physical_column_0": 1,
+        "physical_column_1": 2,
+        "signature": [
+          [
+            "h",
+            5
+          ],
+          [
+            "h",
+            9
+          ],
+          [
+            "h",
+            11
+          ],
+          [
+            "h",
+            1
+          ],
+          [
+            "d",
+            8
+          ]
+        ],
+        "signature_key": "h5,h9,h11,h1,d8"
+      },
+      {
+        "exposed_run": 1,
+        "face_up_count": 17,
+        "fd_count": 4,
+        "physical_column_0": 6,
+        "physical_column_1": 7,
+        "signature": [
+          [
+            "h",
+            8
+          ],
+          [
+            "c",
+            6
+          ],
+          [
+            "s",
+            10
+          ],
+          [
+            "d",
+            10
+          ]
+        ],
+        "signature_key": "h8,c6,s10,d10"
+      }
+    ],
+    "census": {
+      "a": 3,
+      "b": 1,
+      "c": 1,
+      "d": 0,
+      "deal_legal": false,
+      "deal_tier": null,
+      "has_broader_than_a": true,
+      "has_immediate_foundation_move": false,
+      "has_tier_a": true,
+      "immediate_foundation_moves": 0,
+      "landing_score": null,
+      "legal": 5,
+      "legal_tableau": 5,
+      "tableau_a": 3,
+      "tableau_b": 1,
+      "tableau_c": 1,
+      "tableau_d": 0
+    },
+    "corrected_mw_cost": 101,
+    "empties": [],
+    "empty_count": 0,
+    "fd": 13,
+    "foundations": 0,
+    "kind": "CURRENT_FD13",
+    "legal_action_count": 5,
+    "longest_run": 6,
+    "movable_blocks": 3,
+    "ok": true,
+    "ordered_digest": "53504b310100000004083a2c360835042302310b0d1c050515191b11282d0c2b1a2900013b00121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "ordered_key": "53504b310100000004083a2c360835042302310b0d1c050515191b11282d0c2b1a2900013b00121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "reveal_target": {
+      "appeared_after_signatures": [],
+      "fd_after": 13,
+      "fd_before": 14,
+      "missing_before_signatures": [
+        "c11"
+      ],
+      "physical_column_0_at_before": 2,
+      "physical_column_1_at_before": 3,
+      "prefix_present_after": false,
+      "prefix_signature_key": null,
+      "signature_key": "c11"
+    },
+    "stock": 0,
+    "symmetry_digest": "535053310100000000013b00022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104083a2c360835042302310b0d1c041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29",
+    "symmetry_key": "535053310100000000013b00022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104083a2c360835042302310b0d1c041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29",
+    "total_primitive_path": 101
+  },
+  "experiment": "simple_progressive_fd14_boundary_search_v0_24",
+  "fd10": false,
+  "fd14": {
+    "adjacencies": 16,
+    "arm": "fd14_root",
+    "buried_face_down_stacks": [
+      {
+        "exposed_run": 1,
+        "face_up_count": 10,
+        "fd_count": 4,
+        "physical_column_0": 0,
+        "physical_column_1": 1,
+        "signature": [
+          [
+            "c",
+            10
+          ],
+          [
+            "d",
+            12
+          ],
+          [
+            "c",
+            6
+          ],
+          [
+            "s",
+            8
+          ]
+        ],
+        "signature_key": "c10,d12,c6,s8"
+      },
+      {
+        "exposed_run": 1,
+        "face_up_count": 9,
+        "fd_count": 5,
+        "physical_column_0": 1,
+        "physical_column_1": 2,
+        "signature": [
+          [
+            "h",
+            5
+          ],
+          [
+            "h",
+            9
+          ],
+          [
+            "h",
+            11
+          ],
+          [
+            "h",
+            1
+          ],
+          [
+            "d",
+            8
+          ]
+        ],
+        "signature_key": "h5,h9,h11,h1,d8"
+      },
+      {
+        "exposed_run": 1,
+        "face_up_count": 12,
+        "fd_count": 1,
+        "physical_column_0": 2,
+        "physical_column_1": 3,
+        "signature": [
+          [
+            "c",
+            11
+          ]
+        ],
+        "signature_key": "c11"
+      },
+      {
+        "exposed_run": 1,
+        "face_up_count": 12,
+        "fd_count": 4,
+        "physical_column_0": 6,
+        "physical_column_1": 7,
+        "signature": [
+          [
+            "h",
+            8
+          ],
+          [
+            "c",
+            6
+          ],
+          [
+            "s",
+            10
+          ],
+          [
+            "d",
+            10
+          ]
+        ],
+        "signature_key": "h8,c6,s10,d10"
+      }
+    ],
+    "census": {
+      "a": 1,
+      "b": 4,
+      "c": 0,
+      "d": 0,
+      "deal_legal": false,
+      "deal_tier": null,
+      "has_broader_than_a": true,
+      "has_immediate_foundation_move": false,
+      "has_tier_a": true,
+      "immediate_foundation_moves": 0,
+      "landing_score": null,
+      "legal": 5,
+      "legal_tableau": 5,
+      "tableau_a": 1,
+      "tableau_b": 4,
+      "tableau_c": 0,
+      "tableau_d": 0
+    },
+    "corrected_mw_cost": 43,
+    "empties": [],
+    "empty_count": 0,
+    "face_down_census": [
+      {
+        "face_down": [
+          [
+            "c",
+            10
+          ],
+          [
+            "d",
+            12
+          ],
+          [
+            "c",
+            6
+          ],
+          [
+            "s",
+            8
+          ]
+        ],
+        "face_up": [
+          [
+            "c",
+            5
+          ],
+          [
+            "s",
+            4
+          ],
+          [
+            "d",
+            3
+          ],
+          [
+            "s",
+            2
+          ],
+          [
+            "c",
+            1
+          ],
+          [
+            "s",
+            11
+          ],
+          [
+            "s",
+            13
+          ],
+          [
+            "c",
+            2
+          ],
+          [
+            "d",
+            9
+          ],
+          [
+            "h",
+            3
+          ]
+        ],
+        "fd_count": 4,
+        "fu_count": 10,
+        "physical_column_0": 0,
+        "physical_column_1": 1,
+        "signature_key": "c10,d12,c6,s8"
+      },
+      {
+        "face_down": [
+          [
+            "h",
+            5
+          ],
+          [
+            "h",
+            9
+          ],
+          [
+            "h",
+            11
+          ],
+          [
+            "h",
+            1
+          ],
+          [
+            "d",
+            8
+          ]
+        ],
+        "face_up": [
+          [
+            "d",
+            13
+          ],
+          [
+            "s",
+            12
+          ],
+          [
+            "d",
+            11
+          ],
+          [
+            "h",
+            10
+          ],
+          [
+            "d",
+            9
+          ],
+          [
+            "s",
+            1
+          ],
+          [
+            "s",
+            10
+          ],
+          [
+            "s",
+            11
+          ],
+          [
+            "h",
+            10
+          ]
+        ],
+        "fd_count": 5,
+        "fu_count": 9,
+        "physical_column_0": 1,
+        "physical_column_1": 2,
+        "signature_key": "h5,h9,h11,h1,d8"
+      },
+      {
+        "face_down": [
+          [
+            "c",
+            11
+          ]
+        ],
+        "face_up": [
+          [
+            "d",
+            7
+          ],
+          [
+            "s",
+            6
+          ],
+          [
+            "h",
+            5
+          ],
+          [
+            "c",
+            4
+          ],
+          [
+            "d",
+            3
+          ],
+          [
+            "c",
+            2
+          ],
+          [
+            "c",
+            1
+          ],
+          [
+            "d",
+            4
+          ],
+          [
+            "h",
+            6
+          ],
+          [
+            "d",
+            12
+          ],
+          [
+            "h",
+            12
+          ],
+          [
+            "d",
+            2
+          ]
+        ],
+        "fd_count": 1,
+        "fu_count": 12,
+        "physical_column_0": 2,
+        "physical_column_1": 3,
+        "signature_key": "c11"
+      },
+      {
+        "face_down": [
+          [
+            "h",
+            8
+          ],
+          [
+            "c",
+            6
+          ],
+          [
+            "s",
+            10
+          ],
+          [
+            "d",
+            10
+          ]
+        ],
+        "face_up": [
+          [
+            "d",
+            8
+          ],
+          [
+            "s",
+            7
+          ],
+          [
+            "s",
+            6
+          ],
+          [
+            "s",
+            5
+          ],
+          [
+            "s",
+            4
+          ],
+          [
+            "s",
+            3
+          ],
+          [
+            "s",
+            2
+          ],
+          [
+            "s",
+            9
+          ],
+          [
+            "h",
+            1
+          ],
+          [
+            "s",
+            3
+          ],
+          [
+            "c",
+            13
+          ],
+          [
+            "h",
+            7
+          ]
+        ],
+        "fd_count": 4,
+        "fu_count": 12,
+        "physical_column_0": 6,
+        "physical_column_1": 7,
+        "signature_key": "h8,c6,s10,d10"
+      }
+    ],
+    "fd": 14,
+    "foundations": 0,
+    "kind": "fd14_stock0",
+    "legal_action_count": 5,
+    "longest_run": 1,
+    "movable_blocks": 0,
+    "ok": true,
+    "ordered_digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010c3b2706153423323124162c1c2200081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+    "ordered_matches_historical": true,
+    "stock": 0,
+    "symmetry_digest": "5350533101000000000612272a05380100062d242118341900070d0c2621393c3700071716352b14092500081413121d071d2233000d3d3c3b3a39383726081c251b33010c3b2706153423323124162c1c22040a3a2c360835042302310b0d322913040c18360a2a280706050403020911033d17050915191b11282d0c2b1a29010a0b1a",
+    "total_primitive_path": 43
+  },
+  "first_current_exit": null,
+  "first_new_exit": {
+    "actions": [
+      [
+        2,
+        0,
+        1
+      ],
+      [
+        4,
+        1,
+        1
+      ],
+      [
+        0,
+        3,
+        1
+      ],
+      [
+        4,
+        9,
+        1
+      ],
+      [
+        0,
+        9,
+        1
+      ],
+      [
+        3,
+        8,
+        1
+      ],
+      [
+        4,
+        0,
+        1
+      ],
+      [
+        4,
+        8,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        3,
+        4,
+        1
+      ],
+      [
+        3,
+        4,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        2,
+        3,
+        1
+      ],
+      [
+        4,
+        9,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        5,
+        1,
+        1
+      ],
+      [
+        7,
+        9,
+        1
+      ],
+      [
+        1,
+        7,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        6,
+        0,
+        1
+      ],
+      [
+        2,
+        6,
+        1
+      ],
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        2,
+        1,
+        1
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        1,
+        7,
+        1
+      ],
+      [
+        1,
+        0,
+        2
+      ],
+      [
+        8,
+        2,
+        2
+      ],
+      [
+        7,
+        0,
+        1
+      ],
+      [
+        7,
+        1,
+        2
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        8,
+        2
+      ],
+      [
+        2,
+        4,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        2,
+        4,
+        2
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        4,
+        7,
+        2
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        7,
+        2,
+        2
+      ],
+      [
+        7,
+        4,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        4,
+        2
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        8,
+        7,
+        2
+      ],
+      [
+        4,
+        8,
+        2
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        7,
+        2,
+        2
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        7,
+        4,
+        1
+      ],
+      [
+        2,
+        4,
+        2
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        4,
+        7,
+        2
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        7,
+        2,
+        2
+      ],
+      [
+        7,
+        4,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        8,
+        7,
+        3
+      ],
+      [
+        2,
+        4,
+        2
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        7,
+        2,
+        2
+      ],
+      [
+        8,
+        3,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        8,
+        4
+      ],
+      [
+        2,
+        1,
+        1
+      ],
+      [
+        1,
+        0,
+        2
+      ],
+      [
+        2,
+        1,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        8,
+        1,
+        4
+      ],
+      [
+        8,
+        0,
+        1
+      ],
+      [
+        1,
+        0,
+        4
+      ],
+      [
+        0,
+        7,
+        2
+      ],
+      [
+        3,
+        6,
+        1
+      ],
+      [
+        4,
+        1,
+        4
+      ],
+      [
+        8,
+        4,
+        1
+      ],
+      [
+        2,
+        8,
+        1
+      ]
+    ],
+    "adjacencies": 26,
+    "class": "NEW_FD13_EXIT",
+    "empties": [],
+    "expanded_before": 891,
+    "fd": 13,
+    "fixture": "solutions/4925153_simple_v0_24_new_fd13.moves.txt",
+    "foundations": 0,
+    "full_actions": [
+      [
+        2,
+        5,
+        1
+      ],
+      [
+        5,
+        7,
+        2
+      ],
+      [
+        0,
+        5,
+        1
+      ],
+      [
+        5,
+        7,
+        2
+      ],
+      [
+        7,
+        3,
+        5
+      ],
+      [
+        2,
+        1,
+        1
+      ],
+      [
+        2,
+        6,
+        1
+      ],
+      [
+        8,
+        2,
+        1
+      ],
+      [
+        8,
+        2,
+        1
+      ],
+      [
+        9,
+        2,
+        1
+      ],
+      [
+        2,
+        9,
+        4
+      ],
+      [
+        7,
+        0,
+        1
+      ],
+      [
+        8,
+        1,
+        1
+      ],
+      [
+        8,
+        2,
+        1
+      ],
+      [
+        8,
+        0,
+        1
+      ],
+      [
+        5,
+        0,
+        1
+      ],
+      [
+        9,
+        5,
+        5
+      ],
+      [
+        5,
+        4,
+        6
+      ],
+      [
+        9,
+        2,
+        1
+      ],
+      [
+        4,
+        8,
+        7
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        5,
+        4,
+        1
+      ],
+      [
+        4,
+        5,
+        2
+      ],
+      [
+        4,
+        8,
+        1
+      ],
+      [
+        7,
+        4,
+        1
+      ],
+      [
+        3,
+        6,
+        5
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        9,
+        2,
+        1
+      ],
+      [
+        9,
+        4,
+        1
+      ],
+      [
+        3,
+        9,
+        1
+      ],
+      [
+        3,
+        9,
+        1
+      ],
+      [
+        3,
+        1,
+        1
+      ],
+      [
+        4,
+        2,
+        2
+      ],
+      [
+        3,
+        4,
+        1
+      ],
+      [
+        3,
+        7,
+        1
+      ],
+      [
+        3,
+        0,
+        1
+      ],
+      [
+        7,
+        3,
+        3
+      ],
+      [
+        "deal"
+      ],
+      [
+        "deal"
+      ],
+      [
+        "deal"
+      ],
+      [
+        "deal"
+      ],
+      [
+        "deal"
+      ],
+      [
+        2,
+        0,
+        1
+      ],
+      [
+        4,
+        1,
+        1
+      ],
+      [
+        0,
+        3,
+        1
+      ],
+      [
+        4,
+        9,
+        1
+      ],
+      [
+        0,
+        9,
+        1
+      ],
+      [
+        3,
+        8,
+        1
+      ],
+      [
+        4,
+        0,
+        1
+      ],
+      [
+        4,
+        8,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        3,
+        4,
+        1
+      ],
+      [
+        3,
+        4,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        2,
+        3,
+        1
+      ],
+      [
+        4,
+        9,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        5,
+        1,
+        1
+      ],
+      [
+        7,
+        9,
+        1
+      ],
+      [
+        1,
+        7,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        6,
+        0,
+        1
+      ],
+      [
+        2,
+        6,
+        1
+      ],
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        2,
+        1,
+        1
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        1,
+        7,
+        1
+      ],
+      [
+        1,
+        0,
+        2
+      ],
+      [
+        8,
+        2,
+        2
+      ],
+      [
+        7,
+        0,
+        1
+      ],
+      [
+        7,
+        1,
+        2
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        8,
+        2
+      ],
+      [
+        2,
+        4,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        2,
+        4,
+        2
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        4,
+        7,
+        2
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        7,
+        2,
+        2
+      ],
+      [
+        7,
+        4,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        4,
+        2
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        8,
+        7,
+        2
+      ],
+      [
+        4,
+        8,
+        2
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        7,
+        2,
+        2
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        7,
+        4,
+        1
+      ],
+      [
+        2,
+        4,
+        2
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        7,
+        1
+      ],
+      [
+        4,
+        7,
+        2
+      ],
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        7,
+        2,
+        2
+      ],
+      [
+        7,
+        4,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        8,
+        7,
+        3
+      ],
+      [
+        2,
+        4,
+        2
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        7,
+        2,
+        2
+      ],
+      [
+        8,
+        3,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        2,
+        8,
+        4
+      ],
+      [
+        2,
+        1,
+        1
+      ],
+      [
+        1,
+        0,
+        2
+      ],
+      [
+        2,
+        1,
+        1
+      ],
+      [
+        0,
+        1,
+        1
+      ],
+      [
+        8,
+        1,
+        4
+      ],
+      [
+        8,
+        0,
+        1
+      ],
+      [
+        1,
+        0,
+        4
+      ],
+      [
+        0,
+        7,
+        2
+      ],
+      [
+        3,
+        6,
+        1
+      ],
+      [
+        4,
+        1,
+        4
+      ],
+      [
+        8,
+        4,
+        1
+      ],
+      [
+        2,
+        8,
+        1
+      ]
+    ],
+    "full_cost": 124,
+    "full_path_length": 124,
+    "full_replay_ok": true,
+    "hits": 1,
+    "legal_action_count": 8,
+    "local_cost": 81,
+    "local_depth": 81,
+    "longest_run": 4,
+    "movable_blocks": 4,
+    "ordered_digest": "53504b3101000000040f3a2c360835042302310b0d3229181716253433051215191b11282d0c2b1a29010a0b1a19383706152423222100013b00071413121d071d1c00022d1c00060d0c2621393c040d18360a2a280706050403020911033d2c1b000812272a0524333231000a3d3c3b3a393837260827000b1716352b14092534132201",
+    "origin": 0,
+    "origin_action": [
+      2,
+      0,
+      1
+    ],
+    "replay_ok": true,
+    "reveal_action": [
+      2,
+      8,
+      1
+    ],
+    "reveal_target": "c11",
+    "symmetry_digest": "535053310100000000013b00022d1c00060d0c2621393c00071413121d071d1c000812272a0524333231000a3d3c3b3a393837260827000b1716352b14092534132201040d18360a2a280706050403020911033d2c1b040f3a2c360835042302310b0d3229181716253433051215191b11282d0c2b1a29010a0b1a193837061524232221",
+    "unique_before": 1122
+  },
+  "foundation": false,
+  "interpretation": "Exact fd14-plateau exploration found a different fd13 door. The v0.10/v0.23 checkpoint is not the only hard-progress exit from fd14.",
+  "next_recommendation": "A genuinely different fd13 checkpoint exists. Next: a fair exact probe of the new boundary class(es) without a new heuristic and without descending from the poisoned current fd13 region.",
+  "no_fd13_descent": true,
+  "no_new_heuristic": true,
+  "plateau_exhausted": false,
+  "previous_verdict": "LEGACY_FD13_ALTERNATIVES_SYMMETRY_COLLAPSE",
+  "production_unchanged": true,
+  "reveal_target_counts": {
+    "c11": 16
+  },
+  "root_children": {
+    "classes": [
+      {
+        "action": [
+          2,
+          0,
+          1
+        ],
+        "class_id": 0,
+        "empties": [],
+        "equivalent_actions": [
+          [
+            2,
+            0,
+            1
+          ]
+        ],
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "ordered_digest": "53504b3101000000040b3a2c360835042302310b0d32291322050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "symmetry_digest": "5350533101000000000612272a05380100062d242118341900070d0c2621393c3700071716352b14092500081413121d071d2233000d3d3c3b3a39383726081c251b33010b3b2706153423323124162c1c040b3a2c360835042302310b0d32291322040c18360a2a280706050403020911033d17050915191b11282d0c2b1a29010a0b1a"
+      },
+      {
+        "action": [
+          2,
+          3,
+          1
+        ],
+        "class_id": 1,
+        "empties": [],
+        "equivalent_actions": [
+          [
+            2,
+            3,
+            1
+          ]
+        ],
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "ordered_digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00091413121d071d22332200062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "symmetry_digest": "5350533101000000000612272a05380100062d242118341900070d0c2621393c3700071716352b14092500091413121d071d223322000d3d3c3b3a39383726081c251b33010b3b2706153423323124162c1c040a3a2c360835042302310b0d322913040c18360a2a280706050403020911033d17050915191b11282d0c2b1a29010a0b1a"
+      },
+      {
+        "action": [
+          2,
+          8,
+          1
+        ],
+        "class_id": 2,
+        "empties": [],
+        "equivalent_actions": [
+          [
+            2,
+            8,
+            1
+          ]
+        ],
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "ordered_digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010b3b2706153423323124162c1c00081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000e3d3c3b3a39383726081c251b332200071716352b140925",
+        "symmetry_digest": "5350533101000000000612272a05380100062d242118341900070d0c2621393c3700071716352b14092500081413121d071d2233000e3d3c3b3a39383726081c251b3322010b3b2706153423323124162c1c040a3a2c360835042302310b0d322913040c18360a2a280706050403020911033d17050915191b11282d0c2b1a29010a0b1a"
+      },
+      {
+        "action": [
+          4,
+          1,
+          1
+        ],
+        "class_id": 3,
+        "empties": [],
+        "equivalent_actions": [
+          [
+            4,
+            1,
+            1
+          ]
+        ],
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 2,
+        "ordered_digest": "53504b3101000000040a3a2c360835042302310b0d322913050a15191b11282d0c2b1a29010a0b1a19010c3b2706153423323124162c1c2200081413121d071d223300052d2421183400070d0c2621393c37040c18360a2a280706050403020911033d17000612272a053801000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "symmetry_digest": "535053310100000000052d24211834000612272a05380100070d0c2621393c3700071716352b14092500081413121d071d2233000d3d3c3b3a39383726081c251b33010c3b2706153423323124162c1c22040a3a2c360835042302310b0d322913040c18360a2a280706050403020911033d17050a15191b11282d0c2b1a29010a0b1a19"
+      },
+      {
+        "action": [
+          7,
+          2,
+          1
+        ],
+        "class_id": 4,
+        "empties": [],
+        "equivalent_actions": [
+          [
+            7,
+            2,
+            1
+          ]
+        ],
+        "fd": 14,
+        "foundations": 0,
+        "longest_run": 1,
+        "ordered_digest": "53504b3101000000040a3a2c360835042302310b0d322913050915191b11282d0c2b1a29010a0b1a010d3b2706153423323124162c1c220100081413121d071d223300062d242118341900070d0c2621393c37040c18360a2a280706050403020911033d17000512272a0538000d3d3c3b3a39383726081c251b3300071716352b140925",
+        "symmetry_digest": "5350533101000000000512272a053800062d242118341900070d0c2621393c3700071716352b14092500081413121d071d2233000d3d3c3b3a39383726081c251b33010d3b2706153423323124162c1c2201040a3a2c360835042302310b0d322913040c18360a2a280706050403020911033d17050915191b11282d0c2b1a29010a0b1a"
+      }
+    ],
+    "expected_historical": [
+      [
+        2,
+        0,
+        1
+      ],
+      [
+        2,
+        3,
+        1
+      ],
+      [
+        2,
+        8,
+        1
+      ],
+      [
+        4,
+        1,
+        1
+      ],
+      [
+        7,
+        2,
+        1
+      ]
+    ],
+    "legal_actions": [
+      [
+        2,
+        0,
+        1
+      ],
+      [
+        2,
+        3,
+        1
+      ],
+      [
+        2,
+        8,
+        1
+      ],
+      [
+        4,
+        1,
+        1
+      ],
+      [
+        7,
+        2,
+        1
+      ]
+    ],
+    "matches_historical_actions": true,
+    "n_classes": 5,
+    "n_legal": 5
+  },
+  "search": {
+    "all_legal_tableau": true,
+    "classifier_surprises": 0,
+    "current_exit_classes": 0,
+    "current_exit_hits": 0,
+    "dfs_engine_order_first": true,
+    "domain_violations": 0,
+    "duplicate_skips": 2767,
+    "elapsed_s": 1.597106300003361,
+    "empty0": 1222,
+    "empty1": 0,
+    "empty_ge2": 0,
+    "exhausted": false,
+    "exit_classes": 16,
+    "exit_edges": 16,
+    "expanded": 993,
+    "fresh_tt": true,
+    "generated": 6836,
+    "heuristic": false,
+    "max_adjacencies": 30,
+    "max_blocks": 7,
+    "max_depth": 80,
+    "max_empties": 0,
+    "max_foundations": 0,
+    "max_run": 5,
+    "min_fd": 13,
+    "n_root_classes": 5,
+    "new_exit_classes": 16,
+    "peak_rss_mb": 21.81640625,
+    "per_frontier": [
+      {
+        "class_id": 0,
+        "current_hits": 0,
+        "duplicate_skips": 2767,
+        "exit_edges": 16,
+        "expanded": 993,
+        "frontier_size": 224,
+        "generated": 6837,
+        "max_depth": 80,
+        "new_classes": 16,
+        "root_action": [
+          2,
+          0,
+          1
+        ],
+        "unique": 1217
+      },
+      {
+        "class_id": 1,
+        "current_hits": 0,
+        "duplicate_skips": 0,
+        "exit_edges": 0,
+        "expanded": 0,
+        "frontier_size": 1,
+        "generated": 0,
+        "max_depth": 1,
+        "new_classes": 0,
+        "root_action": [
+          2,
+          3,
+          1
+        ],
+        "unique": 1
+      },
+      {
+        "class_id": 2,
+        "current_hits": 0,
+        "duplicate_skips": 0,
+        "exit_edges": 0,
+        "expanded": 0,
+        "frontier_size": 1,
+        "generated": 0,
+        "max_depth": 1,
+        "new_classes": 0,
+        "root_action": [
+          2,
+          8,
+          1
+        ],
+        "unique": 1
+      },
+      {
+        "class_id": 3,
+        "current_hits": 0,
+        "duplicate_skips": 0,
+        "exit_edges": 0,
+        "expanded": 0,
+        "frontier_size": 1,
+        "generated": 0,
+        "max_depth": 1,
+        "new_classes": 0,
+        "root_action": [
+          4,
+          1,
+          1
+        ],
+        "unique": 1
+      },
+      {
+        "class_id": 4,
+        "current_hits": 0,
+        "duplicate_skips": 0,
+        "exit_edges": 0,
+        "expanded": 0,
+        "frontier_size": 1,
+        "generated": 0,
+        "max_depth": 1,
+        "new_classes": 0,
+        "root_action": [
+          7,
+          2,
+          1
+        ],
+        "unique": 1
+      }
+    ],
+    "stop_reason": "max_new",
+    "unique": 1222
+  },
+  "verdict": "FD14_BOUNDARY_FINDS_NEW_FD13_EXIT",
+  "verdict_reason": "16 distinct fd13 boundary class(es) differ from the v0.23 checkpoint"
+}
