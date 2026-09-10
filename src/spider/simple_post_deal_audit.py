@@ -115,6 +115,67 @@ def census_legal_by_tier(
     }
 
 
+def describe_legal_actions(
+    state: SpiderState, *, rules: MobilityWareRules = MW_RULES
+) -> List[dict]:
+    """Read-only per-action census.  Does not order, prune, or classify anew."""
+
+    sps = _solver()
+    landing = sps.evaluate_deal_landings(state, rules=rules)
+    rows: List[dict] = []
+    for action in sps.enumerate_actions(state, rules=rules):
+        tier = int(sps.classify_tier(state, action, landing=landing))
+        child = state.clone()
+        sps.apply_action(child, action, rules=rules)
+        if sps.is_deal(action):
+            rows.append(
+                {
+                    "action": ["deal"],
+                    "tier": tier,
+                    "tier_name": "ABCD"[tier],
+                    "src": None,
+                    "dst": None,
+                    "k": None,
+                    "dest_is_empty": False,
+                    "breaks_same_suit_join": False,
+                    "creates_empty": False,
+                    "uncovers_face_down": False,
+                    "child_digest": pack_state(child).hex(),
+                }
+            )
+            continue
+        src, dst, k = action
+        src_col = state.columns[src]
+        dst_col = state.columns[dst]
+        run = src_col.face_up[-k:]
+        head = run[0]
+        dest_top = dst_col.top()
+        uncovers = k == len(src_col.face_up) and bool(src_col.face_down)
+        empties_source = k == len(src_col.face_up) and not src_col.face_down
+        dest_empty = dest_top is None
+        creates_empty = empties_source and not dest_empty
+        join_break = False
+        if k < len(src_col.face_up):
+            left = src_col.face_up[-k - 1]
+            join_break = left.suit == head.suit and left.rank == head.rank + 1
+        rows.append(
+            {
+                "action": [src, dst, k],
+                "tier": tier,
+                "tier_name": "ABCD"[tier],
+                "src": src,
+                "dst": dst,
+                "k": k,
+                "dest_is_empty": dest_empty,
+                "breaks_same_suit_join": join_break,
+                "creates_empty": creates_empty,
+                "uncovers_face_down": uncovers,
+                "child_digest": pack_state(child).hex(),
+            }
+        )
+    return rows
+
+
 def exposed_run_metrics(state: SpiderState) -> Dict[str, int]:
     """Cheap face-up same-suit geometry.  No campaign analysis."""
 
@@ -601,6 +662,7 @@ class PostDealAudit:
         path_fn,
         blocks: int = 0,
         cost: int = 0,
+        complete_ka: int = 0,
     ) -> None:
         if not self.track_structure:
             return
@@ -615,6 +677,7 @@ class PostDealAudit:
             "depth": depth,
             "expansion": expansion,
             "cost": cost,
+            "complete_ka": complete_ka,
         }
 
         def take(current: Optional[dict], better: bool) -> Optional[dict]:
@@ -643,14 +706,26 @@ class PostDealAudit:
         wanted = []
         if fd < 14:
             wanted.append("fd_below_14")
+        if fd <= 12:
+            wanted.append("fd_le_12")
+        if fd <= 11:
+            wanted.append("fd_le_11")
         if empties >= 1:
             wanted.append("first_empty")
+        if empties >= 2:
+            wanted.append("second_empty")
         if longest_run >= 8:
             wanted.append("run_ge_8")
         if longest_run >= 9:
             wanted.append("run_ge_9")
         if longest_run >= 10:
             wanted.append("run_ge_10")
+        if longest_run >= 11:
+            wanted.append("run_ge_11")
+        if longest_run >= 12:
+            wanted.append("run_ge_12")
+        if complete_ka >= 1:
+            wanted.append("complete_ka_run")
         if foundations >= 1:
             wanted.append("first_foundation")
         if wanted and any(kind not in seen for kind in wanted):

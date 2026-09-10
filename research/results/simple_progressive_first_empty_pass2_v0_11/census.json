@@ -1,0 +1,405 @@
+{
+  "a": 1,
+  "ab_into_empty": 1,
+  "ab_into_empty_actions": [
+    {
+      "action": [
+        4,
+        2,
+        2
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900022d2c00121413121d071d1c1b1a191817161534333231000000080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 2,
+      "src": 4,
+      "tier": 1,
+      "tier_name": "B",
+      "uncovers_face_down": false
+    }
+  ],
+  "actions": [
+    {
+      "action": [
+        0,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004083a2c360835042302310b0d1c050515191b11282d0c2b1a2900013b00121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 0,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        0,
+        4,
+        1
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004083a2c360835042302310b0d1c050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100032d2c3b00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": false,
+      "dst": 4,
+      "k": 1,
+      "src": 0,
+      "tier": 1,
+      "tier_name": "B",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        1,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050415191b11282d0c2b1a00012900121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 1,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        3,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900013100111413121d071d1c1b1a191817161534333200022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 3,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        3,
+        2,
+        2
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a290002323100101413121d071d1c1b1a1918171615343300022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 2,
+      "src": 3,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        3,
+        2,
+        3
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a290003333231000f1413121d071d1c1b1a19181716153400022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 3,
+      "src": 3,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        3,
+        2,
+        4
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000434333231000e1413121d071d1c1b1a191817161500022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 4,
+      "src": 3,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        4,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900012c00121413121d071d1c1b1a19181716153433323100012d00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 4,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        4,
+        2,
+        2
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900022d2c00121413121d071d1c1b1a191817161534333231000000080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 2,
+      "src": 4,
+      "tier": 1,
+      "tier_name": "B",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        5,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900010600121413121d071d1c1b1a19181716153433323100022d2c00070d0c2621393837041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 5,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        5,
+        6,
+        1
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00070d0c2621393837041218360a2a280706050403020911033d3c0b0a29082706000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": false,
+      "dst": 6,
+      "k": 1,
+      "src": 5,
+      "tier": 1,
+      "tier_name": "B",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        6,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900012700121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041018360a2a280706050403020911033d3c0b0a2908000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 6,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        7,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900010100121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000712272a05241332000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 7,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        8,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900012100121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000c3d3c3b3a3938372625242322000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 8,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        8,
+        2,
+        2
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a290002222100121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000b3d3c3b3a39383726252423000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 2,
+      "src": 8,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        8,
+        2,
+        3
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000323222100121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000a3d3c3b3a393837262524000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 3,
+      "src": 8,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        8,
+        2,
+        4
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900042423222100121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a052413320100093d3c3b3a3938372625000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 4,
+      "src": 8,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        8,
+        2,
+        5
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a290005252423222100121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a052413320100083d3c3b3a39383726000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 5,
+      "src": 8,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        8,
+        5,
+        5
+      ],
+      "breaks_same_suit_join": true,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c000d0d0c2621393837062524232221041118360a2a280706050403020911033d3c0b0a290827000812272a052413320100083d3c3b3a39383726000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": false,
+      "dst": 5,
+      "k": 5,
+      "src": 8,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        8,
+        2,
+        6
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000626252423222100121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a052413320100073d3c3b3a393837000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 6,
+      "src": 8,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        8,
+        6,
+        6
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100073d3c3b3a393837000b1716352b14092534332201",
+      "creates_empty": false,
+      "dest_is_empty": false,
+      "dst": 6,
+      "k": 6,
+      "src": 8,
+      "tier": 0,
+      "tier_name": "A",
+      "uncovers_face_down": false
+    },
+    {
+      "action": [
+        9,
+        2,
+        1
+      ],
+      "breaks_same_suit_join": false,
+      "child_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900010100121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000a1716352b140925343322",
+      "creates_empty": false,
+      "dest_is_empty": true,
+      "dst": 2,
+      "k": 1,
+      "src": 9,
+      "tier": 2,
+      "tier_name": "C",
+      "uncovers_face_down": false
+    }
+  ],
+  "b": 3,
+  "c": 18,
+  "d": 0,
+  "legal": 22,
+  "tier_c_into_empty": 17,
+  "tier_c_join_break": 10
+}

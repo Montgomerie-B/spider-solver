@@ -1,0 +1,461 @@
+{
+  "combined_best_replay": {
+    "adjacencies": 37,
+    "blocks": 4,
+    "complete_ka": 0,
+    "cost": 103,
+    "digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900010600121413121d071d1c1b1a19181716153433323100022d2c00070d0c2621393837041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "empties": 0,
+    "fd": 13,
+    "foundations": 0,
+    "longest_run": 6,
+    "ok": true,
+    "path_length": 103,
+    "proximity": {
+      "exposed_complete_ka_runs": 0,
+      "exposed_same_suit_adjacencies": 37,
+      "has_immediate_foundation_move": false,
+      "immediate_foundation_moves": 0,
+      "legal_tableau": 7,
+      "longest_exposed_same_suit_run": 6,
+      "movable_same_suit_blocks": 4,
+      "tableau_a": 3,
+      "tableau_b": 2,
+      "tableau_c": 2,
+      "tableau_d": 0
+    },
+    "stock_rows": 0
+  },
+  "considered_by_tier": [
+    18611,
+    32931,
+    78475,
+    0
+  ],
+  "duplicate_children": 0,
+  "elapsed_s": 119.28912139999738,
+  "elapsed_wall_s": 119.45255539999926,
+  "empty_into_b": 1423,
+  "empty_into_by_tier": [
+    0,
+    1423,
+    16131,
+    0
+  ],
+  "empty_into_c": 16131,
+  "empty_into_moves": 17554,
+  "expanded_by_tier": [
+    2842,
+    12392,
+    34765,
+    0
+  ],
+  "first_empty_use_action": [
+    4,
+    2,
+    2
+  ],
+  "first_empty_use_expansion": 2,
+  "first_empty_use_tier": 1,
+  "first_foundation_depth": null,
+  "first_foundation_node": null,
+  "first_visit_skips": 32226,
+  "forced_action": [
+    5,
+    2,
+    1
+  ],
+  "generated": 85326,
+  "generic_replay_ok": false,
+  "inverses": 10775,
+  "longest_run": 9,
+  "max_adjacencies": 39,
+  "max_blocks": 8,
+  "max_depth": 2000,
+  "max_empties": 1,
+  "max_foundations": 0,
+  "min_fd": 13,
+  "name": "CROOT_5_2_1",
+  "nodes": 50000,
+  "pass_reached": 2,
+  "path_cycles": 3101,
+  "path_empty_usage": {
+    "events": [
+      {
+        "action": [
+          4,
+          8,
+          7
+        ],
+        "empties_after": 0,
+        "empties_before": 1,
+        "fd_after": 25,
+        "fd_before": 26,
+        "foundations_after": 0,
+        "foundations_before": 0,
+        "index": 19,
+        "run_after": 7,
+        "run_before": 7,
+        "tier": 0
+      },
+      {
+        "action": [
+          4,
+          5,
+          2
+        ],
+        "empties_after": 0,
+        "empties_before": 1,
+        "fd_after": 22,
+        "fd_before": 23,
+        "foundations_after": 0,
+        "foundations_before": 0,
+        "index": 23,
+        "run_after": 7,
+        "run_before": 7,
+        "tier": 0
+      },
+      {
+        "action": [
+          7,
+          4,
+          1
+        ],
+        "empties_after": 0,
+        "empties_before": 1,
+        "fd_after": 21,
+        "fd_before": 22,
+        "foundations_after": 0,
+        "foundations_before": 0,
+        "index": 25,
+        "run_after": 5,
+        "run_before": 5,
+        "tier": 0
+      },
+      {
+        "action": [
+          3,
+          9,
+          1
+        ],
+        "empties_after": 0,
+        "empties_before": 1,
+        "fd_after": 19,
+        "fd_before": 20,
+        "foundations_after": 0,
+        "foundations_before": 0,
+        "index": 30,
+        "run_after": 6,
+        "run_before": 6,
+        "tier": 0
+      },
+      {
+        "action": [
+          3,
+          4,
+          1
+        ],
+        "empties_after": 0,
+        "empties_before": 1,
+        "fd_after": 16,
+        "fd_before": 17,
+        "foundations_after": 0,
+        "foundations_before": 0,
+        "index": 34,
+        "run_after": 6,
+        "run_before": 6,
+        "tier": 0
+      },
+      {
+        "action": [
+          7,
+          3,
+          3
+        ],
+        "empties_after": 0,
+        "empties_before": 1,
+        "fd_after": 14,
+        "fd_before": 15,
+        "foundations_after": 0,
+        "foundations_before": 0,
+        "index": 37,
+        "run_after": 6,
+        "run_before": 6,
+        "tier": 0
+      },
+      {
+        "action": [
+          5,
+          2,
+          1
+        ],
+        "empties_after": 0,
+        "empties_before": 1,
+        "fd_after": 13,
+        "fd_before": 13,
+        "foundations_after": 0,
+        "foundations_before": 0,
+        "index": 102,
+        "run_after": 6,
+        "run_before": 6,
+        "tier": 2
+      }
+    ],
+    "into_empty_b": 0,
+    "into_empty_c": 1,
+    "moves_into_empty": 7,
+    "precedes_on_path": {
+      "another_empty": false,
+      "fd_reduction": true,
+      "foundation": false,
+      "run_ge_10": false
+    }
+  },
+  "peak_rss_mb": 273.109375,
+  "progress_events": [
+    {
+      "adjacencies": 37,
+      "blocks": 4,
+      "combined_replay": {
+        "adjacencies": 37,
+        "blocks": 4,
+        "complete_ka": 0,
+        "cost": 103,
+        "digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a2900010600121413121d071d1c1b1a19181716153433323100022d2c00070d0c2621393837041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+        "empties": 0,
+        "fd": 13,
+        "foundations": 0,
+        "longest_run": 6,
+        "ok": true,
+        "path_length": 103,
+        "proximity": {
+          "exposed_complete_ka_runs": 0,
+          "exposed_same_suit_adjacencies": 37,
+          "has_immediate_foundation_move": false,
+          "immediate_foundation_moves": 0,
+          "legal_tableau": 7,
+          "longest_exposed_same_suit_run": 6,
+          "movable_same_suit_blocks": 4,
+          "tableau_a": 3,
+          "tableau_b": 2,
+          "tableau_c": 2,
+          "tableau_d": 0
+        },
+        "stock_rows": 0
+      },
+      "complete_ka": 0,
+      "cost": 0,
+      "depth": 0,
+      "empties": 0,
+      "expansion": 1,
+      "fd": 13,
+      "foundations": 0,
+      "kind": "fd_below_14",
+      "last_move_uses_empty": {
+        "action": [
+          5,
+          2,
+          1
+        ],
+        "ok": true,
+        "tier": 2,
+        "uses_empty": true
+      },
+      "longest_run": 6,
+      "path_length": 0
+    },
+    {
+      "adjacencies": 37,
+      "blocks": 4,
+      "combined_replay": {
+        "adjacencies": 37,
+        "blocks": 4,
+        "complete_ka": 0,
+        "cost": 104,
+        "digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00070d0c2621393837041218360a2a280706050403020911033d3c0b0a29082706000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+        "empties": 1,
+        "fd": 13,
+        "foundations": 0,
+        "longest_run": 6,
+        "ok": true,
+        "path_length": 104,
+        "proximity": {
+          "exposed_complete_ka_runs": 0,
+          "exposed_same_suit_adjacencies": 37,
+          "has_immediate_foundation_move": false,
+          "immediate_foundation_moves": 0,
+          "legal_tableau": 25,
+          "longest_exposed_same_suit_run": 6,
+          "movable_same_suit_blocks": 4,
+          "tableau_a": 0,
+          "tableau_b": 4,
+          "tableau_c": 21,
+          "tableau_d": 0
+        },
+        "stock_rows": 0
+      },
+      "complete_ka": 0,
+      "cost": 1,
+      "depth": 1,
+      "empties": 1,
+      "expansion": 2,
+      "fd": 13,
+      "foundations": 0,
+      "kind": "first_empty",
+      "last_move_uses_empty": {
+        "action": [
+          2,
+          6,
+          1
+        ],
+        "ok": true,
+        "tier": 0,
+        "uses_empty": false
+      },
+      "longest_run": 6,
+      "path_length": 1
+    },
+    {
+      "adjacencies": 36,
+      "blocks": 6,
+      "combined_replay": {
+        "adjacencies": 36,
+        "blocks": 6,
+        "complete_ka": 0,
+        "cost": 1336,
+        "digest": "53504b310100000004083a2c360835042302310b0d1c050715191b11282d0c2b1a293837000434333231000e1413121d071d1c1b1a1918171615000d2d2c3b3a39383706252423222100050d0c262139041218360a2a280706050403020911033d3c0b0a29082726000812272a052413320100033d3c3b000b1716352b14092534332201",
+        "empties": 0,
+        "fd": 13,
+        "foundations": 0,
+        "longest_run": 9,
+        "ok": true,
+        "path_length": 2042,
+        "proximity": {
+          "exposed_complete_ka_runs": 0,
+          "exposed_same_suit_adjacencies": 36,
+          "has_immediate_foundation_move": false,
+          "immediate_foundation_moves": 0,
+          "legal_tableau": 11,
+          "longest_exposed_same_suit_run": 9,
+          "movable_same_suit_blocks": 6,
+          "tableau_a": 3,
+          "tableau_b": 1,
+          "tableau_c": 7,
+          "tableau_d": 0
+        },
+        "stock_rows": 0
+      },
+      "complete_ka": 0,
+      "cost": 1233,
+      "depth": 1939,
+      "empties": 0,
+      "expansion": 1940,
+      "fd": 13,
+      "foundations": 0,
+      "kind": "run_ge_8",
+      "last_move_uses_empty": {
+        "action": [
+          3,
+          2,
+          4
+        ],
+        "ok": true,
+        "tier": 2,
+        "uses_empty": true
+      },
+      "longest_run": 9,
+      "path_length": 1939
+    },
+    {
+      "adjacencies": 36,
+      "blocks": 6,
+      "combined_replay": {
+        "adjacencies": 36,
+        "blocks": 6,
+        "complete_ka": 0,
+        "cost": 1336,
+        "digest": "53504b310100000004083a2c360835042302310b0d1c050715191b11282d0c2b1a293837000434333231000e1413121d071d1c1b1a1918171615000d2d2c3b3a39383706252423222100050d0c262139041218360a2a280706050403020911033d3c0b0a29082726000812272a052413320100033d3c3b000b1716352b14092534332201",
+        "empties": 0,
+        "fd": 13,
+        "foundations": 0,
+        "longest_run": 9,
+        "ok": true,
+        "path_length": 2042,
+        "proximity": {
+          "exposed_complete_ka_runs": 0,
+          "exposed_same_suit_adjacencies": 36,
+          "has_immediate_foundation_move": false,
+          "immediate_foundation_moves": 0,
+          "legal_tableau": 11,
+          "longest_exposed_same_suit_run": 9,
+          "movable_same_suit_blocks": 6,
+          "tableau_a": 3,
+          "tableau_b": 1,
+          "tableau_c": 7,
+          "tableau_d": 0
+        },
+        "stock_rows": 0
+      },
+      "complete_ka": 0,
+      "cost": 1233,
+      "depth": 1939,
+      "empties": 0,
+      "expansion": 1940,
+      "fd": 13,
+      "foundations": 0,
+      "kind": "run_ge_9",
+      "last_move_uses_empty": {
+        "action": [
+          3,
+          2,
+          4
+        ],
+        "ok": true,
+        "tier": 2,
+        "uses_empty": true
+      },
+      "longest_run": 9,
+      "path_length": 1939
+    }
+  ],
+  "root_children_expanded": [
+    {
+      "action": [
+        2,
+        6,
+        1
+      ],
+      "digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00070d0c2621393837041218360a2a280706050403020911033d3c0b0a29082706000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+      "expansion": 1,
+      "into_empty": false,
+      "tier": 0
+    }
+  ],
+  "rss_abort": false,
+  "seed": {
+    "adjacencies": 37,
+    "blocks": 3,
+    "complete_ka": 0,
+    "cost": 102,
+    "digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "empties": 1,
+    "fd": 13,
+    "foundations": 0,
+    "longest_run": 6,
+    "ok": true,
+    "path_length": 102,
+    "stock_rows": 0
+  },
+  "states_per_sec": 419.1497046268051,
+  "stop_reason": "node limit",
+  "tt_hits": 32226,
+  "tt_mode": "first_visit",
+  "tt_prunes": 0,
+  "tt_reopens": 0,
+  "unique": 50000,
+  "unique_at": {
+    "25000": 25000,
+    "50000": 50000
+  },
+  "unique_ratio": 1.0
+}

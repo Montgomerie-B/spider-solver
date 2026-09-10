@@ -1,0 +1,116 @@
+# v0.11 seed: 4925153 fd-13 empty-1 first-empty witness
+# lineage: v0.10 B_2_8_1 first_empty
+# primitive_moves: 102
+# mobilityware_moves: 102
+# digest: 53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201
+# fd: 13
+# stock_rows: 0
+# foundations: 0
+# empties: 1
+# longest_run: 6
+# root_action: (2,8,1)
+# harvest_expansion: 50066
+# harvest_depth: 58
+
+move 3 6 1
+move 6 8 2
+move 1 6 1
+move 6 8 2
+move 8 4 5
+move 3 2 1
+move 3 7 1
+move 9 3 1
+move 9 3 1
+move 10 3 1
+move 3 10 4
+move 8 1 1
+move 9 2 1
+move 9 3 1
+move 9 1 1
+move 6 1 1
+move 10 6 5
+move 6 5 6
+move 10 3 1
+move 5 9 7
+move 5 3 1
+move 5 3 1
+move 6 5 1
+move 5 6 2
+move 5 9 1
+move 8 5 1
+move 4 7 5
+move 3 8 1
+move 10 3 1
+move 10 5 1
+move 4 10 1
+move 4 10 1
+move 4 2 1
+move 5 3 2
+move 4 5 1
+move 4 8 1
+move 4 1 1
+move 8 4 3
+deal
+deal
+deal
+deal
+deal
+move 3 9 1
+move 5 2 1
+move 4 5 1
+move 5 10 2
+move 5 2 1
+move 5 4 1
+move 7 2 1
+move 4 1 2
+move 3 4 1
+move 1 10 2
+move 1 5 1
+move 10 5 2
+move 3 7 1
+move 3 2 1
+move 5 10 2
+move 5 3 1
+move 10 3 2
+move 9 10 1
+move 3 9 2
+move 3 5 1
+move 9 5 2
+move 8 10 1
+move 6 8 1
+move 5 9 2
+move 8 1 2
+move 9 5 2
+move 3 8 1
+move 3 9 2
+move 5 3 2
+move 3 8 3
+move 5 3 1
+move 8 5 3
+move 3 8 1
+move 9 3 3
+move 2 9 5
+move 9 4 6
+move 3 9 4
+move 3 4 1
+move 9 4 4
+move 5 9 4
+move 7 5 1
+move 6 7 1
+move 1 6 2
+move 9 3 5
+move 2 5 1
+move 2 5 1
+move 5 7 2
+move 1 7 1
+move 1 8 1
+move 2 8 1
+move 9 1 1
+move 9 2 1
+move 3 9 5
+move 9 6 6
+move 2 7 1
+move 6 9 6
+move 3 6 1
+move 3 7 1
+move 3 1 1

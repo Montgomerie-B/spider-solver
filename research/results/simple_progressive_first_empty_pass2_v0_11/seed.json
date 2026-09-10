@@ -1,0 +1,52 @@
+{
+  "adjacencies": 37,
+  "blocks": 3,
+  "cost": 102,
+  "digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+  "empties": 1,
+  "fd": 13,
+  "fixture": "solutions/4925153_simple_fd13_empty1_seed.moves.txt",
+  "foundations": 0,
+  "harvest_depth": 58,
+  "harvest_expansion": 50066,
+  "harvest_nodes": 50066,
+  "harvest_rss_mb": 437.49609375,
+  "harvest_stop": "first empty",
+  "local_path_length": 58,
+  "longest_run": 6,
+  "ok": true,
+  "path_length": 102,
+  "replay": {
+    "adjacencies": 37,
+    "blocks": 3,
+    "complete_ka": 0,
+    "cost": 102,
+    "digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "empties": 1,
+    "fd": 13,
+    "foundations": 0,
+    "longest_run": 6,
+    "ok": true,
+    "path_length": 102,
+    "proximity": {
+      "exposed_complete_ka_runs": 0,
+      "exposed_same_suit_adjacencies": 37,
+      "has_immediate_foundation_move": false,
+      "immediate_foundation_moves": 0,
+      "legal_tableau": 22,
+      "longest_exposed_same_suit_run": 6,
+      "movable_same_suit_blocks": 3,
+      "tableau_a": 1,
+      "tableau_b": 3,
+      "tableau_c": 18,
+      "tableau_d": 0
+    },
+    "stock_rows": 0
+  },
+  "root_action": [
+    2,
+    8,
+    1
+  ],
+  "stock_rows": 0
+}

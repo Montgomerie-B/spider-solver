@@ -22,6 +22,10 @@ v0.10 adds optional ``tt_mode="first_visit"``: heuristic first-solution
 coverage that expands each exact state at most once.  Default remains
 ``depth_aware``.  First-visit mode has NO proof authority.
 
+v0.11 adds cheap empty-column usage telemetry and optional
+``stop_on_first_empty`` for research harvest only.  Default OFF.
+Classifications, ordering, and production defaults are unchanged.
+
 This module must not import the strategic controller, scheduler, allocator,
 campaign, registry, or project machinery.  Search bookkeeping is separate
 from canonical identity.
@@ -114,6 +118,14 @@ class SearchStats:
     tt_mode: str = TT_MODE_DEPTH_AWARE
     unique_at: dict = field(default_factory=dict)
     rss_abort: bool = False
+    empty_into_moves: int = 0
+    empty_into_b: int = 0
+    empty_into_c: int = 0
+    empty_into_by_tier: List[int] = field(default_factory=lambda: [0, 0, 0, 0])
+    first_empty_use_expansion: Optional[int] = None
+    first_empty_use_tier: Optional[int] = None
+    first_empty_use_action: Optional[SolverAction] = None
+    root_children_expanded: List[dict] = field(default_factory=list)
     expansions_by_depth_bucket: List[int] = field(
         default_factory=lambda: [0, 0, 0, 0, 0]
     )
@@ -914,6 +926,7 @@ def solve_progressive(
     start_pass: int = 0,
     tt_mode: str = TT_MODE_DEPTH_AWARE,
     rss_abort_mb: Optional[float] = None,
+    stop_on_first_empty: bool = False,
 ) -> ProgressiveSearchResult:
     """Iterative DFS with exact TT, A–D passes, and depth bands."""
 
@@ -925,6 +938,7 @@ def solve_progressive(
     memory = _CoverageTT(first_visit=tt_mode == TT_MODE_FIRST_VISIT)
     bands = _clip_depth_bands(depth_bands, max_depth)
     root_foundations = len(root.foundations)
+    root_empties = _empty_count(root)
     opening_stock = _stock_rows(root)
     opening_fd = _face_down(root)
     reveal_key = (opening_fd, -root_foundations, opening_stock, 0, 0)
@@ -1151,7 +1165,12 @@ def solve_progressive(
                         path_fn=path,
                         blocks=runs["movable_same_suit_blocks"],
                         cost=frame.g,
+                        complete_ka=runs["exposed_complete_ka_runs"],
                     )
+                if stop_on_first_empty and _empty_count(working_state) > root_empties:
+                    stop_reason = "first empty"
+                    unwind(stack, working_state, path_keys)
+                    return "first_empty"
 
                 prev_fd_stock = fd_stock_meta[dealt]
                 if fd < prev_fd_stock[0] or (
@@ -1361,6 +1380,10 @@ def solve_progressive(
             action = frame.children[frame.index]
             frame.index += 1
             child_tier = int(classify_tier(working_state, action))
+            dest_was_empty = False
+            if not is_deal(action):
+                _src, dst, _k = action  # type: ignore[misc]
+                dest_was_empty = working_state.columns[dst].is_empty()
             parent_stock_rows = _stock_rows(working_state)
             parent_dealt = _stock_dealt_index(opening_stock, parent_stock_rows)
             parent_watched_empty = (
@@ -1533,6 +1556,27 @@ def solve_progressive(
             elif frame.prep_action is not None and action == frame.prep_action:
                 stats.prepared_deal_choices += 1
             stats.expanded_by_tier[child_tier] += 1
+            if dest_was_empty:
+                stats.empty_into_moves += 1
+                stats.empty_into_by_tier[child_tier] += 1
+                if child_tier == int(Tier.B):
+                    stats.empty_into_b += 1
+                elif child_tier == int(Tier.C):
+                    stats.empty_into_c += 1
+                if stats.first_empty_use_expansion is None:
+                    stats.first_empty_use_expansion = stats.states_expanded
+                    stats.first_empty_use_tier = child_tier
+                    stats.first_empty_use_action = action
+            if depth == 0:
+                stats.root_children_expanded.append(
+                    {
+                        "action": ["deal"] if is_deal(action) else list(action),
+                        "tier": child_tier,
+                        "digest": child_key.hex(),
+                        "expansion": stats.states_expanded,
+                        "into_empty": dest_was_empty,
+                    }
+                )
             path_keys.add(child_key)
             is_probe_child = bool(frame.probe_deal and is_deal(action))
             child_frame = _Frame(
@@ -1716,7 +1760,7 @@ def solve_progressive(
                     "budget_redirected": 0,
                 }
             )
-            if outcome == "solved":
+            if outcome in ("solved", "first_empty"):
                 break
             if stats.states_expanded >= max_nodes:
                 stop_reason = "node limit"
