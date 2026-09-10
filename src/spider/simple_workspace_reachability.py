@@ -143,6 +143,15 @@ class LayeredReachabilityResult:
     root_digest: str = ""
     fresh_tt: bool = True
     imported_keys: int = 0
+    source_count: int = 1
+    collected: List[dict] = field(default_factory=list)
+    collected_fd: Optional[int] = None
+    collected_depth: Optional[int] = None
+    collected_complete: bool = False
+    collect_partial: bool = False
+    depth_expanded_frac: Optional[dict] = None
+    cross_origin_dups: int = 0
+    origin_paths: List[list] = field(default_factory=list)
 
 
 def is_hard_progress(
@@ -175,8 +184,10 @@ def reconstruct_actions(
 
 
 def layered_reachability(
-    seed: SpiderState,
+    seed: Optional[SpiderState] = None,
     *,
+    sources: Optional[Sequence[SpiderState]] = None,
+    origin_paths: Optional[Sequence[Sequence[Action]]] = None,
     max_depth: int = 20,
     max_unique: int = 1_000_000,
     time_limit_s: float = 1800.0,
@@ -184,42 +195,99 @@ def layered_reachability(
     rules: MobilityWareRules = MW_RULES,
     checkpoints: Sequence[int] = CHECKPOINT_DEPTHS,
     stop_fd: Optional[int] = None,
+    collect_fd: Optional[int] = None,
 ) -> LayeredReachabilityResult:
     """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known).
 
     Each call allocates a fresh exact first-visit table.  There is no parameter
     to import a previous visited set.  ``stop_fd`` stops at the first child
     with face-down count <= that value (research harvest only).
+    ``collect_fd`` records every min-depth match and does not stop on the first.
+    ``sources`` starts a multi-source frontier; later exact states collapse once.
     """
 
     started = time.perf_counter()
-    root_key = pack_state(seed)
-    root_metrics = _metrics(seed)
+    if sources is None:
+        if seed is None:
+            raise ValueError("seed or sources required")
+        source_states: List[SpiderState] = [seed]
+        source_paths: List[List[Action]] = [[]]
+    else:
+        source_states = list(sources)
+        if not source_states:
+            raise ValueError("sources is empty")
+        source_paths = [list(p) for p in (origin_paths if origin_paths is not None else [[] for _ in source_states])]
+        if len(source_paths) != len(source_states):
+            source_paths = [list(p) for p in source_paths] + [
+                [] for _ in range(len(source_states) - len(source_paths))
+            ]
+        if seed is None:
+            seed = source_states[0]
+    root_metrics = _metrics(source_states[0])
     initial_empty = root_metrics["empties"]
-    ids: Dict[bytes, int] = {root_key: 0}
-    keys: List[bytes] = [root_key]
-    parent = [-1]
-    src_a = [-1]
-    dst_a = [-1]
-    k_a = [-1]
-    depth_of = [0]
-    fd_of = [root_metrics["fd"]]
-    fnd_of = [root_metrics["foundations"]]
-    run_of = [root_metrics["longest_run"]]
-    empty_count_of = [len(initial_empty)]
-    empty_mask_of = [sum(1 << i for i in initial_empty)]
-    ever_zero = [len(initial_empty) == 0]
-    path_events: List[List[str]] = [[]]
-    layers: List[List[int]] = [[0]]
+    ids: Dict[bytes, int] = {}
+    keys: List[bytes] = []
+    parent: List[int] = []
+    src_a: List[int] = []
+    dst_a: List[int] = []
+    k_a: List[int] = []
+    depth_of: List[int] = []
+    fd_of: List[int] = []
+    origin: List[int] = []
+    multiplicity: Dict[bytes, int] = {}
+    source_node: List[int] = []
+    min_fd = 10**9
+    max_foundations = 0
+    max_run = 0
+    max_empties = 0
+    layer0: List[int] = []
+    for origin_id, source in enumerate(source_states):
+        key = pack_state(source)
+        if key in ids:
+            multiplicity[key] = multiplicity.get(key, 1) + 1
+            continue
+        node = len(keys)
+        ids[key] = node
+        keys.append(key)
+        parent.append(-1)
+        src_a.append(-1)
+        dst_a.append(-1)
+        k_a.append(-1)
+        depth_of.append(0)
+        metrics = _metrics(source)
+        fd_of.append(metrics["fd"])
+        origin.append(origin_id)
+        multiplicity[key] = 1
+        source_node.append(node)
+        layer0.append(node)
+        min_fd = min(min_fd, metrics["fd"])
+        max_foundations = max(max_foundations, metrics["foundations"])
+        max_run = max(max_run, metrics["longest_run"])
+        max_empties = max(max_empties, len(metrics["empties"]))
+    root_key = keys[0]
+    fnd_of = [0] * len(keys)
+    run_of = [0] * len(keys)
+    empty_count_of = [0] * len(keys)
+    empty_mask_of = [0] * len(keys)
+    ever_zero = [False] * len(keys)
+    path_events: List[List[str]] = [[] for _ in keys]
+    for node, source in zip(layer0, (source_states[origin[n]] for n in layer0)):
+        metrics = _metrics(source)
+        fnd_of[node] = metrics["foundations"]
+        run_of[node] = metrics["longest_run"]
+        empties = metrics["empties"]
+        empty_count_of[node] = len(empties)
+        empty_mask_of[node] = sum(1 << i for i in empties)
+        ever_zero[node] = len(empties) == 0
+    layers: List[List[int]] = [layer0]
     expansion_order: List[int] = []
     processing_log: List[dict] = []
     layer_reports: List[dict] = []
     generated = 0
     duplicate_skips = 0
-    min_fd = root_metrics["fd"]
-    max_foundations = root_metrics["foundations"]
-    max_run = root_metrics["longest_run"]
-    max_empties = len(initial_empty)
+    cross_origin_dups = 0
+    collect_nodes: List[int] = []
+    collect_depth: Optional[int] = None
     peak_rss = _rss_mb()
     stop_reason = "max depth"
     witnesses: Dict[str, dict] = {}
@@ -265,7 +333,7 @@ def layered_reachability(
             if depth_of[node] == fd12_depth:
                 first_use = None
                 actions = reconstruct_actions(node, parent, src_a, dst_a, k_a)
-                first_use = first_empty_use_on_path(seed, actions)
+                first_use = first_empty_use_on_path(source_states[origin[node]], actions)
                 fingerprint = _workspace_fingerprint(path_events[node], first_use)
                 if fingerprint not in fd12_fingerprints:
                     fd12_fingerprints.add(fingerprint)
@@ -294,6 +362,7 @@ def layered_reachability(
                 "max_foundations": max((fnd_of[i] for i in frontier), default=max_foundations),
                 "max_run": max((run_of[i] for i in frontier), default=max_run),
                 "expanded": expanded,
+                "origins_represented": len({origin[i] for i in frontier}) if origin else 1,
             }
         )
 
@@ -302,6 +371,7 @@ def layered_reachability(
     last_expanded = -1
     found_foundation = False
     found_target_fd = False
+    incomplete_frac: Optional[dict] = None
 
     for depth in range(0, max_depth):
         if found_foundation or found_target_fd:
@@ -323,7 +393,9 @@ def layered_reachability(
         next_ids: List[int] = []
         processing_log.append({"depth": depth, "expanding": len(frontier), "unique_before": len(keys)})
         incomplete = False
+        processed = 0
         for node in frontier:
+            processed += 1
             if found_foundation or found_target_fd:
                 break
             if time.perf_counter() >= deadline:
@@ -357,6 +429,9 @@ def layered_reachability(
                     if child_key in ids:
                         duplicate_skips += 1
                         dups_here += 1
+                        multiplicity[child_key] = multiplicity.get(child_key, 1) + 1
+                        if origin[ids[child_key]] != origin[node]:
+                            cross_origin_dups += 1
                         continue
                     if len(keys) >= max_unique:
                         stop_reason = "unique limit"
@@ -379,6 +454,8 @@ def layered_reachability(
                     k_a.append(k)
                     depth_of.append(depth + 1)
                     fd_of.append(child_metrics["fd"])
+                    origin.append(origin[node])
+                    multiplicity[child_key] = 1
                     fnd_of.append(child_metrics["foundations"])
                     run_of.append(child_metrics["longest_run"])
                     empty_count_of.append(len(child_empties))
@@ -387,6 +464,11 @@ def layered_reachability(
                     ever_zero.append(child_ever_zero)
                     path_events.append(path_events[node] + events)
                     next_ids.append(child_id)
+                    if collect_fd is not None and child_metrics["fd"] <= collect_fd:
+                        if collect_depth is None:
+                            collect_depth = depth + 1
+                        if depth + 1 == collect_depth:
+                            collect_nodes.append(child_id)
                     min_fd = min(min_fd, child_metrics["fd"])
                     max_foundations = max(max_foundations, child_metrics["foundations"])
                     max_run = max(max_run, child_metrics["longest_run"])
@@ -442,6 +524,11 @@ def layered_reachability(
             last_generated = max(last_generated, depth + 1)
             break
         if incomplete:
+            incomplete_frac = {
+                "depth": depth,
+                "processed": processed,
+                "frontier": len(frontier),
+            }
             break
         last_expanded = depth
         if next_ids:
@@ -479,14 +566,16 @@ def layered_reachability(
     for kind, witness in list(witnesses.items()):
         node = witness["node"]
         actions: List[Action] = reconstruct_actions(node, parent, src_a, dst_a, k_a)
-        witness["first_empty_use"] = first_empty_use_on_path(seed, actions)
-        local_state = seed.clone()
+        root = source_states[origin[node]]
+        witness["origin"] = origin[node]
+        witness["first_empty_use"] = first_empty_use_on_path(root, actions)
+        local_state = root.clone()
         try:
             witness["local_cost"] = replay_actions(local_state, actions)
             witness["adjacencies"] = _metrics(local_state)["adjacencies"]
             witness["blocks"] = _metrics(local_state)["blocks"]
-            seq = [list(initial_empty)]
-            walk = seed.clone()
+            seq = [list(empty_column_indices(root))]
+            walk = root.clone()
             for action in actions:
                 apply_action(walk, action)
                 seq.append(list(empty_column_indices(walk)))
@@ -495,6 +584,50 @@ def layered_reachability(
             witness["local_cost"] = None
             witness["replay_error"] = str(exc)
         witness.pop("node", None)
+
+    collected: List[dict] = []
+    collect_complete = False
+    if collect_fd is not None:
+        if collect_depth is None:
+            for index, fdv in enumerate(fd_of):
+                if fdv <= collect_fd:
+                    collect_depth = (
+                        depth_of[index]
+                        if collect_depth is None
+                        else min(collect_depth, depth_of[index])
+                    )
+            if collect_depth is not None:
+                collect_nodes = [
+                    index
+                    for index in range(len(keys))
+                    if depth_of[index] == collect_depth and fd_of[index] <= collect_fd
+                ]
+        seen_collect = set()
+        for node in collect_nodes:
+            digest = keys[node].hex()
+            if digest in seen_collect:
+                continue
+            seen_collect.add(digest)
+            empties = tuple(i for i in range(10) if empty_mask_of[node] & (1 << i))
+            collected.append(
+                {
+                    "digest": digest,
+                    "depth": depth_of[node],
+                    "fd": fd_of[node],
+                    "foundations": fnd_of[node],
+                    "longest_run": run_of[node],
+                    "empties": list(empties),
+                    "actions": [list(act) for act in reconstruct_actions(node, parent, src_a, dst_a, k_a)],
+                    "hits": multiplicity.get(keys[node], 1),
+                    "origin": origin[node],
+                }
+            )
+        collect_complete = (
+            collect_depth is not None
+            and last_generated >= collect_depth
+            and incomplete_frac is None
+            and not found_target_fd
+        )
 
     for item in fd12_same_depth:
         item.pop("node", None)
@@ -528,7 +661,16 @@ def layered_reachability(
         fd12_same_depth=fd12_same_depth,
         initial_empty=initial_empty,
         processing_log=processing_log,
-        root_digest=root_key.hex(),
+        root_digest=root_key.hex() if len(source_states) == 1 else "multi",
         fresh_tt=True,
         imported_keys=0,
+        source_count=len(source_states),
+        collected=collected,
+        collected_fd=collect_fd,
+        collected_depth=collect_depth,
+        collected_complete=collect_complete,
+        collect_partial=bool(collect_fd is not None and not collect_complete),
+        depth_expanded_frac=incomplete_frac,
+        cross_origin_dups=cross_origin_dups,
+        origin_paths=[list(p) for p in source_paths],
     )
