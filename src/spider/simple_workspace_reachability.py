@@ -156,6 +156,50 @@ class LayeredReachabilityResult:
     keys_before_stream: int = 0
     last_layer_generated: int = 0
     last_layer_duplicates: int = 0
+    visited_hex: List[str] = field(default_factory=list)
+    skipped_expand_parents: int = 0
+    parent_fd_counts: Dict[int, int] = field(default_factory=dict)
+
+
+def face_down_count(state: SpiderState) -> int:
+    return sum(len(col.face_down) for col in state.columns)
+
+
+def fd_trace(seed: SpiderState, actions: Sequence[Action]) -> List[int]:
+    """Face-down count after 0, 1, ... len(actions) primitives."""
+
+    state = seed.clone()
+    out = [face_down_count(state)]
+    for action in actions:
+        apply_action(state, action)
+        out.append(face_down_count(state))
+    return out
+
+
+def first_fd_leq_depth(trace: Sequence[int], target: int = 11) -> Optional[int]:
+    """1-based primitive depth of first fd <= target, or None."""
+
+    for index, fd in enumerate(trace):
+        if fd <= target:
+            return index
+    return None
+
+
+def classify_first_crossing(trace: Sequence[int], *, target: int = 11) -> str:
+    """TRUE_FIRST_CROSSING_DEPTH10, POST_REVEAL_DEPTH10, or INVALID_OR_REPLAY_FAILURE."""
+
+    if len(trace) != 11:
+        return "INVALID_OR_REPLAY_FAILURE"
+    first = first_fd_leq_depth(trace, target)
+    parent_fd = trace[9]
+    child_fd = trace[10]
+    if first is None:
+        return "INVALID_OR_REPLAY_FAILURE"
+    if first <= 9:
+        return "POST_REVEAL_DEPTH10"
+    if first == 10 and parent_fd == target + 1 and child_fd == target:
+        return "TRUE_FIRST_CROSSING_DEPTH10"
+    return "INVALID_OR_REPLAY_FAILURE"
 
 
 def is_hard_progress(
@@ -202,6 +246,8 @@ def layered_reachability(
     collect_fd: Optional[int] = None,
     collect_exact_depth: Optional[int] = None,
     stream_last: bool = False,
+    expand_only_fd: Optional[int] = None,
+    include_visited_hex: bool = False,
 ) -> LayeredReachabilityResult:
     """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known).
 
@@ -301,6 +347,8 @@ def layered_reachability(
     keys_before_stream = 0
     last_layer_generated = 0
     last_layer_duplicates = 0
+    skipped_expand_parents = 0
+    parent_fd_counts: Dict[int, int] = {}
     peak_rss = _rss_mb()
     stop_reason = "max depth"
     witnesses: Dict[str, dict] = {}
@@ -403,6 +451,10 @@ def layered_reachability(
         streaming = stream_last and depth == max_depth - 1
         if streaming:
             keys_before_stream = len(keys)
+            parent_fd_counts = {}
+            for index in frontier:
+                fdv = fd_of[index]
+                parent_fd_counts[fdv] = parent_fd_counts.get(fdv, 0) + 1
         gen_here = 0
         dups_here = 0
         by_tier = [0, 0, 0, 0]
@@ -422,6 +474,9 @@ def layered_reachability(
                 stop_reason = "rss abort"
                 incomplete = True
                 break
+            if streaming and expand_only_fd is not None and fd_of[node] != expand_only_fd:
+                skipped_expand_parents += 1
+                continue
             state = unpack_state(keys[node])
             parent_empties = empty_column_indices(state)
             for action in enumerate_actions(state, rules=rules):
@@ -678,6 +733,8 @@ def layered_reachability(
                     "actions": [list(act) for act in reconstruct_actions(node, parent, src_a, dst_a, k_a)],
                     "hits": multiplicity.get(keys[node], 1),
                     "origin": origin[node],
+                    "parent_fd": None if parent[node] < 0 else fd_of[parent[node]],
+                    "parent_digest": None if parent[node] < 0 else keys[parent[node]].hex(),
                 }
             )
         if collect_exact_depth is not None:
@@ -738,4 +795,7 @@ def layered_reachability(
         keys_before_stream=keys_before_stream,
         last_layer_generated=last_layer_generated,
         last_layer_duplicates=last_layer_duplicates,
+        visited_hex=[k.hex() for k in keys] if include_visited_hex else [],
+        skipped_expand_parents=skipped_expand_parents,
+        parent_fd_counts=parent_fd_counts,
     )
