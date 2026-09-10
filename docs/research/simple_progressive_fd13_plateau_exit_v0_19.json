@@ -1,0 +1,527 @@
+{
+  "base_sha": "b9927e50596996903aed3e0acd148fe6f84676ab",
+  "classifier_fd13": {
+    "admitted": 22,
+    "complete": true,
+    "engine_tableau": 22,
+    "stock": 0,
+    "surprises": []
+  },
+  "classifier_fd13_complete": true,
+  "dead_pruning_integrated": false,
+  "earliest_known_dead_depth": 8,
+  "earliest_new_fd12_depth": 10,
+  "exit_classes": 18,
+  "exit_edges": 18,
+  "experiment": "simple_progressive_fd13_plateau_exit_v0_19",
+  "fd10": false,
+  "fd10_witness": null,
+  "fd13": {
+    "a": 1,
+    "adjacencies": 37,
+    "b": 3,
+    "blocks": 3,
+    "c": 18,
+    "cost": 102,
+    "d": 0,
+    "empties": [
+      2
+    ],
+    "fd": 13,
+    "foundations": 0,
+    "legal": 22,
+    "longest_run": 6,
+    "ordered_digest": "53504b310100000004093a2c360835042302310b0d1c3b050515191b11282d0c2b1a29000000121413121d071d1c1b1a19181716153433323100022d2c00080d0c262139383706041118360a2a280706050403020911033d3c0b0a290827000812272a0524133201000d3d3c3b3a393837262524232221000b1716352b14092534332201",
+    "path_length": 102,
+    "replay_ok": true,
+    "stock": 0,
+    "symmetry_digest": "5350533101000000000000022d2c00080d0c262139383706000812272a0524133201000b1716352b14092534332201000d3d3c3b3a39383726252423222100121413121d071d1c1b1a19181716153433323104093a2c360835042302310b0d1c3b041118360a2a280706050403020911033d3c0b0a290827050515191b11282d0c2b1a29"
+  },
+  "fd13_proven_dead_to_fd10": false,
+  "foundation": false,
+  "foundation_witness": null,
+  "interpretation": "Verdict FD13_PLATEAU_STATE_EXPLOSION. dead_from_fd12=41472 plateau_subset=20736 fd13_unique=2352714 exhausted=False exits=18 known_dead=15 new=3 fd10=False foundation=False proven_dead=False.",
+  "known_dead_fd12_exits": 15,
+  "known_dead_from_fd12": {
+    "classifier_surprises": 0,
+    "completed_expanded_depth": 19,
+    "completed_generated_depth": 19,
+    "duplicate_skips": 210817,
+    "elapsed_s": 75.079289900008,
+    "exhausted": true,
+    "fd12_plateau_classes": 20736,
+    "first_depth": {
+      "fd_le_11": 1,
+      "fd_le_12": 1
+    },
+    "generated": 252288,
+    "known_dead_prunes": 0,
+    "matches_expected_plateau": true,
+    "max_empties": 0,
+    "max_foundations": 0,
+    "min_fd": 11,
+    "peak_rss_mb": 49.99609375,
+    "source_count": 1,
+    "stock_nonzero": false,
+    "stop_reason": "frontier empty",
+    "unique": 41472
+  },
+  "new_exits": [
+    {
+      "actions": [
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          4,
+          1
+        ],
+        [
+          2,
+          0,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          4,
+          1,
+          2
+        ],
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          4,
+          6
+        ],
+        [
+          2,
+          8,
+          1
+        ],
+        [
+          1,
+          2,
+          3
+        ]
+      ],
+      "adjacencies": 38,
+      "blocks": 4,
+      "class": "NEW_FD12_EXIT",
+      "depth": 10,
+      "empties": [],
+      "fd": 12,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 10,
+      "local_cost": 10,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040b3a2c360835042302310b0d1c3b1a29040115191b112800032d2c2b00121413121d071d1c1b1a19181716153433323100072d3c3b3a39383700080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100023d0c000b1716352b14092534332201",
+      "parent_empties": [
+        2
+      ],
+      "path_events": [
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED",
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED",
+        "EMPTY_CONSUMED"
+      ],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        2,
+        3
+      ],
+      "symmetry_digest": "535053310100000000023d0c00032d2c2b00072d3c3b3a39383700080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231040115191b1128040b3a2c360835042302310b0d1c3b1a29041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "viable": false,
+      "workspace": {
+        "consumed": 3,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [
+          2
+        ],
+        "empty_sequence": [
+          [
+            2
+          ],
+          [],
+          [],
+          [],
+          [
+            2
+          ],
+          [],
+          [],
+          [],
+          [],
+          [
+            2
+          ],
+          []
+        ],
+        "end_empties": [],
+        "first_empty_use": {
+          "action": [
+            1,
+            2,
+            1
+          ],
+          "after_ab_setup": false,
+          "after_c_rework": false,
+          "consumed": true,
+          "depth": 1,
+          "empty_column": 2,
+          "immediate": true,
+          "tier": 2,
+          "tier_name": "C",
+          "transferred": false
+        },
+        "recreated": 2,
+        "second_empty": 0,
+        "start_empties": [
+          2
+        ],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          4,
+          1
+        ],
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          0,
+          3
+        ],
+        [
+          2,
+          8,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          4,
+          1,
+          2
+        ],
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          1,
+          2,
+          3
+        ]
+      ],
+      "adjacencies": 38,
+      "blocks": 4,
+      "class": "NEW_FD12_EXIT",
+      "depth": 10,
+      "empties": [],
+      "fd": 12,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 8,
+      "local_cost": 10,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b1a393837040115191b112800032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100053d3c3b3a29000b1716352b14092534332201",
+      "parent_empties": [
+        2
+      ],
+      "path_events": [
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED",
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED",
+        "EMPTY_CONSUMED"
+      ],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        2,
+        3
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00053d3c3b3a2900080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231040115191b1128040d3a2c360835042302310b0d1c3b1a393837041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "viable": false,
+      "workspace": {
+        "consumed": 3,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [
+          2
+        ],
+        "empty_sequence": [
+          [
+            2
+          ],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [
+            2
+          ],
+          [],
+          [],
+          [
+            2
+          ],
+          []
+        ],
+        "end_empties": [],
+        "first_empty_use": {
+          "action": [
+            1,
+            2,
+            1
+          ],
+          "after_ab_setup": false,
+          "after_c_rework": false,
+          "consumed": true,
+          "depth": 1,
+          "empty_column": 2,
+          "immediate": true,
+          "tier": 2,
+          "tier_name": "C",
+          "transferred": false
+        },
+        "recreated": 2,
+        "second_empty": 0,
+        "start_empties": [
+          2
+        ],
+        "transferred": 0
+      }
+    },
+    {
+      "actions": [
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          8,
+          6,
+          6
+        ],
+        [
+          8,
+          0,
+          4
+        ],
+        [
+          1,
+          8,
+          1
+        ],
+        [
+          1,
+          4,
+          1
+        ],
+        [
+          2,
+          8,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          4,
+          1,
+          2
+        ],
+        [
+          2,
+          4,
+          1
+        ],
+        [
+          1,
+          2,
+          3
+        ]
+      ],
+      "adjacencies": 39,
+      "blocks": 4,
+      "class": "NEW_FD12_EXIT",
+      "depth": 10,
+      "empties": [],
+      "fd": 12,
+      "foundations": 0,
+      "hits": 1,
+      "legal": 10,
+      "local_cost": 10,
+      "longest_run": 7,
+      "ordered_digest": "53504b3101000000040d3a2c360835042302310b0d1c3b3a393837040115191b112800032d2c2b00121413121d071d1c1b1a19181716153433323100022d0c00080d0c262139383706041718360a2a280706050403020911033d3c0b0a290827262524232221000812272a052413320100053d3c3b1a29000b1716352b14092534332201",
+      "parent_empties": [
+        2
+      ],
+      "path_events": [
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED",
+        "EMPTY_CONSUMED",
+        "EMPTY_RECREATED",
+        "EMPTY_CONSUMED"
+      ],
+      "replay_ok": true,
+      "reveal_action": [
+        1,
+        2,
+        3
+      ],
+      "symmetry_digest": "535053310100000000022d0c00032d2c2b00053d3c3b1a2900080d0c262139383706000812272a0524133201000b1716352b1409253433220100121413121d071d1c1b1a191817161534333231040115191b1128040d3a2c360835042302310b0d1c3b3a393837041718360a2a280706050403020911033d3c0b0a290827262524232221",
+      "viable": false,
+      "workspace": {
+        "consumed": 3,
+        "empties_after_reveal": [],
+        "empties_before_reveal": [
+          2
+        ],
+        "empty_sequence": [
+          [
+            2
+          ],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [
+            2
+          ],
+          [],
+          [],
+          [
+            2
+          ],
+          []
+        ],
+        "end_empties": [],
+        "first_empty_use": {
+          "action": [
+            1,
+            2,
+            1
+          ],
+          "after_ab_setup": false,
+          "after_c_rework": false,
+          "consumed": true,
+          "depth": 1,
+          "empty_column": 2,
+          "immediate": true,
+          "tier": 2,
+          "tier_name": "C",
+          "transferred": false
+        },
+        "recreated": 2,
+        "second_empty": 0,
+        "start_empties": [
+          2
+        ],
+        "transferred": 0
+      }
+    }
+  ],
+  "new_fd12_exits": 3,
+  "next_recommendation": "Do not raise limits here. Report the bounded fd13 plateau and stop.",
+  "note": "resource limits bound the fd13 plateau before exhaustion",
+  "phase1": {
+    "classifier_surprises": 0,
+    "completed_expanded_depth": 9,
+    "completed_generated_depth": 11,
+    "duplicate_skips": 5941349,
+    "elapsed_s": 1800.4535942000075,
+    "empty0": 2188588,
+    "empty1": 164126,
+    "empty_ge2": 0,
+    "exhausted": false,
+    "exit_classes": 18,
+    "exit_edges": 18,
+    "fd_le_10_witness": null,
+    "first_depth": {},
+    "generated": 8294080,
+    "known_dead_prunes": 0,
+    "max_adjacencies": 40,
+    "max_blocks": 8,
+    "max_empties": 1,
+    "max_foundations": 0,
+    "max_run": 9,
+    "min_fd": 12,
+    "peak_rss_mb": 1428.4140625,
+    "source_count": 1,
+    "stop_reason": "time limit",
+    "surprise_samples": [],
+    "unique": 2352714
+  },
+  "phase2": {
+    "classifier_surprises": 0,
+    "completed_expanded_depth": 18,
+    "completed_generated_depth": 18,
+    "duplicate_skips": 453315,
+    "elapsed_s": 149.73339169999235,
+    "first_depth": {
+      "fd_le_11": 1,
+      "fd_le_12": 1
+    },
+    "generated": 543168,
+    "known_dead_prunes": 0,
+    "max_empties": 0,
+    "max_foundations": 0,
+    "min_fd": 11,
+    "peak_rss_mb": 1429.28515625,
+    "source_count": 3,
+    "stop_reason": "frontier empty",
+    "unique": 89856
+  },
+  "phase2_skip_reason": null,
+  "production_unchanged": true,
+  "quotient_integrated": false,
+  "two_move_slack": false,
+  "verdict": "FD13_PLATEAU_STATE_EXPLOSION",
+  "viable_fd12": null
+}

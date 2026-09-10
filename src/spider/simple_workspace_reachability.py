@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
@@ -161,6 +161,7 @@ class LayeredReachabilityResult:
     skipped_expand_parents: int = 0
     parent_fd_counts: Dict[int, int] = field(default_factory=dict)
     classifier_surprises: int = 0
+    known_dead_prunes: int = 0
 
 
 def face_down_count(state: SpiderState) -> int:
@@ -294,6 +295,7 @@ def layered_reachability(
     include_visited_hex: bool = False,
     identity_fn: Optional[Callable[[SpiderState], bytes]] = None,
     all_legal_tableau: bool = False,
+    dead_identities: Optional[Set[bytes]] = None,
 ) -> LayeredReachabilityResult:
     """BFS by primitive depth.  Expands depths 0 .. max_depth-1 (states at max_depth known).
 
@@ -313,6 +315,8 @@ def layered_reachability(
     function that silently replaces production identity.
     ``all_legal_tableau`` expands every engine-legal tableau action, including
     any classifier-D surprise; Deal is still omitted.
+    ``dead_identities`` is an exact proof cache: matching children are skipped
+    after goal tests and counted as ``known_dead_prunes``, not heuristic prunes.
     """
 
     started = time.perf_counter()
@@ -409,6 +413,8 @@ def layered_reachability(
     skipped_expand_parents = 0
     parent_fd_counts: Dict[int, int] = {}
     classifier_surprises = 0
+    known_dead_prunes = 0
+    dead_set = dead_identities or set()
     peak_rss = _rss_mb()
     stop_reason = "max depth"
     witnesses: Dict[str, dict] = {}
@@ -576,6 +582,12 @@ def layered_reachability(
                         continue
                     child_empties = empty_column_indices(state)
                     child_metrics = _metrics(state)
+                    is_goal = child_metrics["foundations"] >= 1 or child_metrics["fd"] <= 10
+                    if dead_set and child_ident in dead_set and not is_goal:
+                        known_dead_prunes += 1
+                        min_fd = min(min_fd, child_metrics["fd"])
+                        max_foundations = max(max_foundations, child_metrics["foundations"])
+                        continue
                     if streaming:
                         keep = (
                             child_metrics["foundations"] >= 1
@@ -867,6 +879,7 @@ def layered_reachability(
         skipped_expand_parents=skipped_expand_parents,
         parent_fd_counts=parent_fd_counts,
         classifier_surprises=classifier_surprises,
+        known_dead_prunes=known_dead_prunes,
     )
 
 
