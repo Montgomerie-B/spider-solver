@@ -1,0 +1,226 @@
+{
+  "ah_any_two": {
+    "buried_rank2_rejected": true,
+    "empty_ok": true,
+    "rank2_any_suit": true,
+    "rank3_rejected": true,
+    "rationale": "SpiderState.can_move allows a movable run onto an empty column or onto a face-up card whose rank is exactly one higher than the run head. Suit is not consulted. A single-card Ace therefore requires an empty or any-suit 2.",
+    "suit_independent": true,
+    "valid": true
+  },
+  "base_sha": "b30850880e1cc76789478e3824ff827269533a71",
+  "branch": "agent/sd4-operational-horizon-pivot-v0-37",
+  "diamond": {
+    "ah_release_from_2d": {
+      "can_release_now": false,
+      "legal_ah_dests": []
+    },
+    "ah_temporarily_on_2d": true,
+    "gate2_2d": {
+      "sd4": 1,
+      "sd4_has_2d": true,
+      "sd5": 1,
+      "sd5_has_2d": true,
+      "stock": 2,
+      "tableau": 0
+    },
+    "note": "Telemetry only. Diamond foundation is not searched.",
+    "sd4_2d_unique_pre_sd5": false
+  },
+  "elapsed_s": 241.0493761000107,
+  "experiment": "sd4_operational_horizon_pivot_v0_37",
+  "fixture": "solutions/4925153_v0_37_h9_best.moves.txt",
+  "h9": {
+    "c3_top": "JS",
+    "c4_top": "AH",
+    "c6_top": "JH",
+    "continuation": 4,
+    "empties": [],
+    "face_down_col": [
+      "5H"
+    ],
+    "face_up_col": [
+      "9H"
+    ],
+    "fd": 5,
+    "fixture": "solutions/4925153_v0_37_h9_best.moves.txt",
+    "foundations": 1,
+    "full_cost": 77,
+    "full_path_length": 77,
+    "full_replay_ok": true,
+    "mandatory_ranks": {
+      "10": {
+        "column_1": 6,
+        "count": 2,
+        "status": "face_up_buried",
+        "zone": "up"
+      },
+      "3": {
+        "column_1": 4,
+        "count": 2,
+        "status": "face_up_buried",
+        "zone": "up"
+      },
+      "7": {
+        "column_1": 9,
+        "count": 2,
+        "status": "face_up_buried",
+        "zone": "up"
+      },
+      "9": {
+        "column_1": 2,
+        "count": 2,
+        "status": "exposed_top",
+        "zone": "up"
+      },
+      "J": {
+        "column_1": 6,
+        "count": 2,
+        "status": "exposed_top",
+        "zone": "up"
+      },
+      "Q": {
+        "column_1": 3,
+        "count": 2,
+        "status": "face_up_buried",
+        "zone": "up"
+      }
+    },
+    "qh_jh_same_suit": false,
+    "source_g": 73,
+    "stock_rows": 1,
+    "via": [
+      "B"
+    ]
+  },
+  "interpretation": "macros A (324/324) and B (324/324) both expose 9H. SD4 row ['9D', 'JS', 'QH', '2D', '4C', 'QC', 'KC', '8C', 'JH', '9S']. Macro A unlocked 324/324; macro B unlocked 324/324. Continuation LB 4 valid=True. Independent depth-6 search incumbent=77 first_t=3.5063504000136163. SD5 never expanded. 9H is terminal. Diamond/2D is telemetry only. This is an operational-horizon statement for the explored Gate-2 lineage, not a proof that no pre-SD4 Heart route exists.",
+  "jack_any_queen": {
+    "any_suit_queen": true,
+    "king_rejected": true,
+    "valid": true
+  },
+  "macros": {
+    "A": {
+      "first_failure": null,
+      "hits": 324,
+      "n": 324,
+      "pct": 100.0
+    },
+    "B": {
+      "first_failure": null,
+      "hits": 324,
+      "n": 324,
+      "pct": 100.0
+    },
+    "labels": [
+      "STOCK_MEDIATED_RELEASE",
+      "STOCK_MEDIATED_SAME_SUIT_BUILD"
+    ]
+  },
+  "min_mw": 77,
+  "next_recommendation": "Heart operational unlock is at SD4 for this lineage. Next: choose the post-9H target \u2014 continue the Heart foundation, or reassess Diamonds now that 2D is the AH parking spot. Do not take SD5 yet. Do not inspect the human route.",
+  "operational_horizon": "HEART_OPERATIONAL_UNLOCK_AT_SD4",
+  "portfolio": {
+    "bands": {
+      "77": 32,
+      "78": 224
+    },
+    "n": 256,
+    "path": "docs/research/sd4_operational_horizon_pivot_v0_37_h9_portfolio.json"
+  },
+  "production_unchanged": true,
+  "proof": {
+    "continuation_lb": {
+      "ah_costs": [
+        1
+      ],
+      "deal_cost": 1,
+      "js_costs": [
+        1,
+        1
+      ],
+      "lb": 4,
+      "rationale": "SD4 always costs 1. It places JS on AH in the still-buried 9H column. JS+AH is not a movable run, so JS must leave in its own action (cost >= 1). AH must then leave to flip original JH (cost >= 1; column still has face-down). JH must then leave to flip unique 9H (cost >= 1). One action flips at most one face-down card. Therefore continuation to H9 from this exact Gate-2 state is >= 4.",
+      "reasons": [],
+      "valid": true
+    },
+    "global_claim": false,
+    "local_plus4_optimal": true
+  },
+  "sd4": {
+    "c2": "JS",
+    "c2_is_js": true,
+    "c3": "QH",
+    "c3_is_qh": true,
+    "c4": "2D",
+    "c4_is_2d": true,
+    "c6": "QC",
+    "c6_is_qc": true,
+    "expected": [
+      "9D",
+      "JS",
+      "QH",
+      "2D",
+      "4C",
+      "QC",
+      "KC",
+      "8C",
+      "JH",
+      "9S"
+    ],
+    "mismatch": null,
+    "row": [
+      "9D",
+      "JS",
+      "QH",
+      "2D",
+      "4C",
+      "QC",
+      "KC",
+      "8C",
+      "JH",
+      "9S"
+    ],
+    "stock_rows": 2,
+    "valid": true
+  },
+  "sd5_expanded": false,
+  "search": {
+    "complete_depth": false,
+    "duplicate_skips": 382424,
+    "elapsed_s": 237.73626309999963,
+    "expanded": 73905,
+    "first_g": 77,
+    "first_s": 3.5063504000136163,
+    "first_unique": 3971,
+    "generated": 632108,
+    "incumbent": 77,
+    "max_depth": 6,
+    "peak_rss_mb": 150.49609375,
+    "sd5_expanded": false,
+    "stop_reason": "unique limit",
+    "unique": 250000,
+    "witnesses": 256
+  },
+  "sources": {
+    "all_replay_ok": true,
+    "cost_counts": {
+      "73": 16,
+      "74": 48,
+      "75": 80,
+      "76": 64,
+      "77": 43,
+      "78": 33,
+      "79": 25,
+      "80": 6,
+      "81": 6,
+      "82": 3
+    },
+    "cost_max": 82,
+    "cost_min": 73,
+    "failures": 0,
+    "n": 324
+  },
+  "verdict": "SD4_UNLOCKS_H9_MULTIPLE_ROUTES",
+  "verdict_reason": "macros A (324/324) and B (324/324) both expose 9H"
+}

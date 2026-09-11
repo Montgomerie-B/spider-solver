@@ -219,6 +219,22 @@ def is_gate3(parent: dict, child: dict, child_state: SpiderState) -> bool:
     return pretty_card(up[-1]) == "JH"
 
 
+def is_gate4(parent: dict, child: dict, child_state: SpiderState) -> bool:
+    """First exposure of unique 9H. Parent still has 9H face-down with JH already up."""
+
+    if parent.get("face_up") or not child.get("face_up"):
+        return False
+    if parent.get("fd_blockers") != 0:
+        return False
+    col = child.get("column_0")
+    if col is None:
+        return False
+    up = child_state.columns[col].face_up
+    if not up:
+        return False
+    return pretty_card(up[-1]) == "9H"
+
+
 def _gate_hit(mode: str, parent: dict, child: dict, child_state: SpiderState) -> bool:
     if mode == "gate1":
         return is_gate1(parent, child, child_state)
