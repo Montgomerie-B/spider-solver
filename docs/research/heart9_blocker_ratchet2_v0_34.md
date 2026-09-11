@@ -1,0 +1,427 @@
+# Spider Solver v0.34 — Gate 2 Ratchet: First AH Blocker Flip
+
+## 1. Verdict
+
+`GATE2_AH_REACHED` — Gate 2 reached at best-known full MW 73
+
+Gate 2 is valid: after Gate 1, AH is the top face-down blocker (JH beneath). GLOBAL_LB_GATE2=71 is valid (Gate 1 >= 70 plus one non-zero uncover). The 40 Gate-1 states reconstructed as 16/8/16 at full MW 70/71/72. One-move fast path found 16 hits, all from Gate-1 cost 72, cheapest full MW 73. The cheaper Gate-1 bands (70 and 71) could not cross Gate 2 in one action. Directed full-g search from the portfolio found Gate 2 in 0.04s / 41 unique at B=73, then harvested 144 exact states (16/48/80 at 73/74/75) and exhausted that sample. Original-source UCS for a cheaper-than-73 Gate 2 ran 700s / 487k unique with no cheaper witness and did not exhaust, so 73 is best-known, not globally proved. SD4 was never expanded. JH/9H/Heart were not searched.
+
+- Branch: `agent/heart9-blocker-ratchet2-v0-34`
+- Base SHA: `35a3042c3afb44094f820519977f333459b0dbd3`
+
+## 2. Sources
+
+{
+  "all_ok": true,
+  "cost_counts": {
+    "70": 16,
+    "71": 8,
+    "72": 16
+  },
+  "exact_dedup": 40,
+  "n": 40
+}
+
+## 3. Proof / fast path
+
+{
+  "proof": {
+    "b_equals_bound": false,
+    "gate2_chain_ok": true,
+    "global_lb": {
+      "gate1_min": 70,
+      "global_lb": 71,
+      "plus_one_flip": 1,
+      "rationale": "Any Gate-2 path must cross Gate 1 (proved min full MW 70) then perform at least one non-zero-MW uncover of the still-buried 9H column, so full MW >= 71.",
+      "valid": true
+    }
+  },
+  "fast_path": {
+    "by_gate1_band": {
+      "72": 16
+    },
+    "cheapest": 73,
+    "hits": 16
+  }
+}
+
+## 4. Search
+
+{
+  "band_counts": {
+    "73": 16,
+    "74": 48,
+    "75": 80
+  },
+  "duplicate_skips": 42232,
+  "elapsed_s": 56.797692899999674,
+  "expanded": 23156,
+  "first_g": 73,
+  "first_s": 0.03819570000632666,
+  "first_unique": 41,
+  "generated": 51128,
+  "incumbent": 73,
+  "levels_reached": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "peak_rss_mb": 53.0078125,
+  "run": true,
+  "sd4_expanded": false,
+  "stop_reason": "frontier empty",
+  "unique": 8784,
+  "witnesses": 144
+}
+
+## 5. Optimality
+
+{
+  "b": 73,
+  "method": "UCS incomplete (time limit); B is best-known only",
+  "note": "B==71 is global via LB. B>71 needs original-source UCS to prove.",
+  "proved": false,
+  "ucs": {
+    "cheaper": false,
+    "elapsed_s": 700.0030056000105,
+    "expanded": 177131,
+    "generated": 1252569,
+    "incumbent": 73,
+    "peak_rss_mb": 256.00390625,
+    "run": true,
+    "sd4_expanded": false,
+    "stop_reason": "time limit",
+    "unique": 486741,
+    "witnesses": 0
+  }
+}
+
+## 6. Boundary
+
+{
+  "continuation_cost": 1,
+  "empties": [],
+  "face_down_col": [
+    "5H",
+    "9H",
+    "JH"
+  ],
+  "face_up_col": [
+    "AH"
+  ],
+  "fd": 7,
+  "fd_blockers": 1,
+  "fixture": "solutions/4925153_v0_34_gate2_ah_best.moves.txt",
+  "foundations": 1,
+  "full_actions": [
+    [
+      2,
+      5,
+      1
+    ],
+    [
+      5,
+      7,
+      2
+    ],
+    [
+      0,
+      5,
+      1
+    ],
+    [
+      5,
+      7,
+      2
+    ],
+    [
+      7,
+      3,
+      5
+    ],
+    [
+      2,
+      1,
+      1
+    ],
+    [
+      2,
+      6,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      2,
+      9,
+      4
+    ],
+    [
+      7,
+      0,
+      1
+    ],
+    [
+      8,
+      1,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      8,
+      0,
+      1
+    ],
+    [
+      5,
+      0,
+      1
+    ],
+    [
+      9,
+      5,
+      5
+    ],
+    [
+      5,
+      4,
+      6
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      4,
+      8,
+      7
+    ],
+    [
+      4,
+      2,
+      1
+    ],
+    [
+      4,
+      2,
+      1
+    ],
+    [
+      5,
+      4,
+      1
+    ],
+    [
+      4,
+      5,
+      2
+    ],
+    [
+      4,
+      8,
+      1
+    ],
+    [
+      7,
+      4,
+      1
+    ],
+    [
+      3,
+      6,
+      5
+    ],
+    [
+      2,
+      7,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      9,
+      4,
+      1
+    ],
+    [
+      3,
+      9,
+      1
+    ],
+    [
+      3,
+      9,
+      1
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      4,
+      2,
+      2
+    ],
+    [
+      3,
+      4,
+      1
+    ],
+    [
+      3,
+      7,
+      1
+    ],
+    [
+      3,
+      0,
+      1
+    ],
+    [
+      7,
+      3,
+      3
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      5,
+      7,
+      1
+    ],
+    [
+      0,
+      5,
+      1
+    ],
+    [
+      9,
+      7,
+      1
+    ],
+    [
+      9,
+      8,
+      2
+    ],
+    [
+      0,
+      9,
+      1
+    ],
+    [
+      0,
+      2,
+      1
+    ],
+    [
+      0,
+      7,
+      1
+    ],
+    [
+      0,
+      8,
+      1
+    ],
+    [
+      0,
+      6,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      2,
+      3,
+      1
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      5,
+      2,
+      1
+    ],
+    [
+      6,
+      9,
+      1
+    ],
+    [
+      6,
+      7,
+      2
+    ],
+    [
+      1,
+      6,
+      1
+    ],
+    [
+      6,
+      7,
+      7
+   
+
+## 7. Condensation
+
+{
+  "v32_h9": false,
+  "v32_s": 900,
+  "v32_unique": 198303,
+  "v33_first_s": 0.17,
+  "v33_first_unique": 72,
+  "v34_b": 73,
+  "v34_first_s": 0.03819570000632666,
+  "v34_first_unique": 41,
+  "v34_gate2": true
+}
+
+## 8. Exactly one next recommendation
+
+Carry the Gate-2 portfolio into Gate 3: first exposure of JH. Keep full accumulated MW. Do not jump to 9H or Heart 1, and do not take SD4.
+
+## Integrity
+
+Verdict GATE2_AH_REACHED. SD4 expanded=False.
+Gate 2 terminal. Full MW preserved. No production change.
+

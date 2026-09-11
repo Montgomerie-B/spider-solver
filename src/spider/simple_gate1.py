@@ -191,6 +191,20 @@ def is_gate1(parent: dict, child: dict, child_state: SpiderState) -> bool:
     return pretty_card(up[-1]) == "8D"
 
 
+def is_gate2(parent: dict, child: dict, child_state: SpiderState) -> bool:
+    if parent.get("fd_blockers") != 2 or child.get("fd_blockers") != 1:
+        return False
+    if child.get("face_up"):
+        return False
+    col = child.get("column_0")
+    if col is None:
+        return False
+    up = child_state.columns[col].face_up
+    if not up:
+        return False
+    return pretty_card(up[-1]) == "AH"
+
+
 def _priority(prog: dict, g: int, depth: int, label: str, tier: int, seq: int, node: int, origin: int):
     label_rank = {
         DIRECT: 0,
@@ -258,6 +272,8 @@ def search_gate1(
     harvest_limit: int = 256,
     lb: int = 0,
     cheaper_only: bool = False,
+    source_g: Optional[Sequence[int]] = None,
+    mode: str = "gate1",
 ) -> Gate1Result:
     started = time.perf_counter()
     deadline = started + time_limit_s
@@ -291,17 +307,24 @@ def search_gate1(
         path.reverse()
         return path
 
+    skip_le = 2 if mode == "gate1" else 1
     for origin, src in enumerate(sources):
         ident = pack_state(src)
+        g0 = 0 if source_g is None else int(source_g[origin])
         if ident in best_g:
+            if g0 < best_g[ident]:
+                best_g[ident] = g0
+                idx = ident_of.index(ident)
+                g_of[idx] = g0
+                origin_of[idx] = origin
             continue
-        best_g[ident] = 0
+        best_g[ident] = g0
         ident_of.append(ident)
         parent.append(-1)
         action_of.append(None)
         depth_of.append(0)
         origin_of.append(origin)
-        g_of.append(0)
+        g_of.append(g0)
     result.unique = len(best_g)
 
     for level in range(start_level, max_level + 1):
@@ -321,7 +344,7 @@ def search_gate1(
         for ident, node in best_node.items():
             state = unpack_state(ident)
             prog = gate1_progress(state)
-            if prog["fd_blockers"] <= 2:
+            if prog["fd_blockers"] <= skip_le:
                 continue
             if directed:
                 heapq.heappush(heap, _priority(prog, g_of[node], depth_of[node], GOOD_PLAY, 9, seq, node, origin_of[node]))
@@ -372,7 +395,7 @@ def search_gate1(
             seen_expand[ident] = g
             state = unpack_state(ident)
             prog = gate1_progress(state)
-            if prog["fd_blockers"] <= 2:
+            if prog["fd_blockers"] <= skip_le:
                 continue
             actions = legal_episode_actions(state)
             level_exp += 1
@@ -428,7 +451,12 @@ def search_gate1(
                     origin_of.append(origin)
                     g_of.append(child_g)
                     child_prog = gate1_progress(state)
-                    if is_gate1(prog, child_prog, state):
+                    hit = (
+                        is_gate1(prog, child_prog, state)
+                        if mode == "gate1"
+                        else is_gate2(prog, child_prog, state)
+                    )
+                    if hit:
                         local = reconstruct(child_node)
                         rec = {
                             "origin": origin,
