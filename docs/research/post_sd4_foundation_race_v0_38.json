@@ -1,0 +1,496 @@
+{
+  "base_sha": "45080bfa768298def726fe473ea5bc12e0963bd8",
+  "branch": "agent/post-sd4-foundation-race-v0-38",
+  "comparison": {
+    "cost_leader": null,
+    "diamond_class": "BOUNDED_MISS",
+    "diamond_time": 176.89602240000386,
+    "diamond_unique": 45520,
+    "equal_envelope": true,
+    "heart_class": "BOUNDED_MISS",
+    "heart_time": 203.12958450001315,
+    "heart_unique": 45520,
+    "operational_leader": null
+  },
+  "cross_target": {
+    "diamond_moves_ah": null,
+    "diamond_path_on_heart": "CROSS_TARGET_NEUTRAL",
+    "heart_frees_2d": null,
+    "heart_path_on_diamond": "CROSS_TARGET_NEUTRAL"
+  },
+  "diamond_map": {
+    "aggregate": {
+      "alternative_on_all": [
+        "10",
+        "3",
+        "4",
+        "6",
+        "7",
+        "8",
+        "9",
+        "A",
+        "J",
+        "K",
+        "Q"
+      ],
+      "gate_status": {
+        "2D:face_up_buried": 256,
+        "5D:face_up_buried": 256
+      },
+      "hard_on_all": [
+        "2",
+        "5"
+      ],
+      "hard_on_some": {
+        "2": 256,
+        "5": 256
+      },
+      "n": 256
+    },
+    "detail_source0": {
+      "alternative_ranks": [
+        "A",
+        "3",
+        "4",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "J",
+        "Q",
+        "K"
+      ],
+      "components": [],
+      "hard_ranks": [
+        "2",
+        "5"
+      ],
+      "nearest_gates": [
+        {
+          "card": "2D",
+          "cards_above": 1,
+          "column_1": 4,
+          "face_up_above": [
+            "AH"
+          ],
+          "movable": false,
+          "requires_landing": false,
+          "requires_reveal": false,
+          "status": "face_up_buried"
+        },
+        {
+          "card": "5D",
+          "cards_above": 2,
+          "column_1": 9,
+          "face_up_above": [
+            "4H",
+            "JH"
+          ],
+          "movable": false,
+          "requires_landing": false,
+          "requires_reveal": false,
+          "status": "face_up_buried"
+        }
+      ]
+    },
+    "sd4_2d": {
+      "absent_now": false,
+      "alternative": false,
+      "current_count": 1,
+      "foundation_count": 0,
+      "foundations": [],
+      "future_after_SD5_count": 2,
+      "future_stock_count": 1,
+      "hard": true,
+      "next_stock": [
+        {
+          "available_now": false,
+          "card": "2D",
+          "column_0": 2,
+          "column_1": 3,
+          "zone": "NEXT_STOCK_ROW"
+        }
+      ],
+      "rank": 2,
+      "rank_str": "2",
+      "suit": "d",
+      "tableau": [
+        {
+          "cards_above": 1,
+          "column_0": 3,
+          "column_1": 4,
+          "face_up": true,
+          "face_up_above": [
+            "AH"
+          ],
+          "top": false,
+          "up_index": 8,
+          "zone": "CURRENT_TABLEAU"
+        }
+      ],
+      "tableau_count": 1
+    },
+    "unique_5d": {
+      "absent_now": false,
+      "alternative": false,
+      "current_count": 1,
+      "foundation_count": 0,
+      "foundations": [],
+      "future_after_SD5_count": 2,
+      "future_stock_count": 1,
+      "hard": true,
+      "next_stock": [
+        {
+          "available_now": false,
+          "card": "5D",
+          "column_0": 9,
+          "column_1": 10,
+          "zone": "NEXT_STOCK_ROW"
+        }
+      ],
+      "rank": 5,
+      "rank_str": "5",
+      "suit": "d",
+      "tableau": [
+        {
+          "cards_above": 2,
+          "column_0": 8,
+          "column_1": 9,
+          "face_up": true,
+          "face_up_above": [
+            "4H",
+            "JH"
+          ],
+          "top": false,
+          "up_index": 17,
+          "zone": "CURRENT_TABLEAU"
+        }
+      ],
+      "tableau_count": 1
+    }
+  },
+  "diamond_search": {
+    "best_full_mw": null,
+    "classification": "BOUNDED_MISS",
+    "duplicate_skips": 481352,
+    "elapsed_s": 176.89602240000386,
+    "empties": null,
+    "expanded": 113176,
+    "fd": null,
+    "first_s": null,
+    "first_unique": null,
+    "fixture": null,
+    "foundations": null,
+    "generated": 542496,
+    "levels": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "peak_rss_mb": 69.3984375,
+    "portfolio_n": 0,
+    "reached": false,
+    "replay": null,
+    "sd5_expanded": false,
+    "stop_reason": "frontier empty",
+    "unique": 45520
+  },
+  "elapsed_s": 381.0928078999859,
+  "experiment": "post_sd4_foundation_race_v0_38",
+  "heart_map": {
+    "aggregate": {
+      "alternative_on_all": [
+        "2",
+        "4",
+        "5",
+        "6",
+        "8",
+        "A",
+        "J",
+        "K",
+        "Q"
+      ],
+      "gate_status": {
+        "10H:face_up_buried": 256,
+        "3H:face_up_buried": 256,
+        "7H:face_up_buried": 256,
+        "9H:exposed_blocked": 224,
+        "9H:exposed_movable": 32
+      },
+      "hard_on_all": [
+        "10",
+        "3",
+        "7",
+        "9"
+      ],
+      "hard_on_some": {
+        "10": 256,
+        "3": 256,
+        "7": 256,
+        "9": 256
+      },
+      "n": 256
+    },
+    "detail_source0": {
+      "alternative_ranks": [
+        "A",
+        "2",
+        "4",
+        "5",
+        "6",
+        "8",
+        "J",
+        "Q",
+        "K"
+      ],
+      "components": [],
+      "hard_ranks": [
+        "3",
+        "7",
+        "9",
+        "10"
+      ],
+      "nearest_gates": [
+        {
+          "card": "3H",
+          "cards_above": 8,
+          "column_1": 4,
+          "face_up_above": [
+            "2H",
+            "KH",
+            "7S",
+            "6H",
+            "KH",
+            "QS",
+            "2D",
+            "AH"
+          ],
+          "movable": false,
+          "requires_landing": false,
+          "requires_reveal": false,
+          "status": "face_up_buried"
+        },
+        {
+          "card": "7H",
+          "cards_above": 10,
+          "column_1": 9,
+          "face_up_above": [
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "4H",
+            "JH"
+          ],
+          "movable": false,
+          "requires_landing": false,
+          "requires_reveal": false,
+          "status": "face_up_buried"
+        },
+        {
+          "card": "9H",
+          "cards_above": 0,
+          "column_1": 2,
+          "face_up_above": [],
+          "movable": false,
+          "requires_landing": true,
+          "requires_reveal": false,
+          "status": "exposed_blocked"
+        },
+        {
+          "card": "10H",
+          "cards_above": 4,
+          "column_1": 6,
+          "face_up_above": [
+            "9C",
+            "8D",
+            "QC",
+            "JH"
+          ],
+          "movable": false,
+          "requires_landing": false,
+          "requires_reveal": false,
+          "status": "face_up_buried"
+        }
+      ]
+    },
+    "macro_a_77_components": [
+      {
+        "cards": [
+          "QH",
+          "JH"
+        ],
+        "column_0": 2,
+        "column_1": 3,
+        "head": "QH",
+        "length": 2,
+        "tail": "JH"
+      }
+    ],
+    "macro_b_77_components": []
+  },
+  "heart_search": {
+    "best_full_mw": null,
+    "classification": "BOUNDED_MISS",
+    "duplicate_skips": 525800,
+    "elapsed_s": 203.12958450001315,
+    "empties": null,
+    "expanded": 128008,
+    "fd": null,
+    "first_s": null,
+    "first_unique": null,
+    "fixture": null,
+    "foundations": null,
+    "generated": 611008,
+    "levels": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "peak_rss_mb": 69.3984375,
+    "portfolio_n": 0,
+    "reached": false,
+    "replay": null,
+    "sd5_expanded": false,
+    "stop_reason": "frontier empty",
+    "unique": 45520
+  },
+  "horizon": {
+    "horizon_ok": true,
+    "material": {
+      "candidate_first_foundations_now": [
+        "Hearts",
+        "Diamonds"
+      ],
+      "club_1_now": false,
+      "diamond_1_now": true,
+      "heart_1_now": true,
+      "next_row": [
+        "3H",
+        "10H",
+        "2D",
+        "3C",
+        "9H",
+        "7C",
+        "7H",
+        "AS",
+        "3C",
+        "5D"
+      ],
+      "spade_2_now": false,
+      "stock_rows": 1,
+      "suits": {
+        "c": {
+          "complete_sets_after_sd5": 2,
+          "complete_sets_now": 0,
+          "first_available_now": false,
+          "missing_for_first_after_sd5": [],
+          "missing_for_first_now": [
+            "3"
+          ],
+          "missing_for_second_now": [
+            "3",
+            "7"
+          ],
+          "name": "Clubs",
+          "sd5_supplies": [
+            "3C",
+            "7C",
+            "3C"
+          ],
+          "second_available_now": false
+        },
+        "d": {
+          "complete_sets_after_sd5": 2,
+          "complete_sets_now": 1,
+          "first_available_now": true,
+          "missing_for_first_after_sd5": [],
+          "missing_for_first_now": [],
+          "missing_for_second_now": [
+            "2",
+            "5"
+          ],
+          "name": "Diamonds",
+          "sd5_supplies": [
+            "2D",
+            "5D"
+          ],
+          "second_available_now": false
+        },
+        "h": {
+          "complete_sets_after_sd5": 2,
+          "complete_sets_now": 1,
+          "first_available_now": true,
+          "missing_for_first_after_sd5": [],
+          "missing_for_first_now": [],
+          "missing_for_second_now": [
+            "3",
+            "7",
+            "9",
+            "10"
+          ],
+          "name": "Hearts",
+          "sd5_supplies": [
+            "3H",
+            "10H",
+            "9H",
+            "7H"
+          ],
+          "second_available_now": false
+        },
+        "s": {
+          "complete_sets_after_sd5": 2,
+          "complete_sets_now": 1,
+          "first_available_now": true,
+          "missing_for_first_after_sd5": [],
+          "missing_for_first_now": [],
+          "missing_for_second_now": [
+            "A"
+          ],
+          "name": "Spades",
+          "sd5_supplies": [
+            "AS"
+          ],
+          "second_available_now": false
+        }
+      }
+    },
+    "pre_sd4_hearts_leak": {
+      "confirmed": true,
+      "current_tableau_count": 1,
+      "future_stock_count": 1,
+      "legacy_count": 2,
+      "legacy_zones": [
+        "up",
+        "sd3"
+      ],
+      "reason": "After SD4, stock_deal_rows(state.stock)[0] is SD5. pre_sd4_hearts() still appends that row as zone='sd3', so post-SD4 occurrence telemetry includes cards that are not yet materially available.",
+      "stock_rows": 1
+    }
+  },
+  "interpretation": "neither Heart 1 nor Diamond 1 reached before SD5. post-SD4 helper leak confirmed=True. Current material: Heart1=True Diamond1=True Spade2=False Club1=False. SD4 2D current_count=1 (unique pre-SD5=True); 5D current_count=1. Search H BOUNDED_MISS / Search D BOUNDED_MISS (MW<=100 tableau component exhausted, no foundation). Equal 450s/500k envelopes. SD5 never expanded. Sunk-cost Heart history was not used as a prior.",
+  "next_recommendation": "Neither foundation was removed before SD5 in the equal envelope. Next: attack the nearest remaining mandatory gates (Diamond: AH-on-2D; Heart: remaining unique buried ranks) rather than raising budgets. Do not take SD5 yet.",
+  "no_sunk_cost_bias": true,
+  "production_unchanged": true,
+  "sd5_d": false,
+  "sd5_h": false,
+  "sources": {
+    "all_replay_ok": true,
+    "cost_counts": {
+      "77": 32,
+      "78": 224
+    },
+    "family_A": 112,
+    "family_B": 144,
+    "n": 256
+  },
+  "verdict": "NO_SECOND_FOUNDATION_IN_ENVELOPE",
+  "verdict_reason": "neither Heart 1 nor Diamond 1 reached before SD5"
+}
