@@ -1,0 +1,359 @@
+{
+  "base_sha": "8cbae9664c436f007164bf072a8fe0874b43e732",
+  "branch": "agent/diamond-core-edge-ratchet-v0-40",
+  "components": {
+    "audits": {
+      "A": {
+        "legal_join_now": 0,
+        "satisfied": 0
+      },
+      "B": {
+        "legal_join_now": 0,
+        "satisfied": 0
+      },
+      "C": {
+        "legal_join_now": 0,
+        "satisfied": 0
+      },
+      "D": {
+        "legal_join_now": 0,
+        "satisfied": 0
+      }
+    },
+    "d2": {
+      "absent_now": false,
+      "alternative": false,
+      "current_count": 1,
+      "foundation_count": 0,
+      "foundations": [],
+      "future_after_SD5_count": 2,
+      "future_stock_count": 1,
+      "hard": true,
+      "next_stock": [
+        {
+          "available_now": false,
+          "card": "2D",
+          "column_0": 2,
+          "column_1": 3,
+          "zone": "NEXT_STOCK_ROW"
+        }
+      ],
+      "rank": 2,
+      "rank_str": "2",
+      "suit": "d",
+      "tableau": [
+        {
+          "cards_above": 0,
+          "column_0": 3,
+          "column_1": 4,
+          "face_up": true,
+          "face_up_above": [],
+          "top": true,
+          "up_index": 8,
+          "zone": "CURRENT_TABLEAU"
+        }
+      ],
+      "tableau_count": 1
+    },
+    "d5": {
+      "absent_now": false,
+      "alternative": false,
+      "current_count": 1,
+      "foundation_count": 0,
+      "foundations": [],
+      "future_after_SD5_count": 2,
+      "future_stock_count": 1,
+      "hard": true,
+      "next_stock": [
+        {
+          "available_now": false,
+          "card": "5D",
+          "column_0": 9,
+          "column_1": 10,
+          "zone": "NEXT_STOCK_ROW"
+        }
+      ],
+      "rank": 5,
+      "rank_str": "5",
+      "suit": "d",
+      "tableau": [
+        {
+          "cards_above": 0,
+          "column_0": 8,
+          "column_1": 9,
+          "face_up": true,
+          "face_up_above": [],
+          "top": true,
+          "up_index": 17,
+          "zone": "CURRENT_TABLEAU"
+        }
+      ],
+      "tableau_count": 1
+    },
+    "length_hist": {
+      "3": 8,
+      "4": 132,
+      "5": 116
+    },
+    "sample": [
+      {
+        "column_1": 3,
+        "exposed": false,
+        "length": 2,
+        "movable": false,
+        "ranks": [
+          "4D",
+          "3D"
+        ]
+      },
+      {
+        "column_1": 3,
+        "exposed": false,
+        "length": 2,
+        "movable": false,
+        "ranks": [
+          "QD",
+          "JD"
+        ]
+      },
+      {
+        "column_1": 8,
+        "exposed": false,
+        "length": 2,
+        "movable": false,
+        "ranks": [
+          "7D",
+          "6D"
+        ]
+      },
+      {
+        "column_1": 9,
+        "exposed": false,
+        "length": 4,
+        "movable": false,
+        "ranks": [
+          "JD",
+          "10D",
+          "9D",
+          "8D"
+        ]
+      }
+    ],
+    "source_edge_satisfaction": {
+      "A": 0,
+      "B": 0,
+      "C": 0,
+      "D": 0
+    }
+  },
+  "cross_target": {
+    "A": {
+      "ah_in_c2": true,
+      "ah_top_c2": false,
+      "h9_up": false,
+      "heart_release_plausible": true,
+      "jh_still_down": true,
+      "qh_jh": false
+    },
+    "B": {
+      "ah_in_c2": true,
+      "ah_top_c2": false,
+      "h9_up": false,
+      "heart_release_plausible": true,
+      "jh_still_down": true,
+      "qh_jh": false
+    },
+    "D": {
+      "ah_in_c2": true,
+      "ah_top_c2": false,
+      "h9_up": false,
+      "heart_release_plausible": true,
+      "jh_still_down": true,
+      "qh_jh": true
+    }
+  },
+  "edges": {
+    "A": {
+      "already_at_source": 0,
+      "bands": {
+        "84": 8,
+        "85": 32,
+        "86": 64
+      },
+      "best_full_mw": 84,
+      "d2_preserved": 0.3076923076923077,
+      "d5_preserved": 0.5384615384615384,
+      "duplicate_skips": 467732,
+      "elapsed_s": 119.9430083000043,
+      "expanded": 88194,
+      "first_s": 6.544212800014066,
+      "first_unique": 7823,
+      "foundation_surprise": false,
+      "generated": 562799,
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "n": 104,
+      "peak_rss_mb": 85.640625,
+      "portfolio": "docs/research/diamond_core_edge_A_v0_40.json",
+      "preview": {
+        "LIVE_BEYOND_4": 6,
+        "SECOND_EDGE_WITHIN_4": 26
+      },
+      "reached": true,
+      "sd5_expanded": false,
+      "second_edge_pct": 81.2,
+      "stop_reason": "time limit",
+      "unique": 94323
+    },
+    "B": {
+      "already_at_source": 0,
+      "bands": {
+        "78": 40,
+        "79": 88
+      },
+      "best_full_mw": 78,
+      "d2_preserved": 0.0,
+      "d5_preserved": 0.1640625,
+      "duplicate_skips": 192297,
+      "elapsed_s": 83.74462680000579,
+      "expanded": 91495,
+      "first_s": 0.4736597999872174,
+      "first_unique": 1327,
+      "foundation_surprise": false,
+      "generated": 224626,
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "n": 128,
+      "peak_rss_mb": 85.640625,
+      "portfolio": "docs/research/diamond_core_edge_B_v0_40.json",
+      "preview": {
+        "LIVE_BEYOND_4": 32
+      },
+      "reached": true,
+      "sd5_expanded": false,
+      "second_edge_pct": 0.0,
+      "stop_reason": "complete",
+      "unique": 32379
+    },
+    "C": {
+      "already_at_source": 0,
+      "bands": {},
+      "best_full_mw": null,
+      "d2_preserved": null,
+      "d5_preserved": null,
+      "duplicate_skips": 474856,
+      "elapsed_s": 129.25165049999487,
+      "expanded": 100285,
+      "first_s": null,
+      "first_unique": null,
+      "foundation_surprise": false,
+      "generated": 582277,
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "n": 0,
+      "peak_rss_mb": 92.1484375,
+      "portfolio": "docs/research/diamond_core_edge_C_v0_40.json",
+      "preview": {},
+      "reached": false,
+      "sd5_expanded": false,
+      "second_edge_pct": null,
+      "stop_reason": "time limit",
+      "unique": 106603
+    },
+    "D": {
+      "already_at_source": 0,
+      "bands": {
+        "82": 96,
+        "83": 32
+      },
+      "best_full_mw": 82,
+      "d2_preserved": 0.0,
+      "d5_preserved": 0.0,
+      "duplicate_skips": 476616,
+      "elapsed_s": 129.2374831000052,
+      "expanded": 100787,
+      "first_s": 9.410666700016009,
+      "first_unique": 14858,
+      "foundation_surprise": false,
+      "generated": 576089,
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "n": 128,
+      "peak_rss_mb": 92.23828125,
+      "portfolio": "docs/research/diamond_core_edge_D_v0_40.json",
+      "preview": {
+        "LIVE_BEYOND_4": 32
+      },
+      "reached": true,
+      "sd5_expanded": false,
+      "second_edge_pct": 0.0,
+      "stop_reason": "time limit",
+      "unique": 98529
+    }
+  },
+  "elapsed_s": 475.10921319999034,
+  "experiment": "diamond_core_edge_ratchet_v0_40",
+  "foundation": {
+    "fixture": null,
+    "reached": false
+  },
+  "interpretation": "edges reached: ['A', 'B', 'D']. Unique current 2D=1 5D=1. Source-edge satisfaction A/B/C/D={'A': 0, 'B': 0, 'C': 0, 'D': 0}. Reached ['A', 'B', 'D']. Entry=A. Heart H9 cut was +4/77; Diamond-ready was +2/75. SD5 never expanded.",
+  "next_recommendation": "Continue the Diamond ratchet from entry edge A. Carry the two-edge portfolio and prefer boundaries with SECOND_EDGE_WITHIN_4. Do not take SD5. Do not search Hearts.",
+  "production_unchanged": true,
+  "ratchet": {
+    "entry_edge": "A",
+    "evidence": {
+      "best_full_mw": 84,
+      "not_merely_cheapest": true,
+      "preview": {
+        "LIVE_BEYOND_4": 6,
+        "SECOND_EDGE_WITHIN_4": 26
+      },
+      "second_edge_pct": 81.2
+    }
+  },
+  "sd5_expanded": false,
+  "sources": {
+    "all_replay_ok": true,
+    "cost_counts": {
+      "75": 16,
+      "76": 128,
+      "77": 112
+    },
+    "n": 256
+  },
+  "two_edge": {
+    "best": {
+      "A+B": 84,
+      "A+D": 86,
+      "B+D": 82,
+      "MULTI:A+B+D": 85
+    },
+    "n": 208,
+    "pairs": {
+      "A+B": 32,
+      "A+D": 8,
+      "B+D": 128,
+      "MULTI:A+B+D": 40
+    },
+    "path": "docs/research/diamond_core_two_edge_v0_40.json"
+  },
+  "verdict": "DIAMOND_CORE_PARTIAL_TRACTABLE",
+  "verdict_reason": "edges reached: ['A', 'B', 'D']"
+}
