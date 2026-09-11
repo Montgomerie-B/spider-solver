@@ -1,0 +1,405 @@
+{
+  "base_sha": "5ca21738d399b9faa99662e7fe7800cea560a2a3",
+  "boundary": null,
+  "branch": "agent/dynamic-heart9-mandatory-cut-v0-32",
+  "cut": {
+    "h9": {
+      "column_0": 1,
+      "column_1": 2,
+      "down_index": 1,
+      "face_down_above": [
+        "JH",
+        "AH",
+        "8D"
+      ],
+      "face_down_blockers_above": 3,
+      "face_down_len": 5,
+      "face_up": false,
+      "face_up_above": [
+        "KD",
+        "QS",
+        "JD",
+        "10H",
+        "9D",
+        "8D"
+      ],
+      "face_up_count": 6,
+      "in_sd3": false,
+      "zone": "down"
+    },
+    "jh": {
+      "column_0": 1,
+      "column_1": 2,
+      "down_index": 2,
+      "face_down_above": [
+        "AH",
+        "8D"
+      ],
+      "face_down_blockers_above": 2,
+      "face_down_len": 5,
+      "face_up": false,
+      "face_up_above": [
+        "KD",
+        "QS",
+        "JD",
+        "10H",
+        "9D",
+        "8D"
+      ],
+      "face_up_count": 6,
+      "in_sd3": false,
+      "zone": "down"
+    },
+    "jh_must_flip_before_h9": true,
+    "proof": "Heart 1 before SD4 needs one 9H. Tableau+SD3 contains exactly one 9H, currently face-down. Every such route therefore crosses the first state in which that 9H is face-up. This is a trajectory cut, not a licence to prune moves that do not immediately expose 9H.",
+    "valid": true
+  },
+  "elapsed_s": 900.08381739998,
+  "experiment": "dynamic_heart9_mandatory_cut_v0_32",
+  "fd_at_cut": null,
+  "fixture": null,
+  "full_replay_ok": false,
+  "h9": false,
+  "heart": false,
+  "horizon_ok": true,
+  "interpretation": "The unique pre-SD4 9H cut is valid: one face-down 9H in column 2 under JH, AH, 8D and six face-up cards. JH must flip first. v0.31 static maps and Level-2=full-legal are confirmed and fixed only in v0.32. Pass A reached levels 0-3 in 900s / 198k unique. Level 0 exhausted at 552 states without exposing 9H, so the tight 9H-direct funnel is insufficient. Levels 1-3 did not exhaust and found no H9 boundary. Pass B did not run. SD4 was never expanded. This is a bounded miss of the gateway, not a proof it is unreachable.",
+  "min_mw": null,
+  "min_path": null,
+  "next_recommendation": "Keep the dynamic 9H cut; do not raise these limits here and do not take SD4.",
+  "no_heart_search": true,
+  "no_sd4": true,
+  "pass_a": {
+    "cheaper_reopens": 55838,
+    "duplicate_skips": 488222,
+    "elapsed_s": 900.0000213999883,
+    "expanded": 228681,
+    "first_g": null,
+    "generated": 742359,
+    "incumbent": null,
+    "levels_reached": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "max_depth": 37,
+    "peak_rss_mb": 149.078125,
+    "per_level": [
+      {
+        "cheaper_reopens": 16,
+        "duplicate_skips": 316,
+        "expanded": 568,
+        "generated": 880,
+        "heap_empty": true,
+        "incumbent": null,
+        "level": 0,
+        "unique": 552,
+        "witnesses": 0
+      },
+      {
+        "cheaper_reopens": 45106,
+        "duplicate_skips": 201076,
+        "expanded": 103681,
+        "generated": 330058,
+        "heap_empty": false,
+        "incumbent": null,
+        "level": 1,
+        "unique": 84428,
+        "witnesses": 0
+      },
+      {
+        "cheaper_reopens": 9592,
+        "duplicate_skips": 224281,
+        "expanded": 92534,
+        "generated": 334342,
+        "heap_empty": false,
+        "incumbent": null,
+        "level": 2,
+        "unique": 184897,
+        "witnesses": 0
+      },
+      {
+        "cheaper_reopens": 1124,
+        "duplicate_skips": 62549,
+        "expanded": 31898,
+        "generated": 77079,
+        "heap_empty": false,
+        "incumbent": null,
+        "level": 3,
+        "unique": 198303,
+        "witnesses": 0
+      }
+    ],
+    "portfolio": 0,
+    "priority": "fd_blockers, fu_blockers, landing_depth, label, tier, g, depth",
+    "sd4_expanded": false,
+    "stop_reason": "time limit",
+    "timings": [],
+    "unique": 198303,
+    "zero_cost_moves": 19078
+  },
+  "pass_b": {
+    "run": false
+  },
+  "production_unchanged": true,
+  "sources": [
+    {
+      "cut_valid": true,
+      "empties": [
+        5
+      ],
+      "fd": 9,
+      "h9": {
+        "column_0": 1,
+        "column_1": 2,
+        "down_index": 1,
+        "face_down_above": [
+          "JH",
+          "AH",
+          "8D"
+        ],
+        "face_down_blockers_above": 3,
+        "face_down_len": 5,
+        "face_up": false,
+        "face_up_above": [
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "face_up_count": 6,
+        "in_sd3": false,
+        "zone": "down"
+      },
+      "jh": {
+        "column_0": 1,
+        "column_1": 2,
+        "down_index": 2,
+        "face_down_above": [
+          "AH",
+          "8D"
+        ],
+        "face_down_blockers_above": 2,
+        "face_down_len": 5,
+        "face_up": false,
+        "face_up_above": [
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "face_up_count": 6,
+        "in_sd3": false,
+        "zone": "down"
+      },
+      "jh_must_flip_before_h9": true,
+      "legal_tableau": 13,
+      "mw": 62,
+      "ok": true,
+      "ordered_digest": "53504b310101001e02023a2c360d050615191b11282d0c2b1a2928010b3b27061534233231242302210007141312311d071600032d2421000001011836000612272635042a000f3d3c3b3a39383726081716351c2b2a000111131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "path": 62,
+      "source_id": 0,
+      "stock_rows": 3
+    },
+    {
+      "cut_valid": true,
+      "empties": [
+        5
+      ],
+      "fd": 9,
+      "h9": {
+        "column_0": 1,
+        "column_1": 2,
+        "down_index": 1,
+        "face_down_above": [
+          "JH",
+          "AH",
+          "8D"
+        ],
+        "face_down_blockers_above": 3,
+        "face_down_len": 5,
+        "face_up": false,
+        "face_up_above": [
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "face_up_count": 6,
+        "in_sd3": false,
+        "zone": "down"
+      },
+      "jh": {
+        "column_0": 1,
+        "column_1": 2,
+        "down_index": 2,
+        "face_down_above": [
+          "AH",
+          "8D"
+        ],
+        "face_down_blockers_above": 2,
+        "face_down_len": 5,
+        "face_up": false,
+        "face_up_above": [
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "face_up_count": 6,
+        "in_sd3": false,
+        "zone": "down"
+      },
+      "jh_must_flip_before_h9": true,
+      "legal_tableau": 13,
+      "mw": 62,
+      "ok": true,
+      "ordered_digest": "53504b310101001e02023a2c360d050615191b11282d0c2b1a2928010b3b27061534233231242302110007141312311d071600032d2421000001011836000612272635042a000f3d3c3b3a39383726081716351c2b2a000121131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "path": 62,
+      "source_id": 1,
+      "stock_rows": 3
+    },
+    {
+      "cut_valid": true,
+      "empties": [
+        5
+      ],
+      "fd": 9,
+      "h9": {
+        "column_0": 1,
+        "column_1": 2,
+        "down_index": 1,
+        "face_down_above": [
+          "JH",
+          "AH",
+          "8D"
+        ],
+        "face_down_blockers_above": 3,
+        "face_down_len": 5,
+        "face_up": false,
+        "face_up_above": [
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "face_up_count": 6,
+        "in_sd3": false,
+        "zone": "down"
+      },
+      "jh": {
+        "column_0": 1,
+        "column_1": 2,
+        "down_index": 2,
+        "face_down_above": [
+          "AH",
+          "8D"
+        ],
+        "face_down_blockers_above": 2,
+        "face_down_len": 5,
+        "face_up": false,
+        "face_up_above": [
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "face_up_count": 6,
+        "in_sd3": false,
+        "zone": "down"
+      },
+      "jh_must_flip_before_h9": true,
+      "legal_tableau": 13,
+      "mw": 62,
+      "ok": true,
+      "ordered_digest": "53504b310101001e02023a2c360d050615191b11282d0c2b1a2928010b3b270615342332312423022100061413121d071600032d242100000101183600071231272635042a000f3d3c3b3a39383726081716351c2b2a000111131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "path": 62,
+      "source_id": 2,
+      "stock_rows": 3
+    },
+    {
+      "cut_valid": true,
+      "empties": [
+        5
+      ],
+      "fd": 9,
+      "h9": {
+        "column_0": 1,
+        "column_1": 2,
+        "down_index": 1,
+        "face_down_above": [
+          "JH",
+          "AH",
+          "8D"
+        ],
+        "face_down_blockers_above": 3,
+        "face_down_len": 5,
+        "face_up": false,
+        "face_up_above": [
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "face_up_count": 6,
+        "in_sd3": false,
+        "zone": "down"
+      },
+      "jh": {
+        "column_0": 1,
+        "column_1": 2,
+        "down_index": 2,
+        "face_down_above": [
+          "AH",
+          "8D"
+        ],
+        "face_down_blockers_above": 2,
+        "face_down_len": 5,
+        "face_up": false,
+        "face_up_above": [
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "face_up_count": 6,
+        "in_sd3": false,
+        "zone": "down"
+      },
+      "jh_must_flip_before_h9": true,
+      "legal_tableau": 13,
+      "mw": 62,
+      "ok": true,
+      "ordered_digest": "53504b310101001e02023a2c360d050615191b11282d0c2b1a2928010b3b270615342332312423021100061413121d071600032d242100000101183600071231272635042a000f3d3c3b3a39383726081716351c2b2a000121131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "path": 62,
+      "source_id": 3,
+      "stock_rows": 3
+    }
+  ],
+  "stock_at_cut": null,
+  "v31_audit": {
+    "level2_finding": "v0.31 action_allowed_at_level Level 2 is `return label != JOIN_BREAK or True`, which is unconditionally True, so Level 2 is already full-legal.",
+    "level2_unconditional": true,
+    "static_dependency_map": true,
+    "static_finding": "v0.31 builds build_dependency_map(src) once per origin and reuses deps[origin] for every descendant. Blocker columns therefore go stale.",
+    "v32_fix": "v0.32 recomputes h9_progress from the current unpacked state and Level 2 excludes JOIN_BREAK while Level 3 admits every engine-legal action."
+  },
+  "verdict": "H9_MANDATORY_CUT_STATE_EXPLOSION",
+  "verdict_reason": "Pass A bound by time limit"
+}
