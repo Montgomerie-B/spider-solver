@@ -180,6 +180,7 @@ class TableauLayerResult:
     deal_expanded: bool = False
     first_fd_depth: Dict[int, int] = field(default_factory=dict)
     progress_fd_at_most: Optional[int] = None
+    progress_foundations_at_least: Optional[int] = None
 
 
 def tableau_layer_bfs(
@@ -197,6 +198,7 @@ def tableau_layer_bfs(
     stop_after_progress_layer: bool = False,
     require_stock_rows: Optional[int] = None,
     progress_fd_at_most: Optional[int] = None,
+    progress_foundations_at_least: Optional[int] = None,
 ) -> TableauLayerResult:
     """Layered BFS of tableau moves only.  Deal is never expanded.
 
@@ -206,6 +208,8 @@ def tableau_layer_bfs(
     By default hard progress is any fd drop below the source fd.  When
     ``progress_fd_at_most`` is set, only fd at or below that threshold
     (or a new foundation) counts; intermediate fd drops still enqueue.
+    When ``progress_foundations_at_least`` is set, only foundation count
+    at or above that threshold counts; fd drops are telemetry only.
     """
 
     if identity_fn is None:
@@ -286,6 +290,8 @@ def tableau_layer_bfs(
             first_fd_depth[fd] = depth
 
     def is_hard_progress(fd: int, foundations: int) -> bool:
+        if progress_foundations_at_least is not None:
+            return foundations >= progress_foundations_at_least
         if foundations > start_fnd:
             return True
         if progress_fd_at_most is not None:
@@ -386,6 +392,7 @@ def tableau_layer_bfs(
                                 "movable_blocks": child_m["blocks"],
                                 "legal_action_count": legal_tableau_count(state),
                                 "stock_rows": stock_rows(state),
+                                "foundation_suits": [run[0].suit for run in state.foundations if run],
                                 "hits": 1,
                             }
                         elif ident in progress:
@@ -513,6 +520,7 @@ def tableau_layer_bfs(
         legal_count_hist=legal_count_hist,
         first_fd_depth=first_fd_depth,
         progress_fd_at_most=progress_fd_at_most,
+        progress_foundations_at_least=progress_foundations_at_least,
     )
 
 
