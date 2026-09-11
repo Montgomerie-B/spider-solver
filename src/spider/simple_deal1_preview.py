@@ -178,6 +178,8 @@ class TableauLayerResult:
     all_legal_tableau: bool = True
     heuristic: bool = False
     deal_expanded: bool = False
+    first_fd_depth: Dict[int, int] = field(default_factory=dict)
+    progress_fd_at_most: Optional[int] = None
 
 
 def tableau_layer_bfs(
@@ -194,11 +196,16 @@ def tableau_layer_bfs(
     expand_progress: bool = False,
     stop_after_progress_layer: bool = False,
     require_stock_rows: Optional[int] = None,
+    progress_fd_at_most: Optional[int] = None,
 ) -> TableauLayerResult:
     """Layered BFS of tableau moves only.  Deal is never expanded.
 
     ``stop_after_progress_layer`` finishes the parent layer that first
     generated hard-progress children, then stops.
+
+    By default hard progress is any fd drop below the source fd.  When
+    ``progress_fd_at_most`` is set, only fd at or below that threshold
+    (or a new foundation) counts; intermediate fd drops still enqueue.
     """
 
     if identity_fn is None:
@@ -271,6 +278,25 @@ def tableau_layer_bfs(
     start_fd = face_down_count(source_states[0])
     start_fnd = len(source_states[0].foundations)
     progress_depth: Optional[int] = None
+    first_fd_depth: Dict[int, int] = {}
+
+    def note_fd(fd: int, depth: int) -> None:
+        prev = first_fd_depth.get(fd)
+        if prev is None or depth < prev:
+            first_fd_depth[fd] = depth
+
+    def is_hard_progress(fd: int, foundations: int) -> bool:
+        if foundations > start_fnd:
+            return True
+        if progress_fd_at_most is not None:
+            return fd <= progress_fd_at_most
+        return fd < start_fd
+
+    for source in source_states:
+        src_fd = face_down_count(source)
+        note_fd(src_fd, 0)
+        min_fd = min(min_fd, src_fd)
+        max_foundations = max(max_foundations, len(source.foundations))
 
     def note_rss() -> bool:
         nonlocal peak_rss
@@ -310,9 +336,7 @@ def tableau_layer_bfs(
             metrics = _metrics(state)
             min_fd = min(min_fd, metrics["fd"])
             max_foundations = max(max_foundations, metrics["foundations"])
-            if not expand_progress and (
-                metrics["fd"] < start_fd or metrics["foundations"] > start_fnd
-            ):
+            if not expand_progress and is_hard_progress(metrics["fd"], metrics["foundations"]):
                 continue
             expanded += 1
             actions, surprises = engine_tableau_actions(state, rules=rules)
@@ -334,8 +358,9 @@ def tableau_layer_bfs(
                     child_m = _metrics(state)
                     min_fd = min(min_fd, child_m["fd"])
                     max_foundations = max(max_foundations, child_m["foundations"])
+                    note_fd(child_m["fd"], depth + 1)
                     ident = identity_fn(state)
-                    is_progress = child_m["fd"] < start_fd or child_m["foundations"] > start_fnd
+                    is_progress = is_hard_progress(child_m["fd"], child_m["foundations"])
                     if require_stock_rows is not None and stock_rows(state) != require_stock_rows:
                         domain_violations += 1
                         continue
@@ -486,6 +511,8 @@ def tableau_layer_bfs(
         max_blocks=max_blocks,
         zero_legal_tableau=zero_legal_tableau,
         legal_count_hist=legal_count_hist,
+        first_fd_depth=first_fd_depth,
+        progress_fd_at_most=progress_fd_at_most,
     )
 
 
