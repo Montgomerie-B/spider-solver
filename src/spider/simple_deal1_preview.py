@@ -164,6 +164,16 @@ class TableauLayerResult:
     origin_of: List[int] = field(default_factory=list)
     layers: List[dict] = field(default_factory=list)
     source_count: int = 1
+    unique_sources: int = 1
+    cross_origin_dups: int = 0
+    empty0: int = 0
+    empty1: int = 0
+    empty_ge2: int = 0
+    max_run: int = 0
+    max_adjacencies: int = 0
+    max_blocks: int = 0
+    zero_legal_tableau: int = 0
+    legal_count_hist: Dict[int, int] = field(default_factory=dict)
     fresh_tt: bool = True
     all_legal_tableau: bool = True
     heuristic: bool = False
@@ -182,8 +192,14 @@ def tableau_layer_bfs(
     checkpoints: Sequence[int] = (4, 8),
     identity_fn=None,
     expand_progress: bool = False,
+    stop_after_progress_layer: bool = False,
+    require_stock_rows: Optional[int] = None,
 ) -> TableauLayerResult:
-    """Layered BFS of tableau moves only.  Deal is never expanded."""
+    """Layered BFS of tableau moves only.  Deal is never expanded.
+
+    ``stop_after_progress_layer`` finishes the parent layer that first
+    generated hard-progress children, then stops.
+    """
 
     if identity_fn is None:
         identity_fn = pack_state
@@ -214,10 +230,24 @@ def tableau_layer_bfs(
         return node
 
     layer0: List[int] = []
+    cross_origin_dups = 0
+    empty0 = empty1 = empty_ge2 = 0
+    max_run = max_adjacencies = max_blocks = 0
+    zero_legal_tableau = 0
+    legal_count_hist: Dict[int, int] = {}
     for origin_id, source in enumerate(source_states):
         ident = identity_fn(source)
         if ident in ids:
+            cross_origin_dups += 1
             continue
+        metrics = _metrics(source)
+        n_empty = len(metrics["empties"])
+        empty0 += int(n_empty == 0)
+        empty1 += int(n_empty == 1)
+        empty_ge2 += int(n_empty >= 2)
+        max_run = max(max_run, metrics["longest_run"])
+        max_adjacencies = max(max_adjacencies, metrics["adjacencies"])
+        max_blocks = max(max_blocks, metrics["blocks"])
         layer0.append(add_node(pack_state(source), ident, -1, -1, -1, -1, 0, origin_id))
 
     generated = 0
@@ -240,6 +270,7 @@ def tableau_layer_bfs(
     incomplete = False
     start_fd = face_down_count(source_states[0])
     start_fnd = len(source_states[0].foundations)
+    progress_depth: Optional[int] = None
 
     def note_rss() -> bool:
         nonlocal peak_rss
@@ -286,6 +317,10 @@ def tableau_layer_bfs(
             expanded += 1
             actions, surprises = engine_tableau_actions(state, rules=rules)
             classifier_surprises += len(surprises)
+            n_legal = len(actions)
+            legal_count_hist[n_legal] = legal_count_hist.get(n_legal, 0) + 1
+            if n_legal == 0:
+                zero_legal_tableau += 1
             for action in actions:
                 if action == ("deal",):
                     domain_violations += 1
@@ -301,36 +336,54 @@ def tableau_layer_bfs(
                     max_foundations = max(max_foundations, child_m["foundations"])
                     ident = identity_fn(state)
                     is_progress = child_m["fd"] < start_fd or child_m["foundations"] > start_fnd
+                    if require_stock_rows is not None and stock_rows(state) != require_stock_rows:
+                        domain_violations += 1
+                        continue
                     if is_progress:
                         progress_edges += 1
                         progress_here += 1
-                        if ident not in progress:
+                        child_depth = depth + 1
+                        if progress_depth is None:
+                            progress_depth = child_depth
+                        if child_depth == progress_depth and ident not in progress:
                             local = reconstruct_actions(node, parent, src_a, dst_a, k_a) + [action]
                             progress[ident] = {
                                 "ordered_digest": pack_state(state).hex(),
                                 "identity": ident.hex(),
                                 "actions": [list(a) for a in local],
-                                "depth": depth + 1,
+                                "depth": child_depth,
                                 "origin": origin_of[node],
                                 "fd": child_m["fd"],
                                 "foundations": child_m["foundations"],
                                 "empties": list(child_m["empties"]),
                                 "longest_run": child_m["longest_run"],
+                                "adjacencies": child_m["adjacencies"],
+                                "movable_blocks": child_m["blocks"],
+                                "legal_action_count": legal_tableau_count(state),
                                 "stock_rows": stock_rows(state),
                                 "hits": 1,
                             }
-                        else:
+                        elif ident in progress:
                             progress[ident]["hits"] += 1
                         if not expand_progress:
                             continue
                     if ident in ids:
                         duplicate_skips += 1
                         dups_here += 1
+                        if origin_of[ids[ident]] != origin_of[node]:
+                            cross_origin_dups += 1
                         continue
                     if len(keys) >= max_unique:
                         stop_reason = "unique limit"
                         incomplete = True
                         break
+                    n_empty = len(child_m["empties"])
+                    empty0 += int(n_empty == 0)
+                    empty1 += int(n_empty == 1)
+                    empty_ge2 += int(n_empty >= 2)
+                    max_run = max(max_run, child_m["longest_run"])
+                    max_adjacencies = max(max_adjacencies, child_m["adjacencies"])
+                    max_blocks = max(max_blocks, child_m["blocks"])
                     next_ids.append(
                         add_node(
                             pack_state(state),
@@ -357,6 +410,7 @@ def tableau_layer_bfs(
                 "progress_edges": progress_here,
                 "progress_classes": len(progress),
                 "min_fd": min_fd,
+                "origins_represented": len({origin_of[i] for i in frontier}),
                 "expanded": not incomplete,
             }
         )
@@ -364,6 +418,10 @@ def tableau_layer_bfs(
             last_generated = max(last_generated, depth + 1)
             break
         last_expanded = depth
+        if stop_after_progress_layer and progress_depth is not None and progress_depth == depth + 1:
+            last_generated = depth + 1
+            stop_reason = "progress layer complete"
+            break
         if next_ids:
             layers.append(next_ids)
             last_generated = depth + 1
@@ -418,6 +476,16 @@ def tableau_layer_bfs(
         origin_of=origin_of,
         layers=layer_reports,
         source_count=len(source_states),
+        unique_sources=len(layer0),
+        cross_origin_dups=cross_origin_dups,
+        empty0=empty0,
+        empty1=empty1,
+        empty_ge2=empty_ge2,
+        max_run=max_run,
+        max_adjacencies=max_adjacencies,
+        max_blocks=max_blocks,
+        zero_legal_tableau=zero_legal_tableau,
+        legal_count_hist=legal_count_hist,
     )
 
 
