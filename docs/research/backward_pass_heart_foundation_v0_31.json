@@ -1,0 +1,2701 @@
+{
+  "backward": {
+    "alternative_obligation_count": 7,
+    "components": [
+      {
+        "cards_above": [
+          "9D",
+          "8D"
+        ],
+        "column_0": 1,
+        "column_1": 2,
+        "highest": 10,
+        "highest_label": "10",
+        "is_exposed_suffix": false,
+        "length": 1,
+        "lowest": 10,
+        "lowest_label": "10",
+        "movable_as_block": false,
+        "naturally_joined_ranks": [
+          "10"
+        ]
+      },
+      {
+        "cards_above": [
+          "4C",
+          "3D",
+          "2C",
+          "AC",
+          "4D",
+          "3D",
+          "2S",
+          "AD"
+        ],
+        "column_0": 2,
+        "column_1": 3,
+        "highest": 5,
+        "highest_label": "5",
+        "is_exposed_suffix": false,
+        "length": 1,
+        "lowest": 5,
+        "lowest_label": "5",
+        "movable_as_block": false,
+        "naturally_joined_ranks": [
+          "5"
+        ]
+      },
+      {
+        "cards_above": [
+          "AC",
+          "KH",
+          "7S",
+          "6H"
+        ],
+        "column_0": 3,
+        "column_1": 4,
+        "highest": 4,
+        "highest_label": "4",
+        "is_exposed_suffix": false,
+        "length": 3,
+        "lowest": 2,
+        "lowest_label": "2",
+        "movable_as_block": false,
+        "naturally_joined_ranks": [
+          "4",
+          "3",
+          "2"
+        ]
+      },
+      {
+        "cards_above": [
+          "7S",
+          "6H"
+        ],
+        "column_0": 3,
+        "column_1": 4,
+        "highest": 13,
+        "highest_label": "K",
+        "is_exposed_suffix": false,
+        "length": 1,
+        "lowest": 13,
+        "lowest_label": "K",
+        "movable_as_block": false,
+        "naturally_joined_ranks": [
+          "K"
+        ]
+      },
+      {
+        "cards_above": [],
+        "column_0": 3,
+        "column_1": 4,
+        "highest": 6,
+        "highest_label": "6",
+        "is_exposed_suffix": true,
+        "length": 1,
+        "lowest": 6,
+        "lowest_label": "6",
+        "movable_as_block": true,
+        "naturally_joined_ranks": [
+          "6"
+        ]
+      },
+      {
+        "cards_above": [
+          "7D",
+          "6D",
+          "5C",
+          "4S",
+          "10D"
+        ],
+        "column_0": 7,
+        "column_1": 8,
+        "highest": 2,
+        "highest_label": "2",
+        "is_exposed_suffix": false,
+        "length": 1,
+        "lowest": 2,
+        "lowest_label": "2",
+        "movable_as_block": false,
+        "naturally_joined_ranks": [
+          "2"
+        ]
+      },
+      {
+        "cards_above": [
+          "5C",
+          "QH",
+          "JD",
+          "10D"
+        ],
+        "column_0": 8,
+        "column_1": 9,
+        "highest": 7,
+        "highest_label": "7",
+        "is_exposed_suffix": false,
+        "length": 2,
+        "lowest": 6,
+        "lowest_label": "6",
+        "movable_as_block": false,
+        "naturally_joined_ranks": [
+          "7",
+          "6"
+        ]
+      },
+      {
+        "cards_above": [
+          "JD",
+          "10D"
+        ],
+        "column_0": 8,
+        "column_1": 9,
+        "highest": 12,
+        "highest_label": "Q",
+        "is_exposed_suffix": false,
+        "length": 1,
+        "lowest": 12,
+        "lowest_label": "Q",
+        "movable_as_block": false,
+        "naturally_joined_ranks": [
+          "Q"
+        ]
+      },
+      {
+        "cards_above": [],
+        "column_0": 9,
+        "column_1": 10,
+        "highest": 1,
+        "highest_label": "A",
+        "is_exposed_suffix": true,
+        "length": 1,
+        "lowest": 1,
+        "lowest_label": "A",
+        "movable_as_block": true,
+        "naturally_joined_ranks": [
+          "A"
+        ]
+      }
+    ],
+    "copy_alternatives": {
+      "assignment_product": 128,
+      "by_rank": {
+        "10": {
+          "count": 1,
+          "duplicate": false,
+          "occurrence_ids": [
+            "T4"
+          ]
+        },
+        "2": {
+          "count": 2,
+          "duplicate": true,
+          "occurrence_ids": [
+            "T8",
+            "T12"
+          ]
+        },
+        "3": {
+          "count": 1,
+          "duplicate": false,
+          "occurrence_ids": [
+            "T7"
+          ]
+        },
+        "4": {
+          "count": 2,
+          "duplicate": true,
+          "occurrence_ids": [
+            "T6",
+            "SD3C10"
+          ]
+        },
+        "5": {
+          "count": 2,
+          "duplicate": true,
+          "occurrence_ids": [
+            "T0",
+            "T5"
+          ]
+        },
+        "6": {
+          "count": 2,
+          "duplicate": true,
+          "occurrence_ids": [
+            "T10",
+            "T14"
+          ]
+        },
+        "7": {
+          "count": 1,
+          "duplicate": false,
+          "occurrence_ids": [
+            "T13"
+          ]
+        },
+        "8": {
+          "count": 2,
+          "duplicate": true,
+          "occurrence_ids": [
+            "T11",
+            "SD3C5"
+          ]
+        },
+        "9": {
+          "count": 1,
+          "duplicate": false,
+          "occurrence_ids": [
+            "T1"
+          ]
+        },
+        "A": {
+          "count": 2,
+          "duplicate": true,
+          "occurrence_ids": [
+            "T3",
+            "T16"
+          ]
+        },
+        "J": {
+          "count": 1,
+          "duplicate": false,
+          "occurrence_ids": [
+            "T2"
+          ]
+        },
+        "K": {
+          "count": 2,
+          "duplicate": true,
+          "occurrence_ids": [
+            "T9",
+            "SD3C4"
+          ]
+        },
+        "Q": {
+          "count": 1,
+          "duplicate": false,
+          "occurrence_ids": [
+            "T15"
+          ]
+        }
+      },
+      "enumerated": true,
+      "note": "Each rank may use any listed occurrence; assignments are not pre-committed.",
+      "ranks_with_duplicates": 7
+    },
+    "hard_obligation_count": 6,
+    "lower_bound": {
+      "admissible": true,
+      "mw_lower_bound": 0,
+      "rationale": "Heart 1 is already materially present post-SD2.  Required access moves may be zero-cost whole-column relocates, so no positive MW bound is proved."
+    },
+    "obligations": {
+      "alternative": [
+        {
+          "kind": "choose_copy",
+          "occurrence_ids": [
+            "T9",
+            "SD3C4"
+          ],
+          "rank": "K",
+          "text": "Heart K can come from T9 or SD3C4"
+        },
+        {
+          "kind": "choose_copy",
+          "occurrence_ids": [
+            "T11",
+            "SD3C5"
+          ],
+          "rank": "8",
+          "text": "Heart 8 can come from T11 or SD3C5"
+        },
+        {
+          "kind": "choose_copy",
+          "occurrence_ids": [
+            "T10",
+            "T14"
+          ],
+          "rank": "6",
+          "text": "Heart 6 can come from T10 or T14"
+        },
+        {
+          "kind": "choose_copy",
+          "occurrence_ids": [
+            "T0",
+            "T5"
+          ],
+          "rank": "5",
+          "text": "Heart 5 can come from T0 or T5"
+        },
+        {
+          "kind": "choose_copy",
+          "occurrence_ids": [
+            "T6",
+            "SD3C10"
+          ],
+          "rank": "4",
+          "text": "Heart 4 can come from T6 or SD3C10"
+        },
+        {
+          "kind": "choose_copy",
+          "occurrence_ids": [
+            "T8",
+            "T12"
+          ],
+          "rank": "2",
+          "text": "Heart 2 can come from T8 or T12"
+        },
+        {
+          "kind": "choose_copy",
+          "occurrence_ids": [
+            "T3",
+            "T16"
+          ],
+          "rank": "A",
+          "text": "Heart A can come from T3 or T16"
+        }
+      ],
+      "hard": [
+        {
+          "column_1": 9,
+          "kind": "expose_unique_copy",
+          "occurrence": "T15",
+          "rank": "Q",
+          "text": "Heart Q unique tableau copy T15 must be exposed (zone=up, depth=2)"
+        },
+        {
+          "column_1": 2,
+          "kind": "expose_unique_copy",
+          "occurrence": "T2",
+          "rank": "J",
+          "text": "Heart J unique tableau copy T2 must be exposed (zone=down, depth=8)"
+        },
+        {
+          "column_1": 2,
+          "kind": "expose_unique_copy",
+          "occurrence": "T4",
+          "rank": "10",
+          "text": "Heart 10 unique tableau copy T4 must be exposed (zone=up, depth=2)"
+        },
+        {
+          "column_1": 2,
+          "kind": "expose_unique_copy",
+          "occurrence": "T1",
+          "rank": "9",
+          "text": "Heart 9 unique tableau copy T1 must be exposed (zone=down, depth=9)"
+        },
+        {
+          "column_1": 9,
+          "kind": "expose_unique_copy",
+          "occurrence": "T13",
+          "rank": "7",
+          "text": "Heart 7 unique tableau copy T13 must be exposed (zone=up, depth=5)"
+        },
+        {
+          "column_1": 4,
+          "kind": "expose_unique_copy",
+          "occurrence": "T7",
+          "rank": "3",
+          "text": "Heart 3 unique tableau copy T7 must be exposed (zone=up, depth=5)"
+        }
+      ]
+    },
+    "occurrences": [
+      {
+        "buried": true,
+        "card": "5H",
+        "cards_above": [
+          "9H",
+          "JH",
+          "AH",
+          "8D",
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 10,
+        "face_down_blockers_above": 4,
+        "face_up": false,
+        "id": "T0",
+        "in_sd3": false,
+        "physical_column_0": 1,
+        "physical_column_1": 2,
+        "rank": 5,
+        "rank_label": "5",
+        "same_suit_component": null,
+        "zone": "down"
+      },
+      {
+        "buried": true,
+        "card": "9H",
+        "cards_above": [
+          "JH",
+          "AH",
+          "8D",
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 9,
+        "face_down_blockers_above": 3,
+        "face_up": false,
+        "id": "T1",
+        "in_sd3": false,
+        "physical_column_0": 1,
+        "physical_column_1": 2,
+        "rank": 9,
+        "rank_label": "9",
+        "same_suit_component": null,
+        "zone": "down"
+      },
+      {
+        "buried": true,
+        "card": "JH",
+        "cards_above": [
+          "AH",
+          "8D",
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 8,
+        "face_down_blockers_above": 2,
+        "face_up": false,
+        "id": "T2",
+        "in_sd3": false,
+        "physical_column_0": 1,
+        "physical_column_1": 2,
+        "rank": 11,
+        "rank_label": "J",
+        "same_suit_component": null,
+        "zone": "down"
+      },
+      {
+        "buried": true,
+        "card": "AH",
+        "cards_above": [
+          "8D",
+          "KD",
+          "QS",
+          "JD",
+          "10H",
+          "9D",
+          "8D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 7,
+        "face_down_blockers_above": 1,
+        "face_up": false,
+        "id": "T3",
+        "in_sd3": false,
+        "physical_column_0": 1,
+        "physical_column_1": 2,
+        "rank": 1,
+        "rank_label": "A",
+        "same_suit_component": null,
+        "zone": "down"
+      },
+      {
+        "buried": true,
+        "card": "10H",
+        "cards_above": [
+          "9D",
+          "8D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 2,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T4",
+        "in_sd3": false,
+        "physical_column_0": 1,
+        "physical_column_1": 2,
+        "rank": 10,
+        "rank_label": "10",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "5H",
+        "cards_above": [
+          "4C",
+          "3D",
+          "2C",
+          "AC",
+          "4D",
+          "3D",
+          "2S",
+          "AD"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 8,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T5",
+        "in_sd3": false,
+        "physical_column_0": 2,
+        "physical_column_1": 3,
+        "rank": 5,
+        "rank_label": "5",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "4H",
+        "cards_above": [
+          "3H",
+          "2H",
+          "AC",
+          "KH",
+          "7S",
+          "6H"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 6,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T6",
+        "in_sd3": false,
+        "physical_column_0": 3,
+        "physical_column_1": 4,
+        "rank": 4,
+        "rank_label": "4",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "3H",
+        "cards_above": [
+          "2H",
+          "AC",
+          "KH",
+          "7S",
+          "6H"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 5,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T7",
+        "in_sd3": false,
+        "physical_column_0": 3,
+        "physical_column_1": 4,
+        "rank": 3,
+        "rank_label": "3",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "2H",
+        "cards_above": [
+          "AC",
+          "KH",
+          "7S",
+          "6H"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 4,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T8",
+        "in_sd3": false,
+        "physical_column_0": 3,
+        "physical_column_1": 4,
+        "rank": 2,
+        "rank_label": "2",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "KH",
+        "cards_above": [
+          "7S",
+          "6H"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 2,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T9",
+        "in_sd3": false,
+        "physical_column_0": 3,
+        "physical_column_1": 4,
+        "rank": 13,
+        "rank_label": "K",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": false,
+        "card": "6H",
+        "cards_above": [],
+        "currently_movable": true,
+        "depth_from_top": 0,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T10",
+        "in_sd3": false,
+        "physical_column_0": 3,
+        "physical_column_1": 4,
+        "rank": 6,
+        "rank_label": "6",
+        "same_suit_component": "6-6",
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "8H",
+        "cards_above": [
+          "6C"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 1,
+        "face_down_blockers_above": 0,
+        "face_up": false,
+        "id": "T11",
+        "in_sd3": false,
+        "physical_column_0": 6,
+        "physical_column_1": 7,
+        "rank": 8,
+        "rank_label": "8",
+        "same_suit_component": null,
+        "zone": "down"
+      },
+      {
+        "buried": true,
+        "card": "2H",
+        "cards_above": [
+          "7D",
+          "6D",
+          "5C",
+          "4S",
+          "10D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 5,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T12",
+        "in_sd3": false,
+        "physical_column_0": 7,
+        "physical_column_1": 8,
+        "rank": 2,
+        "rank_label": "2",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "7H",
+        "cards_above": [
+          "6H",
+          "5C",
+          "QH",
+          "JD",
+          "10D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 5,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T13",
+        "in_sd3": false,
+        "physical_column_0": 8,
+        "physical_column_1": 9,
+        "rank": 7,
+        "rank_label": "7",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "6H",
+        "cards_above": [
+          "5C",
+          "QH",
+          "JD",
+          "10D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 4,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T14",
+        "in_sd3": false,
+        "physical_column_0": 8,
+        "physical_column_1": 9,
+        "rank": 6,
+        "rank_label": "6",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": true,
+        "card": "QH",
+        "cards_above": [
+          "JD",
+          "10D"
+        ],
+        "currently_movable": false,
+        "depth_from_top": 2,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T15",
+        "in_sd3": false,
+        "physical_column_0": 8,
+        "physical_column_1": 9,
+        "rank": 12,
+        "rank_label": "Q",
+        "same_suit_component": null,
+        "zone": "up"
+      },
+      {
+        "buried": false,
+        "card": "AH",
+        "cards_above": [],
+        "currently_movable": true,
+        "depth_from_top": 0,
+        "face_down_blockers_above": 0,
+        "face_up": true,
+        "id": "T16",
+        "in_sd3": false,
+        "physical_column_0": 9,
+        "physical_column_1": 10,
+        "rank": 1,
+        "rank_label": "A",
+        "same_suit_component": "A-A",
+        "zone": "up"
+      },
+      {
+        "buried": false,
+        "card": "KH",
+        "cards_above": [],
+        "currently_movable": false,
+        "depth_from_top": null,
+        "face_down_blockers_above": 0,
+        "face_up": false,
+        "id": "SD3C4",
+        "in_sd3": true,
+        "physical_column_0": 3,
+        "physical_column_1": 4,
+        "rank": 13,
+        "rank_label": "K",
+        "same_suit_component": null,
+        "sd3_landing_column_1": 4,
+        "zone": "sd3"
+      },
+      {
+        "buried": false,
+        "card": "8H",
+        "cards_above": [],
+        "currently_movable": false,
+        "depth_from_top": null,
+        "face_down_blockers_above": 0,
+        "face_up": false,
+        "id": "SD3C5",
+        "in_sd3": true,
+        "physical_column_0": 4,
+        "physical_column_1": 5,
+        "rank": 8,
+        "rank_label": "8",
+        "same_suit_component": null,
+        "sd3_landing_column_1": 5,
+        "zone": "sd3"
+      },
+      {
+        "buried": false,
+        "card": "4H",
+        "cards_above": [],
+        "currently_movable": false,
+        "depth_from_top": null,
+        "face_down_blockers_above": 0,
+        "face_up": false,
+        "id": "SD3C10",
+        "in_sd3": true,
+        "physical_column_0": 9,
+        "physical_column_1": 10,
+        "rank": 4,
+        "rank_label": "4",
+        "same_suit_component": null,
+        "sd3_landing_column_1": 10,
+        "zone": "sd3"
+      }
+    ],
+    "sd3_reception": {
+      "by_column": [
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": false,
+          "column_1": 1,
+          "current_top": "KS",
+          "heart_arrival": false,
+          "incoming": "2C",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": false,
+          "column_1": 2,
+          "current_top": "8D",
+          "heart_arrival": false,
+          "incoming": "10S",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": false,
+          "column_1": 3,
+          "current_top": "AD",
+          "heart_arrival": false,
+          "incoming": "QD",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": true,
+          "column_1": 4,
+          "current_top": "6H",
+          "heart_arrival": true,
+          "incoming": "KH",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": false,
+          "column_1": 5,
+          "current_top": "AD",
+          "heart_arrival": true,
+          "incoming": "8H",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": false,
+          "buries_exposed_heart": false,
+          "column_1": 6,
+          "current_top": null,
+          "heart_arrival": false,
+          "incoming": "9C",
+          "join": "empty",
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": false,
+          "column_1": 7,
+          "current_top": "6C",
+          "heart_arrival": false,
+          "incoming": "3S",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": false,
+          "column_1": 8,
+          "current_top": "10D",
+          "heart_arrival": false,
+          "incoming": "5S",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": false,
+          "column_1": 9,
+          "current_top": "10D",
+          "heart_arrival": false,
+          "incoming": "5D",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": true,
+          "column_1": 10,
+          "current_top": "AH",
+          "heart_arrival": true,
+          "incoming": "4H",
+          "join": null,
+          "useful_heart_landing": false
+        }
+      ],
+      "covers_exposed_hearts": [
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": true,
+          "column_1": 4,
+          "current_top": "6H",
+          "heart_arrival": true,
+          "incoming": "KH",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": true,
+          "column_1": 10,
+          "current_top": "AH",
+          "heart_arrival": true,
+          "incoming": "4H",
+          "join": null,
+          "useful_heart_landing": false
+        }
+      ],
+      "heart_arrivals": [
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": true,
+          "column_1": 4,
+          "current_top": "6H",
+          "heart_arrival": true,
+          "incoming": "KH",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": false,
+          "column_1": 5,
+          "current_top": "AD",
+          "heart_arrival": true,
+          "incoming": "8H",
+          "join": null,
+          "useful_heart_landing": false
+        },
+        {
+          "buries_current_top": true,
+          "buries_exposed_heart": true,
+          "column_1": 10,
+          "current_top": "AH",
+          "heart_arrival": true,
+          "incoming": "4H",
+          "join": null,
+          "useful_heart_landing": false
+        }
+      ],
+      "note": "Reception facts are planning signals, not new legality rules.",
+      "useful_heart_landings": []
+    }
+  },
+  "base_sha": "dc3a44f4974acd25b9dd539864d13e5bf4fe28ac",
+  "branch": "agent/backward-pass-heart-foundation-v0-31",
+  "control": null,
+  "elapsed_s": 1780.7758823000186,
+  "experiment": "backward_pass_heart_foundation_v0_31",
+  "fd_at_heart": null,
+  "first_witness": null,
+  "fixture": null,
+  "foundations_removed": null,
+  "full_replay_ok": false,
+  "future": {
+    "current_complete_sets": {
+      "c": 0,
+      "d": 0,
+      "h": 1,
+      "s": 1
+    },
+    "deals_done": 2,
+    "raw_rows": [
+      [
+        [
+          "c",
+          2
+        ],
+        [
+          "s",
+          10
+        ],
+        [
+          "d",
+          12
+        ],
+        [
+          "h",
+          13
+        ],
+        [
+          "h",
+          8
+        ],
+        [
+          "c",
+          9
+        ],
+        [
+          "s",
+          3
+        ],
+        [
+          "s",
+          5
+        ],
+        [
+          "d",
+          5
+        ],
+        [
+          "h",
+          4
+        ]
+      ],
+      [
+        [
+          "d",
+          9
+        ],
+        [
+          "s",
+          11
+        ],
+        [
+          "h",
+          12
+        ],
+        [
+          "d",
+          2
+        ],
+        [
+          "c",
+          4
+        ],
+        [
+          "c",
+          12
+        ],
+        [
+          "c",
+          13
+        ],
+        [
+          "c",
+          8
+        ],
+        [
+          "h",
+          11
+        ],
+        [
+          "s",
+          9
+        ]
+      ],
+      [
+        [
+          "h",
+          3
+        ],
+        [
+          "h",
+          10
+        ],
+        [
+          "d",
+          2
+        ],
+        [
+          "c",
+          3
+        ],
+        [
+          "h",
+          9
+        ],
+        [
+          "c",
+          7
+        ],
+        [
+          "h",
+          7
+        ],
+        [
+          "s",
+          1
+        ],
+        [
+          "c",
+          3
+        ],
+        [
+          "d",
+          5
+        ]
+      ]
+    ],
+    "rows": {
+      "SD3": [
+        "2C",
+        "10S",
+        "QD",
+        "KH",
+        "8H",
+        "9C",
+        "3S",
+        "5S",
+        "5D",
+        "4H"
+      ],
+      "SD4": [
+        "9D",
+        "JS",
+        "QH",
+        "2D",
+        "4C",
+        "QC",
+        "KC",
+        "8C",
+        "JH",
+        "9S"
+      ],
+      "SD5": [
+        "3H",
+        "10H",
+        "2D",
+        "3C",
+        "9H",
+        "7C",
+        "7H",
+        "AS",
+        "3C",
+        "5D"
+      ]
+    },
+    "sd3": [
+      "2C",
+      "10S",
+      "QD",
+      "KH",
+      "8H",
+      "9C",
+      "3S",
+      "5S",
+      "5D",
+      "4H"
+    ],
+    "sd3_raw": [
+      [
+        "c",
+        2
+      ],
+      [
+        "s",
+        10
+      ],
+      [
+        "d",
+        12
+      ],
+      [
+        "h",
+        13
+      ],
+      [
+        "h",
+        8
+      ],
+      [
+        "c",
+        9
+      ],
+      [
+        "s",
+        3
+      ],
+      [
+        "s",
+        5
+      ],
+      [
+        "d",
+        5
+      ],
+      [
+        "h",
+        4
+      ]
+    ],
+    "sd4": [
+      "9D",
+      "JS",
+      "QH",
+      "2D",
+      "4C",
+      "QC",
+      "KC",
+      "8C",
+      "JH",
+      "9S"
+    ],
+    "sd5": [
+      "3H",
+      "10H",
+      "2D",
+      "3C",
+      "9H",
+      "7C",
+      "7H",
+      "AS",
+      "3C",
+      "5D"
+    ],
+    "stock_rows_remaining": 3,
+    "target": "first Hearts",
+    "target_reason": "After Spade 1, Heart 1 is the only additional foundation materially available before SD4. Diamond 1 unlocks at SD4; Clubs and all second foundations unlock at SD5.",
+    "unlocks": {
+      "SD3": [],
+      "SD4": [
+        "first Diamonds"
+      ],
+      "SD5": [
+        "second Spades",
+        "second Hearts",
+        "second Diamonds",
+        "first Clubs",
+        "second Clubs"
+      ]
+    }
+  },
+  "heart": false,
+  "heart_classes": 0,
+  "horizon": {
+    "expected_ok": true,
+    "impossible_before_sd5": [
+      "second Spades",
+      "second Hearts",
+      "second Diamonds",
+      "first Clubs",
+      "second Clubs"
+    ],
+    "max_foundations_by_horizon": [
+      0,
+      0,
+      2,
+      2,
+      3,
+      8
+    ],
+    "sd5": [
+      "3H",
+      "10H",
+      "2D",
+      "3C",
+      "9H",
+      "7C",
+      "7H",
+      "AS",
+      "3C",
+      "5D"
+    ]
+  },
+  "interpretation": "The v0.30 horizon and four Spade-1 sources reconstructed. Heart 1 is the only extra foundation materially available before SD4. The backward map finds six unique-copy access obligations (Q,J,10,9,7,3) and seven duplicate-rank alternatives; SD3 currently covers exposed 6H and AH if dealt immediately. Admissible MW lower bound is 0. Cost-aware search reached widening levels 0-3 (2.27M unique, max depth 18, 1.4 GiB) without a Heart foundation. Frontiers were not exhausted, so this is a bounded non-result, not a proof Heart 1 is unreachable before SD4. SD4 was never expanded.",
+  "min_mw": null,
+  "min_path": null,
+  "moves_after_sd3": null,
+  "moves_before_sd3": null,
+  "next_recommendation": "Keep the Heart-1 target and funnel; do not raise limits here and do not take SD4.",
+  "no_sd4": true,
+  "parks": [],
+  "production_unchanged": true,
+  "search": {
+    "all_legal_at_level3": true,
+    "cheaper_reopens": 403646,
+    "deal_expanded_as_sd3": true,
+    "duplicate_skips": 8620148,
+    "elapsed_s": 1779.9875157999923,
+    "expanded": 1829614,
+    "generated": 11294894,
+    "identity": "pack_state",
+    "incumbent": null,
+    "levels_reached": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "lower_bound": 0,
+    "max_depth": 18,
+    "peak_rss_mb": 1405.3359375,
+    "per_level": [
+      {
+        "cheaper_reopens": 1999,
+        "duplicate_skips": 1307064,
+        "expanded": 506550,
+        "generated": 2329208,
+        "heap_empty": false,
+        "incumbent": null,
+        "level": 0,
+        "unique_delta": 1020145,
+        "witnesses": 0
+      },
+      {
+        "cheaper_reopens": 313919,
+        "duplicate_skips": 1802759,
+        "expanded": 444189,
+        "generated": 2903045,
+        "heap_empty": false,
+        "incumbent": null,
+        "level": 1,
+        "unique_delta": 786367,
+        "witnesses": 0
+      },
+      {
+        "cheaper_reopens": 87098,
+        "duplicate_skips": 2472056,
+        "expanded": 442448,
+        "generated": 3013906,
+        "heap_empty": false,
+        "incumbent": null,
+        "level": 2,
+        "unique_delta": 454752,
+        "witnesses": 0
+      },
+      {
+        "cheaper_reopens": 630,
+        "duplicate_skips": 3038269,
+        "expanded": 436427,
+        "generated": 3048735,
+        "heap_empty": false,
+        "incumbent": null,
+        "level": 3,
+        "unique_delta": 9836,
+        "witnesses": 0
+      }
+    ],
+    "sd4_expanded": false,
+    "stop_reason": "time limit",
+    "unique": 2271104,
+    "used_heuristic_prune": false,
+    "zero_cost_moves": 165616
+  },
+  "sources": [
+    {
+      "deals": 2,
+      "empties": [
+        5
+      ],
+      "fd": 9,
+      "foundation_suits": [
+        "s"
+      ],
+      "foundations": 1,
+      "full_actions": [
+        [
+          2,
+          5,
+          1
+        ],
+        [
+          5,
+          7,
+          2
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          5,
+          7,
+          2
+        ],
+        [
+          7,
+          3,
+          5
+        ],
+        [
+          2,
+          1,
+          1
+        ],
+        [
+          2,
+          6,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          2,
+          9,
+          4
+        ],
+        [
+          7,
+          0,
+          1
+        ],
+        [
+          8,
+          1,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          8,
+          0,
+          1
+        ],
+        [
+          5,
+          0,
+          1
+        ],
+        [
+          9,
+          5,
+          5
+        ],
+        [
+          5,
+          4,
+          6
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          4,
+          8,
+          7
+        ],
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          5,
+          4,
+          1
+        ],
+        [
+          4,
+          5,
+          2
+        ],
+        [
+          4,
+          8,
+          1
+        ],
+        [
+          7,
+          4,
+          1
+        ],
+        [
+          3,
+          6,
+          5
+        ],
+        [
+          2,
+          7,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          9,
+          4,
+          1
+        ],
+        [
+          3,
+          9,
+          1
+        ],
+        [
+          3,
+          9,
+          1
+        ],
+        [
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          2,
+          2
+        ],
+        [
+          3,
+          4,
+          1
+        ],
+        [
+          3,
+          7,
+          1
+        ],
+        [
+          3,
+          0,
+          1
+        ],
+        [
+          7,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          1
+        ],
+        [
+          "deal"
+        ],
+        [
+          5,
+          7,
+          1
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          9,
+          7,
+          1
+        ],
+        [
+          9,
+          8,
+          2
+        ],
+        [
+          0,
+          9,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          0,
+          8,
+          1
+        ],
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          "deal"
+        ],
+        [
+          2,
+          3,
+          1
+        ],
+        [
+          9,
+          8,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          5,
+          2,
+          1
+        ],
+        [
+          6,
+          9,
+          1
+        ],
+        [
+          6,
+          7,
+          2
+        ],
+        [
+          1,
+          6,
+          1
+        ],
+        [
+          6,
+          7,
+          7
+        ],
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          8,
+          1
+        ],
+        [
+          6,
+          5,
+          1
+        ],
+        [
+          7,
+          5,
+          9
+        ]
+      ],
+      "legal_tableau": 13,
+      "mw_cost": 62,
+      "ok": true,
+      "ordered_digest": "53504b310101001e02023a2c360d050615191b11282d0c2b1a2928010b3b27061534233231242302210007141312311d071600032d2421000001011836000612272635042a000f3d3c3b3a39383726081716351c2b2a000111131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "source_id": 0,
+      "stock_rows": 3,
+      "total_primitive_path": 62
+    },
+    {
+      "deals": 2,
+      "empties": [
+        5
+      ],
+      "fd": 9,
+      "foundation_suits": [
+        "s"
+      ],
+      "foundations": 1,
+      "full_actions": [
+        [
+          2,
+          5,
+          1
+        ],
+        [
+          5,
+          7,
+          2
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          5,
+          7,
+          2
+        ],
+        [
+          7,
+          3,
+          5
+        ],
+        [
+          2,
+          1,
+          1
+        ],
+        [
+          2,
+          6,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          2,
+          9,
+          4
+        ],
+        [
+          7,
+          0,
+          1
+        ],
+        [
+          8,
+          1,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          8,
+          0,
+          1
+        ],
+        [
+          5,
+          0,
+          1
+        ],
+        [
+          9,
+          5,
+          5
+        ],
+        [
+          5,
+          4,
+          6
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          4,
+          8,
+          7
+        ],
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          5,
+          4,
+          1
+        ],
+        [
+          4,
+          5,
+          2
+        ],
+        [
+          4,
+          8,
+          1
+        ],
+        [
+          7,
+          4,
+          1
+        ],
+        [
+          3,
+          6,
+          5
+        ],
+        [
+          2,
+          7,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          9,
+          4,
+          1
+        ],
+        [
+          3,
+          9,
+          1
+        ],
+        [
+          3,
+          9,
+          1
+        ],
+        [
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          2,
+          2
+        ],
+        [
+          3,
+          4,
+          1
+        ],
+        [
+          3,
+          7,
+          1
+        ],
+        [
+          3,
+          0,
+          1
+        ],
+        [
+          7,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          1
+        ],
+        [
+          "deal"
+        ],
+        [
+          5,
+          7,
+          1
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          9,
+          7,
+          1
+        ],
+        [
+          9,
+          8,
+          2
+        ],
+        [
+          0,
+          9,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          0,
+          8,
+          1
+        ],
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          "deal"
+        ],
+        [
+          2,
+          3,
+          1
+        ],
+        [
+          9,
+          8,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          5,
+          9,
+          1
+        ],
+        [
+          6,
+          2,
+          1
+        ],
+        [
+          6,
+          7,
+          2
+        ],
+        [
+          1,
+          6,
+          1
+        ],
+        [
+          6,
+          7,
+          7
+        ],
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          8,
+          1
+        ],
+        [
+          6,
+          5,
+          1
+        ],
+        [
+          7,
+          5,
+          9
+        ]
+      ],
+      "legal_tableau": 13,
+      "mw_cost": 62,
+      "ok": true,
+      "ordered_digest": "53504b310101001e02023a2c360d050615191b11282d0c2b1a2928010b3b27061534233231242302110007141312311d071600032d2421000001011836000612272635042a000f3d3c3b3a39383726081716351c2b2a000121131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "source_id": 1,
+      "stock_rows": 3,
+      "total_primitive_path": 62
+    },
+    {
+      "deals": 2,
+      "empties": [
+        5
+      ],
+      "fd": 9,
+      "foundation_suits": [
+        "s"
+      ],
+      "foundations": 1,
+      "full_actions": [
+        [
+          2,
+          5,
+          1
+        ],
+        [
+          5,
+          7,
+          2
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          5,
+          7,
+          2
+        ],
+        [
+          7,
+          3,
+          5
+        ],
+        [
+          2,
+          1,
+          1
+        ],
+        [
+          2,
+          6,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          2,
+          9,
+          4
+        ],
+        [
+          7,
+          0,
+          1
+        ],
+        [
+          8,
+          1,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          8,
+          0,
+          1
+        ],
+        [
+          5,
+          0,
+          1
+        ],
+        [
+          9,
+          5,
+          5
+        ],
+        [
+          5,
+          4,
+          6
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          4,
+          8,
+          7
+        ],
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          5,
+          4,
+          1
+        ],
+        [
+          4,
+          5,
+          2
+        ],
+        [
+          4,
+          8,
+          1
+        ],
+        [
+          7,
+          4,
+          1
+        ],
+        [
+          3,
+          6,
+          5
+        ],
+        [
+          2,
+          7,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          9,
+          4,
+          1
+        ],
+        [
+          3,
+          9,
+          1
+        ],
+        [
+          3,
+          9,
+          1
+        ],
+        [
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          2,
+          2
+        ],
+        [
+          3,
+          4,
+          1
+        ],
+        [
+          3,
+          7,
+          1
+        ],
+        [
+          3,
+          0,
+          1
+        ],
+        [
+          7,
+          3,
+          3
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          "deal"
+        ],
+        [
+          5,
+          7,
+          1
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          9,
+          7,
+          1
+        ],
+        [
+          9,
+          8,
+          2
+        ],
+        [
+          0,
+          9,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          0,
+          8,
+          1
+        ],
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          "deal"
+        ],
+        [
+          2,
+          3,
+          1
+        ],
+        [
+          9,
+          8,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          5,
+          2,
+          1
+        ],
+        [
+          6,
+          9,
+          1
+        ],
+        [
+          6,
+          7,
+          2
+        ],
+        [
+          1,
+          6,
+          1
+        ],
+        [
+          6,
+          7,
+          7
+        ],
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          8,
+          1
+        ],
+        [
+          6,
+          5,
+          1
+        ],
+        [
+          7,
+          5,
+          9
+        ]
+      ],
+      "legal_tableau": 13,
+      "mw_cost": 62,
+      "ok": true,
+      "ordered_digest": "53504b310101001e02023a2c360d050615191b11282d0c2b1a2928010b3b270615342332312423022100061413121d071600032d242100000101183600071231272635042a000f3d3c3b3a39383726081716351c2b2a000111131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "source_id": 2,
+      "stock_rows": 3,
+      "total_primitive_path": 62
+    },
+    {
+      "deals": 2,
+      "empties": [
+        5
+      ],
+      "fd": 9,
+      "foundation_suits": [
+        "s"
+      ],
+      "foundations": 1,
+      "full_actions": [
+        [
+          2,
+          5,
+          1
+        ],
+        [
+          5,
+          7,
+          2
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          5,
+          7,
+          2
+        ],
+        [
+          7,
+          3,
+          5
+        ],
+        [
+          2,
+          1,
+          1
+        ],
+        [
+          2,
+          6,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          2,
+          9,
+          4
+        ],
+        [
+          7,
+          0,
+          1
+        ],
+        [
+          8,
+          1,
+          1
+        ],
+        [
+          8,
+          2,
+          1
+        ],
+        [
+          8,
+          0,
+          1
+        ],
+        [
+          5,
+          0,
+          1
+        ],
+        [
+          9,
+          5,
+          5
+        ],
+        [
+          5,
+          4,
+          6
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          4,
+          8,
+          7
+        ],
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          4,
+          2,
+          1
+        ],
+        [
+          5,
+          4,
+          1
+        ],
+        [
+          4,
+          5,
+          2
+        ],
+        [
+          4,
+          8,
+          1
+        ],
+        [
+          7,
+          4,
+          1
+        ],
+        [
+          3,
+          6,
+          5
+        ],
+        [
+          2,
+          7,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          9,
+          4,
+          1
+        ],
+        [
+          3,
+          9,
+          1
+        ],
+        [
+          3,
+          9,
+          1
+        ],
+        [
+          3,
+          1,
+          1
+        ],
+        [
+          4,
+          2,
+          2
+        ],
+        [
+          3,
+          4,
+          1
+        ],
+        [
+          3,
+          7,
+          1
+        ],
+        [
+          3,
+          0,
+          1
+        ],
+        [
+          7,
+          3,
+          3
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          "deal"
+        ],
+        [
+          5,
+          7,
+          1
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          9,
+          7,
+          1
+        ],
+        [
+          9,
+          8,
+          2
+        ],
+        [
+          0,
+          9,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          7,
+          1
+        ],
+        [
+          0,
+          8,
+          1
+        ],
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          "deal"
+        ],
+        [
+          2,
+          3,
+          1
+        ],
+        [
+          9,
+          8,
+          1
+        ],
+        [
+          9,
+          2,
+          1
+        ],
+        [
+          5,
+          9,
+          1
+        ],
+        [
+          6,
+          2,
+          1
+        ],
+        [
+          6,
+          7,
+          2
+        ],
+        [
+          1,
+          6,
+          1
+        ],
+        [
+          6,
+          7,
+          7
+        ],
+        [
+          6,
+          1,
+          1
+        ],
+        [
+          6,
+          8,
+          1
+        ],
+        [
+          6,
+          5,
+          1
+        ],
+        [
+          7,
+          5,
+          9
+        ]
+      ],
+      "legal_tableau": 13,
+      "mw_cost": 62,
+      "ok": true,
+      "ordered_digest": "53504b310101001e02023a2c360d050615191b11282d0c2b1a2928010b3b270615342332312423021100061413121d071600032d242100000101183600071231272635042a000f3d3c3b3a39383726081716351c2b2a000121131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "source_id": 3,
+      "stock_rows": 3,
+      "total_primitive_path": 62
+    }
+  ],
+  "stock_at_heart": null,
+  "timing_classes": [],
+  "verdict": "HEART_TARGET_SEARCH_STATE_EXPLOSION",
+  "verdict_reason": "limits bound (time limit) before Heart 1"
+}
