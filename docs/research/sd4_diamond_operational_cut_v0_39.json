@@ -1,0 +1,202 @@
+{
+  "base_sha": "e7f5021ac1f7bc7b190bbedf174a443afbab6c3a",
+  "branch": "agent/sd4-diamond-operational-cut-v0-39",
+  "comparison": {
+    "diamond_cheaper_operational_cut": true,
+    "diamond_ready_best_full_mw": 75,
+    "diamond_ready_continuation": 2,
+    "heart_h9_best_full_mw": 77,
+    "heart_h9_cut_continuation": 4
+  },
+  "cross_target": {
+    "ah_still_c2": false,
+    "h9_still_down": true,
+    "heart_sd4_release_still_possible": false,
+    "original_jh_still_down": true,
+    "qh_jh_incidental": true
+  },
+  "elapsed_s": 178.9169211999979,
+  "experiment": "sd4_diamond_operational_cut_v0_39",
+  "interpretation": "SD4+single JH move unlocked 74/324; 4H not required. Unique Diamond current ranks after SD4=['2', '5'] (before SD4=['5', '9']). After SD4, 2D is top on 324/324; AH-on-2D count=0 (Heart macro was not applied). 5D cover classes after SD4: {'4H|JH': 40, 'JH': 74, '4H|3S|JH': 89, 'KC': 118, '4H|3S|2C|AH|JH': 3}. Enumerated +1-tableau after SD4: 74; +2-tableau: 0. Search incumbent=75 first_t=0.16618830000516027 continuation_best=2. Heart H9 cut was +4 to full 77. SD5 never expanded.",
+  "macros": {
+    "n": 324,
+    "no_ah_to_2d": true,
+    "one_after_sd4": 74,
+    "one_kinds": {
+      "JH->QC": 74,
+      "JH->QH": 74
+    },
+    "two_after_sd4": 0,
+    "two_kinds": {}
+  },
+  "material": {
+    "sd5_excluded": true,
+    "unique_after_sd4": [
+      "2",
+      "5"
+    ],
+    "unique_before_sd4": [
+      "5",
+      "9"
+    ],
+    "unique_ok": true
+  },
+  "next_recommendation": "Diamond operational access is available from the unbiased pre-SD4 frontier without parking AH on 2D. Next: compare this Diamond-ready portfolio against the v0.37 Heart H9 cut for a fair post-SD4 foundation-order decision. Do not take SD5 yet. Do not inspect the human route.",
+  "no_prescribed_ah_to_2d": true,
+  "portfolio": {
+    "bands": {
+      "75": 16,
+      "76": 128,
+      "77": 112
+    },
+    "best": {
+      "ah_c2": "JS",
+      "continuation": 2,
+      "fd": 7,
+      "fixture": "solutions/4925153_v0_39_diamond_ready_best.moves.txt",
+      "full_cost": 75,
+      "full_replay_ok": true,
+      "h9_up": false,
+      "jh_still_down": true,
+      "qh_jh": true,
+      "source_g": 73,
+      "stock_rows": 1
+    },
+    "categories": {
+      "cont2|qh_jh=False|ah=JS|h9=False": 64,
+      "cont2|qh_jh=True|ah=JS|h9=False": 64,
+      "cont3|qh_jh=False|ah=AH|h9=False": 13,
+      "cont3|qh_jh=False|ah=JS|h9=False": 64,
+      "cont3|qh_jh=True|ah=AH|h9=False": 13,
+      "cont3|qh_jh=True|ah=JS|h9=False": 38
+    },
+    "n": 256,
+    "path": "docs/research/sd4_diamond_operational_cut_v0_39_portfolio.json"
+  },
+  "probe": {
+    "LIVE_BEYOND_8": 32
+  },
+  "production_unchanged": true,
+  "proof": {
+    "best_continuation": 2,
+    "global_plus3_valid": false,
+    "local_opt_if_lb_matches": false,
+    "per_source_lb_counts": {
+      "2": 74,
+      "3": 40,
+      "4": 89,
+      "6": 3,
+      "None": 118
+    },
+    "sample_lb": {
+      "cover_after_sd4": [
+        "4H",
+        "JH"
+      ],
+      "deal_cost": 1,
+      "lb": 3,
+      "n_cover_after_sd4": 2,
+      "rationale": "2D is absent before SD4, so Deal costs 1. After SD4, unique 5D has 2 face-up card(s) above it; each must leave before 5D is unburied. Local continuation LB = 3.",
+      "reasons": [],
+      "top_leave_costs": [
+        1,
+        1
+      ],
+      "valid": true
+    }
+  },
+  "sd4": {
+    "c2": "JS",
+    "c2_is_js": true,
+    "c3": "QH",
+    "c3_is_qh": true,
+    "c4": "2D",
+    "c4_is_2d": true,
+    "c6": "QC",
+    "c6_is_qc": true,
+    "expected": [
+      "9D",
+      "JS",
+      "QH",
+      "2D",
+      "4C",
+      "QC",
+      "KC",
+      "8C",
+      "JH",
+      "9S"
+    ],
+    "mismatch": null,
+    "row": [
+      "9D",
+      "JS",
+      "QH",
+      "2D",
+      "4C",
+      "QC",
+      "KC",
+      "8C",
+      "JH",
+      "9S"
+    ],
+    "stock_rows": 2,
+    "valid": true
+  },
+  "sd4_structure": {
+    "ah_on_2d_after_sd4_only": 0,
+    "c9_top_after_sd4": {
+      "JH": 324
+    },
+    "d2_top_after_sd4": 324,
+    "d5_cover_after_sd4": {
+      "4H|3S|2C|AH|JH": 3,
+      "4H|3S|JH": 89,
+      "4H|JH": 40,
+      "JH": 74,
+      "KC": 118
+    },
+    "jh_c9_dests": {
+      "QC": 324,
+      "QH": 324
+    },
+    "note": "Engine c9 is not uniformly JH/4H/5D. 5D may already be top of c9 or sit under KC at c7."
+  },
+  "sd5_expanded": false,
+  "search": {
+    "ah_on_2d_generated": 3288,
+    "duplicate_skips": 15958,
+    "elapsed_s": 13.083252700016601,
+    "expanded": 15922,
+    "first_g": 75,
+    "first_s": 0.16618830000516027,
+    "first_unique": 403,
+    "generated": 33796,
+    "incumbent": 75,
+    "max_depth": 6,
+    "peak_rss_mb": 43.6640625,
+    "sd5_expanded": false,
+    "stop_reason": "frontier empty",
+    "unique": 18154,
+    "witnesses": 256
+  },
+  "sources": {
+    "all_replay_ok": true,
+    "cost_counts": {
+      "73": 16,
+      "74": 48,
+      "75": 80,
+      "76": 64,
+      "77": 43,
+      "78": 33,
+      "79": 25,
+      "80": 6,
+      "81": 6,
+      "82": 3
+    },
+    "cost_max": 82,
+    "cost_min": 73,
+    "n": 324
+  },
+  "verdict": "DIAMOND_READY_VIA_DIFFERENT_ROUTE",
+  "verdict_reason": "SD4+single JH move unlocked 74/324; 4H not required"
+}
