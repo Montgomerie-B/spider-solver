@@ -1,0 +1,260 @@
+{
+  "base_sha": "4344734d3ab817010e55b8bbf9761c8ae1daa42f",
+  "boundary": null,
+  "branch": "agent/heart9-blocker-ratchet3-v0-35",
+  "condensation": {
+    "v32_h9": false,
+    "v32_s": 900,
+    "v32_unique": 198303,
+    "v33_first_s": 0.17,
+    "v33_first_unique": 72,
+    "v33_gate1_proved": true,
+    "v34_b": 73,
+    "v34_first_s": 0.04,
+    "v34_first_unique": 41,
+    "v34_proved": false,
+    "v35_b3": null,
+    "v35_first_s": null,
+    "v35_first_unique": null,
+    "v35_gate3": false,
+    "v35_proved": false
+  },
+  "continuation_cost": null,
+  "elapsed_s": 244.25777490000473,
+  "experiment": "heart9_blocker_ratchet3_v0_35",
+  "fast_path": {
+    "by_gate2_band": {
+      "73": 0,
+      "74": 0,
+      "75": 0
+    },
+    "cheapest": null,
+    "elapsed_s": 0.5274481999804266,
+    "hits": 0,
+    "hits_73": 0,
+    "hits_74": 0,
+    "hits_75": 0
+  },
+  "fd_at_gate": null,
+  "fixture": null,
+  "full_replay_ok": false,
+  "gate3_terminal": true,
+  "interpretation": "no Gate-3 witness in the bounded search. Gate 3 is the 1->0 face-down-blocker transition exposing JH while 9H stays down. GLOBAL_LB_GATE3=72 is valid (Gate 1 >= 70 plus two non-zero uncovers) and is not tightened with the unproved Gate-2 best-known 73. v0.34 JSON persisted 16 of 144 harvested Gate-2 states; v0.35 reconstructed 144 exact sources {\"73\": 16, \"74\": 48, \"75\": 80}. Fast path hits: 0/0/0. Directed waves A/B/C emptied at 184/368/440 unique with 0 JH flips. Source lock: all 144 states have stock_rows=2, no empties, immovable AH packet, SD3 consumed, SD4 withheld. This is not a global proof that Gate 3 is unreachable from the original Spade sources \u2014 only that the retained 144-state Gate-2 sample cannot cross it without SD4. SD4 never expanded. 9H was not searched.",
+  "learning": "The Gate-2 C/C+1/C+2 sample is operationally uniform: SD3 consumed, zero empties, AH covering JH and not legally movable. Cost slack did not buy landing-structure diversity. Not turned into a heuristic.",
+  "min_mw": null,
+  "min_path": null,
+  "next_recommendation": "The retained Gate-2 C/C+1/C+2 sample is tableau-locked after SD3 (AH covers JH, no empties, packet immovable, SD4 withheld). Next: widen Gate-2 slack or build a cost-complete Gate-2 frontier that still has an empty or a 2H landing, then retry Gate 3. Do not expose 9H, do not search Heart 1, and do not take SD4.",
+  "no_large_ucs": true,
+  "portfolio_summary": {
+    "bands": {},
+    "n": 0,
+    "path": "docs/research/heart9_blocker_ratchet3_v0_35_gate3_portfolio.json",
+    "sd3_distribution": {
+      "sd3_available": 0,
+      "sd3_done": 0
+    }
+  },
+  "production_unchanged": true,
+  "proof": {
+    "b_equals_bound": false,
+    "gate3_chain_ok": true,
+    "global_lb": {
+      "gate1_min": 70,
+      "gate2_best_known": 73,
+      "gate2_proved": false,
+      "global_lb": 72,
+      "plus_ah": 1,
+      "plus_jh": 1,
+      "rationale": "Any pre-SD4 Heart-1 route needs the unique 9H. Exposing that 9H requires exposing JH last. Gate 1 is proved at full MW 70. Each subsequent uncover of the still-buried 9H column costs at least 1 corrected MW, so AH then JH compose to GLOBAL_LB_GATE3 = 72. Gate 2 at 73 is best-known, not a proved minimum, and is not substituted into this bound.",
+      "valid": true
+    },
+    "per_source_plus_one": true
+  },
+  "result": null,
+  "sd4_expanded": false,
+  "search": {
+    "band_counts": {},
+    "duplicate_skips": 4076,
+    "elapsed_s": 7.149339099967619,
+    "expanded": 2704,
+    "first_g": null,
+    "first_s": null,
+    "first_unique": null,
+    "generated": 4924,
+    "incumbent": null,
+    "levels_reached": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "peak_rss_mb": 54.71875,
+    "per_wave": [
+      {
+        "bands": [
+          73
+        ],
+        "elapsed_s": 1.4918733999948017,
+        "expanded": 488,
+        "incumbent": null,
+        "n_src": 16,
+        "stop_reason": "frontier empty",
+        "unique": 184,
+        "wave": "A",
+        "witnesses": 0
+      },
+      {
+        "bands": [
+          74
+        ],
+        "elapsed_s": 2.5965640999784227,
+        "expanded": 992,
+        "incumbent": null,
+        "n_src": 48,
+        "stop_reason": "frontier empty",
+        "unique": 368,
+        "wave": "B",
+        "witnesses": 0
+      },
+      {
+        "bands": [
+          75
+        ],
+        "elapsed_s": 3.060901599994395,
+        "expanded": 1224,
+        "incumbent": null,
+        "n_src": 80,
+        "stop_reason": "frontier empty",
+        "unique": 440,
+        "wave": "C",
+        "witnesses": 0
+      }
+    ],
+    "run": true,
+    "sd4_expanded": false,
+    "stop_reason": "frontier empty",
+    "unique": 992,
+    "waves_used": [
+      "A",
+      "B",
+      "C"
+    ],
+    "witnesses": 0
+  },
+  "source_lock": {
+    "all_no_empty": true,
+    "all_packet_immovable": true,
+    "all_sd3_consumed": true,
+    "can_move_packet": {
+      "False": 144
+    },
+    "empty_counts": {
+      "0": 144
+    },
+    "landing_depth": {
+      "2": 144
+    },
+    "legal_action_counts": {
+      "1": 4,
+      "2": 56,
+      "3": 84
+    },
+    "n": 144,
+    "sd3_available": 0,
+    "stock_rows": {
+      "2": 144
+    }
+  },
+  "source_reconstruction": {
+    "all_replay_ok": true,
+    "cost_counts": {
+      "73": 16,
+      "74": 48,
+      "75": 80
+    },
+    "discrepancy": null,
+    "exact_dedup": 144,
+    "expected": {
+      "73": 16,
+      "74": 48,
+      "75": 80
+    },
+    "gap": {
+      "confirmed": true,
+      "expected_harvest": 144,
+      "expected_harvest_bands": {
+        "73": 16,
+        "74": 48,
+        "75": 80
+      },
+      "harvested": 144,
+      "harvested_bands": {
+        "73": 16,
+        "74": 48,
+        "75": 80
+      },
+      "persisted": 16,
+      "persisted_bands": {
+        "73": 16
+      },
+      "reason": "v0.34 directed search harvested 144 exact Gate-2 states (16/48/80 at 73/74/75) but the committed JSON kept only the 16 one-move cost-73 states because the directed incumbent did not beat the fast-path B=73."
+    },
+    "gap_confirmed": true,
+    "gate1_counts": {
+      "70": 16,
+      "71": 8,
+      "72": 16
+    },
+    "gate1_search": {
+      "elapsed_s": 180.0007309000066,
+      "n": 40,
+      "stop_reason": "time limit",
+      "unique": 45740
+    },
+    "gate2_search": {
+      "band_counts": {
+        "73": 16,
+        "74": 48,
+        "75": 80
+      },
+      "elapsed_s": 56.229167300014524,
+      "first_s": 0.040091700007906184,
+      "first_unique": 41,
+      "stop_reason": "frontier empty",
+      "unique": 8784,
+      "witnesses": 144
+    },
+    "harvested": 144,
+    "persisted": 16,
+    "recovered": 144,
+    "replay_reasons": [],
+    "snapshot": "docs/research/heart9_blocker_ratchet3_v0_35_gate2_sources.json",
+    "source_lock": {
+      "all_no_empty": true,
+      "all_packet_immovable": true,
+      "all_sd3_consumed": true,
+      "can_move_packet": {
+        "False": 144
+      },
+      "empty_counts": {
+        "0": 144
+      },
+      "landing_depth": {
+        "2": 144
+      },
+      "legal_action_counts": {
+        "1": 4,
+        "2": 56,
+        "3": 84
+      },
+      "n": 144,
+      "sd3_available": 0,
+      "stock_rows": {
+        "2": 144
+      }
+    }
+  },
+  "stock_at_gate": null,
+  "verdict": "GATE3_JH_NOT_FOUND_IN_ENVELOPE",
+  "verdict_reason": "no Gate-3 witness in the bounded search"
+}

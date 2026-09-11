@@ -1,0 +1,12 @@
+{
+  "b3": null,
+  "bands": {},
+  "experiment": "heart9_blocker_ratchet3_v0_35",
+  "kind": "gate3_portfolio",
+  "n": 0,
+  "sd3_distribution": {
+    "sd3_available": 0,
+    "sd3_done": 0
+  },
+  "states": []
+}

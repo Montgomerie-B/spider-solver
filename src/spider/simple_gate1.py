@@ -205,6 +205,30 @@ def is_gate2(parent: dict, child: dict, child_state: SpiderState) -> bool:
     return pretty_card(up[-1]) == "AH"
 
 
+def is_gate3(parent: dict, child: dict, child_state: SpiderState) -> bool:
+    if parent.get("fd_blockers") != 1 or child.get("fd_blockers") != 0:
+        return False
+    if child.get("face_up"):
+        return False
+    col = child.get("column_0")
+    if col is None:
+        return False
+    up = child_state.columns[col].face_up
+    if not up:
+        return False
+    return pretty_card(up[-1]) == "JH"
+
+
+def _gate_hit(mode: str, parent: dict, child: dict, child_state: SpiderState) -> bool:
+    if mode == "gate1":
+        return is_gate1(parent, child, child_state)
+    if mode == "gate2":
+        return is_gate2(parent, child, child_state)
+    if mode == "gate3":
+        return is_gate3(parent, child, child_state)
+    raise ValueError(f"unknown gate mode {mode}")
+
+
 def _priority(prog: dict, g: int, depth: int, label: str, tier: int, seq: int, node: int, origin: int):
     label_rank = {
         DIRECT: 0,
@@ -274,6 +298,7 @@ def search_gate1(
     cheaper_only: bool = False,
     source_g: Optional[Sequence[int]] = None,
     mode: str = "gate1",
+    harvest_stop_at: Optional[int] = None,
 ) -> Gate1Result:
     started = time.perf_counter()
     deadline = started + time_limit_s
@@ -307,7 +332,7 @@ def search_gate1(
         path.reverse()
         return path
 
-    skip_le = 2 if mode == "gate1" else 1
+    skip_le = {"gate1": 2, "gate2": 1, "gate3": 0}.get(mode, 1)
     for origin, src in enumerate(sources):
         ident = pack_state(src)
         g0 = 0 if source_g is None else int(source_g[origin])
@@ -451,11 +476,14 @@ def search_gate1(
                     origin_of.append(origin)
                     g_of.append(child_g)
                     child_prog = gate1_progress(state)
-                    hit = (
-                        is_gate1(prog, child_prog, state)
-                        if mode == "gate1"
-                        else is_gate2(prog, child_prog, state)
-                    )
+                    if mode == "gate1":
+                        hit = is_gate1(prog, child_prog, state)
+                    elif mode == "gate2":
+                        hit = is_gate2(prog, child_prog, state)
+                    elif mode == "gate3":
+                        hit = is_gate3(prog, child_prog, state)
+                    else:
+                        hit = _gate_hit(mode, prog, child_prog, state)
                     if hit:
                         local = reconstruct(child_node)
                         rec = {
@@ -485,7 +513,7 @@ def search_gate1(
                             result.first_gate1_g = child_g
                             result.first_gate1_depth = child_depth
                             print(
-                                f"FIRST_GATE1 g={child_g} depth={child_depth} unique={result.unique} "
+                                f"FIRST_{mode.upper()} g={child_g} depth={child_depth} unique={result.unique} "
                                 f"t={result.first_gate1_s:.2f}s",
                                 flush=True,
                             )
@@ -519,6 +547,12 @@ def search_gate1(
             }
         )
         if result.stop_reason in ("time limit", "rss abort", "unique limit"):
+            break
+        in_band = 0
+        if current_incumbent is not None:
+            in_band = sum(1 for rec in witnesses.values() if rec["g"] <= current_incumbent + harvest_slack)
+        if harvest_stop_at is not None and in_band >= harvest_stop_at:
+            result.stop_reason = result.stop_reason or "harvested"
             break
         if directed and current_incumbent is not None and len(witnesses) >= 32:
             remaining = deadline - time.perf_counter()
