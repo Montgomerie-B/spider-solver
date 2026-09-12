@@ -1,0 +1,106 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "341895b38ea49f0b517d976c0865a9e50c07413f",
+  "blocker_order_fail": false,
+  "branch": "agent/spade-5s-10d-release-v0-47",
+  "cost_ceiling": 100,
+  "elapsed_s": 213.68998680001823,
+  "experiment": "spade_final_access_transaction_v0_47",
+  "explosion": true,
+  "exposed": false,
+  "exposed_at_lb": false,
+  "exposure": {
+    "cheapest": null,
+    "fast_path": false,
+    "lb_matched": false,
+    "n": 0,
+    "reached": false
+  },
+  "fast_path": {
+    "cheapest": null,
+    "mw91_n": 0,
+    "n_legal_2_to_1": 0,
+    "n_with_immediate_1_to_0": 0,
+    "skip_2_to_0": 0
+  },
+  "files": {
+    "exposed": null,
+    "gate1": null,
+    "report": "docs/research/spade_final_access_transaction_v0_47.md",
+    "result": "docs/research/spade_final_access_transaction_v0_47.json"
+  },
+  "gate1": {
+    "attempted": true,
+    "capabilities": {},
+    "cheapest": null,
+    "cost_bands": {},
+    "duplicate_skips": 617156,
+    "elapsed_s": 213.14871290000156,
+    "expanded": 99734,
+    "first_g": null,
+    "first_s": null,
+    "first_unique": null,
+    "generated": 808199,
+    "landings": {},
+    "n": 0,
+    "peak_rss_mb": 161.84375,
+    "reached": false,
+    "stop_reason": "unique limit",
+    "unique": 180000
+  },
+  "gate1_attempted": true,
+  "gate1_reached": false,
+  "gate2": {
+    "attempted": false,
+    "cheapest": null,
+    "duplicate_skips": 0,
+    "elapsed_s": 0.0,
+    "expanded": 0,
+    "first_g": null,
+    "first_s": null,
+    "first_unique": null,
+    "generated": 0,
+    "landings": {},
+    "n": 0,
+    "peak_rss_mb": null,
+    "reached": false,
+    "stop_reason": "skipped",
+    "unique": 0
+  },
+  "gate2_attempted": false,
+  "interpretation": "unique/RSS limit before a useful Gate1/Gate2 boundary. Sources 128 B4=2 cover 10D,5S. Fast-path 2->1=0 1->0=0 MW91=0. Gate1 n=0 cheap=None. Gate2 n=0 cheap=None. Exposed n=0 cheap=None. No TAIL4. No Foundation 2.",
+  "next_recommendation": "Gate1 hit 180k unique with no B4=1. From the cheapest 16 MW89 B4=2 sources, excavate an exposed rank-6 or empty as an explicit 5S-landing project. Do not flood UCS and do not search TAIL4.",
+  "peak_rss_mb": 161.84375,
+  "production_unchanged": true,
+  "sources": {
+    "all_replay_ok": true,
+    "blocker_order_ok": true,
+    "categories": {
+      "BOTH_GATES_BLOCKED": 128
+    },
+    "cost_counts": {
+      "89": 16,
+      "90": 112
+    },
+    "cover": [
+      "10D",
+      "5S"
+    ],
+    "empty_any": 0,
+    "expected": 128,
+    "gate1_ready": 0,
+    "hard_lb": 91,
+    "jack_any": 0,
+    "rank6_any": 0,
+    "raw": 128,
+    "symmetry_unique": 128,
+    "timing": {
+      "DEAL_NOW": 64,
+      "PREP_THEN_DEAL": 64
+    },
+    "together_any": 0,
+    "top": "5S"
+  },
+  "verdict": "SPADE_FINAL_ACCESS_STATE_EXPLOSION",
+  "verdict_reason": "unique/RSS limit before a useful Gate1/Gate2 boundary"
+}
