@@ -1,0 +1,335 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "6f3d7edb27e6dc54307c16b5c6284ceb53025910",
+  "branch": "agent/diamond-missing-core-bridge-v0-41",
+  "bridge_preview": {},
+  "c_boundaries": {
+    "c0": null,
+    "c_plus_ab": 0,
+    "c_plus_d": 0,
+    "classifications": {},
+    "core4": 0,
+    "n": 0,
+    "slack": {}
+  },
+  "c_dependency": {
+    "by_category": {
+      "A+B": {
+        "cheapest_full_mw": 84,
+        "immediate_c_joins": 0,
+        "n": 32,
+        "principal_blockers": {
+          "6D_not_exposed_destination": 32,
+          "no_immediate_C_join": 32
+        }
+      },
+      "A+B+D": {
+        "cheapest_full_mw": 85,
+        "immediate_c_joins": 0,
+        "n": 40,
+        "principal_blockers": {
+          "5D_packet_not_movable": 40,
+          "6D_not_exposed_destination": 40,
+          "no_immediate_C_join": 40
+        }
+      },
+      "A+D": {
+        "cheapest_full_mw": 86,
+        "immediate_c_joins": 0,
+        "n": 8,
+        "principal_blockers": {
+          "5D_packet_not_movable": 8,
+          "6D_not_exposed_destination": 8,
+          "no_immediate_C_join": 8
+        }
+      },
+      "B+D": {
+        "cheapest_full_mw": 82,
+        "immediate_c_joins": 0,
+        "n": 128,
+        "principal_blockers": {
+          "5D_packet_not_movable": 128,
+          "6D_not_exposed_destination": 128,
+          "no_immediate_C_join": 128
+        }
+      }
+    },
+    "face_up_6d_sources": 208,
+    "has_7d_6d": 208,
+    "immediate_c_joins": 0,
+    "n": 208,
+    "principal_blockers": {
+      "5D_packet_not_movable": 176,
+      "6D_not_exposed_destination": 208,
+      "no_immediate_C_join": 208
+    },
+    "sample": {
+      "d_satisfied": true,
+      "edges": [
+        "B",
+        "D"
+      ],
+      "five_d": {
+        "buried": true,
+        "can_move_now": false,
+        "column_1": 9,
+        "component": [
+          "5D",
+          "4D"
+        ],
+        "current_count": 1,
+        "d_satisfied": true,
+        "exposed": true,
+        "face_up": true,
+        "future_stock_count": 1,
+        "headed_k": 2,
+        "headed_packet": [
+          "5D",
+          "4D"
+        ],
+        "same_suit_suffix": [
+          "4D"
+        ],
+        "tableau_count": 1,
+        "top": false
+      },
+      "has_7d_6d": true,
+      "immediate_c_joins": [],
+      "principal_blockers": [
+        "6D_not_exposed_destination",
+        "5D_packet_not_movable",
+        "no_immediate_C_join"
+      ],
+      "six_d": [
+        {
+          "can_receive_5d_packet_now": false,
+          "cards_above": 6,
+          "column_1": 8,
+          "component": [
+            "7D",
+            "6D"
+          ],
+          "exposed_destination": false,
+          "face_up": true,
+          "face_up_above": [
+            "5C",
+            "4S",
+            "10D",
+            "5S",
+            "4H",
+            "8C"
+          ],
+          "has_7d_6d": true,
+          "receive_k": null,
+          "top": false
+        },
+        {
+          "can_receive_5d_packet_now": false,
+          "cards_above": 11,
+          "column_1": 9,
+          "component": [
+            "6D"
+          ],
+          "exposed_destination": false,
+          "face_up": true,
+          "face_up_above": [
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "4D"
+          ],
+          "has_7d_6d": false,
+          "receive_k": null,
+          "top": false
+        }
+      ]
+    }
+  },
+  "c_reached": false,
+  "c_search": {
+    "a_ancestry_preference": false,
+    "already_at_source": 0,
+    "best_full_mw": null,
+    "best_source_category": null,
+    "duplicate_skips": 1585759,
+    "elapsed_s": 450.00033159996383,
+    "expanded": 342500,
+    "first_s": null,
+    "first_unique": null,
+    "generated": 1870094,
+    "levels": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "peak_rss_mb": 168.99609375,
+    "reached": false,
+    "sd5_expanded": false,
+    "stop_reason": "time limit",
+    "unique": 235788,
+    "used_heuristic_prune": false
+  },
+  "contract_ok": true,
+  "core4": {
+    "bridge_e_already": 0,
+    "cheapest_full_mw": null,
+    "lower_tail_already": 0,
+    "n": 0,
+    "source_categories": {}
+  },
+  "core4_n": 0,
+  "cross_target": {
+    "ah_current": 2,
+    "ah_top": 0,
+    "qh_jh": 136,
+    "h9_face_up": 0,
+    "heart_release_plausible": 172,
+    "n": 208,
+    "searched_hearts": false
+  },
+  "discrepancy": {
+    "before_dedup": 208,
+    "explanation": "v0.40 reported 208; reconstructed 208 multi-edge records from A/B/D, 208 exact unique pack_state identities keeping cheapest full g.",
+    "reconstructed_unique": 208,
+    "v040_reported_n": 208
+  },
+  "elapsed_s": 451.3816843999666,
+  "exact_dedup_count": 208,
+  "experiment": "diamond_missing_core_bridge_v0_41",
+  "files": {
+    "c_portfolio": "docs/research/diamond_edge_C_v0_41.json",
+    "core4": "docs/research/diamond_core4_v0_41.json",
+    "fixture": null,
+    "lower_tail": null,
+    "report": "docs/research/diamond_missing_core_bridge_v0_41.md",
+    "result": "docs/research/diamond_missing_core_bridge_v0_41.json",
+    "sources": "docs/research/diamond_multi_edge_sources_v0_41.json"
+  },
+  "foundation": {
+    "fixture": null,
+    "reached": false
+  },
+  "foundation_reached": false,
+  "interpretation": "C = 6D-5D not reached under MW<=100. Reconstructed 208 exact multi-edge sources (raw 360, before-dedup 208). C reached=False C0=None CORE4=0 lower_tail=False foundation=False. Best source category for C=None. SD5 never expanded. A-ancestry was not a hard preference.",
+  "lower_tail_reached": false,
+  "multi_edge_before_dedup": 208,
+  "next_recommendation": "Every reconstructed multi-edge source already contains 7D-6D, but 6D is never an exposed destination (mixed covers of 6-14 cards, always columns 8 and 9). Make 6D exposure the next directed cut from this 208-state frontier. Do not raise MW above 100. Do not take SD5. Do not search Hearts.",
+  "persistence_audit": {
+    "appears_empty_via_contents_api": true,
+    "c_witnesses": 0,
+    "do_not_trust_208_as_unique_count": true,
+    "exists": true,
+    "explanation": "v0.40 reports n=208 for diamond_core_two_edge_v0_40.json.  The GitHub Contents API returns encoding=none and empty content for blobs larger than 1000000 bytes (local size 1431605).  The v0.40 script appends every per-edge witness with >=2 current edges and does not exact-deduplicate the combined list on ordered pack_state.  Reconstruct from populated A/B/D portfolios; do not trust 208.",
+    "github_contents_api_empty": true,
+    "github_contents_limit": 1000000,
+    "local_bytes": 1431605,
+    "path": "docs/research/diamond_core_two_edge_v0_40.json",
+    "reported_n": 208,
+    "states_len": 208,
+    "unique_digests_in_file": 208,
+    "v040_combined_list_lacks_pack_state_dedup": true
+  },
+  "production_unchanged": true,
+  "reconstructed_candidate_count": 360,
+  "reconstruction_failure": false,
+  "sd5_expanded": false,
+  "source_categories": {
+    "A+B": {
+      "all_replay_ok": true,
+      "cheapest_full_mw": 84,
+      "cost_counts": {
+        "84": 8,
+        "85": 16,
+        "86": 8
+      },
+      "immediate_c_joins": 0,
+      "mw_range": [
+        84,
+        86
+      ],
+      "n": 32,
+      "principal_blockers": {
+        "6D_not_exposed_destination": 32,
+        "no_immediate_C_join": 32
+      },
+      "source_portfolio_lineage": {
+        "A": 32
+      }
+    },
+    "A+B+D": {
+      "all_replay_ok": true,
+      "cheapest_full_mw": 85,
+      "cost_counts": {
+        "85": 8,
+        "86": 32
+      },
+      "immediate_c_joins": 0,
+      "mw_range": [
+        85,
+        86
+      ],
+      "n": 40,
+      "principal_blockers": {
+        "5D_packet_not_movable": 40,
+        "6D_not_exposed_destination": 40,
+        "no_immediate_C_join": 40
+      },
+      "source_portfolio_lineage": {
+        "A": 40
+      }
+    },
+    "A+D": {
+      "all_replay_ok": true,
+      "cheapest_full_mw": 86,
+      "cost_counts": {
+        "86": 8
+      },
+      "immediate_c_joins": 0,
+      "mw_range": [
+        86,
+        86
+      ],
+      "n": 8,
+      "principal_blockers": {
+        "5D_packet_not_movable": 8,
+        "6D_not_exposed_destination": 8,
+        "no_immediate_C_join": 8
+      },
+      "source_portfolio_lineage": {
+        "A": 8
+      }
+    },
+    "B+D": {
+      "all_replay_ok": true,
+      "cheapest_full_mw": 82,
+      "cost_counts": {
+        "82": 96,
+        "83": 32
+      },
+      "immediate_c_joins": 0,
+      "mw_range": [
+        82,
+        83
+      ],
+      "n": 128,
+      "principal_blockers": {
+        "5D_packet_not_movable": 128,
+        "6D_not_exposed_destination": 128,
+        "no_immediate_C_join": 128
+      },
+      "source_portfolio_lineage": {
+        "D": 128
+      }
+    }
+  },
+  "verdict": "DIAMOND_C_NOT_FOUND_IN_ENVELOPE",
+  "verdict_reason": "C = 6D-5D not reached under MW<=100"
+}
