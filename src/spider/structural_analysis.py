@@ -21,6 +21,7 @@ from spider.research_actions import (
     pretty_card,
     restore_state,
     step_cost,
+    stock_rows,
 )
 
 SUITS = ("s", "h", "d", "c")
@@ -42,6 +43,34 @@ def tableau_occupancy(state: SpiderState) -> dict:
         "empty_columns": empty_column_indices(state),
         "empty_n": empty_column_count(state),
         "foundations": foundation_count(state),
+        "foundation_suits": foundation_suits(state),
+    }
+
+
+def current_tableau_summary(state: SpiderState) -> dict:
+    """Epoch-safe current-tableau facts. No suit preference, no K-A cover.
+
+    ``component_cover`` is omitted: before stock exhaustion undealt cards
+    make full K-A cover incomplete by definition, which is not a defect.
+    """
+
+    comps = visible_components(state)
+    bonds = sum(int(c["length"]) - 1 for c in comps if int(c["length"]) >= 2)
+    longest = 0 if not comps else max(int(c["length"]) for c in comps)
+    merges = sum(len(c["dests_0"]) for c in comps if c["movable"])
+    visible_cards = sum(len(col.face_up) for col in state.columns)
+    vis_n = len(comps)
+    return {
+        "foundations": foundation_count(state),
+        "stock_rows": stock_rows(state),
+        "face_down": face_down_count(state),
+        "empty_n": empty_column_count(state),
+        "same_suit_bonds": bonds,
+        "longest_run": longest,
+        "merge_edges": merges,
+        "visible_runs": vis_n,
+        "visible_cards": visible_cards,
+        "run_compression": visible_cards - vis_n,
         "foundation_suits": foundation_suits(state),
     }
 

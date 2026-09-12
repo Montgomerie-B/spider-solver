@@ -101,6 +101,19 @@ def pack_post_stock_symmetry_state(state: SpiderState) -> bytes:
     return b"".join(parts)
 
 
+def pack_whole_game_identity(state: SpiderState) -> bytes:
+    """Exact whole-game TT key.
+
+    While stock remains, identity is ordered ``pack_state`` (SPK1): future
+    Deal rows land left-to-right on physical columns, so permutation is not
+    an automorphism. After stock is empty, identity is
+    ``pack_post_stock_symmetry_state`` (SPS1). Magics SPK1 and SPS1 cannot
+    collide. Neither packing format is altered.
+    """
+
+    return pack_search_identity(state, post_stock_column_symmetry=True)
+
+
 def pack_search_identity(
     state: SpiderState, *, post_stock_column_symmetry: bool = False
 ) -> bytes:

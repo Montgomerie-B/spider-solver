@@ -151,6 +151,16 @@ def tableau_actions(state: SpiderState, *, rules: MobilityWareRules = MW_RULES) 
     return [action for action in state.enumerate_legal_actions(rules=rules) if action != ("deal",)]
 
 
+def all_legal_actions(state: SpiderState, *, rules: MobilityWareRules = MW_RULES) -> List[Action]:
+    """Engine-legal primitives including Deal when the engine says Deal is legal.
+
+    Does not invent Deal legality. Unrestricted Deal is whatever ``rules``
+    and ``SpiderState.enumerate_legal_actions`` already allow.
+    """
+
+    return list(state.enumerate_legal_actions(rules=rules))
+
+
 def engine_tableau_actions(
     state: SpiderState, *, rules: MobilityWareRules = MW_RULES
 ) -> Tuple[List[Action], List[dict]]:

@@ -111,6 +111,7 @@ def run_search(
     actions_fn: Optional[ActionsFn] = None,
     action_order: Optional[ActionOrderFn] = None,
     on_child: Optional[Callable[[SpiderState, int, int], None]] = None,
+    on_progress: Optional[Callable[["KernelResult", SpiderState, int, int], None]] = None,
 ) -> KernelResult:
     """Exact best-g search. ``roots`` need ordered_digest, symmetry_digest, g.
 
@@ -184,9 +185,11 @@ def run_search(
             push(node_i, st0, g0)
         result.min_g = g0 if result.min_g is None else min(result.min_g, g0)
         result.max_g = g0 if result.max_g is None else max(result.max_g, g0)
+        result.unique = len(best_g)
+        if on_progress is not None:
+            on_progress(result, st0, g0, node_i)
         if on_child is not None:
             on_child(st0, g0, node_i)
-    result.unique = len(best_g)
 
     lane_i = 0
     empty_streak = 0
@@ -256,6 +259,8 @@ def run_search(
                 )
                 result.min_g = child_g if result.min_g is None else min(result.min_g, child_g)
                 result.max_g = child_g if result.max_g is None else max(result.max_g, child_g)
+                if on_progress is not None:
+                    on_progress(result, state, child_g, child_i)
                 if on_child is not None:
                     on_child(state, child_g, child_i)
                 if is_terminal(state):
