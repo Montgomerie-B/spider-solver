@@ -1,0 +1,58 @@
+{
+  "by_lineage_tail3": {
+    "diamond_multi_edge": 3520
+  },
+  "cheapest_by_tail": {
+    "1": {
+      "g": 76,
+      "lineages": [
+        "diamond_ready"
+      ],
+      "prep_depth": 0,
+      "timing": "DEAL_NOW"
+    },
+    "3": {
+      "g": 85,
+      "lineages": [
+        "diamond_multi_edge"
+      ],
+      "prep_depth": 0,
+      "timing": "DEAL_NOW"
+    }
+  },
+  "experiment": "sd5_spade_receiving_planner_v0_45",
+  "ge": {
+    "2": {
+      "cheapest": 85,
+      "n": 3520
+    },
+    "3": {
+      "cheapest": 85,
+      "n": 3520
+    },
+    "4": {
+      "cheapest": null,
+      "n": 0
+    },
+    "5": {
+      "cheapest": null,
+      "n": 0
+    }
+  },
+  "n_candidates": 103513,
+  "post_tail": {
+    "1": 99993,
+    "3": 3520
+  },
+  "pre_receiver": {
+    "0": 99993,
+    "2": 3520
+  },
+  "pred_fail": 0,
+  "pred_ok": 3520,
+  "symmetry_classes": 103513,
+  "timing_tail3": {
+    "DEAL_NOW": 64,
+    "PREP_THEN_DEAL": 3456
+  }
+}

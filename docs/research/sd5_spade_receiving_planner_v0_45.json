@@ -1,0 +1,252 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "08c2433fcb04092d1a99fdaeac360216c35b52fb",
+  "branch": "agent/sd5-spade-receiving-planner-v0-45",
+  "did_not_seed_103k": true,
+  "elapsed_s": 363.66046039998764,
+  "experiment": "sd5_spade_receiving_planner_v0_45",
+  "files": {
+    "distribution": "docs/research/sd5_spade_receiver_distribution_v0_45.json",
+    "fixture": null,
+    "portfolio": "docs/research/sd5_spade_transaction_sources_v0_45.json",
+    "report": "docs/research/sd5_spade_receiving_planner_v0_45.md",
+    "result": "docs/research/sd5_spade_receiving_planner_v0_45.json",
+    "tail4": null
+  },
+  "foundation": {
+    "fixture": null,
+    "reached": false
+  },
+  "foundation_reached": false,
+  "interpretation": "TAIL4 not found before unique/RSS limit. Sources 720/720 chain_ok=True. Prep 103513. Post-deal tails {'1': 99993, '3': 3520}. v0.44 DEAL_NOW TAIL3 n=64 best=85. Prep TAIL3 best=86. TAIL4 reached=False F4=None. Did not seed 103k into UCS.",
+  "next_recommendation": "DEAL_NOW 3S-2S-AS at 85 remains the cheapest TAIL3. Prep from the same diamond_multi_edge lineage makes more TAIL3 states at 86, not cheaper, and never a TAIL4 from the Deal. Continue TAIL4 from the 3S-2S-AS set only (4S sits under mixed cards in column 8). Do not flood UCS with 103k children.",
+  "prep_improvement": {
+    "beats_85": false,
+    "cheapest_prepared_tail3": 86,
+    "cheapest_prepared_tail3_depth": 1,
+    "cheapest_prepared_tail3_lineage": [
+      "diamond_multi_edge"
+    ],
+    "cheapest_prepared_tail3_prep": [
+      [
+        0,
+        6,
+        1
+      ]
+    ],
+    "longest_immediate_tail": 3,
+    "longest_prepared_g": 86
+  },
+  "preparation": {
+    "bounds": {
+      "cost": 4,
+      "depth": 4
+    },
+    "candidates": 103513,
+    "depth": {
+      "0": 720,
+      "1": 3275,
+      "2": 10342,
+      "3": 26850,
+      "4": 62326
+    },
+    "elapsed_s": 73.59175719995983,
+    "stop_reason": "complete",
+    "timing": {
+      "DEAL_NOW": 720,
+      "PREP_THEN_DEAL": 102793
+    },
+    "unique": 103513
+  },
+  "production_unchanged": true,
+  "receiver": {
+    "by_lineage_tail3": {
+      "diamond_multi_edge": 3520
+    },
+    "cheapest_by_tail": {
+      "1": {
+        "g": 76,
+        "lineages": [
+          "diamond_ready"
+        ],
+        "prep_depth": 0,
+        "timing": "DEAL_NOW"
+      },
+      "3": {
+        "g": 85,
+        "lineages": [
+          "diamond_multi_edge"
+        ],
+        "prep_depth": 0,
+        "timing": "DEAL_NOW"
+      }
+    },
+    "experiment": "sd5_spade_receiving_planner_v0_45",
+    "ge": {
+      "2": {
+        "cheapest": 85,
+        "n": 3520
+      },
+      "3": {
+        "cheapest": 85,
+        "n": 3520
+      },
+      "4": {
+        "cheapest": null,
+        "n": 0
+      },
+      "5": {
+        "cheapest": null,
+        "n": 0
+      }
+    },
+    "n_candidates": 103513,
+    "post_tail": {
+      "1": 99993,
+      "3": 3520
+    },
+    "pre_receiver": {
+      "0": 99993,
+      "2": 3520
+    },
+    "pred_fail": 0,
+    "pred_ok": 3520,
+    "symmetry_classes": 103513,
+    "timing_tail3": {
+      "DEAL_NOW": 64,
+      "PREP_THEN_DEAL": 3456
+    }
+  },
+  "sd5_audit": {
+    "as_column_8": true,
+    "engine": [
+      "3H",
+      "10H",
+      "2D",
+      "3C",
+      "9H",
+      "7C",
+      "7H",
+      "AS",
+      "3C",
+      "5D"
+    ],
+    "expected": [
+      "3H",
+      "10H",
+      "2D",
+      "3C",
+      "9H",
+      "7C",
+      "7H",
+      "AS",
+      "3C",
+      "5D"
+    ],
+    "matches": true,
+    "stock_rows": 1
+  },
+  "sources": {
+    "all_replay_ok": true,
+    "cost_counts": {
+      "75": 16,
+      "76": 128,
+      "77": 144,
+      "78": 224,
+      "82": 96,
+      "83": 32,
+      "84": 8,
+      "85": 24,
+      "86": 48
+    },
+    "lineage_counts": {
+      "diamond_multi_edge": 208,
+      "diamond_ready": 256,
+      "heart_h9": 256
+    },
+    "n": 720,
+    "spade_chain_ok": true
+  },
+  "tail4": {
+    "already_at_source": 0,
+    "best_full_mw": null,
+    "deal_now_vs_prep": {
+      "deal_now": null,
+      "prep": null
+    },
+    "duplicate_skips": 369466,
+    "elapsed_s": 143.65767179999966,
+    "expanded": 99372,
+    "first_s": null,
+    "first_unique": null,
+    "generated": 618954,
+    "n": 0,
+    "peak_rss_mb": 2286.8203125,
+    "reached": false,
+    "slack": {},
+    "stop_reason": "unique limit",
+    "timing": null,
+    "unique": 250000
+  },
+  "tail5": {
+    "deal_now_best": null,
+    "longest": 0,
+    "prep_best": null,
+    "preview": {}
+  },
+  "timing": {
+    "deal_now_tail4": null,
+    "prep_tail4": null
+  },
+  "transaction": {
+    "column8_pre": [
+      "4S",
+      "10D",
+      "5S",
+      "4H",
+      "3S",
+      "2S"
+    ],
+    "g": 86,
+    "labels": [
+      "AS_RECEIVED_ON_3S_2S",
+      "PREP_RELOCATED_2S",
+      "PREP_RELOCATED_3S",
+      "PREP_CLEARED_C8",
+      "POSTDEAL_SAME_SUIT_BUILD"
+    ],
+    "lineages": [
+      "diamond_multi_edge"
+    ],
+    "low_tail": 3,
+    "prep_actions": [
+      [
+        0,
+        6,
+        1
+      ]
+    ],
+    "prep_cost": 1,
+    "prep_depth": 1,
+    "receiver_length": 2,
+    "timing": "PREP_THEN_DEAL"
+  },
+  "v044_control": {
+    "best_cost": 85,
+    "best_matches_85": true,
+    "n_tail3": 64,
+    "reproduced_n64": true,
+    "sample_c8_pre": [
+      "4S",
+      "10D",
+      "5S",
+      "4H",
+      "3S",
+      "2S"
+    ],
+    "sample_receiver": 2,
+    "sample_tail": 3
+  },
+  "verdict": "SPADE_TRANSACTION_STATE_EXPLOSION",
+  "verdict_reason": "TAIL4 not found before unique/RSS limit"
+}
