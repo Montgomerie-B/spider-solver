@@ -1,0 +1,2177 @@
+{
+  "empty": {
+    "fd0_face_up_lens": {
+      "10": 16,
+      "11": 30,
+      "12": 11,
+      "14": 2,
+      "19": 77,
+      "20": 4,
+      "21": 34,
+      "23": 9,
+      "25": 4,
+      "4": 19,
+      "5": 156,
+      "6": 137,
+      "7": 35,
+      "8": 161,
+      "9": 73
+    },
+    "one_move_clearable": 0
+  },
+  "experiment": "spade_5s_landing_resource_v0_48",
+  "jack": {
+    "already_top": 0,
+    "depth": {
+      "1": 90,
+      "11": 27,
+      "12": 76,
+      "13": 16,
+      "16": 77,
+      "17": 4,
+      "18": 34,
+      "2": 161,
+      "20": 9,
+      "22": 4,
+      "3": 111,
+      "4": 102,
+      "5": 87,
+      "6": 34,
+      "7": 42,
+      "8": 12,
+      "9": 10
+    },
+    "occurrences": 896
+  },
+  "n_sources": 128,
+  "rank6": {
+    "depth": {
+      "10": 110,
+      "11": 93,
+      "12": 13,
+      "13": 34,
+      "14": 4,
+      "15": 9,
+      "17": 4,
+      "3": 119,
+      "4": 183,
+      "5": 42,
+      "6": 134,
+      "7": 13,
+      "8": 111,
+      "9": 27
+    },
+    "face_down": 0,
+    "need_ranks": {
+      "6": 128,
+      "8": 128
+    },
+    "occurrences": 896,
+    "one_move_exposable": 0,
+    "per_source": 7.0,
+    "signatures": {
+      "('c', 3, True, ('KC', 'QH', '7H'))": 50,
+      "('c', 4, True, ('KC', 'QH', 'JD', '7H'))": 6,
+      "('c', 4, True, ('KC', 'QH', 'JH', '7H'))": 29,
+      "('c', 5, True, ('KS', '2C', 'AH', '9D'))": 12,
+      "('c', 6, True, ('KC', 'QH', 'JH', '10S'))": 31,
+      "('c', 6, True, ('KS', '2C', 'AH', '9D'))": 76,
+      "('c', 7, True, ('KS', '2C', 'AH', '9D'))": 8,
+      "('c', 8, True, ('KS', '2C', 'AH', '9D'))": 32,
+      "('d', 11, True, ('8S', '7H', '6H', '5C'))": 77,
+      "('d', 13, True, ('8S', '7H', '6H', '5C'))": 34,
+      "('d', 15, True, ('8S', '7H', '6H', '5C'))": 9,
+      "('d', 4, True, ('5C', '4S', '10D', '5S'))": 128,
+      "('h', 10, True, ('5C', 'QH', 'JD', '10D'))": 34,
+      "('h', 12, True, ('5C', 'QH', 'JD', '10D'))": 9,
+      "('h', 3, True, ('KH', 'QS', '3C'))": 69,
+      "('h', 4, True, ('KH', 'QS', 'JD', '3C'))": 5,
+      "('h', 4, True, ('KH', 'QS', 'JS', '3C'))": 6,
+      "('h', 5, True, ('KH', 'QS', '3C', '2S'))": 26,
+      "('h', 6, True, ('KH', 'QS', 'JS', '10S'))": 6,
+      "('h', 8, True, ('5C', 'QH', 'JD', '10D'))": 77,
+      "('s', 10, True, ('5H', '4C', '3D', '2C'))": 76,
+      "('s', 11, True, ('5H', '4C', '3D', '2C'))": 16,
+      "('s', 6, True, ('5H', '4C', '3D', '2C'))": 12,
+      "('s', 9, True, ('5H', '4C', '3D', '2C'))": 23
+    }
+  },
+  "samples": [
+    {
+      "empties": [
+        {
+          "column_1": 1,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 2,
+          "fu": 7,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 2,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 3,
+          "fu": 4,
+          "need_rank": 11,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "9H",
+          "top_packet_k": 2,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 3,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 1,
+          "fu": 12,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "2D",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 4,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 9,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3C",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 5,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 6,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3S",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 6,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 5,
+          "need_rank": 8,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "7C",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 7,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 1,
+          "fu": 7,
+          "need_rank": 8,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "7H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 8,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 8,
+          "need_rank": 6,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "5S",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 9,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 21,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "AS",
+          "top_packet_k": 2,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 10,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 5,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "4H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        }
+      ],
+      "g": 89,
+      "jacks": [
+        {
+          "above": [
+            "10H",
+            "9H"
+          ],
+          "card": "JS",
+          "cards_above": 2,
+          "column_1": 2,
+          "face_up": true,
+          "need_rank": 11,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "s",
+          "top": false,
+          "top_packet": [
+            "10H",
+            "9H"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "AH",
+            "JS",
+            "10H",
+            "9H"
+          ],
+          "card": "JH",
+          "cards_above": 4,
+          "column_1": 2,
+          "face_up": false,
+          "need_rank": 11,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "10H",
+            "9H"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "10S",
+            "9S",
+            "7H"
+          ],
+          "card": "JH",
+          "cards_above": 3,
+          "column_1": 7,
+          "face_up": true,
+          "need_rank": 8,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "7H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "JD",
+          "cards_above": 7,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "5D",
+            "4H"
+          ],
+          "card": "JD",
+          "cards_above": 2,
+          "column_1": 10,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            8
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "4H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "7D",
+            "6S",
+            "5H",
+            "4C",
+            "3D",
+            "2C",
+            "AC",
+            "4D",
+            "3D",
+            "2D",
+            "AD",
+            "2D"
+          ],
+          "card": "JC",
+          "cards_above": 12,
+          "column_1": 3,
+          "face_up": false,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "2D"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "10C",
+            "9C",
+            "8C",
+            "7C",
+            "6D",
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "JC",
+          "cards_above": 18,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        }
+      ],
+      "sixes": [
+        {
+          "above": [
+            "5H",
+            "4C",
+            "3D",
+            "2C",
+            "AC",
+            "4D",
+            "3D",
+            "2D",
+            "AD",
+            "2D"
+          ],
+          "card": "6S",
+          "cards_above": 10,
+          "column_1": 3,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "s",
+          "top": false,
+          "top_packet": [
+            "2D"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KH",
+            "QS",
+            "3C"
+          ],
+          "card": "6H",
+          "cards_above": 3,
+          "column_1": 4,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "6H",
+          "cards_above": 10,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "5C",
+            "4S",
+            "10D",
+            "5S"
+          ],
+          "card": "6D",
+          "cards_above": 4,
+          "column_1": 8,
+          "face_up": true,
+          "need_rank": 6,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "5S"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "6D",
+          "cards_above": 13,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "KS",
+            "2C",
+            "AH",
+            "9D",
+            "8C",
+            "3H"
+          ],
+          "card": "6C",
+          "cards_above": 6,
+          "column_1": 1,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "3H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KC",
+            "QH",
+            "JH",
+            "10S",
+            "9S",
+            "7H"
+          ],
+          "card": "6C",
+          "cards_above": 6,
+          "column_1": 7,
+          "face_up": true,
+          "need_rank": 8,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "7H"
+          ],
+          "top_packet_k": 1
+        }
+      ],
+      "timing": "DEAL_NOW"
+    },
+    {
+      "empties": [
+        {
+          "column_1": 1,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 2,
+          "fu": 7,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 2,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 3,
+          "fu": 4,
+          "need_rank": 11,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "9H",
+          "top_packet_k": 2,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 3,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 1,
+          "fu": 12,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "2D",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 4,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 9,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3C",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 5,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 6,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3S",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 6,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 8,
+          "need_rank": 8,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "7C",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 7,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 1,
+          "fu": 4,
+          "need_rank": 8,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "7H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 8,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 8,
+          "need_rank": 6,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "5S",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 9,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 21,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "AS",
+          "top_packet_k": 2,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 10,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 5,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "4H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        }
+      ],
+      "g": 89,
+      "jacks": [
+        {
+          "above": [
+            "10H",
+            "9H"
+          ],
+          "card": "JS",
+          "cards_above": 2,
+          "column_1": 2,
+          "face_up": true,
+          "need_rank": 11,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "s",
+          "top": false,
+          "top_packet": [
+            "10H",
+            "9H"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "AH",
+            "JS",
+            "10H",
+            "9H"
+          ],
+          "card": "JH",
+          "cards_above": 4,
+          "column_1": 2,
+          "face_up": false,
+          "need_rank": 11,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "10H",
+            "9H"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "10S",
+            "9S",
+            "7C"
+          ],
+          "card": "JH",
+          "cards_above": 3,
+          "column_1": 6,
+          "face_up": true,
+          "need_rank": 8,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "7C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "JD",
+          "cards_above": 7,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "5D",
+            "4H"
+          ],
+          "card": "JD",
+          "cards_above": 2,
+          "column_1": 10,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            8
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "4H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "7D",
+            "6S",
+            "5H",
+            "4C",
+            "3D",
+            "2C",
+            "AC",
+            "4D",
+            "3D",
+            "2D",
+            "AD",
+            "2D"
+          ],
+          "card": "JC",
+          "cards_above": 12,
+          "column_1": 3,
+          "face_up": false,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "2D"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "10C",
+            "9C",
+            "8C",
+            "7C",
+            "6D",
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "JC",
+          "cards_above": 18,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        }
+      ],
+      "sixes": [
+        {
+          "above": [
+            "5H",
+            "4C",
+            "3D",
+            "2C",
+            "AC",
+            "4D",
+            "3D",
+            "2D",
+            "AD",
+            "2D"
+          ],
+          "card": "6S",
+          "cards_above": 10,
+          "column_1": 3,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "s",
+          "top": false,
+          "top_packet": [
+            "2D"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KH",
+            "QS",
+            "3C"
+          ],
+          "card": "6H",
+          "cards_above": 3,
+          "column_1": 4,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "6H",
+          "cards_above": 10,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "5C",
+            "4S",
+            "10D",
+            "5S"
+          ],
+          "card": "6D",
+          "cards_above": 4,
+          "column_1": 8,
+          "face_up": true,
+          "need_rank": 6,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "5S"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "6D",
+          "cards_above": 13,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            4,
+            5
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "KS",
+            "2C",
+            "AH",
+            "9D",
+            "8C",
+            "3H"
+          ],
+          "card": "6C",
+          "cards_above": 6,
+          "column_1": 1,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "3H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KC",
+            "QH",
+            "7H"
+          ],
+          "card": "6C",
+          "cards_above": 3,
+          "column_1": 7,
+          "face_up": true,
+          "need_rank": 8,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "7H"
+          ],
+          "top_packet_k": 1
+        }
+      ],
+      "timing": "DEAL_NOW"
+    },
+    {
+      "empties": [
+        {
+          "column_1": 1,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 2,
+          "fu": 7,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 2,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 3,
+          "fu": 4,
+          "need_rank": 11,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "9H",
+          "top_packet_k": 2,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 3,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 1,
+          "fu": 12,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "2D",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 4,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 11,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "AS",
+          "top_packet_k": 2,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 5,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 6,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3S",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 6,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 5,
+          "need_rank": 8,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "7C",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 7,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 1,
+          "fu": 7,
+          "need_rank": 8,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "7H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 8,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 8,
+          "need_rank": 6,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "5S",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 9,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 19,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3C",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 10,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 5,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "4H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        }
+      ],
+      "g": 89,
+      "jacks": [
+        {
+          "above": [
+            "10H",
+            "9H"
+          ],
+          "card": "JS",
+          "cards_above": 2,
+          "column_1": 2,
+          "face_up": true,
+          "need_rank": 11,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "s",
+          "top": false,
+          "top_packet": [
+            "10H",
+            "9H"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "AH",
+            "JS",
+            "10H",
+            "9H"
+          ],
+          "card": "JH",
+          "cards_above": 4,
+          "column_1": 2,
+          "face_up": false,
+          "need_rank": 11,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "10H",
+            "9H"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "10S",
+            "9S",
+            "7H"
+          ],
+          "card": "JH",
+          "cards_above": 3,
+          "column_1": 7,
+          "face_up": true,
+          "need_rank": 8,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "7H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C"
+          ],
+          "card": "JD",
+          "cards_above": 5,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "5D",
+            "4H"
+          ],
+          "card": "JD",
+          "cards_above": 2,
+          "column_1": 10,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            8
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "4H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "7D",
+            "6S",
+            "5H",
+            "4C",
+            "3D",
+            "2C",
+            "AC",
+            "4D",
+            "3D",
+            "2D",
+            "AD",
+            "2D"
+          ],
+          "card": "JC",
+          "cards_above": 12,
+          "column_1": 3,
+          "face_up": false,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            5,
+            9
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "2D"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "10C",
+            "9C",
+            "8C",
+            "7C",
+            "6D",
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C"
+          ],
+          "card": "JC",
+          "cards_above": 16,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        }
+      ],
+      "sixes": [
+        {
+          "above": [
+            "5H",
+            "4C",
+            "3D",
+            "2C",
+            "AC",
+            "4D",
+            "3D",
+            "2D",
+            "AD",
+            "2D"
+          ],
+          "card": "6S",
+          "cards_above": 10,
+          "column_1": 3,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            5,
+            9
+          ],
+          "packet_movable": true,
+          "suit": "s",
+          "top": false,
+          "top_packet": [
+            "2D"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KH",
+            "QS",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "6H",
+          "cards_above": 5,
+          "column_1": 4,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            5,
+            9
+          ],
+          "packet_movable": true,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C"
+          ],
+          "card": "6H",
+          "cards_above": 8,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "5C",
+            "4S",
+            "10D",
+            "5S"
+          ],
+          "card": "6D",
+          "cards_above": 4,
+          "column_1": 8,
+          "face_up": true,
+          "need_rank": 6,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "5S"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C"
+          ],
+          "card": "6D",
+          "cards_above": 11,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KS",
+            "2C",
+            "AH",
+            "9D",
+            "8C",
+            "3H"
+          ],
+          "card": "6C",
+          "cards_above": 6,
+          "column_1": 1,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "3H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KC",
+            "QH",
+            "JH",
+            "10S",
+            "9S",
+            "7H"
+          ],
+          "card": "6C",
+          "cards_above": 6,
+          "column_1": 7,
+          "face_up": true,
+          "need_rank": 8,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "7H"
+          ],
+          "top_packet_k": 1
+        }
+      ],
+      "timing": "DEAL_NOW"
+    },
+    {
+      "empties": [
+        {
+          "column_1": 1,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 2,
+          "fu": 7,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 2,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 3,
+          "fu": 4,
+          "need_rank": 11,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "9H",
+          "top_packet_k": 2,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 3,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 1,
+          "fu": 12,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "2D",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 4,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 11,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "AS",
+          "top_packet_k": 2,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 5,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 6,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3S",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 6,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 8,
+          "need_rank": 8,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "7C",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 7,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 1,
+          "fu": 4,
+          "need_rank": 8,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "7H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 8,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 8,
+          "need_rank": 6,
+          "one_move_clearable": false,
+          "packet_movable": false,
+          "top": "5S",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 9,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 19,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "3C",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        },
+        {
+          "column_1": 10,
+          "creates_empty": false,
+          "empty": false,
+          "fd": 0,
+          "fu": 5,
+          "need_rank": null,
+          "one_move_clearable": false,
+          "packet_movable": true,
+          "top": "4H",
+          "top_packet_k": 1,
+          "whole_exposed_can_leave": false
+        }
+      ],
+      "g": 89,
+      "jacks": [
+        {
+          "above": [
+            "10H",
+            "9H"
+          ],
+          "card": "JS",
+          "cards_above": 2,
+          "column_1": 2,
+          "face_up": true,
+          "need_rank": 11,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "s",
+          "top": false,
+          "top_packet": [
+            "10H",
+            "9H"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "AH",
+            "JS",
+            "10H",
+            "9H"
+          ],
+          "card": "JH",
+          "cards_above": 4,
+          "column_1": 2,
+          "face_up": false,
+          "need_rank": 11,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "10H",
+            "9H"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "10S",
+            "9S",
+            "7C"
+          ],
+          "card": "JH",
+          "cards_above": 3,
+          "column_1": 6,
+          "face_up": true,
+          "need_rank": 8,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "7C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C"
+          ],
+          "card": "JD",
+          "cards_above": 5,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "5D",
+            "4H"
+          ],
+          "card": "JD",
+          "cards_above": 2,
+          "column_1": 10,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            8
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "4H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "7D",
+            "6S",
+            "5H",
+            "4C",
+            "3D",
+            "2C",
+            "AC",
+            "4D",
+            "3D",
+            "2D",
+            "AD",
+            "2D"
+          ],
+          "card": "JC",
+          "cards_above": 12,
+          "column_1": 3,
+          "face_up": false,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            5,
+            9
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "2D"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "10C",
+            "9C",
+            "8C",
+            "7C",
+            "6D",
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C"
+          ],
+          "card": "JC",
+          "cards_above": 16,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        }
+      ],
+      "sixes": [
+        {
+          "above": [
+            "5H",
+            "4C",
+            "3D",
+            "2C",
+            "AC",
+            "4D",
+            "3D",
+            "2D",
+            "AD",
+            "2D"
+          ],
+          "card": "6S",
+          "cards_above": 10,
+          "column_1": 3,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            5,
+            9
+          ],
+          "packet_movable": true,
+          "suit": "s",
+          "top": false,
+          "top_packet": [
+            "2D"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KH",
+            "QS",
+            "3C",
+            "2S",
+            "AS"
+          ],
+          "card": "6H",
+          "cards_above": 5,
+          "column_1": 4,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            1,
+            5,
+            9
+          ],
+          "packet_movable": true,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "2S",
+            "AS"
+          ],
+          "top_packet_k": 2
+        },
+        {
+          "above": [
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C"
+          ],
+          "card": "6H",
+          "cards_above": 8,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "h",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "5C",
+            "4S",
+            "10D",
+            "5S"
+          ],
+          "card": "6D",
+          "cards_above": 4,
+          "column_1": 8,
+          "face_up": true,
+          "need_rank": 6,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "5S"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "8S",
+            "7H",
+            "6H",
+            "5C",
+            "QH",
+            "JD",
+            "10D",
+            "9D",
+            "8D",
+            "5D",
+            "3C"
+          ],
+          "card": "6D",
+          "cards_above": 11,
+          "column_1": 9,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "d",
+          "top": false,
+          "top_packet": [
+            "3C"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KS",
+            "2C",
+            "AH",
+            "9D",
+            "8C",
+            "3H"
+          ],
+          "card": "6C",
+          "cards_above": 6,
+          "column_1": 1,
+          "face_up": true,
+          "need_rank": null,
+          "one_move_exposable": false,
+          "packet_dests_1": [
+            10
+          ],
+          "packet_movable": true,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "3H"
+          ],
+          "top_packet_k": 1
+        },
+        {
+          "above": [
+            "KC",
+            "QH",
+            "7H"
+          ],
+          "card": "6C",
+          "cards_above": 3,
+          "column_1": 7,
+          "face_up": true,
+          "need_rank": 8,
+          "one_move_exposable": false,
+          "packet_dests_1": [],
+          "packet_movable": false,
+          "suit": "c",
+          "top": false,
+          "top_packet": [
+            "7H"
+          ],
+          "top_packet_k": 1
+        }
+      ],
+      "timing": "DEAL_NOW"
+    }
+  ]
+}

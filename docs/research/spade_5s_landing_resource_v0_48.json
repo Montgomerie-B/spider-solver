@@ -1,0 +1,174 @@
+{
+  "all_replay_ok": true,
+  "audit_summary": {
+    "empty": {
+      "fd0_face_up_lens": {
+        "10": 16,
+        "11": 30,
+        "12": 11,
+        "14": 2,
+        "19": 77,
+        "20": 4,
+        "21": 34,
+        "23": 9,
+        "25": 4,
+        "4": 19,
+        "5": 156,
+        "6": 137,
+        "7": 35,
+        "8": 161,
+        "9": 73
+      },
+      "one_move_clearable": 0
+    },
+    "jack": {
+      "already_top": 0,
+      "depth": {
+        "1": 90,
+        "11": 27,
+        "12": 76,
+        "13": 16,
+        "16": 77,
+        "17": 4,
+        "18": 34,
+        "2": 161,
+        "20": 9,
+        "22": 4,
+        "3": 111,
+        "4": 102,
+        "5": 87,
+        "6": 34,
+        "7": 42,
+        "8": 12,
+        "9": 10
+      },
+      "occurrences": 896
+    },
+    "n_sources": 128,
+    "rank6": {
+      "depth": {
+        "10": 110,
+        "11": 93,
+        "12": 13,
+        "13": 34,
+        "14": 4,
+        "15": 9,
+        "17": 4,
+        "3": 119,
+        "4": 183,
+        "5": 42,
+        "6": 134,
+        "7": 13,
+        "8": 111,
+        "9": 27
+      },
+      "face_down": 0,
+      "need_ranks": {
+        "6": 128,
+        "8": 128
+      },
+      "occurrences": 896,
+      "one_move_exposable": 0,
+      "per_source": 7.0
+    },
+    "rank6_top_signatures": {
+      "('c', 3, True, ('KC', 'QH', '7H'))": 50,
+      "('c', 4, True, ('KC', 'QH', 'JD', '7H'))": 6,
+      "('c', 4, True, ('KC', 'QH', 'JH', '7H'))": 29,
+      "('c', 5, True, ('KS', '2C', 'AH', '9D'))": 12,
+      "('c', 6, True, ('KC', 'QH', 'JH', '10S'))": 31,
+      "('c', 6, True, ('KS', '2C', 'AH', '9D'))": 76,
+      "('c', 7, True, ('KS', '2C', 'AH', '9D'))": 8,
+      "('c', 8, True, ('KS', '2C', 'AH', '9D'))": 32
+    }
+  },
+  "base_sha": "3b520c38366c93366925f4da9b787c6a3f6f0b36",
+  "branch": "agent/spade-5s-landing-resource-v0-48",
+  "contract_fail": false,
+  "cost_ceiling": 100,
+  "elapsed_s": 144.21405640000012,
+  "experiment": "spade_5s_landing_resource_v0_48",
+  "explosion": true,
+  "exposed": false,
+  "exposed_at_lb": false,
+  "exposure": {
+    "cheapest": null,
+    "from_89": null,
+    "from_90": null,
+    "lb_matched": false,
+    "n": 0,
+    "reached": false
+  },
+  "fast_path": {
+    "cheapest": null,
+    "from_89": null,
+    "from_90": null,
+    "jack_ready": 0,
+    "kinds": {},
+    "mw90_from_89": 0,
+    "n_actions": 1412,
+    "n_unique": 0
+  },
+  "files": {
+    "audit": "docs/research/spade_5s_resource_audit_v0_48.json",
+    "exposed": null,
+    "land5": null,
+    "report": "docs/research/spade_5s_landing_resource_v0_48.md",
+    "result": "docs/research/spade_5s_landing_resource_v0_48.json"
+  },
+  "interpretation": "unique/RSS/time limit before a LAND5 boundary. Sources 128 B4=2. Fast LAND5 unique=0 cheap=None. Search n=0 cheap=None stop=unique limit. Preview imm=0 one=0. Exposed n=0 cheap=None. No TAIL4. No Foundation 2.",
+  "land5_at_one_move_floor": false,
+  "land5_reached": false,
+  "next_recommendation": "Nearest 6s sit at depth 3 (6H under KH-QS-3C; 6C under KC-QH-7H) and are not one-move packets. Next: a directed peel of those depth-3 6-covers from all 128 B4=2 sources. Do not flood UCS and do not search TAIL4.",
+  "preview": {
+    "blocked": 0,
+    "cheapest_exposure": null,
+    "contract_fail": 0,
+    "destinations": {},
+    "gate2": {},
+    "immediate_n": 0,
+    "n_5s_releases": 0,
+    "n_land5": 0,
+    "one_support_n": 0
+  },
+  "production_unchanged": true,
+  "search": {
+    "attempted": true,
+    "cheapest": null,
+    "cost_bands": {},
+    "duplicate_skips": 287493,
+    "elapsed_s": 141.7161626999732,
+    "expanded": 73499,
+    "first_g": null,
+    "first_kind": null,
+    "first_s": null,
+    "from_89": null,
+    "from_90": null,
+    "generated": 476636,
+    "kinds": {},
+    "n": 0,
+    "peak_rss_mb": 150.1015625,
+    "reached": false,
+    "stop_reason": "unique limit",
+    "unique": 160000
+  },
+  "search_attempted": true,
+  "sources": {
+    "all_replay_ok": true,
+    "cost_counts": {
+      "89": 16,
+      "90": 112
+    },
+    "hard_lb": 92,
+    "land5_absent": true,
+    "raw": 128,
+    "symmetry_unique": 128,
+    "timing": {
+      "DEAL_NOW": 64,
+      "PREP_THEN_DEAL": 64
+    },
+    "zero_cost_first": 0
+  },
+  "verdict": "SPADE_LAND5_RESOURCE_STATE_EXPLOSION",
+  "verdict_reason": "unique/RSS/time limit before a LAND5 boundary"
+}
