@@ -1,0 +1,236 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "a8a8719b58cd8f9fa9b1bbe036a6bfc17d2a00b1",
+  "branch": "agent/post-sd5-club-diamond-tail5-ready-v0-51",
+  "club": {
+    "all_replay_ok": true,
+    "audit": {
+      "categories": {
+        "FIVE_BLOCKED": 96
+      },
+      "five_depth": {
+        "10": 44,
+        "11": 12,
+        "12": 8,
+        "7": 40,
+        "8": 36,
+        "9": 52
+      },
+      "five_n": 192,
+      "five_one_move_sources": 0,
+      "five_top_sources": 0,
+      "k_through_5": 0,
+      "n": 96,
+      "suit": "c",
+      "tail4_buried_sources": 0,
+      "tail4_exposed_sources": 96,
+      "tail4_movable_sources": 96,
+      "upper_runs": {}
+    },
+    "categories": {
+      "FIVE_BLOCKED": 96
+    },
+    "cost_counts": {
+      "90": 32,
+      "91": 64
+    },
+    "fast": {
+      "f2_n": 0,
+      "n_actions": 1008,
+      "ready_cheapest": null,
+      "ready_n": 0
+    },
+    "preview": {
+      "at_source": 0,
+      "cheapest_t6": null,
+      "counts": {},
+      "dead": 0,
+      "join_classes": {},
+      "join_n": 0,
+      "live": false,
+      "ready_n": 0,
+      "within5": 0
+    },
+    "raw": 96,
+    "search": {
+      "already": 0,
+      "bands": {},
+      "cheapest": null,
+      "contract_fail": 0,
+      "duplicate_skips": 93217,
+      "elapsed_s": 185.79713829996763,
+      "expanded": 12343,
+      "first_g": null,
+      "first_s": null,
+      "foundation_surprise": false,
+      "generated": 112731,
+      "n": 0,
+      "peak_rss_mb": 39.8046875,
+      "stop_reason": "time limit",
+      "unique": 19506
+    },
+    "sources": 96,
+    "transitions": {
+      "cheapest_f2": null,
+      "cheapest_t5": null,
+      "contract_n": 0,
+      "f2_n": 0,
+      "n": 0,
+      "persists_n": 0,
+      "upper": {}
+    }
+  },
+  "club_f2": false,
+  "club_ready": false,
+  "club_ready_g": null,
+  "club_t6_live": false,
+  "comparison": {
+    "club_f2": null,
+    "club_ready_g": null,
+    "club_t5": null,
+    "club_t6": {},
+    "diamond_f2": null,
+    "diamond_ready_g": 89,
+    "diamond_t5": 90,
+    "diamond_t6": {
+      "LIVE_BEYOND_5": 199
+    }
+  },
+  "contract_fail": false,
+  "dia_f2": false,
+  "dia_ready": true,
+  "dia_ready_g": 89,
+  "dia_t6_live": true,
+  "diamond": {
+    "all_replay_ok": true,
+    "audit": {
+      "categories": {
+        "FIVE_BLOCKED": 27,
+        "TAIL5_READY_AT_SOURCE": 32
+      },
+      "five_depth": {
+        "0": 32,
+        "1": 51,
+        "2": 16,
+        "5": 12,
+        "7": 7
+      },
+      "five_n": 118,
+      "five_one_move_sources": 24,
+      "five_top_sources": 32,
+      "k_through_5": 0,
+      "n": 59,
+      "suit": "d",
+      "tail4_buried_sources": 0,
+      "tail4_exposed_sources": 59,
+      "tail4_movable_sources": 59,
+      "upper_runs": {
+        "5 only": 32
+      }
+    },
+    "categories": {
+      "FIVE_BLOCKED": 27,
+      "TAIL5_READY_AT_SOURCE": 32
+    },
+    "cost_counts": {
+      "89": 24,
+      "90": 8,
+      "93": 24,
+      "94": 3
+    },
+    "fast": {
+      "f2_n": 0,
+      "n_actions": 394,
+      "ready_cheapest": null,
+      "ready_n": 0
+    },
+    "preview": {
+      "at_source": 0,
+      "cheapest_t6": null,
+      "counts": {
+        "LIVE_BEYOND_5": 199
+      },
+      "dead": 0,
+      "join_classes": {},
+      "join_n": 0,
+      "live": true,
+      "ready_n": 0,
+      "within5": 0
+    },
+    "raw": 125,
+    "search": {
+      "already": 32,
+      "bands": {
+        "89": 18,
+        "90": 76,
+        "91": 65,
+        "92": 33
+      },
+      "cheapest": 89,
+      "contract_fail": 1094,
+      "duplicate_skips": 66729,
+      "elapsed_s": 204.15245829999913,
+      "expanded": 9644,
+      "first_g": 89,
+      "first_s": 0.0,
+      "foundation_surprise": false,
+      "generated": 96735,
+      "n": 192,
+      "peak_rss_mb": 49.3203125,
+      "stop_reason": "time limit",
+      "unique": 29344
+    },
+    "sources": 59,
+    "transitions": {
+      "cheapest_f2": null,
+      "cheapest_t5": 90,
+      "contract_n": 0,
+      "f2_n": 0,
+      "n": 199,
+      "persists_n": 199,
+      "upper": {
+        "5 only": 199
+      }
+    }
+  },
+  "elapsed_s": 481.0121474000043,
+  "experiment": "post_sd5_club_diamond_tail5_v0_51",
+  "explosion": false,
+  "files": {
+    "club_fixture": null,
+    "club_ready": null,
+    "club_sources": "docs/research/club_tail4_sources_v0_51.json",
+    "club_tail5": null,
+    "club_tail6_ready": null,
+    "diamond_fixture": null,
+    "diamond_ready": "docs/research/diamond_tail5_ready_v0_51.json",
+    "diamond_sources": "docs/research/diamond_tail4_sources_v0_51.json",
+    "diamond_tail5": "docs/research/diamond_tail5_v0_51.json",
+    "diamond_tail6_ready": null,
+    "foundation2": null,
+    "report": "docs/research/post_sd5_club_diamond_tail5_v0_51.md",
+    "result": "docs/research/post_sd5_club_diamond_tail5_v0_51.json"
+  },
+  "interpretation": "only Diamond crossed TAIL5_READY. Club unique=96 READY cheap=None T5=None F2=None. Diamond unique=59 READY cheap=89 T5=90 F2=None. No Spade/Heart/F3/rank7.",
+  "next_recommendation": "Adopt Diamond as the revised post-SD5 target from its TAIL5 / TAIL5_READY portfolio. Continue toward TAIL6_READY with the corrected join classifier. Do not resume Spades.",
+  "production_unchanged": true,
+  "revised_target": "DIAMOND",
+  "sources": {
+    "club_costs": {
+      "90": 32,
+      "91": 64
+    },
+    "club_raw": 96,
+    "club_unique": 96,
+    "diamond_costs": {
+      "89": 24,
+      "90": 8,
+      "93": 24,
+      "94": 3
+    },
+    "diamond_raw": 125,
+    "diamond_unique": 59
+  },
+  "verdict": "DIAMOND_TAIL5_CONTINUATION_LEADS",
+  "verdict_reason": "only Diamond crossed TAIL5_READY"
+}
