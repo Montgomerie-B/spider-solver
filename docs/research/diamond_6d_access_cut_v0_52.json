@@ -1,0 +1,127 @@
+{
+  "all_replay_ok": true,
+  "audit": {
+    "categories": {
+      "D6_MULTI_MOVE_ACCESS": 199
+    },
+    "k_through_6": 0,
+    "n": 199,
+    "signatures": {
+      "(True, 10, ('5C', '4S', '10D'))": 74,
+      "(True, 10, ('8S', '7H', '6H'))": 28,
+      "(True, 11, ('8S', '7H', '6H'))": 42,
+      "(True, 12, ('8S', '7H', '6H'))": 45,
+      "(True, 13, ('8S', '7H', '6H'))": 13,
+      "(True, 14, ('8S', '7H', '6H'))": 30,
+      "(True, 5, ('5C', '4S', '10D'))": 9,
+      "(True, 6, ('5C', '4S', '10D'))": 13,
+      "(True, 7, ('5C', '4S', '10D'))": 12,
+      "(True, 8, ('5C', '4S', '10D'))": 87,
+      "(True, 8, ('8S', '7H', '6H'))": 12,
+      "(True, 9, ('8S', '7H', '6H'))": 29
+    },
+    "six_depth": {
+      "10": 102,
+      "11": 42,
+      "12": 45,
+      "13": 13,
+      "14": 30,
+      "5": 9,
+      "6": 13,
+      "7": 12,
+      "8": 99,
+      "9": 33
+    },
+    "six_face_down_sources": 0,
+    "six_n": 398,
+    "six_one_move_sources": 0,
+    "six_top_sources": 0,
+    "tail5_exposed_sources": 199,
+    "tail5_movable_sources": 199,
+    "upper_runs": {}
+  },
+  "base_sha": "b34b6edfc7e2e322f56a8b0a90bb33d54895afa9",
+  "branch": "agent/diamond-6d-access-cut-v0-52",
+  "contract_fail": false,
+  "diamond_still_leader": false,
+  "elapsed_s": 272.0176795999869,
+  "experiment": "diamond_6d_access_cut_v0_52",
+  "explosion": false,
+  "exposed": false,
+  "f2": false,
+  "fast": {
+    "cheapest": null,
+    "f2_n": 0,
+    "hit_n": 0,
+    "n_actions": 2698
+  },
+  "files": {
+    "exposed": null,
+    "fixture": null,
+    "foundation2": null,
+    "report": "docs/research/diamond_6d_access_cut_v0_52.md",
+    "result": "docs/research/diamond_6d_access_cut_v0_52.json",
+    "sources": "docs/research/diamond_tail5_sources_v0_52.json",
+    "tail6": null,
+    "tail6_ready": null
+  },
+  "foundation2": {
+    "cheapest": null,
+    "fixture": null,
+    "n": 0,
+    "reached": false
+  },
+  "interpretation": "no D6_EXPOSED inside the dedicated envelope. T5 unique=199 D6 cheap=None T6 ready=0 persist=0 F2=0. Diamond 6D access failed inside a dedicated envelope \u2014 same warning as Spade LAND5 / Club 5C. Stop Diamond excavation.",
+  "next_recommendation": "Diamond 6D access failed inside a dedicated envelope \u2014 same warning signature as Spade LAND5 / Club 5C. Stop Diamond excavation. Do not start another 6D blocker ratchet.",
+  "production_unchanged": true,
+  "search": {
+    "attempted": true,
+    "bands": {},
+    "cheapest": null,
+    "duplicate_skips": 158882,
+    "elapsed_s": 267.32050849997904,
+    "expanded": 24598,
+    "first_g": null,
+    "first_s": null,
+    "generated": 229679,
+    "n": 0,
+    "peak_rss_mb": 78.31640625,
+    "reached": false,
+    "stop_reason": "time limit",
+    "unique": 66208
+  },
+  "search_attempted": true,
+  "sources": {
+    "all_replay_ok": true,
+    "categories": {
+      "D6_MULTI_MOVE_ACCESS": 199
+    },
+    "cost_counts": {
+      "90": 18,
+      "91": 92,
+      "92": 64,
+      "93": 25
+    },
+    "raw": 199,
+    "replay_count": 199,
+    "symmetry_unique": 199
+  },
+  "strategic": "Diamond 6D access failed inside a dedicated envelope \u2014 same warning as Spade LAND5 / Club 5C. Stop Diamond excavation.",
+  "tail6": {
+    "cheapest": null,
+    "contract_n": 0,
+    "counts": {},
+    "f2_n": 0,
+    "join_n": 0,
+    "persists_n": 0,
+    "ready_n": 0
+  },
+  "tail6_reached": false,
+  "tail6_ready": false,
+  "tail7": {
+    "counts": {},
+    "join_classes": {}
+  },
+  "verdict": "DIAMOND_6D_ACCESS_NOT_FOUND",
+  "verdict_reason": "no D6_EXPOSED inside the dedicated envelope"
+}
