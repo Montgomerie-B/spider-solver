@@ -1,0 +1,175 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "c1776413e2082bebab01925b6626dcb8cfaeb6fe",
+  "bottleneck": {
+    "achieved": [
+      {
+        "3": 128,
+        "4": 128,
+        "5": 128,
+        "6": 128,
+        "7": 128
+      },
+      {
+        "2": 128,
+        "3": 128,
+        "4": 128,
+        "5": 128,
+        "6": 128
+      },
+      {
+        "2": 128,
+        "3": 68,
+        "4": 128,
+        "5": 128
+      }
+    ],
+    "source_signatures": {
+      "('10D', '5S', '4H', '3S', '2S', 'AS')": 1760,
+      "('10D', '9D', '8D', '5S', '4H', '3S', '2S', 'AS')": 1760
+    },
+    "stage0_labels": {
+      "B4_REDUCE": 640
+    }
+  },
+  "branch": "agent/spade-4s-access-ratchet-v0-46",
+  "elapsed_s": 440.50281740003265,
+  "experiment": "spade_4s_access_ratchet_v0_46",
+  "exposed": false,
+  "exposure": {
+    "cheapest": null,
+    "n": 0,
+    "reached": false
+  },
+  "files": {
+    "exposed": null,
+    "fixture": null,
+    "report": "docs/research/spade_4s_access_ratchet_v0_46.md",
+    "result": "docs/research/spade_4s_access_ratchet_v0_46.json",
+    "sources": "docs/research/spade_tail3_sources_v0_46.json",
+    "tail4": null
+  },
+  "foundation": {
+    "fixture": null,
+    "reached": false
+  },
+  "foundation_reached": false,
+  "interpretation": "B4 decreased and boundaries persisted, 4S not yet exposed. TAIL3 raw=3520 unique=3520 timing={'DEAL_NOW': 64, 'PREP_THEN_DEAL': 3456} initial B4={'6': 1760, '8': 1760}. Stages=3. Exposed=0 TAIL4=0. No pre-Deal prep enlargement.",
+  "next_recommendation": "Continue the 4S access ratchet from the B4=2 portfolio (128 states, cheapest 89, remaining cover 10D then 5S). Do not search TAIL4 while 4S is buried. Do not reopen pre-Deal prep.",
+  "production_unchanged": true,
+  "ratchet": [
+    {
+      "achieved_b4": {
+        "3": 128,
+        "4": 128,
+        "5": 128,
+        "6": 128,
+        "7": 128
+      },
+      "duplicate_skips": 89526,
+      "elapsed_s": 120.06229169998551,
+      "expanded": 19554,
+      "first_b4": 4,
+      "first_g": 86,
+      "first_s": 0.8577520999824628,
+      "generated": 156991,
+      "labels": {
+        "B4_REDUCE": 640
+      },
+      "n": 640,
+      "peak_rss_mb": 1075.5234375,
+      "stage": 0,
+      "stop_reason": "time limit",
+      "tail3_preserved": 192,
+      "tail3_split": 448,
+      "unique": 70985
+    },
+    {
+      "achieved_b4": {
+        "2": 128,
+        "3": 128,
+        "4": 128,
+        "5": 128,
+        "6": 128
+      },
+      "duplicate_skips": 85445,
+      "elapsed_s": 120.0198662999901,
+      "expanded": 16175,
+      "first_b4": 4,
+      "first_g": 87,
+      "first_s": 0.17752899997867644,
+      "generated": 122052,
+      "labels": {
+        "B4_REDUCE": 640
+      },
+      "n": 640,
+      "peak_rss_mb": 1075.5234375,
+      "stage": 1,
+      "stop_reason": "time limit",
+      "tail3_preserved": 184,
+      "tail3_split": 456,
+      "unique": 36589
+    },
+    {
+      "achieved_b4": {
+        "2": 128,
+        "3": 68,
+        "4": 128,
+        "5": 128
+      },
+      "duplicate_skips": 41158,
+      "elapsed_s": 51.253398600034416,
+      "expanded": 7325,
+      "first_b4": 2,
+      "first_g": 89,
+      "first_s": 0.5374649000004865,
+      "generated": 52991,
+      "labels": {
+        "B4_REDUCE": 452
+      },
+      "n": 452,
+      "peak_rss_mb": 1075.5234375,
+      "stage": 2,
+      "stop_reason": "time limit",
+      "tail3_preserved": 41,
+      "tail3_split": 411,
+      "unique": 12377
+    }
+  ],
+  "sources": {
+    "all_replay_ok": true,
+    "b4_dist": {
+      "6": 1760,
+      "8": 1760
+    },
+    "cost_counts": {
+      "85": 8,
+      "86": 70,
+      "87": 274,
+      "88": 642,
+      "89": 1010,
+      "90": 910,
+      "91": 606
+    },
+    "raw_tail3": 3520,
+    "signatures": {
+      "('10D', '5S', '4H', '3S', '2S', 'AS')": 1760,
+      "('10D', '9D', '8D', '5S', '4H', '3S', '2S', 'AS')": 1760
+    },
+    "symmetry_unique": 3520,
+    "timing": {
+      "DEAL_NOW": 64,
+      "PREP_THEN_DEAL": 3456
+    },
+    "uniqueness_fail": 0
+  },
+  "tail4": {
+    "cheapest": null,
+    "n": 0,
+    "preview": {}
+  },
+  "tail4_reached": false,
+  "uniqueness_fail": false,
+  "verdict": "SPADE_BLOCKER_RATCHET_PROGRESS",
+  "verdict_reason": "B4 decreased and boundaries persisted, 4S not yet exposed"
+}
