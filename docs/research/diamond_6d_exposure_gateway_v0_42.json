@@ -1,0 +1,357 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "31e5f979712e41f85c7a2045b029b6b230922e3c",
+  "blocker_audit": {
+    "G6_8": {
+      "all_face_up": true,
+      "by_category": {
+        "A+B": {
+          "depth": {
+            "7": 16,
+            "9": 16
+          },
+          "mean_depth": 8.0,
+          "movable_cover": 32,
+          "n": 32
+        },
+        "A+B+D": {
+          "depth": {
+            "7": 16,
+            "8": 4,
+            "9": 16,
+            "10": 4
+          },
+          "mean_depth": 8.2,
+          "movable_cover": 40,
+          "n": 40
+        },
+        "A+D": {
+          "depth": {
+            "8": 4,
+            "10": 4
+          },
+          "mean_depth": 9.0,
+          "movable_cover": 8,
+          "n": 8
+        },
+        "B+D": {
+          "depth": {
+            "6": 56,
+            "7": 8,
+            "8": 56,
+            "9": 8
+          },
+          "mean_depth": 7.12,
+          "movable_cover": 128,
+          "n": 128
+        }
+      },
+      "cover_depth": {
+        "10": 8,
+        "6": 56,
+        "7": 40,
+        "8": 64,
+        "9": 40
+      },
+      "has_7d_6d": 208,
+      "movable_cover": 208,
+      "n": 208,
+      "never_top": 208,
+      "sample": {
+        "cards_above": 6,
+        "column_1": 8,
+        "component": [
+          "7D",
+          "6D"
+        ],
+        "covering_packet": {
+          "cards": [
+            "8C"
+          ],
+          "cards_above": 6,
+          "empties": [],
+          "k": 1,
+          "legal_dest_columns_1": [
+            1
+          ],
+          "movable": true,
+          "need_rank": null
+        },
+        "edges": [
+          "B",
+          "D"
+        ],
+        "face_down_count": 0,
+        "face_down_involved": false,
+        "face_up": true,
+        "face_up_above": [
+          "5C",
+          "4S",
+          "10D",
+          "5S",
+          "4H",
+          "8C"
+        ],
+        "five_d_accessible": true,
+        "has_7d_6d": true,
+        "legal_receive_rank5": false,
+        "name": "G6_8",
+        "same_suit_joins_in_cover": 0,
+        "source_category": "B+D",
+        "top": false,
+        "up_index": 3,
+        "would_break_edges": [],
+        "zone": "up"
+      }
+    },
+    "G6_9": {
+      "all_face_up": true,
+      "by_category": {
+        "A+B": {
+          "depth": {
+            "8": 16,
+            "10": 16
+          },
+          "mean_depth": 9.0,
+          "movable_cover": 0,
+          "n": 32
+        },
+        "A+B+D": {
+          "depth": {
+            "9": 4,
+            "11": 4,
+            "12": 16,
+            "14": 16
+          },
+          "mean_depth": 12.4,
+          "movable_cover": 0,
+          "n": 40
+        },
+        "A+D": {
+          "depth": {
+            "11": 4,
+            "13": 4
+          },
+          "mean_depth": 12.0,
+          "movable_cover": 0,
+          "n": 8
+        },
+        "B+D": {
+          "depth": {
+            "9": 96,
+            "11": 32
+          },
+          "mean_depth": 9.5,
+          "movable_cover": 0,
+          "n": 128
+        }
+      },
+      "cover_depth": {
+        "10": 16,
+        "11": 40,
+        "12": 16,
+        "13": 4,
+        "14": 16,
+        "8": 16,
+        "9": 100
+      },
+      "has_7d_6d": 0,
+      "movable_cover": 0,
+      "n": 208,
+      "never_top": 208,
+      "sample": {
+        "cards_above": 11,
+        "column_1": 9,
+        "component": [
+          "6D"
+        ],
+        "covering_packet": {
+          "cards": [
+            "5D",
+            "4D"
+          ],
+          "cards_above": 11,
+          "empties": [],
+          "k": 2,
+          "legal_dest_columns_1": [],
+          "movable": false,
+          "need_rank": 6
+        },
+        "edges": [
+          "B",
+          "D"
+        ],
+        "face_down_count": 0,
+        "face_down_involved": false,
+        "face_up": true,
+        "face_up_above": [
+          "8S",
+          "7H",
+          "6H",
+          "5C",
+          "QH",
+          "JD",
+          "10D",
+          "9D",
+          "8D",
+          "5D",
+          "4D"
+        ],
+        "five_d_accessible": true,
+        "has_7d_6d": false,
+        "legal_receive_rank5": false,
+        "name": "G6_9",
+        "same_suit_joins_in_cover": 5,
+        "source_category": "B+D",
+        "top": false,
+        "up_index": 7,
+        "would_break_edges": [
+          "D"
+        ],
+        "zone": "up"
+      }
+    }
+  },
+  "branch": "agent/diamond-6d-exposure-gateway-v0-42",
+  "c_preview": {
+    "G6_8": {},
+    "G6_9": {},
+    "cheapest_c": null,
+    "cheapest_c_physical_6d": null,
+    "combined": {},
+    "n_c_states": 0
+  },
+  "cross_target": {
+    "ah_current": 2,
+    "ah_tableau": [
+      {
+        "column_1": 1,
+        "face_up": true,
+        "top": false
+      },
+      {
+        "column_1": 2,
+        "face_up": true,
+        "top": false
+      }
+    ],
+    "ah_top": false,
+    "h9_current": 1,
+    "h9_face_up": false,
+    "heart_release_plausible": true,
+    "jh_current": 2,
+    "original_jh_9h_face_up": false,
+    "original_top_fd": "JH",
+    "qh_jh": true
+  },
+  "current_edges": {
+    "exposure_g6_8": {},
+    "exposure_g6_9": {},
+    "post_c": {}
+  },
+  "elapsed_s": 450.02834279998206,
+  "experiment": "diamond_6d_exposure_gateway_v0_42",
+  "files": {
+    "c_from_g6": null,
+    "combined": "docs/research/diamond_g6_combined_v0_42.json",
+    "fixture": null,
+    "g6_8": "docs/research/diamond_g6_8_v0_42.json",
+    "g6_9": "docs/research/diamond_g6_9_v0_42.json",
+    "lower_tail": null,
+    "report": "docs/research/diamond_6d_exposure_gateway_v0_42.md",
+    "result": "docs/research/diamond_6d_exposure_gateway_v0_42.json"
+  },
+  "foundation": {
+    "fixture": null,
+    "reached": false
+  },
+  "foundation_reached": false,
+  "gateway": {
+    "leader": "NONE",
+    "not_merely_cheapest_exposure": true,
+    "why": "neither exposure reached"
+  },
+  "gateway_leader": "NONE",
+  "interpretation": "neither physical 6D became exposed/top under MW<=100. Sources 208/208. G6_8 reached=False E=None G6_9 reached=False E=None. Leader=NONE (neither exposure reached). C preview {}. Lower-tail immediate 0. SD5 never expanded.",
+  "lower_tail": {
+    "cheapest_full_mw": null,
+    "immediate": 0
+  },
+  "next_recommendation": "G6_9's covering packet is the unique 5D-4D and legally needs a rank-6 landing, so it cannot start until some 6D is already exposed. G6_8 has 7D-6D under a mixed 6-10 card cover whose top packet is movable on all 208 sources. Spend the next envelope on finishing G6_8 exposure (workspace/empty creation plus column-8 peeling) from this 208-state frontier. Do not split the budget with G6_9. Do not raise MW above 100. Do not take SD5.",
+  "production_unchanged": true,
+  "sd5_expanded": false,
+  "search8": {
+    "already_at_source": 0,
+    "bands": {},
+    "best_full_mw": null,
+    "duplicate_skips": 167034,
+    "elapsed_s": 224.17611950001447,
+    "expanded": 35471,
+    "first_s": null,
+    "first_unique": null,
+    "foundation_surprise": false,
+    "generated": 217283,
+    "levels": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "n": 0,
+    "peak_rss_mb": 55.01953125,
+    "reached": false,
+    "sd5_expanded": false,
+    "slack": {},
+    "source_category": null,
+    "stop_reason": "time limit",
+    "unique": 37207,
+    "used_heuristic_prune": false
+  },
+  "search9": {
+    "already_at_source": 0,
+    "bands": {},
+    "best_full_mw": null,
+    "duplicate_skips": 182712,
+    "elapsed_s": 224.1601176999975,
+    "expanded": 48589,
+    "first_s": null,
+    "first_unique": null,
+    "foundation_surprise": false,
+    "generated": 242567,
+    "levels": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "n": 0,
+    "peak_rss_mb": 61.75390625,
+    "reached": false,
+    "sd5_expanded": false,
+    "slack": {},
+    "source_category": null,
+    "stop_reason": "time limit",
+    "unique": 50995,
+    "used_heuristic_prune": false
+  },
+  "sources": {
+    "all_replay_ok": true,
+    "categories": {
+      "A+B": 32,
+      "A+B+D": 40,
+      "A+D": 8,
+      "B+D": 128
+    },
+    "cost_counts": {
+      "82": 96,
+      "83": 32,
+      "84": 8,
+      "85": 24,
+      "86": 48
+    },
+    "n": 208,
+    "replay_failures": 0
+  },
+  "verdict": "6D_EXPOSURE_NOT_FOUND_IN_ENVELOPE",
+  "verdict_reason": "neither physical 6D became exposed/top under MW<=100"
+}
