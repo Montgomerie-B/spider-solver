@@ -1,0 +1,151 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "bc90822314403744e15a2158387b5ef9bf0e6f5b",
+  "best": null,
+  "branch": "agent/final-deal-timing-pivot-v0-43",
+  "elapsed_s": 437.7743857000023,
+  "experiment": "final_deal_timing_pivot_v0_43",
+  "files": {
+    "fixture": null,
+    "frontier": "docs/research/final_deal_poststock_frontier_v0_43.json",
+    "portfolio": null,
+    "report": "docs/research/final_deal_timing_pivot_v0_43.md",
+    "result": "docs/research/final_deal_timing_pivot_v0_43.json",
+    "sources": "docs/research/final_deal_sources_v0_43.json"
+  },
+  "foundation_search": {
+    "best_full_mw": null,
+    "duplicate_skips": 230419,
+    "elapsed_s": 181.51547969999956,
+    "exhausted_below_f": false,
+    "expanded": 131015,
+    "first_s": null,
+    "first_unique": null,
+    "generated": 726906,
+    "min_live_g": 81,
+    "peak_rss_mb": 2457.86328125,
+    "reached": false,
+    "sd5_expanded": false,
+    "source_lineage": [],
+    "stop_reason": "unique limit",
+    "suit": null,
+    "suit_name": null,
+    "timing": null,
+    "unique": 600000,
+    "used_suit_heuristic": false
+  },
+  "g6_8_bypassed": true,
+  "interpretation": "Foundation 2 not found before unique/RSS limit. Union 720 exact post-SD4 sources (raw 720). Prep candidates 103513. Post-stock classes 103513 from 103513 (reduction 1.0). F2 reached=False F=None suit=None timing=None. SD5 never expanded after the single Deal. G6_8 was not continued.",
+  "next_recommendation": "Post-SD5 UCS hit 600,000 unique with min live g=81 and no Foundation 2. The 103,513-seed fan-out consumed the envelope before any suit removed. Continue UCS from the live g>=81 frontier, or reseed only DEAL_NOW plus the cheapest prep children per source, rather than resuming G6_8. Do not raise MW above 120.",
+  "portfolio": {
+    "by_suit": {},
+    "by_timing": {},
+    "f0": null,
+    "n": 0,
+    "slack": {}
+  },
+  "poststock": {
+    "auto_removed": 0,
+    "depth": {
+      "0": 720,
+      "1": 3275,
+      "2": 10342,
+      "3": 26850,
+      "4": 62326
+    },
+    "ordered_before_symmetry": 103513,
+    "reduction": 1.0,
+    "symmetry_classes": 103513,
+    "timing": {
+      "DEAL_NOW": 720,
+      "PREP_THEN_DEAL": 102793
+    }
+  },
+  "preparation": {
+    "candidates": 103513,
+    "depth": {
+      "0": 720,
+      "1": 3275,
+      "2": 10342,
+      "3": 26850,
+      "4": 62326
+    },
+    "duplicate_skips": 197443,
+    "elapsed_s": 74.35064329998568,
+    "expanded": 41187,
+    "generated": 300236,
+    "sd5_expanded": false,
+    "stop_reason": "complete",
+    "timing": {
+      "DEAL_NOW": 720,
+      "PREP_THEN_DEAL": 102793
+    },
+    "unique": 103513
+  },
+  "production_unchanged": true,
+  "sd5_audit": {
+    "deal_cost": 1,
+    "deal_legal": true,
+    "engine": [
+      "3H",
+      "10H",
+      "2D",
+      "3C",
+      "9H",
+      "7C",
+      "7H",
+      "AS",
+      "3C",
+      "5D"
+    ],
+    "expected": [
+      "3H",
+      "10H",
+      "2D",
+      "3C",
+      "9H",
+      "7C",
+      "7H",
+      "AS",
+      "3C",
+      "5D"
+    ],
+    "matches": true,
+    "stock_rows": 1
+  },
+  "sd5_mismatch": false,
+  "sources": {
+    "all_replay_ok": true,
+    "cost_counts": {
+      "75": 16,
+      "76": 128,
+      "77": 144,
+      "78": 224,
+      "82": 96,
+      "83": 32,
+      "84": 8,
+      "85": 24,
+      "86": 48
+    },
+    "lineage_raw": {
+      "diamond_multi_edge": 208,
+      "diamond_ready": 256,
+      "heart_h9": 256
+    },
+    "lineage_unique": {
+      "diamond_multi_edge": 208,
+      "diamond_ready": 256,
+      "heart_h9": 256
+    },
+    "n": 720,
+    "raw": 720,
+    "replay_failures": 0
+  },
+  "timing": {
+    "cheapest_deal_now": null,
+    "cheapest_prep": null,
+    "overall": null
+  },
+  "verdict": "POST_SD5_SEARCH_STATE_EXPLOSION",
+  "verdict_reason": "Foundation 2 not found before unique/RSS limit"
+}
