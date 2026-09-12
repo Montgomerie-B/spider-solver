@@ -1,0 +1,649 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "ae78cb0f10ed83aa02091e6987415dd213e5e41d",
+  "branch": "agent/post-sd5-suit-edge-race-v0-44",
+  "elapsed_s": 768.5917989999871,
+  "experiment": "post_sd5_suit_edge_race_v0_44",
+  "files": {
+    "club": "docs/research/post_sd5_edge_club_v0_44.json",
+    "diamond": "docs/research/post_sd5_edge_diamond_v0_44.json",
+    "fixture": null,
+    "heart": "docs/research/post_sd5_edge_heart_v0_44.json",
+    "report": "docs/research/post_sd5_suit_edge_race_v0_44.md",
+    "result": "docs/research/post_sd5_suit_edge_race_v0_44.json",
+    "roots": "docs/research/post_sd5_deal_now_roots_v0_44.json",
+    "spade": "docs/research/post_sd5_edge_spade_v0_44.json"
+  },
+  "foundation": {
+    "fixture": null,
+    "reached": false
+  },
+  "foundation_reached": false,
+  "interpretation": "Spade 2-A is the operational post-SD5 entry. DEAL_NOW roots 720 from 720 pre-SD5. Spade uniqueness=True. Leaders=['Spades'] (Spades leads on 3-2-A continuation then cost). No pre-Deal prep. Equal 150s/150k envelopes. G6_8 not continued.",
+  "leader_names": [
+    "Spades"
+  ],
+  "leader_why": "Spades leads on 3-2-A continuation then cost",
+  "leaders": [
+    "s"
+  ],
+  "material": {
+    "ace_two": {
+      "c": {
+        "ace": {
+          "current": 2,
+          "foundation": 0,
+          "tableau": 2
+        },
+        "two": {
+          "current": 2,
+          "foundation": 0,
+          "tableau": 2
+        }
+      },
+      "d": {
+        "ace": {
+          "current": 2,
+          "foundation": 0,
+          "tableau": 2
+        },
+        "two": {
+          "current": 2,
+          "foundation": 0,
+          "tableau": 2
+        }
+      },
+      "h": {
+        "ace": {
+          "current": 2,
+          "foundation": 0,
+          "tableau": 2
+        },
+        "two": {
+          "current": 2,
+          "foundation": 0,
+          "tableau": 2
+        }
+      },
+      "s": {
+        "ace": {
+          "current": 2,
+          "foundation": 1,
+          "tableau": 1
+        },
+        "two": {
+          "current": 2,
+          "foundation": 1,
+          "tableau": 1
+        }
+      }
+    },
+    "spade2_full_physical_chain_unique": true,
+    "spade_all_ranks_tableau": {
+      "1": 1,
+      "10": 1,
+      "11": 1,
+      "12": 1,
+      "13": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 1,
+      "8": 1,
+      "9": 1
+    }
+  },
+  "next_recommendation": "Use Spades as the post-SD5 entry target. Next, test which pre-SD5 DEAL_NOW vs small prep most improves THAT suit's 2-A / 3-2-A gateway. Do not flood UCS with undirected prep children.",
+  "no_prep_states": true,
+  "production_unchanged": true,
+  "roots": {
+    "all_replay_ok": true,
+    "auto_removed": 0,
+    "cost_counts": {
+      "76": 16,
+      "77": 128,
+      "78": 144,
+      "79": 224,
+      "83": 96,
+      "84": 32,
+      "85": 8,
+      "86": 24,
+      "87": 48
+    },
+    "deal_now_ordered": 720,
+    "lineage_counts": {
+      "diamond_multi_edge": 208,
+      "diamond_ready": 256,
+      "heart_h9": 256
+    },
+    "pre_sd5_n": 720,
+    "symmetry_classes": 720
+  },
+  "sd5_audit": {
+    "deal_legal": true,
+    "engine": [
+      "3H",
+      "10H",
+      "2D",
+      "3C",
+      "9H",
+      "7C",
+      "7H",
+      "AS",
+      "3C",
+      "5D"
+    ],
+    "expected": [
+      "3H",
+      "10H",
+      "2D",
+      "3C",
+      "9H",
+      "7C",
+      "7H",
+      "AS",
+      "3C",
+      "5D"
+    ],
+    "matches": true,
+    "stock_rows": 1
+  },
+  "source_audit": {
+    "c": {
+      "by_lineage": {
+        "diamond_multi_edge": {
+          "edge_2a": 200,
+          "immediate_join": 0,
+          "n": 208
+        },
+        "diamond_ready": {
+          "edge_2a": 256,
+          "immediate_join": 0,
+          "n": 256
+        },
+        "heart_h9": {
+          "edge_2a": 256,
+          "immediate_join": 0,
+          "n": 256
+        }
+      },
+      "edge_2a": 712,
+      "immediate_join": 0,
+      "n": 720,
+      "sample": {
+        "ace_count": 2,
+        "aces": [
+          {
+            "cards_above": 9,
+            "column_1": 3,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          },
+          {
+            "cards_above": 9,
+            "column_1": 8,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          }
+        ],
+        "components": [
+          {
+            "column_1": 3,
+            "exposed": false,
+            "length": 2,
+            "ranks": [
+              "2C",
+              "AC"
+            ],
+            "suit": "c"
+          },
+          {
+            "column_1": 9,
+            "exposed": false,
+            "length": 7,
+            "ranks": [
+              "KC",
+              "QC",
+              "JC",
+              "10C",
+              "9C",
+              "8C",
+              "7C"
+            ],
+            "suit": "c"
+          }
+        ],
+        "edge_2a": true,
+        "immediate_join": false,
+        "low_tail": 2,
+        "suit": "c",
+        "two_count": 2,
+        "twos": [
+          {
+            "cards_above": 3,
+            "column_1": 1,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          },
+          {
+            "cards_above": 10,
+            "column_1": 3,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          }
+        ]
+      }
+    },
+    "d": {
+      "by_lineage": {
+        "diamond_multi_edge": {
+          "edge_2a": 200,
+          "immediate_join": 0,
+          "n": 208
+        },
+        "diamond_ready": {
+          "edge_2a": 0,
+          "immediate_join": 0,
+          "n": 256
+        },
+        "heart_h9": {
+          "edge_2a": 0,
+          "immediate_join": 0,
+          "n": 256
+        }
+      },
+      "edge_2a": 200,
+      "immediate_join": 0,
+      "n": 720,
+      "sample": {
+        "ace_count": 2,
+        "aces": [
+          {
+            "cards_above": 5,
+            "column_1": 3,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          },
+          {
+            "cards_above": 3,
+            "column_1": 5,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          }
+        ],
+        "components": [
+          {
+            "column_1": 3,
+            "exposed": false,
+            "length": 2,
+            "ranks": [
+              "4D",
+              "3D"
+            ],
+            "suit": "d"
+          },
+          {
+            "column_1": 3,
+            "exposed": false,
+            "length": 2,
+            "ranks": [
+              "QD",
+              "JD"
+            ],
+            "suit": "d"
+          },
+          {
+            "column_1": 8,
+            "exposed": false,
+            "length": 2,
+            "ranks": [
+              "7D",
+              "6D"
+            ],
+            "suit": "d"
+          },
+          {
+            "column_1": 9,
+            "exposed": false,
+            "length": 4,
+            "ranks": [
+              "JD",
+              "10D",
+              "9D",
+              "8D"
+            ],
+            "suit": "d"
+          }
+        ],
+        "edge_2a": false,
+        "immediate_join": false,
+        "low_tail": 1,
+        "suit": "d",
+        "two_count": 2,
+        "twos": [
+          {
+            "cards_above": 0,
+            "column_1": 3,
+            "face_up": true,
+            "top": true,
+            "zone": "CURRENT_TABLEAU"
+          },
+          {
+            "cards_above": 1,
+            "column_1": 4,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          }
+        ]
+      }
+    },
+    "h": {
+      "by_lineage": {
+        "diamond_multi_edge": {
+          "edge_2a": 0,
+          "immediate_join": 0,
+          "n": 208
+        },
+        "diamond_ready": {
+          "edge_2a": 0,
+          "immediate_join": 0,
+          "n": 256
+        },
+        "heart_h9": {
+          "edge_2a": 0,
+          "immediate_join": 0,
+          "n": 256
+        }
+      },
+      "edge_2a": 0,
+      "immediate_join": 0,
+      "n": 720,
+      "sample": {
+        "ace_count": 2,
+        "aces": [
+          {
+            "cards_above": 2,
+            "column_1": 1,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          },
+          {
+            "cards_above": 2,
+            "column_1": 2,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          }
+        ],
+        "components": [
+          {
+            "column_1": 4,
+            "exposed": false,
+            "length": 3,
+            "ranks": [
+              "4H",
+              "3H",
+              "2H"
+            ],
+            "suit": "h"
+          },
+          {
+            "column_1": 9,
+            "exposed": false,
+            "length": 2,
+            "ranks": [
+              "7H",
+              "6H"
+            ],
+            "suit": "h"
+          }
+        ],
+        "edge_2a": false,
+        "immediate_join": false,
+        "low_tail": 1,
+        "suit": "h",
+        "two_count": 2,
+        "twos": [
+          {
+            "cards_above": 7,
+            "column_1": 4,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          },
+          {
+            "cards_above": 10,
+            "column_1": 8,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          }
+        ]
+      }
+    },
+    "s": {
+      "by_lineage": {
+        "diamond_multi_edge": {
+          "edge_2a": 64,
+          "immediate_join": 0,
+          "n": 208
+        },
+        "diamond_ready": {
+          "edge_2a": 0,
+          "immediate_join": 0,
+          "n": 256
+        },
+        "heart_h9": {
+          "edge_2a": 0,
+          "immediate_join": 0,
+          "n": 256
+        }
+      },
+      "edge_2a": 64,
+      "immediate_join": 0,
+      "n": 720,
+      "sample": {
+        "ace_count": 2,
+        "aces": [
+          {
+            "cards_above": 0,
+            "column_1": 8,
+            "face_up": true,
+            "top": true,
+            "zone": "CURRENT_TABLEAU"
+          }
+        ],
+        "components": [],
+        "edge_2a": false,
+        "immediate_join": false,
+        "low_tail": 13,
+        "suit": "s",
+        "two_count": 2,
+        "twos": [
+          {
+            "cards_above": 6,
+            "column_1": 3,
+            "face_up": true,
+            "top": false,
+            "zone": "CURRENT_TABLEAU"
+          }
+        ]
+      }
+    }
+  },
+  "suits": {
+    "c": {
+      "already_at_source": 712,
+      "bands": {
+        "76": 16,
+        "77": 48,
+        "78": 32,
+        "79": 32
+      },
+      "best_full_mw": 76,
+      "duplicate_skips": 384728,
+      "elapsed_s": 150.0060820999788,
+      "expanded": 70288,
+      "first_s": 0.0,
+      "first_unique": 1,
+      "foundation_surprise": false,
+      "generated": 489874,
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "lineages": [
+        "diamond_ready"
+      ],
+      "longest_preview_tail": 2,
+      "n": 128,
+      "peak_rss_mb": 139.42578125,
+      "preview": {
+        "LIVE_BEYOND_5": 128
+      },
+      "reached": true,
+      "sd5_expanded": false,
+      "slack": {
+        "E": 16,
+        "E+1": 48,
+        "E+2": 32,
+        "E+3": 32
+      },
+      "stop_reason": "time limit",
+      "unique": 101570,
+      "used_heuristic_prune": false,
+      "used_prep_states": false
+    },
+    "d": {
+      "already_at_source": 200,
+      "bands": {
+        "80": 16,
+        "81": 64,
+        "82": 24,
+        "83": 24
+      },
+      "best_full_mw": 80,
+      "duplicate_skips": 388826,
+      "elapsed_s": 150.00227050000103,
+      "expanded": 84797,
+      "first_s": 0.0,
+      "first_unique": 1,
+      "foundation_surprise": false,
+      "generated": 484593,
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "lineages": [
+        "diamond_multi_edge"
+      ],
+      "longest_preview_tail": 2,
+      "n": 128,
+      "peak_rss_mb": 132.9140625,
+      "preview": {
+        "LIVE_BEYOND_5": 128
+      },
+      "reached": true,
+      "sd5_expanded": false,
+      "slack": {
+        "E": 16,
+        "E+1": 64,
+        "E+2": 24,
+        "E+3": 24
+      },
+      "stop_reason": "time limit",
+      "unique": 96275,
+      "used_heuristic_prune": false,
+      "used_prep_states": false
+    },
+    "h": {
+      "already_at_source": 0,
+      "bands": {},
+      "best_full_mw": null,
+      "duplicate_skips": 328711,
+      "elapsed_s": 150.00000479997834,
+      "expanded": 85579,
+      "first_s": null,
+      "first_unique": null,
+      "foundation_surprise": false,
+      "generated": 437552,
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "lineages": [],
+      "longest_preview_tail": 0,
+      "n": 0,
+      "peak_rss_mb": 132.9140625,
+      "preview": {},
+      "reached": false,
+      "sd5_expanded": false,
+      "slack": {},
+      "stop_reason": "time limit",
+      "unique": 104103,
+      "used_heuristic_prune": false,
+      "used_prep_states": false
+    },
+    "s": {
+      "already_at_source": 64,
+      "bands": {
+        "85": 8,
+        "86": 24,
+        "87": 32
+      },
+      "best_full_mw": 85,
+      "duplicate_skips": 266909,
+      "elapsed_s": 150.00048039999092,
+      "expanded": 85074,
+      "first_s": 0.0,
+      "first_unique": 1,
+      "foundation_surprise": false,
+      "generated": 400333,
+      "levels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "lineages": [
+        "diamond_multi_edge"
+      ],
+      "longest_preview_tail": 3,
+      "n": 64,
+      "peak_rss_mb": 132.9140625,
+      "preview": {
+        "TAIL3_IMMEDIATE": 64
+      },
+      "reached": true,
+      "sd5_expanded": false,
+      "slack": {
+        "E": 8,
+        "E+1": 24,
+        "E+2": 32,
+        "E+3": 0
+      },
+      "stop_reason": "time limit",
+      "unique": 133054,
+      "used_heuristic_prune": false,
+      "used_prep_states": false
+    }
+  },
+  "verdict": "SPADE_POST_SD5_ENTRY_LEADS",
+  "verdict_reason": "Spade 2-A is the operational post-SD5 entry"
+}
