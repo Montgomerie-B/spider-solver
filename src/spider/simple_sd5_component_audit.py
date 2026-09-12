@@ -189,6 +189,67 @@ def component_cover(state: SpiderState, suit: str) -> dict:
     }
 
 
+def _metrics_from_parts(state: SpiderState, suit: str, comps: Sequence[dict], fd: Sequence[dict]) -> dict:
+    vis_n, _ = min_interval_cover(_interval_units(comps, fd, visible_only=True))
+    all_n, all_fd = min_interval_cover(_interval_units(comps, fd, visible_only=False))
+    edges = merge_edges(state, suit, comps)
+    longest = 0 if not comps else max(c["length"] for c in comps)
+    # Ordering only: condensation length is longest visible, plus one if a legal merge exists.
+    cond_len = longest + (1 if edges else 0)
+    kc = k_headed(comps)
+    ac = a_ending(comps)
+    return {
+        "cover": all_n,
+        "visible": vis_n,
+        "edges": len(edges),
+        "cond_len": cond_len,
+        "gap": ka_gap(kc, ac),
+        "fd": all_fd,
+        "longest": longest,
+        "k_len": 0 if not kc else kc["length"],
+        "a_len": 0 if not ac else ac["length"],
+    }
+
+
+def lane_suit_metrics(state: SpiderState, suit: str) -> dict:
+    """Fast v0.55 topology for search ordering. Condensation is an ordering proxy."""
+
+    comps = visible_components(state, suit)
+    fd = face_down_suit_cards(state, suit)
+    return _metrics_from_parts(state, suit, comps, fd)
+
+
+def all_lane_metrics(state: SpiderState) -> dict:
+    """One tableau pass, all four suits. Used on the search hot path."""
+
+    comps_all = visible_components(state)
+    fd_all = face_down_suit_cards(state)
+    by_suit_c = {s: [] for s in SUITS}
+    by_suit_f = {s: [] for s in SUITS}
+    for c in comps_all:
+        by_suit_c[c["suit"]].append(c)
+    for t in fd_all:
+        by_suit_f[t["suit"]].append(t)
+    return {s: _metrics_from_parts(state, s, by_suit_c[s], by_suit_f[s]) for s in SUITS}
+
+
+def suit_lane_key(metrics: dict, g: int) -> tuple:
+    """Lower is better. Ordering only."""
+
+    def n(v, default=INF):
+        return default if v is None else int(v)
+
+    return (
+        n(metrics.get("cover")),
+        n(metrics.get("visible")),
+        -int(metrics.get("edges") or 0),
+        -int(metrics.get("cond_len") or 0),
+        n(metrics.get("gap")),
+        n(metrics.get("fd")),
+        int(g),
+    )
+
+
 def merge_edges(state: SpiderState, suit: str, comps: Optional[Sequence[dict]] = None) -> List[Action]:
     comps = list(comps if comps is not None else visible_components(state, suit))
     by_col = {c["column_0"]: c for c in comps if c["exposed"]}

@@ -1,0 +1,138 @@
+{
+  "descendants": {
+    "c": {
+      "a_len": 4,
+      "cond_len": 8,
+      "cover": 4,
+      "edges": 2,
+      "fd": 0,
+      "g": 96,
+      "gap": 2,
+      "k_len": 7,
+      "longest": 7,
+      "visible": 4
+    },
+    "d": {
+      "a_len": 5,
+      "cond_len": 6,
+      "cover": 4,
+      "edges": 2,
+      "fd": 0,
+      "g": 92,
+      "gap": 5,
+      "k_len": 3,
+      "longest": 5,
+      "visible": 4
+    },
+    "h": {
+      "a_len": 1,
+      "cond_len": 6,
+      "cover": 6,
+      "edges": 3,
+      "fd": 0,
+      "g": 91,
+      "gap": 11,
+      "k_len": 1,
+      "longest": 5,
+      "visible": 6
+    },
+    "s": {
+      "a_len": 3,
+      "cond_len": 4,
+      "cover": 8,
+      "edges": 0,
+      "fd": 0,
+      "g": 87,
+      "gap": 9,
+      "k_len": 1,
+      "longest": 4,
+      "visible": 8
+    }
+  },
+  "experiment": "sd5_component_aware_f2_search_v0_56",
+  "lanes": {
+    "expansions": {
+      "c": 12955,
+      "cost": 13044,
+      "d": 12747,
+      "h": 13039,
+      "s": 12396,
+      "work": 12800
+    },
+    "names": [
+      "cost",
+      "s",
+      "h",
+      "d",
+      "c",
+      "work"
+    ],
+    "pops": {
+      "c": 13045,
+      "cost": 13046,
+      "d": 13045,
+      "h": 13046,
+      "s": 13046,
+      "work": 13045
+    },
+    "stale": {
+      "c": 90,
+      "cost": 2,
+      "d": 298,
+      "h": 7,
+      "s": 650,
+      "work": 245
+    }
+  },
+  "roots": {
+    "c": {
+      "a_len": 2,
+      "cond_len": 7,
+      "cover": 5,
+      "edges": 0,
+      "fd": 0,
+      "g": 77,
+      "gap": 4,
+      "k_len": 7,
+      "longest": 7,
+      "visible": 5
+    },
+    "d": {
+      "a_len": 5,
+      "cond_len": 5,
+      "cover": 4,
+      "edges": 0,
+      "fd": 0,
+      "g": 86,
+      "gap": 5,
+      "k_len": 3,
+      "longest": 5,
+      "visible": 4
+    },
+    "h": {
+      "a_len": 1,
+      "cond_len": 4,
+      "cover": 8,
+      "edges": 1,
+      "fd": 0,
+      "g": 83,
+      "gap": 11,
+      "k_len": 1,
+      "longest": 3,
+      "visible": 8
+    },
+    "s": {
+      "a_len": 3,
+      "cond_len": 4,
+      "cover": 8,
+      "edges": 0,
+      "fd": 0,
+      "g": 87,
+      "gap": 9,
+      "k_len": 1,
+      "longest": 4,
+      "visible": 8
+    }
+  },
+  "witnesses": []
+}
