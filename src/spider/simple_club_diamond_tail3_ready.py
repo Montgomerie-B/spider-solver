@@ -952,20 +952,13 @@ def preview_tail4_ready(state: SpiderState, g0: int, suit: str, *, max_depth: in
 
 
 def optional_tail4_join(state: SpiderState, g0: int, suit: str) -> Optional[dict]:
-    if not tail4_ready(state, suit):
-        return None
-    for action in legal_tail4_joins(state, suit):
-        cost = step_cost(state, action)
-        cap = _capture(state, action)
-        try:
-            apply_action(state, action)
-            if tail4_present(state, suit):
-                return {
-                    "g": g0 + cost,
-                    "join": dump_actions([action])[0],
-                    "ordered_digest": pack_state(state).hex(),
-                    "symmetry_digest": pack_post_stock_symmetry_state(state).hex(),
-                }
-        finally:
-            _restore(state, cap)
-    return None
+    """Corrected: visible 4-3-2-A or auto-removed K-A both count as success.
+
+    The v0.49 body (success iff tail4_present after the join) is preserved as
+    spider.simple_tail4_auto_removal.optional_tail4_join_v049.  v0.49 reports
+    are not rewritten.
+    """
+
+    from spider.simple_tail4_auto_removal import optional_tail4_join_corrected
+
+    return optional_tail4_join_corrected(state, g0, suit)

@@ -1,0 +1,94 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "1d8537e28094729dd37f312ade6868dace1e41c2",
+  "branch": "agent/tail4-auto-removal-audit-v0-50",
+  "bug": {
+    "bug_reproduced": true,
+    "club_foundations_after": 1,
+    "foundation_after_engine": 1,
+    "foundation_before": 0,
+    "ka_removed": true,
+    "n_joins": 1,
+    "new_helper_class": "FOUNDATION_AUTO_REMOVED",
+    "old_helper": null,
+    "ready_before": true,
+    "tail4_present_after": false
+  },
+  "bug_reproduced": true,
+  "club": {
+    "all_replay_ok": true,
+    "cheapest_f2": null,
+    "classes": {
+      "TAIL4_PERSISTS": 96
+    },
+    "contract_n": 0,
+    "foundation2_n": 0,
+    "n_joins": 96,
+    "persists_n": 96,
+    "preview_counts": {
+      "LIVE_BEYOND_5": 32,
+      "TAIL4_READY_IMMEDIATE": 96
+    },
+    "reconstructed": 96,
+    "replayed": 128,
+    "tail4_ready_n": 0,
+    "upper_runs": {
+      "4 only": 96
+    }
+  },
+  "club_f2": false,
+  "club_f2_n": 0,
+  "contract_n": 0,
+  "dia_f2": false,
+  "dia_f2_n": 0,
+  "diamond": {
+    "all_replay_ok": true,
+    "cheapest_f2": null,
+    "classes": {
+      "TAIL4_PERSISTS": 125
+    },
+    "contract_n": 0,
+    "foundation2_n": 0,
+    "immediate_ready_n": 0,
+    "n_joins": 125,
+    "persists_n": 125,
+    "preview_counts": {
+      "LIVE_BEYOND_5": 67,
+      "TAIL4_READY_IMMEDIATE": 13,
+      "TAIL4_READY_WITHIN_5": 112
+    },
+    "reconstructed": 125,
+    "replayed": 192,
+    "upper_runs": {
+      "4 only": 125
+    }
+  },
+  "elapsed_s": 182.47995690000243,
+  "experiment": "tail4_auto_removal_audit_v0_50",
+  "files": {
+    "club": "docs/research/club_tail4_transition_v0_50.json",
+    "club_fixture": null,
+    "club_ready": "docs/research/club_tail4_ready_v0_50.json",
+    "diamond": "docs/research/diamond_tail4_transition_v0_50.json",
+    "diamond_fixture": null,
+    "diamond_ready": "docs/research/diamond_tail4_ready_v0_50.json",
+    "foundation2": null,
+    "report": "docs/research/tail4_auto_removal_audit_v0_50.md",
+    "result": "docs/research/tail4_auto_removal_audit_v0_50.json"
+  },
+  "foundation2": {
+    "cheapest": null,
+    "fixtures": {},
+    "n": 0,
+    "reached": false,
+    "suit": null
+  },
+  "interpretation": "bug reproduced on synthetic K-4, but v0.49 READY states persist TAIL4. Club reconstructed 96 READY joins=96 F2=0 persist=96 cheap=None. Diamond reconstructed 125 READY joins=125 F2=0 persist=125 cheap=None. v0.49 reports unchanged.",
+  "next_recommendation": "v0.49 TAIL4_READY comparison stands. Next: equal Club/Diamond TAIL4_READY searches from those boundaries, using the corrected join classifier. Do not resume Spades.",
+  "persists": true,
+  "persists_n": 221,
+  "production_unchanged": true,
+  "v049_unchanged": true,
+  "verdict": "TAIL4_ACCOUNTING_BUG_CONFIRMED_NO_REAL_FOUNDATION",
+  "verdict_reason": "bug reproduced on synthetic K-4, but v0.49 READY states persist TAIL4"
+}
