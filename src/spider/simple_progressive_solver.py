@@ -41,6 +41,14 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 from spider.engine import SpiderState
 from spider.metrics import Action, replay_actions
 from spider.packed_state import pack_state
+from spider.research_actions import (
+    apply_action as _research_apply_action,
+    capture_state as _research_capture_state,
+    format_moves_text as _research_format_moves_text,
+    restore_state as _research_restore_state,
+    rss_mb as _research_rss_mb,
+    step_cost as _research_step_cost,
+)
 from spider.rules import MW_RULES, MobilityWareRules, deal_cost, mw_move_cost
 from spider.simple_post_deal_audit import (
     PostDealAudit,
@@ -200,41 +208,7 @@ class ProgressiveSearchResult:
 
 
 def _rss_mb() -> Optional[float]:
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        class _PMC(ctypes.Structure):
-            _fields_ = [
-                ("cb", wintypes.DWORD),
-                ("PageFaultCount", wintypes.DWORD),
-                ("PeakWorkingSetSize", ctypes.c_size_t),
-                ("WorkingSetSize", ctypes.c_size_t),
-                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
-                ("QuotaPagedPoolUsage", ctypes.c_size_t),
-                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
-                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-                ("PagefileUsage", ctypes.c_size_t),
-                ("PeakPagefileUsage", ctypes.c_size_t),
-            ]
-
-        counters = _PMC()
-        counters.cb = ctypes.sizeof(counters)
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        psapi = ctypes.WinDLL("psapi", use_last_error=True)
-        kernel32.GetCurrentProcess.restype = ctypes.c_void_p
-        psapi.GetProcessMemoryInfo.argtypes = [
-            ctypes.c_void_p,
-            ctypes.POINTER(_PMC),
-            wintypes.DWORD,
-        ]
-        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
-        handle = kernel32.GetCurrentProcess()
-        if not psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
-            return None
-        return counters.PeakWorkingSetSize / (1024.0 * 1024.0)
-    except Exception:
-        return None
+    return _research_rss_mb()
 
 
 def _face_down(state: SpiderState) -> int:
@@ -391,18 +365,7 @@ def step_cost(
     *,
     rules: MobilityWareRules = MW_RULES,
 ) -> int:
-    if is_deal(action):
-        return deal_cost()
-    src, dst, k = action  # type: ignore[misc]
-    src_col = state.columns[src]
-    dst_col = state.columns[dst]
-    return mw_move_cost(
-        cards_moved=k,
-        source_face_up_count=len(src_col.face_up),
-        dest_was_empty=dst_col.is_empty(),
-        source_face_down_count=len(src_col.face_down),
-        rules=rules,
-    )
+    return _research_step_cost(state, action, rules=rules)
 
 
 def apply_action(
@@ -411,10 +374,7 @@ def apply_action(
     *,
     rules: MobilityWareRules = MW_RULES,
 ) -> int:
-    if is_deal(action):
-        return state.deal(rules=rules)
-    src, dst, k = action  # type: ignore[misc]
-    return state.move(src, dst, k, rules=rules)
+    return _research_apply_action(state, action, rules=rules)
 
 
 def _order_score(
@@ -484,44 +444,11 @@ def is_direct_inverse(last_move, action: SolverAction) -> bool:
 
 
 def _capture(state: SpiderState, action: SolverAction) -> tuple:
-    if is_deal(action):
-        cols = tuple((col.face_down[:], col.face_up[:]) for col in state.columns)
-        return ("d", cols, state.stock[:], state.foundations[:], state.last_move)
-    src, dst, _k = action  # type: ignore[misc]
-    sc = state.columns[src]
-    dc = state.columns[dst]
-    return (
-        "m",
-        src,
-        dst,
-        sc.face_down[:],
-        sc.face_up[:],
-        dc.face_down[:],
-        dc.face_up[:],
-        state.foundations[:],
-        state.last_move,
-    )
+    return _research_capture_state(state, action)
 
 
 def _restore(state: SpiderState, snap: tuple) -> None:
-    if snap[0] == "d":
-        _kind, cols, stock, found, last = snap
-        for col, (face_down, face_up) in zip(state.columns, cols):
-            col.face_down[:] = face_down
-            col.face_up[:] = face_up
-        state.stock[:] = stock
-        state.foundations[:] = found
-        state.last_move = last
-        return
-    _kind, src, dst, sfd, sfu, dfd, dfu, found, last = snap
-    sc = state.columns[src]
-    dc = state.columns[dst]
-    sc.face_down[:] = sfd
-    sc.face_up[:] = sfu
-    dc.face_down[:] = dfd
-    dc.face_up[:] = dfu
-    state.foundations[:] = found
-    state.last_move = last
+    _research_restore_state(state, snap)
 
 
 def deal_preparation(
@@ -852,19 +779,7 @@ def _path_from_stack(stack: List[_Frame]) -> List[Action]:
 
 
 def format_moves_text(actions: Sequence[Action], *, header: str = "") -> str:
-    lines = []
-    if header:
-        lines.append(header.rstrip())
-        if not header.endswith("\n"):
-            lines.append("")
-    for action in actions:
-        if action == ("deal",):
-            lines.append("deal")
-        else:
-            src, dst, k = action  # type: ignore[misc]
-            lines.append(f"move {src + 1} {dst + 1} {k}")
-    lines.append("")
-    return "\n".join(lines)
+    return _research_format_moves_text(actions, header=header)
 
 
 def unique_successor_actions(

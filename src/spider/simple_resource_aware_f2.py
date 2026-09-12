@@ -7,26 +7,35 @@ No suit target, no low-tail constraint, no Deal, no Foundation 3.
 
 from __future__ import annotations
 
-import heapq
 import json
-import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from spider.engine import SpiderState
-from spider.metrics import Action, replay_actions
-from spider.packed_state import pack_post_stock_symmetry_state, pack_state, unpack_state
-from spider.simple_deal1_preview import stock_rows
-from spider.simple_diamond_c_bridge import as_actions, dump_actions, opening_state
-from spider.simple_final_deal_timing import foundation_suits, same_suit_components
-from spider.simple_progressive_solver import _capture, _restore, _rss_mb, apply_action, step_cost
-from spider.simple_workspace_reachability import empty_column_indices, engine_tableau_actions, face_down_count
+from spider.metrics import Action
+from spider.packed_state import unpack_state
+from spider.research_actions import (
+    as_actions,
+    dump_actions,
+    empty_column_indices,
+    face_down_count,
+    foundation_suits,
+    opening_from_deal,
+)
+from spider.research_roots import replay_root
+from spider.search_kernel import SearchLimits, reconstruct_path, run_search
+from spider.structural_analysis import same_suit_components
 
 ROOT = Path(__file__).resolve().parents[2]
+DEAL_PATH = ROOT / "deals" / "4925153.txt"
 DEAL_NOW_PATH = ROOT / "docs" / "research" / "post_sd5_deal_now_roots_v0_44.json"
 PORT_V053 = ROOT / "docs" / "research" / "sd5_resource_aware_portfolio_v0_53.json"
+
+
+def opening_state():
+    return opening_from_deal(DEAL_PATH)
 EXPECTED_DEAL_NOW = 720
 EXPECTED_PREP_APPROX = 244
 COST_CEILING = 110
@@ -82,42 +91,23 @@ def annotate_f2_order(state: SpiderState, action: Action) -> int:
 
 
 def _replay_root(opening: SpiderState, rec: dict, *, timing: str) -> Optional[dict]:
-    end = opening.clone()
-    try:
-        cost = replay_actions(end, as_actions(rec["full_actions"]))
-    except Exception:
-        return None
-    want = int(rec.get("g", rec.get("full_cost", -1)))
-    ok = (
-        cost == want
-        and stock_rows(end) == 0
-        and len(end.foundations) == 1
-        and end.foundations[0][0].suit == "s"
-        and (not rec.get("ordered_digest") or pack_state(end).hex() == rec["ordered_digest"])
+    item = replay_root(
+        opening,
+        rec,
+        require_stock_zero=True,
+        require_foundation_count=1,
+        require_foundation_suit="s",
     )
-    if not ok:
+    if item is None:
         return None
-    ident_ord = pack_state(end)
-    ident_sym = pack_post_stock_symmetry_state(end)
-    return {
-        "g": cost,
-        "timing": timing,
-        "timings": [timing],
-        "full_actions": dump_actions(as_actions(rec["full_actions"])),
-        "ordered_digest": ident_ord.hex(),
-        "symmetry_digest": ident_sym.hex(),
-        "lineages": list(rec.get("lineages") or []),
-        "category": rec.get("portfolio_cat"),
-        "categories": [rec.get("portfolio_cat")] if rec.get("portfolio_cat") else [],
-        "best_suit": rec.get("best_suit"),
-        "direct_len": rec.get("direct_len"),
-        "access": rec.get("access"),
-        "prep_depth": rec.get("prep_depth", 0 if timing == "DEAL_NOW" else rec.get("prep_depth")),
-        "prep_cost": rec.get("prep_cost", 0 if timing == "DEAL_NOW" else rec.get("prep_cost")),
-        "empty_in_one": rec.get("empty_in_one"),
-        "foundations": 1,
-        "stock_rows": 0,
-    }
+    item["timing"] = timing
+    item["timings"] = [timing]
+    item["category"] = rec.get("portfolio_cat") or rec.get("category")
+    item["categories"] = [item["category"]] if item.get("category") else list(rec.get("categories") or [])
+    item["lineages"] = list(rec.get("lineages") or [])
+    item["prep_depth"] = rec.get("prep_depth", 0 if timing == "DEAL_NOW" else rec.get("prep_depth"))
+    item["prep_cost"] = rec.get("prep_cost", 0 if timing == "DEAL_NOW" else rec.get("prep_cost"))
+    return item
 
 
 def load_deal_now_roots(opening: Optional[SpiderState] = None) -> dict:
@@ -247,110 +237,14 @@ def search_foundation2(
     harvest_slack: int = HARVEST_SLACK,
     harvest_limit: int = HARVEST_LIMIT,
 ) -> F2Result:
-    started = time.perf_counter()
-    deadline = started + time_limit_s
     result = F2Result()
-    peak = _rss_mb()
-    ceiling = cost_ceiling
-    current_incumbent: Optional[int] = None
     witnesses: Dict[bytes, dict] = {}
     baseline = 1
 
-    best_g: Dict[bytes, int] = {}
-    parent: List[int] = []
-    action_of: List[Optional[Action]] = []
-    depth_of: List[int] = []
-    origin_of: List[int] = []
-    g_of: List[int] = []
-    ident_ord_of: List[bytes] = []
-    ident_sym_of: List[bytes] = []
+    def is_terminal(state):
+        return len(state.foundations) > baseline
 
-    def reconstruct(node: int) -> List[Action]:
-        path: List[Action] = []
-        cur = node
-        while cur >= 0 and parent[cur] >= 0:
-            act = action_of[cur]
-            if act is not None:
-                path.append(act)
-            cur = parent[cur]
-        path.reverse()
-        return path
-
-    def note_rss() -> bool:
-        nonlocal peak
-        rss = _rss_mb()
-        if rss is not None and (peak is None or rss > peak):
-            peak = rss
-        return rss is not None and rss >= rss_abort_mb
-
-    order = sorted(range(len(roots)), key=lambda i: (int(roots[i]["g"]), roots[i]["ordered_digest"]))
-    for origin in order:
-        rec = roots[origin]
-        ident_ord = bytes.fromhex(rec["ordered_digest"])
-        ident_sym = bytes.fromhex(rec["symmetry_digest"])
-        g0 = int(rec["g"])
-        if ident_sym in best_g:
-            if g0 < best_g[ident_sym]:
-                best_g[ident_sym] = g0
-                idx = ident_sym_of.index(ident_sym)
-                g_of[idx] = g0
-                origin_of[idx] = origin
-                ident_ord_of[idx] = ident_ord
-            continue
-        best_g[ident_sym] = g0
-        ident_sym_of.append(ident_sym)
-        ident_ord_of.append(ident_ord)
-        parent.append(-1)
-        action_of.append(None)
-        depth_of.append(0)
-        origin_of.append(origin)
-        g_of.append(g0)
-    result.unique = len(best_g)
-
-    heap: List[tuple] = []
-    seq = 0
-    best_node: Dict[bytes, int] = {}
-    for i, ident in enumerate(ident_sym_of):
-        if best_g.get(ident) == g_of[i]:
-            best_node[ident] = i
-    for ident, node in best_node.items():
-        if g_of[node] > ceiling:
-            continue
-        heapq.heappush(heap, (g_of[node], 0, seq, node))
-        seq += 1
-    seen_expand: Dict[bytes, int] = {}
-    print(
-        f"F2 start unique={result.unique} sources={len(roots)} ceiling={ceiling}",
-        flush=True,
-    )
-
-    while heap:
-        now = time.perf_counter()
-        if now >= deadline:
-            result.stop_reason = "time limit"
-            break
-        if (result.expanded & 2047) == 0 and note_rss():
-            result.stop_reason = "rss abort"
-            break
-        if result.expanded and result.expanded % 8192 == 0:
-            print(
-                f"F2 exp={result.expanded} unique={result.unique} inc={current_incumbent} "
-                f"wit={len(witnesses)} heap={len(heap)} live_g={heap[0][0] if heap else None}",
-                flush=True,
-            )
-        g, _rk, _s, node = heapq.heappop(heap)
-        ident_sym = ident_sym_of[node]
-        if g != best_g.get(ident_sym) or g > ceiling:
-            continue
-        if seen_expand.get(ident_sym, 10**9) <= g:
-            continue
-        seen_expand[ident_sym] = g
-        state = unpack_state(ident_ord_of[node])
-        if len(state.foundations) > baseline:
-            continue
-        if state.stock:
-            result.sd5_expanded = True
-        actions, _ = engine_tableau_actions(state)
+    def action_order(state, actions):
         ranked = []
         for action in actions:
             if action == ("deal",):
@@ -358,113 +252,91 @@ def search_foundation2(
                 continue
             ranked.append((annotate_f2_order(state, action), action))
         ranked.sort(key=lambda t: (t[0], t[1]))
-        result.expanded += 1
-        for rank, action in ranked:
-            cost = step_cost(state, action)
-            child_g = g + cost
-            if child_g > ceiling:
-                continue
-            cap = _capture(state, action)
-            try:
-                apply_action(state, action)
-                result.generated += 1
-                if state.stock:
-                    result.sd5_expanded = True
-                child_ord = pack_state(state)
-                child_sym = pack_post_stock_symmetry_state(state)
-                prev = best_g.get(child_sym)
-                if prev is not None and child_g >= prev:
-                    result.duplicate_skips += 1
-                    continue
-                if prev is None:
-                    result.unique += 1
-                if result.unique >= max_unique:
-                    result.stop_reason = "unique limit"
-                    break
-                best_g[child_sym] = child_g
-                child_node = len(ident_sym_of)
-                ident_sym_of.append(child_sym)
-                ident_ord_of.append(child_ord)
-                parent.append(node)
-                action_of.append(action)
-                depth_of.append(depth_of[node] + 1)
-                origin_of.append(origin_of[node])
-                g_of.append(child_g)
-                hit = len(state.foundations) > baseline
-                if hit:
-                    if len(state.foundations) != 2:
-                        result.accounting_fail = True
-                    src = roots[origin_of[node]]
-                    suits = foundation_suits(state)
-                    new_suit = suits[-1] if suits else None
-                    rec_w = {
-                        "origin": origin_of[node],
-                        "g": child_g,
-                        "root_g": int(src["g"]),
-                        "continuation_mw": child_g - int(src["g"]),
-                        "depth": depth_of[node] + 1,
-                        "actions": dump_actions(reconstruct(child_node)),
-                        "full_actions": dump_actions(as_actions(src["full_actions"]) + reconstruct(child_node)),
-                        "final_action": dump_actions([action])[0],
-                        "ordered_digest": child_ord.hex(),
-                        "symmetry_digest": child_sym.hex(),
-                        "suit": new_suit,
-                        "suit_name": SUIT_NAMES.get(new_suit or "", new_suit),
-                        "foundation_count": len(state.foundations),
-                        "foundation_suits": suits,
-                        "timing": src["timing"],
-                        "timings": list(src.get("timings") or [src["timing"]]),
-                        "category": src.get("category"),
-                        "categories": list(src.get("categories") or []),
-                        "lineages": list(src.get("lineages") or []),
-                        "prep_depth": src.get("prep_depth"),
-                        "prep_cost": src.get("prep_cost"),
-                        "fd": face_down_count(state),
-                        "empties": [i + 1 for i in empty_column_indices(state)],
-                        "components": same_suit_components(state),
-                    }
-                    if child_sym not in witnesses or child_g < witnesses[child_sym]["g"]:
-                        witnesses[child_sym] = rec_w
-                    if result.first_s is None:
-                        result.first_s = time.perf_counter() - started
-                        result.first_unique = result.unique
-                        result.first_g = child_g
-                        result.first_suit = new_suit
-                        result.first_timing = src["timing"]
-                        result.first_root_g = int(src["g"])
-                        result.first_continuation = child_g - int(src["g"])
-                        result.first_action = dump_actions([action])[0]
-                        print(
-                            f"FIRST_F2 g={child_g} suit={new_suit} timing={src['timing']} "
-                            f"root_g={src['g']} unique={result.unique} t={result.first_s:.2f}s",
-                            flush=True,
-                        )
-                    if current_incumbent is None or child_g < current_incumbent:
-                        current_incumbent = child_g
-                        result.incumbent = child_g
-                        ceiling = min(cost_ceiling, current_incumbent + harvest_slack)
-                    continue
-                heapq.heappush(heap, (child_g, rank, seq, child_node))
-                seq += 1
-            finally:
-                _restore(state, cap)
-        if result.stop_reason in ("unique limit", "time limit", "rss abort"):
-            break
-        if current_incumbent is not None and heap and heap[0][0] > current_incumbent + harvest_slack:
-            result.stop_reason = "harvested"
-            break
+        return [a for _r, a in ranked]
 
-    if not result.stop_reason:
-        result.stop_reason = "complete"
-    if heap:
-        result.min_live_g = heap[0][0]
-        result.closed_g = heap[0][0] - 1
-    elif current_incumbent is not None:
-        result.closed_g = current_incumbent + harvest_slack
-        result.min_live_g = None
-    else:
-        result.closed_g = ceiling
-        result.min_live_g = None
+    def on_child(state, _g, _node):
+        if state.stock:
+            result.sd5_expanded = True
+
+    kr = run_search(
+        roots,
+        limits=SearchLimits(
+            max_unique=max_unique,
+            time_limit_s=time_limit_s,
+            rss_abort_mb=rss_abort_mb,
+            cost_ceiling=cost_ceiling,
+            harvest_slack=harvest_slack,
+        ),
+        lane_names=("cost",),
+        lane_key_fns=[lambda st, g: (g,)],
+        is_terminal=is_terminal,
+        action_order=action_order,
+        on_child=on_child,
+    )
+    result.unique = kr.unique
+    result.expanded = kr.expanded
+    result.generated = kr.generated
+    result.duplicate_skips = kr.duplicate_skips
+    result.elapsed_s = kr.elapsed_s
+    result.peak_rss_mb = kr.peak_rss_mb
+    result.stop_reason = kr.stop_reason
+    result.incumbent = kr.incumbent_g
+    result.min_live_g = kr.min_live_g
+    result.closed_g = kr.closed_g
+    result.first_s = kr.first_s
+    result.first_unique = kr.first_unique
+    current_incumbent = kr.incumbent_g
+
+    for term in kr.terminals:
+        st = unpack_state(bytes.fromhex(term["store"]))
+        hit = len(st.foundations) > baseline
+        if hit:
+            if len(st.foundations) != 2:
+                result.accounting_fail = True
+        else:
+            result.accounting_fail = True
+            continue
+        src = roots[term["origin"]]
+        suits = foundation_suits(st)
+        new_suit = suits[-1] if suits else None
+        path = reconstruct_path(kr.nodes, term["node"])
+        child_sym = bytes.fromhex(term["ident"])
+        rec_w = {
+            "origin": term["origin"],
+            "g": term["g"],
+            "root_g": int(src["g"]),
+            "continuation_mw": term["g"] - int(src["g"]),
+            "depth": len(path),
+            "actions": dump_actions(path),
+            "full_actions": dump_actions(as_actions(src["full_actions"]) + path),
+            "final_action": dump_actions([term["action"]])[0],
+            "ordered_digest": term["store"],
+            "symmetry_digest": term["ident"],
+            "suit": new_suit,
+            "suit_name": SUIT_NAMES.get(new_suit or "", new_suit),
+            "foundation_count": len(st.foundations),
+            "foundation_suits": suits,
+            "timing": src["timing"],
+            "timings": list(src.get("timings") or [src["timing"]]),
+            "category": src.get("category"),
+            "categories": list(src.get("categories") or []),
+            "lineages": list(src.get("lineages") or []),
+            "prep_depth": src.get("prep_depth"),
+            "prep_cost": src.get("prep_cost"),
+            "fd": face_down_count(st),
+            "empties": [i + 1 for i in empty_column_indices(st)],
+            "components": same_suit_components(st),
+        }
+        if child_sym not in witnesses or term["g"] < witnesses[child_sym]["g"]:
+            witnesses[child_sym] = rec_w
+        if result.first_g is None:
+            result.first_g = term["g"]
+            result.first_suit = new_suit
+            result.first_timing = src["timing"]
+            result.first_root_g = int(src["g"])
+            result.first_continuation = term["g"] - int(src["g"])
+            result.first_action = dump_actions([term["action"]])[0]
+
     f = current_incumbent
     kept: List[dict] = []
     if f is not None:
@@ -490,8 +362,6 @@ def search_foundation2(
             if not progressed:
                 break
     result.witnesses = kept
-    result.elapsed_s = time.perf_counter() - started
-    result.peak_rss_mb = peak
     return result
 
 

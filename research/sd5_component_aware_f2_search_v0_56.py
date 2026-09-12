@@ -22,18 +22,15 @@ from spider.simple_diamond_c_bridge import as_actions, opening_state
 from spider.simple_final_deal_timing import foundation_suits
 from spider.simple_progressive_solver import format_moves_text
 from spider.simple_component_aware_f2 import (
-    LANES,
-    choose_verdict,
-    load_v055_portfolio,
-    search_component_aware_f2,
-)
-from spider.simple_resource_aware_f2 import (
     COST_CEILING,
-    EXPECTED_DEAL_NOW,
+    LANES,
     SEARCH_RSS_MB,
     SEARCH_TIME_S,
     SEARCH_UNIQUE,
+    choose_verdict,
     load_deal_now_roots,
+    load_v055_portfolio,
+    search_component_aware_f2,
     union_roots,
 )
 from spider.simple_sd5_component_audit import INF, SUITS

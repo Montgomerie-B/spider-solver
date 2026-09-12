@@ -105,17 +105,15 @@ def opening_state() -> SpiderState:
 
 
 def as_actions(raw) -> List[Action]:
-    out: List[Action] = []
-    for item in raw:
-        if item == "deal" or item == ["deal"] or item == ("deal",):
-            out.append(("deal",))
-        else:
-            out.append((int(item[0]), int(item[1]), int(item[2])))
-    return out
+    from spider.research_actions import as_actions as _as_actions
+
+    return _as_actions(raw)
 
 
 def dump_actions(actions: Sequence[Action]):
-    return [list(a) if a != ("deal",) else ["deal"] for a in actions]
+    from spider.research_actions import dump_actions as _dump_actions
+
+    return _dump_actions(actions)
 
 
 def pretty_rank(rank: int) -> str:

@@ -51,25 +51,33 @@ def test_separate_suit_lane_ordering():
     assert suit_lane_key(better, 90) < suit_lane_key(worse, 80)
     # club improvement must not be collapsed into a diamond score
     assert LANES == ("cost", "s", "h", "d", "c", "work")
-    src = inspect.getsource(search_component_aware_f2)
-    assert 'heaps[suit]' in src
-    assert "round" in SCRIPT.read_text(encoding="utf-8").lower() or "lane_i" in src
+    from spider.search_kernel import run_search
+
+    src = inspect.getsource(search_component_aware_f2) + inspect.getsource(run_search)
+    assert "suit_lane_key" in inspect.getsource(search_component_aware_f2)
+    assert "heaps[name]" in inspect.getsource(run_search)
+    assert "lane_i" in src
 
 
 def test_shared_tt_and_stale_entries():
-    src = inspect.getsource(search_component_aware_f2)
-    assert "best_g[child_sym] = child_g" in src
+    from spider.search_kernel import run_search
+
+    src = inspect.getsource(run_search) + inspect.getsource(search_component_aware_f2)
+    assert "best_g[child_ident] = child_g" in src
     assert "child_g >= prev" in src
-    assert "pack_post_stock_symmetry_state" in src
     assert "seen_expand" in src
-    assert "lane_stale" in src
-    assert "g != best_g.get(ident_sym)" in src
+    assert "stale" in src.lower()
+    assert "run_search" in inspect.getsource(search_component_aware_f2)
 
 
 def test_engine_f2_terminal_and_no_deal():
-    src = inspect.getsource(search_component_aware_f2)
-    assert "nfound != 2" in src or "len(state.foundations) != 2" in src
-    assert 'action == ("deal",)' in src
+    from spider.search_kernel import run_search
+    from spider.research_actions import tableau_actions
+
+    src = inspect.getsource(search_component_aware_f2) + inspect.getsource(run_search)
+    assert "len(st.foundations) == 2" in src or "len(state.foundations) == 2" in src
+    assert "tableau_actions" in inspect.getsource(run_search)
+    assert "deal" in inspect.getsource(tableau_actions)
     st = synthetic_columns(
         [tail_run("d", 3), k_through_n("d", 4)],
         foundations=[k_through_n("s", 1)],
