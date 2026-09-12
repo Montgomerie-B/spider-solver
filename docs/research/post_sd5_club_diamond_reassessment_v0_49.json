@@ -1,0 +1,201 @@
+{
+  "all_replay_ok": true,
+  "base_sha": "45c8aa9feffb7fd559eba7286667834c9f656a66",
+  "branch": "agent/post-sd5-club-diamond-tail3-ready-v0-49",
+  "club": {
+    "audit": {
+      "n": 712,
+      "obstacles": {
+        "PACKET_BLOCKED_3_READY": 712
+      },
+      "packet_all_buried_sources": 712,
+      "packet_exposed_sources": 0,
+      "packet_movable_sources": 0,
+      "packets": 712,
+      "rank3": 1424,
+      "rank3_one_move_sources": 0,
+      "rank3_top_sources": 712
+    },
+    "fast": {
+      "n_actions": 3752,
+      "ready_cheapest": 87,
+      "ready_n": 96,
+      "tail3_n": 0
+    },
+    "obstacles": {
+      "PACKET_BLOCKED_3_READY": 712
+    },
+    "preview": {
+      "cheapest_t4": null,
+      "counts": {
+        "LIVE_BEYOND_5": 32,
+        "TAIL4_READY_IMMEDIATE": 96
+      },
+      "immediate": 96,
+      "live": true,
+      "t4_n": 0,
+      "within5": 0
+    },
+    "raw": 712,
+    "search": {
+      "already": 0,
+      "bands": {
+        "87": 24,
+        "88": 72
+      },
+      "cheapest": 87,
+      "contract_fail": 0,
+      "duplicate_skips": 53867,
+      "elapsed_s": 193.8395242000115,
+      "expanded": 18132,
+      "first_g": 87,
+      "first_s": 6.035227800020948,
+      "foundation": false,
+      "generated": 87848,
+      "n": 96,
+      "peak_rss_mb": 62.421875,
+      "stop_reason": "time limit",
+      "unique": 34609
+    },
+    "sources": 712,
+    "tail3": {
+      "cheapest": 88,
+      "n": 128
+    }
+  },
+  "club_explosion": false,
+  "club_ready": true,
+  "club_ready_g": 87,
+  "club_t4_live": true,
+  "comparison": {
+    "club_ready_g": 87,
+    "club_t4": {
+      "LIVE_BEYOND_5": 32,
+      "TAIL4_READY_IMMEDIATE": 96
+    },
+    "club_t4_live": true,
+    "club_tail3_g": 88,
+    "diamond_ready_g": 85,
+    "diamond_t4": {
+      "LIVE_BEYOND_5": 128,
+      "TAIL4_READY_WITHIN_5": 64
+    },
+    "diamond_t4_live": true,
+    "diamond_tail3_g": 85
+  },
+  "contract_fail": false,
+  "diamond": {
+    "audit": {
+      "n": 200,
+      "obstacles": {
+        "BOTH_BLOCKED": 128,
+        "TAIL3_ALREADY_PRESENT": 72
+      },
+      "packet_all_buried_sources": 200,
+      "packet_exposed_sources": 0,
+      "packet_movable_sources": 0,
+      "packets": 200,
+      "rank3": 400,
+      "rank3_one_move_sources": 0,
+      "rank3_top_sources": 0
+    },
+    "fast": {
+      "n_actions": 1192,
+      "ready_cheapest": null,
+      "ready_n": 0,
+      "tail3_n": 552
+    },
+    "obstacles": {
+      "BOTH_BLOCKED": 128,
+      "TAIL3_ALREADY_PRESENT": 72
+    },
+    "preview": {
+      "cheapest_t4": null,
+      "counts": {
+        "LIVE_BEYOND_5": 128,
+        "TAIL4_READY_WITHIN_5": 64
+      },
+      "immediate": 0,
+      "live": true,
+      "t4_n": 0,
+      "within5": 64
+    },
+    "raw": 200,
+    "search": {
+      "already": 72,
+      "bands": {
+        "85": 8,
+        "86": 64,
+        "87": 80,
+        "88": 40
+      },
+      "cheapest": 85,
+      "contract_fail": 0,
+      "duplicate_skips": 33437,
+      "elapsed_s": 131.1722622999805,
+      "expanded": 12110,
+      "first_g": 85,
+      "first_s": 0.0,
+      "foundation": false,
+      "generated": 53765,
+      "n": 192,
+      "peak_rss_mb": 63.0,
+      "stop_reason": "time limit",
+      "unique": 20076
+    },
+    "sources": 200,
+    "tail3": {
+      "cheapest": 85,
+      "n": 192
+    }
+  },
+  "diamond_explosion": false,
+  "diamond_ready": true,
+  "diamond_ready_g": 85,
+  "diamond_t4_live": true,
+  "elapsed_s": 360.0126811999944,
+  "experiment": "post_sd5_club_diamond_reassessment_v0_49",
+  "files": {
+    "club_ready": "docs/research/post_sd5_club_tail3_ready_v0_49.json",
+    "club_sources": "docs/research/post_sd5_club_2a_sources_v0_49.json",
+    "club_tail3": "docs/research/post_sd5_club_tail3_v0_49.json",
+    "club_tail4": null,
+    "diamond_ready": "docs/research/post_sd5_diamond_tail3_ready_v0_49.json",
+    "diamond_sources": "docs/research/post_sd5_diamond_2a_sources_v0_49.json",
+    "diamond_tail3": "docs/research/post_sd5_diamond_tail3_v0_49.json",
+    "diamond_tail4": null,
+    "report": "docs/research/post_sd5_club_diamond_reassessment_v0_49.md",
+    "result": "docs/research/post_sd5_club_diamond_reassessment_v0_49.json"
+  },
+  "foundation2": false,
+  "interpretation": "both suits reach TAIL3_READY with live TAIL4-ready continuation. Roots 720 replay_ok=True. Club 2-A 712/712. Diamond 2-A 200/200. Club READY cheap=87 T3=88. Diamond READY cheap=85 T3=85. No Spade/Heart/F3/rank5 search.",
+  "next_recommendation": "Keep both Club and Diamond TAIL3_READY portfolios. Next: equal TAIL4_READY searches from those boundaries. Do not resume the Spade 4S/LAND5 tunnel.",
+  "production_unchanged": true,
+  "reference": {
+    "heart": "v0.44 2-A no hit ~104k unique / 150s; deferred not impossible",
+    "spade": "TAIL3 best MW85; v0.45-v0.48 failed LAND5_READY after 160k unique"
+  },
+  "revised_target": "BOTH",
+  "roots": {
+    "all_replay_ok": true,
+    "club_2a_raw": 712,
+    "club_2a_unique": 712,
+    "cost_counts": {
+      "76": 16,
+      "77": 128,
+      "78": 144,
+      "79": 224,
+      "83": 96,
+      "84": 32,
+      "85": 8,
+      "86": 24,
+      "87": 48
+    },
+    "diamond_2a_raw": 200,
+    "diamond_2a_unique": 200,
+    "raw": 720,
+    "symmetry_unique": 720
+  },
+  "verdict": "CLUB_AND_DIAMOND_BOTH_VIABLE",
+  "verdict_reason": "both suits reach TAIL3_READY with live TAIL4-ready continuation"
+}
