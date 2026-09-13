@@ -11,10 +11,17 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from spider.assembly_lower_bound import stock_empty_assembly_h
-from spider.assembly_policy import COMPLETION_LANES, assembly_lane_keys, enrich_assembly
+from spider.assembly_policy import (
+    COMPLETION_LANES,
+    MULTI_SUIT_LANES,
+    assembly_lane_keys,
+    enrich_assembly,
+)
 from spider.autonomous_cost import checkpoints_from_trace, replay_solution_trace
 from spider.engine import SpiderState
-from spider.final_deal_transition import TRANSITION_HARVEST_CATS, TransitionTracker
+from spider.final_deal_transition import TRANSITION_HARVEST_CATS
+from spider.multi_suit_readiness import MultiSuitTracker
+from spider.operational_viability import rank_ready_suits
 from spider.metrics import AUTONOMOUS_INCUMBENT_MW, parse_moves_file, replay_actions
 from spider.operational_policy import search_operational_optimisation
 from spider.research_actions import is_deal
@@ -70,6 +77,9 @@ def enrich_integrated(state, rec: dict) -> None:
     g = int(rec.get("g") or 0)
     h = int(rec.get("assembly_h") or 0)
     rec["assembly_slack"] = CANDIDATE_CEILING - (g + h)
+    ranked = rank_ready_suits(state, g=g)
+    rec["ready_ranked_suits"] = [v.get("suit") for v in ranked.get("ranked") or []]
+    rec["n_ready_ranked"] = ranked.get("n_ready")
 
 
 def search_integrated_optimisation(
@@ -85,7 +95,7 @@ def search_integrated_optimisation(
     trace = load_autonomous_192(opening)
     if int(trace["g"]) != AUTONOMOUS_INCUMBENT_MW:
         raise ValueError("autonomous 192 incumbent failed to replay")
-    tracker = TransitionTracker()
+    tracker = MultiSuitTracker()
     ck = checkpoints_from_trace(trace) if use_checkpoints else {}
     result = search_operational_optimisation(
         opening=opening,
@@ -101,7 +111,7 @@ def search_integrated_optimisation(
         enrich_fn=enrich_integrated,
         on_harvest=tracker.on_harvest,
         finalize_track=tracker.finalize,
-        lane_names=COMPLETION_LANES,
+        lane_names=MULTI_SUIT_LANES,
         keys_fn=assembly_lane_keys,
         lower_bound_fn=stock_empty_assembly_h,
     )

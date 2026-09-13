@@ -23,6 +23,7 @@ from spider.final_deal_transition import (
 )
 from spider.healthy_f2 import INCUMBENT_G
 from spider.operational_policy import OP_LANES, operational_lane_keys, search_operational_optimisation
+from spider.operational_viability import operational_viability_key, rank_ready_suits
 from spider.research_actions import stock_rows
 from spider.whole_game_epoch_scheduler import (
     PORTFOLIO_WIDTH,
@@ -32,6 +33,7 @@ from spider.whole_game_epoch_scheduler import (
 )
 
 COMPLETION_LANES = OP_LANES + ("completion",)
+MULTI_SUIT_LANES = COMPLETION_LANES + ("readiness_r2", "readiness_r3")
 V066_F3 = 173
 V066_F4 = 181
 V066_F5 = 186
@@ -41,7 +43,16 @@ V066_F7 = 196
 
 def assembly_lane_keys(state: SpiderState, g: int):
     keys = operational_lane_keys(state, g)
-    if stock_rows(state) != 0:
+    keys["readiness_r2"] = None
+    keys["readiness_r3"] = None
+    rows = stock_rows(state)
+    if rows == 1:
+        ranked = rank_ready_suits(state, g=g).get("ranked") or []
+        if len(ranked) >= 2:
+            keys["readiness_r2"] = operational_viability_key(ranked[1], g)
+        if len(ranked) >= 3:
+            keys["readiness_r3"] = operational_viability_key(ranked[2], g)
+    if rows != 0:
         keys["completion"] = None
         return keys
     keys["completion"] = completion_key(state, g)

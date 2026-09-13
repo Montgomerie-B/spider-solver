@@ -1,0 +1,129 @@
+{
+  "audit_class": "TARGET_SUIT_WAS_PRIMARY",
+  "best_presd5_f2": null,
+  "frontier": [
+    {
+      "F": 1,
+      "boundaries": 15,
+      "elapsed_s": 227.196391400008,
+      "fd": 10,
+      "from_incumbent_ckpt": true,
+      "g": 71,
+      "h": 0,
+      "legal": 10,
+      "rows": 3,
+      "suits": [
+        "s"
+      ]
+    },
+    {
+      "F": 2,
+      "boundaries": 33,
+      "elapsed_s": 712.5625278000371,
+      "fd": 2,
+      "from_incumbent_ckpt": true,
+      "g": 135,
+      "h": 39,
+      "legal": 6,
+      "rows": 0,
+      "suits": [
+        "d",
+        "s"
+      ]
+    }
+  ],
+  "lane_exp": {
+    "completion": 253,
+    "construction": 5446,
+    "cost": 2656,
+    "economy": 3543,
+    "horizon": 1830,
+    "readiness": 3129,
+    "readiness_r2": 144,
+    "readiness_r3": 166,
+    "reveal": 4320
+  },
+  "preflight": {
+    "elapsed_s": 4.101504600024782,
+    "expanded": 23,
+    "lane_exp": {
+      "completion": 2,
+      "construction": 6,
+      "cost": 4,
+      "economy": 2,
+      "horizon": 0,
+      "readiness": 4,
+      "readiness_r2": 2,
+      "readiness_r3": 0,
+      "reveal": 3
+    },
+    "max_foundations": 1,
+    "r2_live": true,
+    "r3_live": false,
+    "tracker": {
+      "cat_s": 0.0003128003445453942,
+      "finalize_s": 7.700000423938036e-06,
+      "front_n": 28,
+      "n_ckpt_desc": 89,
+      "n_ckpt_f2_rows1": 0,
+      "n_f2_rows1": 0,
+      "n_previewed": 89,
+      "n_rank_swaps": 0,
+      "n_ready_ge2": 89,
+      "n_ready_ge3": 0,
+      "n_rows1": 89,
+      "pareto_calls": 88,
+      "pareto_compared": 1201,
+      "pareto_s": 0.01561579981353134,
+      "pool_n": 88
+    },
+    "unique": 217
+  },
+  "rows1": {
+    "alloc_s": 128.21095928000287,
+    "exp_per_s": 7.8020518829058485,
+    "expanded": 1001,
+    "generated": 10109,
+    "lane_exp": {
+      "completion": 0,
+      "construction": 169,
+      "cost": 83,
+      "economy": 117,
+      "horizon": 0,
+      "readiness": 154,
+      "readiness_r2": 144,
+      "readiness_r3": 166,
+      "reveal": 168
+    },
+    "max_F": 1,
+    "min_fd": 2,
+    "portfolio_cats": {
+      "cheap": 16,
+      "cheap_construction": 10,
+      "cheap_cover": 16,
+      "cheap_fd": 9,
+      "cheap_ready": 11,
+      "cheap_viable": 9,
+      "class_cheap": 13,
+      "deal_now": 4,
+      "economy": 8,
+      "incumbent": 1,
+      "operational_alt": 16,
+      "pareto": 16,
+      "post_deal_consolidation": 16,
+      "post_deal_mobility": 16,
+      "post_deal_operational": 16,
+      "post_deal_pareto": 15,
+      "post_deal_reception": 16,
+      "readiness": 16,
+      "ready_div": 16,
+      "workspace": 16
+    },
+    "s": 128.29958259995328,
+    "unique": 6569,
+    "v069_expanded": 1600,
+    "v069_unique": 9062
+  },
+  "solution_g": null,
+  "verdict": "MULTI_SUIT_READINESS_HYPOTHESIS_FALSE"
+}

@@ -1,0 +1,1159 @@
+{
+  "accounting_fail": false,
+  "audit": {
+    "alternate_frac": 0.0,
+    "cashed_g": 130,
+    "cashed_suit": "d",
+    "classification": "TARGET_SUIT_WAS_PRIMARY",
+    "entry": {
+      "F": 1,
+      "best_suit": "d",
+      "empty": 0,
+      "fd": 2,
+      "g": 123,
+      "legal": 8,
+      "n_ready": 2,
+      "ready_suits": [
+        "h",
+        "d"
+      ]
+    },
+    "n_states": 13,
+    "primary_frac": 1.0,
+    "rank_set": [
+      1
+    ],
+    "states": [
+      {
+        "F": 1,
+        "best_suit": "d",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 0,
+        "eventual_suit": "d",
+        "eventual_suit_rank": 1,
+        "fd": 2,
+        "g": 123,
+        "legal": 8,
+        "n_ready": 2,
+        "ranked": [
+          {
+            "a_min_blockers": 1,
+            "cover": 3,
+            "gap": 1,
+            "k_min_blockers": 3,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 42,
+            "suit": "d"
+          },
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 6,
+            "legal_merge_edges": 1,
+            "rank": 2,
+            "relevant_blockers": 52,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h",
+          "d"
+        ]
+      },
+      {
+        "F": 1,
+        "best_suit": "d",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": 1,
+        "fd": 2,
+        "g": 124,
+        "legal": 14,
+        "n_ready": 2,
+        "ranked": [
+          {
+            "a_min_blockers": 1,
+            "cover": 3,
+            "gap": 1,
+            "k_min_blockers": 3,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 42,
+            "suit": "d"
+          },
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 6,
+            "legal_merge_edges": 0,
+            "rank": 2,
+            "relevant_blockers": 55,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h",
+          "d"
+        ]
+      },
+      {
+        "F": 1,
+        "best_suit": "d",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": 1,
+        "fd": 2,
+        "g": 125,
+        "legal": 15,
+        "n_ready": 2,
+        "ranked": [
+          {
+            "a_min_blockers": 0,
+            "cover": 3,
+            "gap": 1,
+            "k_min_blockers": 3,
+            "legal_merge_edges": 1,
+            "rank": 1,
+            "relevant_blockers": 41,
+            "suit": "d"
+          },
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 6,
+            "legal_merge_edges": 0,
+            "rank": 2,
+            "relevant_blockers": 55,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h",
+          "d"
+        ]
+      },
+      {
+        "F": 1,
+        "best_suit": "d",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": 1,
+        "fd": 2,
+        "g": 126,
+        "legal": 14,
+        "n_ready": 2,
+        "ranked": [
+          {
+            "a_min_blockers": 0,
+            "cover": 3,
+            "gap": 1,
+            "k_min_blockers": 3,
+            "legal_merge_edges": 1,
+            "rank": 1,
+            "relevant_blockers": 41,
+            "suit": "d"
+          },
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 6,
+            "legal_merge_edges": 1,
+            "rank": 2,
+            "relevant_blockers": 52,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h",
+          "d"
+        ]
+      },
+      {
+        "F": 1,
+        "best_suit": "d",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": 1,
+        "fd": 2,
+        "g": 127,
+        "legal": 14,
+        "n_ready": 2,
+        "ranked": [
+          {
+            "a_min_blockers": 0,
+            "cover": 3,
+            "gap": 1,
+            "k_min_blockers": 2,
+            "legal_merge_edges": 2,
+            "rank": 1,
+            "relevant_blockers": 39,
+            "suit": "d"
+          },
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 6,
+            "legal_merge_edges": 0,
+            "rank": 2,
+            "relevant_blockers": 54,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h",
+          "d"
+        ]
+      },
+      {
+        "F": 1,
+        "best_suit": "d",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": 1,
+        "fd": 2,
+        "g": 128,
+        "legal": 15,
+        "n_ready": 2,
+        "ranked": [
+          {
+            "a_min_blockers": 0,
+            "cover": 2,
+            "gap": 0,
+            "k_min_blockers": 1,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 41,
+            "suit": "d"
+          },
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 7,
+            "legal_merge_edges": 0,
+            "rank": 2,
+            "relevant_blockers": 60,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h",
+          "d"
+        ]
+      },
+      {
+        "F": 1,
+        "best_suit": "d",
+        "cashed_rank": 1,
+        "cashed_suit": "d",
+        "empty": 0,
+        "eventual_suit": "d",
+        "eventual_suit_rank": 1,
+        "fd": 2,
+        "g": 129,
+        "legal": 12,
+        "n_ready": 2,
+        "ranked": [
+          {
+            "a_min_blockers": 0,
+            "cover": 2,
+            "gap": 0,
+            "k_min_blockers": 0,
+            "legal_merge_edges": 1,
+            "rank": 1,
+            "relevant_blockers": 40,
+            "suit": "d"
+          },
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 7,
+            "legal_merge_edges": 0,
+            "rank": 2,
+            "relevant_blockers": 60,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h",
+          "d"
+        ]
+      },
+      {
+        "F": 2,
+        "best_suit": "h",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": null,
+        "fd": 2,
+        "g": 130,
+        "legal": 15,
+        "n_ready": 1,
+        "ranked": [
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 5,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 48,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h"
+        ]
+      },
+      {
+        "F": 2,
+        "best_suit": "h",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": null,
+        "fd": 2,
+        "g": 131,
+        "legal": 18,
+        "n_ready": 1,
+        "ranked": [
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 4,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 43,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h"
+        ]
+      },
+      {
+        "F": 2,
+        "best_suit": "h",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": null,
+        "fd": 2,
+        "g": 132,
+        "legal": 18,
+        "n_ready": 1,
+        "ranked": [
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 2,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 33,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h"
+        ]
+      },
+      {
+        "F": 2,
+        "best_suit": "h",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": null,
+        "fd": 2,
+        "g": 132,
+        "legal": 18,
+        "n_ready": 1,
+        "ranked": [
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 2,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 33,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h"
+        ]
+      },
+      {
+        "F": 2,
+        "best_suit": "h",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 1,
+        "eventual_suit": "d",
+        "eventual_suit_rank": null,
+        "fd": 2,
+        "g": 133,
+        "legal": 15,
+        "n_ready": 1,
+        "ranked": [
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 2,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 33,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h"
+        ]
+      },
+      {
+        "F": 2,
+        "best_suit": "h",
+        "cashed_rank": null,
+        "cashed_suit": null,
+        "empty": 0,
+        "eventual_suit": "d",
+        "eventual_suit_rank": null,
+        "fd": 2,
+        "g": 134,
+        "legal": 7,
+        "n_ready": 1,
+        "ranked": [
+          {
+            "a_min_blockers": 1,
+            "cover": null,
+            "gap": 5,
+            "k_min_blockers": 1,
+            "legal_merge_edges": 0,
+            "rank": 1,
+            "relevant_blockers": 29,
+            "suit": "h"
+          }
+        ],
+        "ready_suits": [
+          "h"
+        ]
+      }
+    ]
+  },
+  "base_sha": "9fd8ef93f34f17851810318714694fc865121704",
+  "best_presd5_f2": null,
+  "bound_perf": {
+    "calls": 95350,
+    "prunes": 2620,
+    "prunes_by_F": {
+      "1": 2544,
+      "2": 76
+    },
+    "reconcile": {
+      "cumulative_calls": 95350,
+      "cumulative_prunes": 2620,
+      "cumulative_prunes_by_F": {
+        "1": 2544,
+        "2": 76
+      },
+      "cumulative_seconds": 4.9460996017442085,
+      "epoch_calls": 95350,
+      "epoch_prunes": 2620,
+      "epoch_prunes_by_F": {
+        "1": 2544,
+        "2": 76
+      },
+      "epoch_seconds": 4.9460996017442085,
+      "ok": true,
+      "seconds_match": true
+    },
+    "seconds": 4.9460996017442085
+  },
+  "branch": "agent/multi-suit-readiness-v0-70",
+  "checkpoint": {
+    "injected": 5,
+    "survived": 5
+  },
+  "elapsed_s": 900.1875818000408,
+  "envelope": {
+    "candidate_ceiling": 191,
+    "lanes": [
+      "cost",
+      "reveal",
+      "construction",
+      "readiness",
+      "horizon",
+      "economy",
+      "completion",
+      "readiness_r2",
+      "readiness_r3"
+    ],
+    "portfolio_width": 256,
+    "rss_abort_mb": 2560.0,
+    "time_s": 900.0,
+    "unique": 800000
+  },
+  "epochs": [
+    {
+      "alloc_s": 112.49992653750087,
+      "elapsed_s": 112.51274600002216,
+      "expanded": 5348,
+      "generated": 42154,
+      "input_roots": 1,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 1349,
+        "cost": 732,
+        "economy": 717,
+        "horizon": 1384,
+        "readiness": 0,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 1166
+      },
+      "lane_pops": {
+        "completion": 0,
+        "construction": 1389,
+        "cost": 1389,
+        "economy": 1388,
+        "horizon": 1388,
+        "readiness": 0,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 1389
+      },
+      "lower_bound_prunes": 0,
+      "max_foundations": 0,
+      "max_g": 36,
+      "min_face_down": 20,
+      "min_g": 0,
+      "portfolio_cats": {
+        "cheap": 13,
+        "cheap_construction": 13,
+        "cheap_fd": 13,
+        "class_cheap": 24,
+        "deal_now": 1,
+        "horizon": 39,
+        "pareto": 13,
+        "workspace": 33
+      },
+      "stock_rows": 5,
+      "stop_reason": "time limit",
+      "unique": 17329
+    },
+    {
+      "alloc_s": 112.48224707142383,
+      "elapsed_s": 112.55385720002232,
+      "expanded": 1709,
+      "generated": 23588,
+      "input_roots": 149,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 449,
+        "cost": 354,
+        "economy": 235,
+        "horizon": 446,
+        "readiness": 0,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 225
+      },
+      "lane_pops": {
+        "completion": 0,
+        "construction": 554,
+        "cost": 554,
+        "economy": 553,
+        "horizon": 554,
+        "readiness": 0,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 554
+      },
+      "lower_bound_prunes": 0,
+      "max_foundations": 0,
+      "max_g": 61,
+      "min_face_down": 10,
+      "min_g": 2,
+      "portfolio_cats": {
+        "cheap": 14,
+        "cheap_construction": 19,
+        "cheap_fd": 22,
+        "class_cheap": 11,
+        "deal_now": 7,
+        "horizon": 30,
+        "incumbent": 1,
+        "pareto": 19,
+        "workspace": 31
+      },
+      "stock_rows": 4,
+      "stop_reason": "time limit",
+      "unique": 17244
+    },
+    {
+      "alloc_s": 192.766645771418,
+      "elapsed_s": 192.80405730003258,
+      "expanded": 6507,
+      "generated": 39173,
+      "input_roots": 154,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 1805,
+        "cost": 774,
+        "economy": 1130,
+        "horizon": 0,
+        "readiness": 1602,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 1196
+      },
+      "lane_pops": {
+        "completion": 0,
+        "construction": 1892,
+        "cost": 1892,
+        "economy": 1891,
+        "horizon": 0,
+        "readiness": 1892,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 1892
+      },
+      "lower_bound_prunes": 0,
+      "max_foundations": 1,
+      "max_g": 92,
+      "min_face_down": 9,
+      "min_g": 3,
+      "portfolio_cats": {
+        "cheap": 15,
+        "cheap_construction": 9,
+        "cheap_cover": 19,
+        "cheap_fd": 10,
+        "cheap_ready": 8,
+        "cheap_viable": 9,
+        "class_cheap": 26,
+        "deal_now": 6,
+        "economy": 8,
+        "incumbent": 1,
+        "operational_alt": 34,
+        "pareto": 13,
+        "readiness": 37,
+        "ready_div": 18,
+        "workspace": 35
+      },
+      "stock_rows": 3,
+      "stop_reason": "time limit",
+      "unique": 20911
+    },
+    {
+      "alloc_s": 160.49529016665957,
+      "elapsed_s": 160.52634849998867,
+      "expanded": 5590,
+      "generated": 49884,
+      "input_roots": 248,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 1427,
+        "cost": 591,
+        "economy": 1145,
+        "horizon": 0,
+        "readiness": 1120,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 1307
+      },
+      "lane_pops": {
+        "completion": 0,
+        "construction": 1581,
+        "cost": 1581,
+        "economy": 1580,
+        "horizon": 0,
+        "readiness": 1580,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 1581
+      },
+      "lower_bound_prunes": 0,
+      "max_foundations": 1,
+      "max_g": 106,
+      "min_face_down": 6,
+      "min_g": 4,
+      "portfolio_cats": {
+        "cheap": 19,
+        "cheap_construction": 9,
+        "cheap_cover": 19,
+        "cheap_fd": 10,
+        "cheap_ready": 11,
+        "cheap_viable": 9,
+        "class_cheap": 20,
+        "deal_now": 5,
+        "economy": 11,
+        "incumbent": 1,
+        "operational_alt": 34,
+        "pareto": 21,
+        "readiness": 30,
+        "ready_div": 18,
+        "workspace": 37
+      },
+      "stock_rows": 2,
+      "stop_reason": "time limit",
+      "unique": 16796
+    },
+    {
+      "alloc_s": 128.21095928000287,
+      "elapsed_s": 128.29958259995328,
+      "expanded": 1001,
+      "generated": 10109,
+      "input_roots": 254,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 169,
+        "cost": 83,
+        "economy": 117,
+        "horizon": 0,
+        "readiness": 154,
+        "readiness_r2": 144,
+        "readiness_r3": 166,
+        "reveal": 168
+      },
+      "lane_pops": {
+        "completion": 0,
+        "construction": 169,
+        "cost": 169,
+        "economy": 169,
+        "horizon": 0,
+        "readiness": 169,
+        "readiness_r2": 168,
+        "readiness_r3": 168,
+        "reveal": 169
+      },
+      "lower_bound_prunes": 0,
+      "max_foundations": 1,
+      "max_g": 139,
+      "min_face_down": 2,
+      "min_g": 5,
+      "portfolio_cats": {
+        "cheap": 16,
+        "cheap_construction": 10,
+        "cheap_cover": 16,
+        "cheap_fd": 9,
+        "cheap_ready": 11,
+        "cheap_viable": 9,
+        "class_cheap": 13,
+        "deal_now": 4,
+        "economy": 8,
+        "incumbent": 1,
+        "operational_alt": 16,
+        "pareto": 16,
+        "post_deal_consolidation": 16,
+        "post_deal_mobility": 16,
+        "post_deal_operational": 16,
+        "post_deal_pareto": 15,
+        "post_deal_reception": 16,
+        "readiness": 16,
+        "ready_div": 16,
+        "workspace": 16
+      },
+      "stock_rows": 1,
+      "stop_reason": "time limit",
+      "unique": 6569
+    },
+    {
+      "alloc_s": 191.54278679995332,
+      "elapsed_s": 191.54388340003788,
+      "expanded": 1332,
+      "generated": 18608,
+      "input_roots": 256,
+      "lane_exp": {
+        "completion": 253,
+        "construction": 247,
+        "cost": 122,
+        "economy": 199,
+        "horizon": 0,
+        "readiness": 253,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 258
+      },
+      "lane_pops": {
+        "completion": 258,
+        "construction": 258,
+        "cost": 258,
+        "economy": 258,
+        "horizon": 0,
+        "readiness": 258,
+        "readiness_r2": 0,
+        "readiness_r3": 0,
+        "reveal": 258
+      },
+      "lower_bound_prunes": 2620,
+      "max_foundations": 2,
+      "max_g": 163,
+      "min_face_down": 2,
+      "min_g": 6,
+      "portfolio_cats": {
+        "cheap": 22,
+        "cheap_construction": 10,
+        "cheap_cover": 16,
+        "cheap_fd": 10,
+        "cheap_ready": 11,
+        "cheap_viable": 9,
+        "class_cheap": 10,
+        "deal_now": 3,
+        "economy": 8,
+        "incumbent": 1,
+        "operational_alt": 40,
+        "pareto": 22,
+        "readiness": 36,
+        "ready_div": 16,
+        "workspace": 31
+      },
+      "stock_rows": 0,
+      "stop_reason": "time limit",
+      "unique": 11744
+    }
+  ],
+  "expanded": 21487,
+  "experiment": "multi_suit_readiness_v0_70",
+  "foundations": {
+    "cheap": {
+      "1": {
+        "assembly_f": 71,
+        "assembly_h": 0,
+        "best_ready_suit": "h",
+        "boundaries_total": 15,
+        "elapsed_s": 227.196391400008,
+        "empty_n": 0,
+        "face_down": 10,
+        "foundation_suits": [
+          "s"
+        ],
+        "foundations": 1,
+        "from_incumbent_ckpt": true,
+        "g": 71,
+        "legal_tableau": 10,
+        "ready_ranked_suits": [
+          "h"
+        ],
+        "stock_rows": 3
+      },
+      "2": {
+        "assembly_f": 174,
+        "assembly_h": 39,
+        "best_ready_suit": "c",
+        "boundaries_total": 33,
+        "elapsed_s": 712.5625278000371,
+        "empty_n": 0,
+        "face_down": 2,
+        "foundation_suits": [
+          "d",
+          "s"
+        ],
+        "foundations": 2,
+        "from_incumbent_ckpt": true,
+        "g": 135,
+        "legal_tableau": 6,
+        "ready_ranked_suits": [
+          "c",
+          "h",
+          "d",
+          "s"
+        ],
+        "stock_rows": 0
+      }
+    },
+    "first": {
+      "1": {
+        "assembly_f": 71,
+        "assembly_h": 0,
+        "best_ready_suit": "h",
+        "boundaries_total": 15,
+        "elapsed_s": 227.196391400008,
+        "empty_n": 0,
+        "face_down": 10,
+        "foundation_suits": [
+          "s"
+        ],
+        "foundations": 1,
+        "from_incumbent_ckpt": true,
+        "g": 71,
+        "legal_tableau": 10,
+        "ready_ranked_suits": [
+          "h"
+        ],
+        "stock_rows": 3
+      },
+      "2": {
+        "assembly_f": 174,
+        "assembly_h": 39,
+        "best_ready_suit": "c",
+        "boundaries_total": 33,
+        "elapsed_s": 712.5625278000371,
+        "empty_n": 0,
+        "face_down": 2,
+        "foundation_suits": [
+          "d",
+          "s"
+        ],
+        "foundations": 2,
+        "from_incumbent_ckpt": true,
+        "g": 135,
+        "legal_tableau": 6,
+        "ready_ranked_suits": [
+          "c",
+          "h",
+          "d",
+          "s"
+        ],
+        "stock_rows": 0
+      }
+    }
+  },
+  "frontier": [
+    {
+      "F": 1,
+      "boundaries": 15,
+      "elapsed_s": 227.196391400008,
+      "fd": 10,
+      "from_incumbent_ckpt": true,
+      "g": 71,
+      "h": 0,
+      "legal": 10,
+      "rows": 3,
+      "suits": [
+        "s"
+      ]
+    },
+    {
+      "F": 2,
+      "boundaries": 33,
+      "elapsed_s": 712.5625278000371,
+      "fd": 2,
+      "from_incumbent_ckpt": true,
+      "g": 135,
+      "h": 39,
+      "legal": 6,
+      "rows": 0,
+      "suits": [
+        "d",
+        "s"
+      ]
+    }
+  ],
+  "generated": 183516,
+  "incumbent_g": 192,
+  "incumbent_verify": {
+    "deals": 5,
+    "foundations": 8,
+    "g": 192,
+    "n_actions": 197,
+    "ok": true,
+    "solved": true,
+    "stock_empty": true,
+    "tableau_commands": 192,
+    "tableau_empty": true
+  },
+  "interpretation": "192 cashed a primary-rank suit and alternate lanes did not recover F2",
+  "lanes": {
+    "expansions": {
+      "completion": 253,
+      "construction": 5446,
+      "cost": 2656,
+      "economy": 3543,
+      "horizon": 1830,
+      "readiness": 3129,
+      "readiness_r2": 144,
+      "readiness_r3": 166,
+      "reveal": 4320
+    },
+    "pops": {
+      "completion": 258,
+      "construction": 5843,
+      "cost": 5843,
+      "economy": 5839,
+      "horizon": 1942,
+      "readiness": 3899,
+      "readiness_r2": 168,
+      "readiness_r3": 168,
+      "reveal": 5843
+    },
+    "stale": {
+      "completion": 5,
+      "construction": 397,
+      "cost": 3187,
+      "economy": 2296,
+      "horizon": 112,
+      "readiness": 770,
+      "readiness_r2": 24,
+      "readiness_r3": 2,
+      "reveal": 1523
+    }
+  },
+  "max_foundations": 2,
+  "min_face_down": 2,
+  "next_recommendation": "Do not add more suit-diversity lanes. Move to a generic bounded pre-Deal cash-out search.",
+  "policy_reads_canonical": false,
+  "preflight": {
+    "elapsed_s": 4.101504600024782,
+    "expanded": 23,
+    "lane_exp": {
+      "completion": 2,
+      "construction": 6,
+      "cost": 4,
+      "economy": 2,
+      "horizon": 0,
+      "readiness": 4,
+      "readiness_r2": 2,
+      "readiness_r3": 0,
+      "reveal": 3
+    },
+    "max_foundations": 1,
+    "r2_live": true,
+    "r3_live": false,
+    "tracker": {
+      "cat_s": 0.0003128003445453942,
+      "finalize_s": 7.700000423938036e-06,
+      "front_n": 28,
+      "n_ckpt_desc": 89,
+      "n_ckpt_f2_rows1": 0,
+      "n_f2_rows1": 0,
+      "n_previewed": 89,
+      "n_rank_swaps": 0,
+      "n_ready_ge2": 89,
+      "n_ready_ge3": 0,
+      "n_rows1": 89,
+      "pareto_calls": 88,
+      "pareto_compared": 1201,
+      "pareto_s": 0.01561579981353134,
+      "pool_n": 88
+    },
+    "unique": 217
+  },
+  "preview_perf": {
+    "calls": 6902,
+    "compute_s": 32.32199799566297,
+    "hit_rate": 0.047522457258765576,
+    "hits": 328,
+    "misses": 6574
+  },
+  "replay_g": null,
+  "replay_ok": false,
+  "rows1": {
+    "alloc_s": 128.21095928000287,
+    "exp_per_s": 7.8020518829058485,
+    "expanded": 1001,
+    "generated": 10109,
+    "lane_exp": {
+      "completion": 0,
+      "construction": 169,
+      "cost": 83,
+      "economy": 117,
+      "horizon": 0,
+      "readiness": 154,
+      "readiness_r2": 144,
+      "readiness_r3": 166,
+      "reveal": 168
+    },
+    "max_F": 1,
+    "min_fd": 2,
+    "portfolio_cats": {
+      "cheap": 16,
+      "cheap_construction": 10,
+      "cheap_cover": 16,
+      "cheap_fd": 9,
+      "cheap_ready": 11,
+      "cheap_viable": 9,
+      "class_cheap": 13,
+      "deal_now": 4,
+      "economy": 8,
+      "incumbent": 1,
+      "operational_alt": 16,
+      "pareto": 16,
+      "post_deal_consolidation": 16,
+      "post_deal_mobility": 16,
+      "post_deal_operational": 16,
+      "post_deal_pareto": 15,
+      "post_deal_reception": 16,
+      "readiness": 16,
+      "ready_div": 16,
+      "workspace": 16
+    },
+    "s": 128.29958259995328,
+    "unique": 6569,
+    "v069_expanded": 1600,
+    "v069_unique": 9062
+  },
+  "rows1_checkpoint": {
+    "F": 1,
+    "fd": 2,
+    "g": 123,
+    "note": "epoch-entry after SD4, not the internal g=130 F2"
+  },
+  "solution_g": null,
+  "solved": false,
+  "states_per_s": 23.869469468834463,
+  "stop_reason": "time limit",
+  "tracker": {
+    "cat_s": 0.08525679720332846,
+    "finalize_s": 0.0006133999559096992,
+    "front_n": 318,
+    "n_ckpt_desc": 2895,
+    "n_ckpt_f2_rows1": 0,
+    "n_f2_rows1": 0,
+    "n_previewed": 6897,
+    "n_rank_swaps": 983,
+    "n_ready_ge2": 6897,
+    "n_ready_ge3": 3992,
+    "n_rows1": 6897,
+    "pareto_calls": 6569,
+    "pareto_compared": 937750,
+    "pareto_s": 10.139616897096857,
+    "pool_n": 6569
+  },
+  "unique": 90593,
+  "v069_compare": {
+    "F2_post_stock": {
+      "v069": 135,
+      "v070": 135
+    },
+    "pre_sd5_max_F": {
+      "v069": 1,
+      "v070": 1
+    },
+    "rows1_expanded": {
+      "v069": 1600,
+      "v070": 1001
+    },
+    "rows1_unique": {
+      "v069": 9062,
+      "v070": 6569
+    }
+  },
+  "verdict": "MULTI_SUIT_READINESS_HYPOTHESIS_FALSE",
+  "wall_s": 900.2167466000537
+}
