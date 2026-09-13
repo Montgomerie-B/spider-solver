@@ -72,6 +72,13 @@ class KernelResult:
     first_s: Optional[float] = None
     first_unique: Optional[int] = None
     first_g: Optional[int] = None
+    lower_bound_prunes: int = 0
+    lower_bound_calls: int = 0
+    lower_bound_s: float = 0.0
+    min_h: Optional[int] = None
+    max_h: Optional[int] = None
+    min_f: Optional[int] = None
+    prunes_by_F: Dict[int, int] = field(default_factory=dict)
 
     def reconstruct(self, node: int) -> List[Action]:
         path: List[Action] = []
@@ -112,6 +119,7 @@ def run_search(
     action_order: Optional[ActionOrderFn] = None,
     on_child: Optional[Callable[[SpiderState, int, int], None]] = None,
     on_progress: Optional[Callable[["KernelResult", SpiderState, int, int], None]] = None,
+    lower_bound_fn: Optional[Callable[[SpiderState, int], int]] = None,
 ) -> KernelResult:
     """Exact best-g search. ``roots`` need ordered_digest, symmetry_digest, g.
 
@@ -152,6 +160,30 @@ def run_search(
             peak = rss
         return rss is not None and rss >= limits.rss_abort_mb
 
+    def bound_h(state: SpiderState, g: int) -> int:
+        if lower_bound_fn is None:
+            return 0
+        t0 = time.perf_counter()
+        h = int(lower_bound_fn(state, g) or 0)
+        result.lower_bound_s += time.perf_counter() - t0
+        result.lower_bound_calls += 1
+        result.min_h = h if result.min_h is None else min(result.min_h, h)
+        result.max_h = h if result.max_h is None else max(result.max_h, h)
+        f = int(g) + h
+        result.min_f = f if result.min_f is None else min(result.min_f, f)
+        return h
+
+    def proof_dead(state: SpiderState, g: int) -> bool:
+        if lower_bound_fn is None or ceiling is None:
+            return False
+        h = bound_h(state, g)
+        if int(g) + h > int(ceiling):
+            result.lower_bound_prunes += 1
+            n_f = len(state.foundations)
+            result.prunes_by_F[n_f] = result.prunes_by_F.get(n_f, 0) + 1
+            return True
+        return False
+
     def push(node_i: int, state: SpiderState, g: int) -> None:
         nonlocal seq
         if lane_keys_fn is not None:
@@ -190,7 +222,8 @@ def run_search(
         node_i = len(nodes)
         nodes.append(SearchNode(ident, store, g0, origin, -1, None))
         if ceiling is None or g0 <= ceiling:
-            push(node_i, st0, g0)
+            if not proof_dead(st0, g0):
+                push(node_i, st0, g0)
         result.min_g = g0 if result.min_g is None else min(result.min_g, g0)
         result.max_g = g0 if result.max_g is None else max(result.max_g, g0)
         result.unique = len(best_g)
@@ -291,6 +324,8 @@ def run_search(
                         result.incumbent_g = child_g
                         if slack is not None and ceiling is not None:
                             ceiling = min(ceiling, incumbent + slack)
+                    continue
+                if proof_dead(state, child_g):
                     continue
                 push(child_i, state, child_g)
             finally:

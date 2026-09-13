@@ -186,6 +186,9 @@ def search_operational_optimisation(
     extra_track=None,
     enrich_fn=None,
     on_harvest=None,
+    lane_names=None,
+    keys_fn=None,
+    lower_bound_fn=None,
 ):
     opening = opening or opening_state()
     trace = incumbent_trace or load_machine_incumbent(opening)
@@ -205,8 +208,8 @@ def search_operational_optimisation(
         rss_abort_mb=rss_abort_mb,
         cost_ceiling=ceiling,
         portfolio_width=portfolio_width,
-        lane_names=OP_LANES,
-        keys_fn=operational_lane_keys,
+        lane_names=OP_LANES if lane_names is None else lane_names,
+        keys_fn=operational_lane_keys if keys_fn is None else keys_fn,
         harvest_cats=OP_HARVEST_CATS if harvest_cats is None else harvest_cats,
         harvest_slack=-1,
         remaining_deal_bound=True,
@@ -219,6 +222,7 @@ def search_operational_optimisation(
         initial_roots=initial_roots,
         abort_when=abort_when,
         on_harvest=on_harvest,
+        lower_bound_fn=lower_bound_fn,
     )
     result.incumbent_g = incumbent_g
     result.candidate_ceiling = getattr(result, "candidate_ceiling", None) or ceiling

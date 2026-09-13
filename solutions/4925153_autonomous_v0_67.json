@@ -1,0 +1,9 @@
+{
+  "base_sha": "9551e0cfe6e87d6627995fe14db79ca67243e6ae",
+  "branch": "agent/stock-empty-assembly-lower-bound-v0-67",
+  "g": 192,
+  "path": "solutions/4925153_autonomous_v0_67.moves",
+  "prefix_g": 130,
+  "replay_g": 192,
+  "replay_ok": true
+}

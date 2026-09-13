@@ -422,6 +422,13 @@ class EpochPortfolioResult:
     candidate_ceiling: Optional[int] = None
     incumbent_g: Optional[int] = None
     best_durability: Optional[dict] = None
+    lower_bound_prunes: int = 0
+    lower_bound_calls: int = 0
+    lower_bound_s: float = 0.0
+    min_h: Optional[int] = None
+    max_h: Optional[int] = None
+    min_f: Optional[int] = None
+    prunes_by_F: Dict[int, int] = field(default_factory=dict)
 
 
 def _note_foundation(out: EpochPortfolioResult, rec: dict, elapsed: float, unique: int, expanded: int) -> None:
@@ -463,6 +470,7 @@ def search_epoch_portfolio(
     initial_roots: Optional[Sequence[dict]] = None,
     abort_when=None,
     on_harvest=None,
+    lower_bound_fn=None,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
@@ -674,6 +682,7 @@ def search_epoch_portfolio(
             is_terminal=lambda st: st.is_solved(),
             actions_fn=tableau_actions,
             on_progress=on_progress,
+            lower_bound_fn=lower_bound_fn,
         )
         out.unique += kr.unique
         remaining_unique = max_unique - out.unique
@@ -689,6 +698,17 @@ def search_epoch_portfolio(
             out.lane_stale[name] = out.lane_stale.get(name, 0) + kr.lane_stale.get(name, 0)
         out.min_g = kr.min_g if out.min_g is None else min(out.min_g, kr.min_g if kr.min_g is not None else out.min_g)
         out.max_g = kr.max_g if out.max_g is None else max(out.max_g, kr.max_g if kr.max_g is not None else out.max_g)
+        out.lower_bound_prunes += int(kr.lower_bound_prunes or 0)
+        out.lower_bound_calls += int(kr.lower_bound_calls or 0)
+        out.lower_bound_s += float(kr.lower_bound_s or 0.0)
+        if kr.min_h is not None:
+            out.min_h = kr.min_h if out.min_h is None else min(out.min_h, kr.min_h)
+        if kr.max_h is not None:
+            out.max_h = kr.max_h if out.max_h is None else max(out.max_h, kr.max_h)
+        if kr.min_f is not None:
+            out.min_f = kr.min_f if out.min_f is None else min(out.min_f, kr.min_f)
+        for fk, fv in (kr.prunes_by_F or {}).items():
+            out.prunes_by_F[int(fk)] = out.prunes_by_F.get(int(fk), 0) + int(fv)
 
         if kr.stop_reason == "abort":
             stop = "abort"
@@ -860,6 +880,13 @@ def search_epoch_portfolio(
                 "lane_exp": kr.lane_exp,
                 "lane_pops": kr.lane_pops,
                 "lane_stale": kr.lane_stale,
+                "lower_bound_prunes": kr.lower_bound_prunes,
+                "lower_bound_calls": kr.lower_bound_calls,
+                "lower_bound_s": kr.lower_bound_s,
+                "min_h": kr.min_h,
+                "max_h": kr.max_h,
+                "min_f": kr.min_f,
+                "prunes_by_F": dict(kr.prunes_by_F),
                 "portfolio": len(attached),
                 "portfolio_cats": cat_counts,
                 "deal_now_kept": cat_counts.get("deal_now", 0),

@@ -1,0 +1,3647 @@
+{
+  "accounting_fail": false,
+  "autonomous_198_route_bound": {
+    "admissible_on_route": true,
+    "first_empty_g": 131,
+    "max_h": 31,
+    "min_slack": 0,
+    "n_stock_empty_states": 67,
+    "terminal_g": 198,
+    "violations": 0
+  },
+  "base_sha": "9551e0cfe6e87d6627995fe14db79ca67243e6ae",
+  "bound_invalid": false,
+  "bound_perf": {
+    "avg_us": 150.3249081929214,
+    "calls": 82567,
+    "generated": 190483,
+    "max_h": 43,
+    "min_f": 130,
+    "min_h": 0,
+    "post_stock_generated": 184278,
+    "post_stock_prune_fraction": 0.0,
+    "post_stock_prunes": 0,
+    "prunes": 57270,
+    "prunes_by_F": {
+      "2": 29522,
+      "3": 9343,
+      "4": 13668,
+      "5": 3822,
+      "6": 887,
+      "7": 28
+    },
+    "seconds": 12.411876694764942,
+    "v066_exp_per_s": 12.1,
+    "v067_exp_per_s": 6.065858159890426
+  },
+  "branch": "agent/stock-empty-assembly-lower-bound-v0-67",
+  "canonical_deal": {
+    "auto_foundations": 0,
+    "best_suit": "s",
+    "boundaries": 20,
+    "component_layers": 20,
+    "deal_cost": 1,
+    "empty_land": 2,
+    "empty_n": 0,
+    "face_down": 3,
+    "foundations": 2,
+    "legal_tableau": 7,
+    "mixed": 7,
+    "mixed_supports": 8,
+    "n_ready": 4,
+    "ok": true,
+    "op_defined": true,
+    "post_digest": "53504b31010200000001130002321a000f24233231162c2b2a29282726151422030731122d1a1d1c1d1c1b3300011900080d0c3b3a21393837001618171615141312113d3c0b0a09080706050403021117000436353401000c3d3c3b3a3938373635341b3300031918250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "post_g": 140,
+    "pre_g": 139,
+    "pre_legal": 31,
+    "rank_ok": 1,
+    "same_suit": 1,
+    "stock_rows": 0,
+    "visible_components": 30
+  },
+  "canonical_f2": {
+    "face_down": 3,
+    "foundations": 2,
+    "g": 139,
+    "legal_tableau": 31,
+    "stock_rows": 1
+  },
+  "canonical_route_bound": {
+    "admissible_on_route": true,
+    "first_empty_g": 150,
+    "max_h": 18,
+    "min_slack": 0,
+    "n_stock_empty_states": 22,
+    "terminal_g": 172,
+    "violations": 0
+  },
+  "completion_frontier_improved": true,
+  "elapsed_s": 900.1199592999765,
+  "envelope": {
+    "base_harvest_cats": [
+      "cheap",
+      "cheap_ready",
+      "cheap_cover",
+      "cheap_construction",
+      "cheap_fd",
+      "workspace",
+      "readiness",
+      "horizon",
+      "ready_div",
+      "economy",
+      "class_cheap",
+      "pareto",
+      "deal_now",
+      "incumbent",
+      "operational_alt",
+      "cheap_viable"
+    ],
+    "base_lanes": [
+      "cost",
+      "reveal",
+      "construction",
+      "readiness",
+      "horizon",
+      "economy"
+    ],
+    "candidate_ceiling": 197,
+    "harvest_cats": [
+      "cheap",
+      "cheap_ready",
+      "cheap_cover",
+      "cheap_construction",
+      "cheap_fd",
+      "workspace",
+      "readiness",
+      "horizon",
+      "ready_div",
+      "economy",
+      "class_cheap",
+      "pareto",
+      "deal_now",
+      "incumbent",
+      "operational_alt",
+      "cheap_viable",
+      "post_deal_mobility",
+      "post_deal_consolidation",
+      "post_deal_operational",
+      "post_deal_reception",
+      "post_deal_pareto"
+    ],
+    "lanes": [
+      "cost",
+      "reveal",
+      "construction",
+      "readiness",
+      "horizon",
+      "economy",
+      "completion"
+    ],
+    "portfolio_width": 256,
+    "prefix_g": 130,
+    "remaining_budget": 67,
+    "rss_abort_mb": 2560.0,
+    "time_s": 900.0,
+    "unique": 800000
+  },
+  "epochs": [
+    {
+      "after_deal_unique": 245,
+      "alloc_s": 359.99982795999387,
+      "deal_now_kept": 1,
+      "elapsed_s": 360.6022274999996,
+      "expanded": 670,
+      "generated": 6205,
+      "input_roots": 1,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 166,
+        "cost": 82,
+        "economy": 82,
+        "horizon": 0,
+        "readiness": 162,
+        "reveal": 178
+      },
+      "lower_bound_calls": 2726,
+      "lower_bound_prunes": 0,
+      "lower_bound_s": 0.006412997026927769,
+      "max_foundations": 2,
+      "max_g": 140,
+      "max_h": 0,
+      "min_f": 130,
+      "min_face_down": 2,
+      "min_g": 130,
+      "min_h": 0,
+      "portfolio_cats": {
+        "cheap": 6,
+        "cheap_construction": 8,
+        "cheap_cover": 16,
+        "cheap_fd": 6,
+        "cheap_ready": 5,
+        "cheap_viable": 5,
+        "class_cheap": 1,
+        "deal_now": 1,
+        "economy": 7,
+        "pareto": 9,
+        "post_deal_consolidation": 28,
+        "post_deal_mobility": 8,
+        "post_deal_operational": 40,
+        "post_deal_pareto": 18,
+        "post_deal_reception": 36,
+        "readiness": 13,
+        "ready_div": 13,
+        "workspace": 25
+      },
+      "prunes_by_F": {},
+      "stock_rows": 1,
+      "stop_reason": "time limit",
+      "unique": 2435
+    },
+    {
+      "after_deal_unique": null,
+      "alloc_s": 538.984316600021,
+      "deal_now_kept": null,
+      "elapsed_s": 539.0671039000154,
+      "expanded": 4790,
+      "generated": 184278,
+      "input_roots": 245,
+      "lane_exp": {
+        "completion": 1109,
+        "construction": 1254,
+        "cost": 542,
+        "economy": 748,
+        "horizon": 0,
+        "readiness": 455,
+        "reveal": 682
+      },
+      "lower_bound_calls": null,
+      "lower_bound_prunes": null,
+      "lower_bound_s": null,
+      "max_foundations": 8,
+      "max_g": 197,
+      "max_h": null,
+      "min_f": null,
+      "min_face_down": 0,
+      "min_g": 131,
+      "min_h": null,
+      "portfolio_cats": null,
+      "prunes_by_F": null,
+      "stock_rows": 0,
+      "stop_reason": "time limit",
+      "unique": 76120
+    }
+  ],
+  "expanded": 5460,
+  "experiment": "stock_empty_assembly_lower_bound_v0_67",
+  "f2": {
+    "all_ready": [
+      {
+        "a_len": 6,
+        "a_min_blockers": 1,
+        "anchor_contention": 1,
+        "boundaries_total": 26,
+        "buried_components": 7,
+        "cover": null,
+        "empty_n": 1,
+        "exposed_components": 2,
+        "gap": 5,
+        "global_fd": 2,
+        "imminent": false,
+        "inaccessible_joins": 8,
+        "k_len": 2,
+        "k_min_blockers": 5,
+        "legal_merge_edges": 0,
+        "material_ready": true,
+        "max_blocker_depth": 14,
+        "relevant_blockers": 48,
+        "removal_would_empty": 0,
+        "removal_would_flip": 0,
+        "required_fd": null,
+        "suit": "h",
+        "suit_fd": 1
+      }
+    ],
+    "best": {
+      "a_len": 6,
+      "a_min_blockers": 1,
+      "anchor_contention": 1,
+      "boundaries_total": 26,
+      "buried_components": 7,
+      "cover": null,
+      "empty_n": 1,
+      "exposed_components": 2,
+      "gap": 5,
+      "global_fd": 2,
+      "imminent": false,
+      "inaccessible_joins": 8,
+      "k_len": 2,
+      "k_min_blockers": 5,
+      "legal_merge_edges": 0,
+      "material_ready": true,
+      "max_blocker_depth": 14,
+      "relevant_blockers": 48,
+      "removal_would_empty": 0,
+      "removal_would_flip": 0,
+      "required_fd": null,
+      "suit": "h",
+      "suit_fd": 1
+    },
+    "best_suit": "h",
+    "by_suit": {
+      "c": {
+        "a_len": 2,
+        "a_min_blockers": 1,
+        "anchor_contention": 1,
+        "boundaries_total": 26,
+        "buried_components": 6,
+        "cover": null,
+        "empty_n": 1,
+        "exposed_components": 3,
+        "gap": 1,
+        "global_fd": 2,
+        "imminent": false,
+        "inaccessible_joins": 8,
+        "k_len": 10,
+        "k_min_blockers": 1,
+        "legal_merge_edges": 0,
+        "material_ready": false,
+        "max_blocker_depth": 15,
+        "relevant_blockers": 33,
+        "removal_would_empty": 0,
+        "removal_would_flip": 0,
+        "required_fd": null,
+        "suit": "c",
+        "suit_fd": 1
+      },
+      "d": {
+        "a_len": 1,
+        "a_min_blockers": 0,
+        "anchor_contention": 0,
+        "boundaries_total": 26,
+        "buried_components": 6,
+        "cover": null,
+        "empty_n": 1,
+        "exposed_components": 2,
+        "gap": 11,
+        "global_fd": 2,
+        "imminent": false,
+        "inaccessible_joins": 7,
+        "k_len": 1,
+        "k_min_blockers": 13,
+        "legal_merge_edges": 0,
+        "material_ready": false,
+        "max_blocker_depth": 13,
+        "relevant_blockers": 34,
+        "removal_would_empty": 0,
+        "removal_would_flip": 0,
+        "required_fd": null,
+        "suit": "d",
+        "suit_fd": 0
+      },
+      "h": {
+        "a_len": 6,
+        "a_min_blockers": 1,
+        "anchor_contention": 1,
+        "boundaries_total": 26,
+        "buried_components": 7,
+        "cover": null,
+        "empty_n": 1,
+        "exposed_components": 2,
+        "gap": 5,
+        "global_fd": 2,
+        "imminent": false,
+        "inaccessible_joins": 8,
+        "k_len": 2,
+        "k_min_blockers": 5,
+        "legal_merge_edges": 0,
+        "material_ready": true,
+        "max_blocker_depth": 14,
+        "relevant_blockers": 48,
+        "removal_would_empty": 0,
+        "removal_would_flip": 0,
+        "required_fd": null,
+        "suit": "h",
+        "suit_fd": 1
+      },
+      "s": {
+        "a_len": 0,
+        "a_min_blockers": 99,
+        "anchor_contention": 0,
+        "boundaries_total": 26,
+        "buried_components": 7,
+        "cover": null,
+        "empty_n": 1,
+        "exposed_components": 2,
+        "gap": null,
+        "global_fd": 2,
+        "imminent": false,
+        "inaccessible_joins": 8,
+        "k_len": 1,
+        "k_min_blockers": 1,
+        "legal_merge_edges": 0,
+        "material_ready": false,
+        "max_blocker_depth": 12,
+        "relevant_blockers": 40,
+        "removal_would_empty": 0,
+        "removal_would_flip": 0,
+        "required_fd": null,
+        "suit": "s",
+        "suit_fd": 0
+      }
+    },
+    "digest_match": true,
+    "empty_n": 1,
+    "face_down": 2,
+    "foundation_suits": [
+      "s",
+      "d"
+    ],
+    "foundations": 2,
+    "g": 130,
+    "interference": {
+      "accessible_boundaries": 8,
+      "boundaries_total": 26,
+      "buried_boundaries": 18,
+      "buried_components": 26,
+      "component_layers": 26,
+      "empty_n": 1,
+      "exposed_on_face_down": 0,
+      "face_down": 2,
+      "foundations": 2,
+      "layers_above_sum": 86,
+      "max_layer_depth": 11,
+      "mean_component_length": 1.8857142857142857,
+      "mixed_supports": 8,
+      "off_suit_boundaries": 17,
+      "rank_break_boundaries": 9,
+      "visible_cards": 66,
+      "visible_components": 35
+    },
+    "legal_tableau": 15,
+    "longest_run": 10,
+    "merge_edges": 0,
+    "n_actions": 134,
+    "n_deals": 4,
+    "n_ready": 1,
+    "ordered_digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "ready_suits": [
+      "h"
+    ],
+    "replay_ok": true,
+    "run_compression": 31,
+    "same_suit_bonds": 31,
+    "second_suit": null,
+    "solved": false,
+    "stock_rows": 1,
+    "suits": [
+      "d",
+      "s"
+    ],
+    "visible_components": 35,
+    "whole_game_identity": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+  },
+  "f2_digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+  "f2_prefix_actions": [
+    [
+      2,
+      5,
+      1
+    ],
+    [
+      5,
+      7,
+      2
+    ],
+    [
+      5,
+      7,
+      1
+    ],
+    [
+      0,
+      7,
+      1
+    ],
+    [
+      2,
+      1,
+      1
+    ],
+    [
+      7,
+      2,
+      5
+    ],
+    [
+      2,
+      6,
+      6
+    ],
+    [
+      7,
+      0,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      2,
+      9,
+      2
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      8,
+      1,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      8,
+      0,
+      1
+    ],
+    [
+      5,
+      0,
+      1
+    ],
+    [
+      5,
+      4,
+      1
+    ],
+    [
+      9,
+      4,
+      5
+    ],
+    [
+      3,
+      8,
+      1
+    ],
+    [
+      3,
+      8,
+      1
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      7,
+      8,
+      1
+    ],
+    [
+      5,
+      3,
+      1
+    ],
+    [
+      2,
+      4,
+      1
+    ],
+    [
+      6,
+      5,
+      6
+    ],
+    [
+      2,
+      6,
+      1
+    ],
+    [
+      2,
+      3,
+      1
+    ],
+    [
+      7,
+      2,
+      1
+    ],
+    [
+      8,
+      7,
+      4
+    ],
+    [
+      5,
+      8,
+      6
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      6,
+      5,
+      2
+    ],
+    [
+      6,
+      1,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      6,
+      0,
+      2
+    ],
+    [
+      8,
+      0,
+      1
+    ],
+    [
+      8,
+      0,
+      6
+    ],
+    [
+      1,
+      8,
+      3
+    ],
+    [
+      0,
+      1,
+      10
+    ],
+    [
+      6,
+      7,
+      1
+    ],
+    [
+      5,
+      8,
+      3
+    ],
+    [
+      9,
+      7,
+      1
+    ],
+    [
+      0,
+      5,
+      1
+    ],
+    [
+      0,
+      2,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      9,
+      4,
+      1
+    ],
+    [
+      0,
+      7,
+      1
+    ],
+    [
+      0,
+      8,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      0,
+      9,
+      1
+    ],
+    [
+      5,
+      4,
+      1
+    ],
+    [
+      0,
+      5,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      8,
+      5,
+      1
+    ],
+    [
+      8,
+      3,
+      6
+    ],
+    [
+      1,
+      8,
+      11
+    ],
+    [
+      3,
+      1,
+      7
+    ],
+    [
+      7,
+      5,
+      1
+    ],
+    [
+      8,
+      3,
+      11
+    ],
+    [
+      7,
+      8,
+      2
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      7,
+      6,
+      4
+    ],
+    [
+      1,
+      7,
+      8
+    ],
+    [
+      9,
+      1,
+      1
+    ],
+    [
+      3,
+      9,
+      6
+    ],
+    [
+      "deal"
+    ],
+    [
+      3,
+      0,
+      6
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      8,
+      3,
+      1
+    ],
+    [
+      9,
+      3,
+      2
+    ],
+    [
+      1,
+      9,
+      1
+    ],
+    [
+      9,
+      0,
+      6
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      7,
+      8,
+      8
+    ],
+    [
+      1,
+      7,
+      2
+    ],
+    [
+      "deal"
+    ],
+    [
+      4,
+      5,
+      1
+    ],
+    [
+      4,
+      0,
+      1
+    ],
+    [
+      6,
+      9,
+      1
+    ],
+    [
+      4,
+      9,
+      1
+    ],
+    [
+      4,
+      8,
+      2
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      6,
+      8,
+      1
+    ],
+    [
+      7,
+      4,
+      1
+    ],
+    [
+      4,
+      7,
+      2
+    ],
+    [
+      2,
+      3,
+      1
+    ],
+    [
+      2,
+      4,
+      1
+    ],
+    [
+      2,
+      9,
+      2
+    ],
+    [
+      2,
+      7,
+      2
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      9,
+      7,
+      2
+    ],
+    [
+      8,
+      9,
+      1
+    ],
+    [
+      2,
+      8,
+      2
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      1,
+      9,
+      1
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      1,
+      4,
+      1
+    ],
+    [
+      6,
+      2,
+      5
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      3,
+      6,
+      1
+    ],
+    [
+      1,
+      6,
+      1
+    ],
+    [
+      9,
+      1,
+      1
+    ],
+    [
+      9,
+      2,
+      2
+    ],
+    [
+      9,
+      4,
+      1
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      4,
+      1,
+      3
+    ],
+    [
+      9,
+      4,
+      2
+    ],
+    [
+      1,
+      9,
+      3
+    ],
+    [
+      6,
+      1,
+      1
+    ],
+    [
+      6,
+      3,
+      1
+    ],
+    [
+      4,
+      6,
+      9
+    ],
+    [
+      4,
+      6,
+      1
+    ],
+    [
+      4,
+      9,
+      1
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      8,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      5,
+      0,
+      1
+    ],
+    [
+      5,
+      3,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      4,
+      0,
+      1
+    ],
+    [
+      1,
+      8,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      5,
+      6,
+      1
+    ],
+    [
+      2,
+      6,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      8,
+      3,
+      1
+    ],
+    [
+      8,
+      1,
+      1
+    ],
+    [
+      3,
+      8,
+      2
+    ]
+  ],
+  "foundations": {
+    "cheap": {
+      "2": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": null,
+            "m": 2,
+            "suit_lb": 0,
+            "u": null
+          },
+          "d": {
+            "feasible": null,
+            "m": 1,
+            "suit_lb": 0,
+            "u": null
+          },
+          "h": {
+            "feasible": null,
+            "m": 2,
+            "suit_lb": 0,
+            "u": null
+          },
+          "s": {
+            "feasible": null,
+            "m": 1,
+            "suit_lb": 0,
+            "u": null
+          }
+        },
+        "assembly_f": 130,
+        "assembly_h": 0,
+        "assembly_slack": 67,
+        "assembly_u": 0,
+        "best_ready_suit": "h",
+        "boundaries_total": 26,
+        "copies_remaining": {
+          "c": 2,
+          "d": 1,
+          "h": 2,
+          "s": 1
+        },
+        "cover": null,
+        "elapsed_s": 0.0320437999907881,
+        "empty_n": 1,
+        "face_down": 2,
+        "foundation_suits": [
+          "d",
+          "s"
+        ],
+        "foundations": 2,
+        "g": 130,
+        "legal_tableau": 15,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 1
+      },
+      "3": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 2,
+            "suit_lb": 4,
+            "u": 6
+          },
+          "d": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 3,
+            "u": 4
+          },
+          "h": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 5,
+            "u": 6
+          },
+          "s": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 2,
+            "u": 3
+          }
+        },
+        "assembly_f": 187,
+        "assembly_h": 14,
+        "assembly_slack": 10,
+        "assembly_u": 19,
+        "best_ready_suit": "s",
+        "boundaries_total": 9,
+        "copies_remaining": {
+          "c": 2,
+          "d": 1,
+          "h": 1,
+          "s": 1
+        },
+        "cover": 3,
+        "elapsed_s": 394.81684230000246,
+        "empty_n": 2,
+        "face_down": 2,
+        "foundation_suits": [
+          "d",
+          "s",
+          "h"
+        ],
+        "foundations": 3,
+        "g": 173,
+        "legal_tableau": 100,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "4": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 2,
+            "suit_lb": 4,
+            "u": 6
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 6,
+            "u": 7
+          },
+          "s": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 2,
+            "u": 3
+          }
+        },
+        "assembly_f": 193,
+        "assembly_h": 12,
+        "assembly_slack": 4,
+        "assembly_u": 16,
+        "best_ready_suit": "s",
+        "boundaries_total": 6,
+        "copies_remaining": {
+          "c": 2,
+          "d": 0,
+          "h": 1,
+          "s": 1
+        },
+        "cover": 3,
+        "elapsed_s": 401.4501214000047,
+        "empty_n": 1,
+        "face_down": 1,
+        "foundation_suits": [
+          "d",
+          "h",
+          "s",
+          "d"
+        ],
+        "foundations": 4,
+        "g": 181,
+        "legal_tableau": 53,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "5": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 2,
+            "u": 3
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 5,
+            "u": 6
+          },
+          "s": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 1,
+            "u": 2
+          }
+        },
+        "assembly_f": 193,
+        "assembly_h": 8,
+        "assembly_slack": 4,
+        "assembly_u": 11,
+        "best_ready_suit": "s",
+        "boundaries_total": 2,
+        "copies_remaining": {
+          "c": 1,
+          "d": 0,
+          "h": 1,
+          "s": 1
+        },
+        "cover": 2,
+        "elapsed_s": 658.4742738999776,
+        "empty_n": 1,
+        "face_down": 0,
+        "foundation_suits": [
+          "d",
+          "d",
+          "h",
+          "s",
+          "c"
+        ],
+        "foundations": 5,
+        "g": 185,
+        "legal_tableau": 55,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "6": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 5,
+            "u": 6
+          },
+          "s": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 1,
+            "u": 2
+          }
+        },
+        "assembly_f": 193,
+        "assembly_h": 6,
+        "assembly_slack": 4,
+        "assembly_u": 8,
+        "best_ready_suit": "s",
+        "boundaries_total": 2,
+        "copies_remaining": {
+          "c": 0,
+          "d": 0,
+          "h": 1,
+          "s": 1
+        },
+        "cover": 2,
+        "elapsed_s": 622.7520215000259,
+        "empty_n": 4,
+        "face_down": 0,
+        "foundation_suits": [
+          "c",
+          "d",
+          "d",
+          "h",
+          "s",
+          "c"
+        ],
+        "foundations": 6,
+        "g": 187,
+        "legal_tableau": 104,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "7": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 1,
+            "u": 2
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "s": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          }
+        },
+        "assembly_f": 192,
+        "assembly_h": 1,
+        "assembly_slack": 5,
+        "assembly_u": 2,
+        "best_ready_suit": "c",
+        "boundaries_total": 0,
+        "copies_remaining": {
+          "c": 1,
+          "d": 0,
+          "h": 0,
+          "s": 0
+        },
+        "cover": 2,
+        "elapsed_s": 832.4513827000046,
+        "empty_n": 8,
+        "face_down": 0,
+        "foundation_suits": [
+          "c",
+          "d",
+          "d",
+          "h",
+          "s",
+          "s",
+          "h"
+        ],
+        "foundations": 7,
+        "g": 191,
+        "legal_tableau": 105,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "8": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "s": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          }
+        },
+        "assembly_f": 192,
+        "assembly_h": 0,
+        "assembly_slack": 5,
+        "assembly_u": 0,
+        "best_ready_suit": null,
+        "boundaries_total": 0,
+        "copies_remaining": {
+          "c": 0,
+          "d": 0,
+          "h": 0,
+          "s": 0
+        },
+        "cover": null,
+        "elapsed_s": 832.5488697999972,
+        "empty_n": 10,
+        "face_down": 0,
+        "foundation_suits": [
+          "c",
+          "d",
+          "d",
+          "h",
+          "h",
+          "s",
+          "s",
+          "c"
+        ],
+        "foundations": 8,
+        "g": 192,
+        "legal_tableau": 0,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      }
+    },
+    "first": {
+      "2": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": null,
+            "m": 2,
+            "suit_lb": 0,
+            "u": null
+          },
+          "d": {
+            "feasible": null,
+            "m": 1,
+            "suit_lb": 0,
+            "u": null
+          },
+          "h": {
+            "feasible": null,
+            "m": 2,
+            "suit_lb": 0,
+            "u": null
+          },
+          "s": {
+            "feasible": null,
+            "m": 1,
+            "suit_lb": 0,
+            "u": null
+          }
+        },
+        "assembly_f": 130,
+        "assembly_h": 0,
+        "assembly_slack": 67,
+        "assembly_u": 0,
+        "best_ready_suit": "h",
+        "boundaries_total": 26,
+        "copies_remaining": {
+          "c": 2,
+          "d": 1,
+          "h": 2,
+          "s": 1
+        },
+        "cover": null,
+        "elapsed_s": 0.0320437999907881,
+        "empty_n": 1,
+        "face_down": 2,
+        "foundation_suits": [
+          "d",
+          "s"
+        ],
+        "foundations": 2,
+        "g": 130,
+        "legal_tableau": 15,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 1
+      },
+      "3": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 2,
+            "suit_lb": 4,
+            "u": 6
+          },
+          "d": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 3,
+            "u": 4
+          },
+          "h": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 5,
+            "u": 6
+          },
+          "s": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 2,
+            "u": 3
+          }
+        },
+        "assembly_f": 187,
+        "assembly_h": 14,
+        "assembly_slack": 10,
+        "assembly_u": 19,
+        "best_ready_suit": "s",
+        "boundaries_total": 9,
+        "copies_remaining": {
+          "c": 2,
+          "d": 1,
+          "h": 1,
+          "s": 1
+        },
+        "cover": 3,
+        "elapsed_s": 394.81684230000246,
+        "empty_n": 2,
+        "face_down": 2,
+        "foundation_suits": [
+          "d",
+          "s",
+          "h"
+        ],
+        "foundations": 3,
+        "g": 173,
+        "legal_tableau": 100,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "4": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 2,
+            "suit_lb": 4,
+            "u": 6
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 6,
+            "u": 7
+          },
+          "s": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 2,
+            "u": 3
+          }
+        },
+        "assembly_f": 193,
+        "assembly_h": 12,
+        "assembly_slack": 4,
+        "assembly_u": 16,
+        "best_ready_suit": "s",
+        "boundaries_total": 6,
+        "copies_remaining": {
+          "c": 2,
+          "d": 0,
+          "h": 1,
+          "s": 1
+        },
+        "cover": 3,
+        "elapsed_s": 401.4501214000047,
+        "empty_n": 1,
+        "face_down": 1,
+        "foundation_suits": [
+          "d",
+          "h",
+          "s",
+          "d"
+        ],
+        "foundations": 4,
+        "g": 181,
+        "legal_tableau": 53,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "5": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 3,
+            "u": 4
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 5,
+            "u": 6
+          },
+          "s": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 1,
+            "u": 2
+          }
+        },
+        "assembly_f": 195,
+        "assembly_h": 9,
+        "assembly_slack": 2,
+        "assembly_u": 12,
+        "best_ready_suit": "s",
+        "boundaries_total": 4,
+        "copies_remaining": {
+          "c": 1,
+          "d": 0,
+          "h": 1,
+          "s": 1
+        },
+        "cover": 2,
+        "elapsed_s": 405.0425609999802,
+        "empty_n": 2,
+        "face_down": 0,
+        "foundation_suits": [
+          "d",
+          "d",
+          "h",
+          "s",
+          "c"
+        ],
+        "foundations": 5,
+        "g": 186,
+        "legal_tableau": 84,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "6": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 3,
+            "u": 4
+          },
+          "s": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 1,
+            "u": 2
+          }
+        },
+        "assembly_f": 197,
+        "assembly_h": 4,
+        "assembly_slack": 0,
+        "assembly_u": 6,
+        "best_ready_suit": "s",
+        "boundaries_total": 2,
+        "copies_remaining": {
+          "c": 0,
+          "d": 0,
+          "h": 1,
+          "s": 1
+        },
+        "cover": 2,
+        "elapsed_s": 413.3273288999917,
+        "empty_n": 6,
+        "face_down": 0,
+        "foundation_suits": [
+          "c",
+          "d",
+          "d",
+          "h",
+          "s",
+          "c"
+        ],
+        "foundations": 6,
+        "g": 193,
+        "legal_tableau": 148,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "7": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 2,
+            "u": 3
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "s": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          }
+        },
+        "assembly_f": 197,
+        "assembly_h": 2,
+        "assembly_slack": 0,
+        "assembly_u": 3,
+        "best_ready_suit": "c",
+        "boundaries_total": 0,
+        "copies_remaining": {
+          "c": 1,
+          "d": 0,
+          "h": 0,
+          "s": 0
+        },
+        "cover": 3,
+        "elapsed_s": 427.8015707000159,
+        "empty_n": 7,
+        "face_down": 0,
+        "foundation_suits": [
+          "d",
+          "d",
+          "h",
+          "h",
+          "s",
+          "s",
+          "c"
+        ],
+        "foundations": 7,
+        "g": 195,
+        "legal_tableau": 93,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      },
+      "8": {
+        "assembly_by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "s": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          }
+        },
+        "assembly_f": 197,
+        "assembly_h": 0,
+        "assembly_slack": 0,
+        "assembly_u": 0,
+        "best_ready_suit": null,
+        "boundaries_total": 0,
+        "copies_remaining": {
+          "c": 0,
+          "d": 0,
+          "h": 0,
+          "s": 0
+        },
+        "cover": null,
+        "elapsed_s": 428.7690990000265,
+        "empty_n": 10,
+        "face_down": 0,
+        "foundation_suits": [
+          "c",
+          "d",
+          "d",
+          "h",
+          "h",
+          "s",
+          "s",
+          "c"
+        ],
+        "foundations": 8,
+        "g": 197,
+        "legal_tableau": 0,
+        "lineage": [
+          "v065_f2_g130"
+        ],
+        "stock_rows": 0
+      }
+    }
+  },
+  "frontier": [
+    {
+      "F": 2,
+      "best_suit": "h",
+      "boundaries": 26,
+      "by_suit": {
+        "c": {
+          "feasible": null,
+          "m": 2,
+          "suit_lb": 0,
+          "u": null
+        },
+        "d": {
+          "feasible": null,
+          "m": 1,
+          "suit_lb": 0,
+          "u": null
+        },
+        "h": {
+          "feasible": null,
+          "m": 2,
+          "suit_lb": 0,
+          "u": null
+        },
+        "s": {
+          "feasible": null,
+          "m": 1,
+          "suit_lb": 0,
+          "u": null
+        }
+      },
+      "copies_remaining": {
+        "c": 2,
+        "d": 1,
+        "h": 2,
+        "s": 1
+      },
+      "elapsed_s": 0.0320437999907881,
+      "empty_n": 1,
+      "f": 130,
+      "fd": 2,
+      "g": 130,
+      "h": 0,
+      "legal": 15,
+      "proof_infeasible": false,
+      "slack": 67
+    },
+    {
+      "F": 3,
+      "best_suit": "s",
+      "boundaries": 9,
+      "by_suit": {
+        "c": {
+          "feasible": true,
+          "m": 2,
+          "suit_lb": 4,
+          "u": 6
+        },
+        "d": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 3,
+          "u": 4
+        },
+        "h": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 5,
+          "u": 6
+        },
+        "s": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 2,
+          "u": 3
+        }
+      },
+      "copies_remaining": {
+        "c": 2,
+        "d": 1,
+        "h": 1,
+        "s": 1
+      },
+      "elapsed_s": 394.81684230000246,
+      "empty_n": 2,
+      "f": 187,
+      "fd": 2,
+      "g": 173,
+      "h": 14,
+      "legal": 100,
+      "proof_infeasible": false,
+      "slack": 10
+    },
+    {
+      "F": 4,
+      "best_suit": "s",
+      "boundaries": 6,
+      "by_suit": {
+        "c": {
+          "feasible": true,
+          "m": 2,
+          "suit_lb": 4,
+          "u": 6
+        },
+        "d": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "h": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 6,
+          "u": 7
+        },
+        "s": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 2,
+          "u": 3
+        }
+      },
+      "copies_remaining": {
+        "c": 2,
+        "d": 0,
+        "h": 1,
+        "s": 1
+      },
+      "elapsed_s": 401.4501214000047,
+      "empty_n": 1,
+      "f": 193,
+      "fd": 1,
+      "g": 181,
+      "h": 12,
+      "legal": 53,
+      "proof_infeasible": false,
+      "slack": 4
+    },
+    {
+      "F": 5,
+      "best_suit": "s",
+      "boundaries": 2,
+      "by_suit": {
+        "c": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 2,
+          "u": 3
+        },
+        "d": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "h": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 5,
+          "u": 6
+        },
+        "s": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 1,
+          "u": 2
+        }
+      },
+      "copies_remaining": {
+        "c": 1,
+        "d": 0,
+        "h": 1,
+        "s": 1
+      },
+      "elapsed_s": 658.4742738999776,
+      "empty_n": 1,
+      "f": 193,
+      "fd": 0,
+      "g": 185,
+      "h": 8,
+      "legal": 55,
+      "proof_infeasible": false,
+      "slack": 4
+    },
+    {
+      "F": 6,
+      "best_suit": "s",
+      "boundaries": 2,
+      "by_suit": {
+        "c": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "d": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "h": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 5,
+          "u": 6
+        },
+        "s": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 1,
+          "u": 2
+        }
+      },
+      "copies_remaining": {
+        "c": 0,
+        "d": 0,
+        "h": 1,
+        "s": 1
+      },
+      "elapsed_s": 622.7520215000259,
+      "empty_n": 4,
+      "f": 193,
+      "fd": 0,
+      "g": 187,
+      "h": 6,
+      "legal": 104,
+      "proof_infeasible": false,
+      "slack": 4
+    },
+    {
+      "F": 7,
+      "best_suit": "c",
+      "boundaries": 0,
+      "by_suit": {
+        "c": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 1,
+          "u": 2
+        },
+        "d": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "h": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "s": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        }
+      },
+      "copies_remaining": {
+        "c": 1,
+        "d": 0,
+        "h": 0,
+        "s": 0
+      },
+      "elapsed_s": 832.4513827000046,
+      "empty_n": 8,
+      "f": 192,
+      "fd": 0,
+      "g": 191,
+      "h": 1,
+      "legal": 105,
+      "proof_infeasible": false,
+      "slack": 5
+    },
+    {
+      "F": 8,
+      "best_suit": null,
+      "boundaries": 0,
+      "by_suit": {
+        "c": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "d": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "h": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "s": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        }
+      },
+      "copies_remaining": {
+        "c": 0,
+        "d": 0,
+        "h": 0,
+        "s": 0
+      },
+      "elapsed_s": 832.5488697999972,
+      "empty_n": 10,
+      "f": 192,
+      "fd": 0,
+      "g": 192,
+      "h": 0,
+      "legal": 0,
+      "proof_infeasible": false,
+      "slack": 5
+    }
+  ],
+  "frontier_vs_v066": [
+    {
+      "F": 2,
+      "delta": null,
+      "f": 130,
+      "h": 0,
+      "proof_infeasible": false,
+      "slack": 67,
+      "v066_min_g": null,
+      "v067_min_g": 130
+    },
+    {
+      "F": 3,
+      "delta": 0,
+      "f": 187,
+      "h": 14,
+      "proof_infeasible": false,
+      "slack": 10,
+      "v066_min_g": 173,
+      "v067_min_g": 173
+    },
+    {
+      "F": 4,
+      "delta": 0,
+      "f": 193,
+      "h": 12,
+      "proof_infeasible": false,
+      "slack": 4,
+      "v066_min_g": 181,
+      "v067_min_g": 181
+    },
+    {
+      "F": 5,
+      "delta": -1,
+      "f": 193,
+      "h": 8,
+      "proof_infeasible": false,
+      "slack": 4,
+      "v066_min_g": 186,
+      "v067_min_g": 185
+    },
+    {
+      "F": 6,
+      "delta": -7,
+      "f": 193,
+      "h": 6,
+      "proof_infeasible": false,
+      "slack": 4,
+      "v066_min_g": 194,
+      "v067_min_g": 187
+    },
+    {
+      "F": 7,
+      "delta": -5,
+      "f": 192,
+      "h": 1,
+      "proof_infeasible": false,
+      "slack": 5,
+      "v066_min_g": 196,
+      "v067_min_g": 191
+    },
+    {
+      "F": 8,
+      "delta": null,
+      "f": 192,
+      "h": 0,
+      "proof_infeasible": false,
+      "slack": 5,
+      "v066_min_g": null,
+      "v067_min_g": 192
+    }
+  ],
+  "generated": 190483,
+  "immediate_deal": {
+    "auto_foundations": 0,
+    "best_suit": "c",
+    "boundaries": 35,
+    "component_layers": 35,
+    "deal_cost": 1,
+    "empty_land": 1,
+    "empty_n": 0,
+    "face_down": 2,
+    "foundations": 2,
+    "legal_tableau": 5,
+    "mixed": 9,
+    "mixed_supports": 9,
+    "n_ready": 4,
+    "ok": true,
+    "op_defined": true,
+    "post_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c1b22020f31122d0c3b1a1d1c2b2a1d2c1b3a391833000326341900053635042137000e3d3c3b3a3938373635343d3c0b17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "post_g": 131,
+    "pre_g": 130,
+    "pre_legal": 15,
+    "rank_ok": 0,
+    "same_suit": 0,
+    "stock_rows": 0,
+    "visible_components": 45
+  },
+  "incumbent_g": 198,
+  "interpretation": "solved at g=192",
+  "lanes": {
+    "expansions": {
+      "completion": 1109,
+      "construction": 1420,
+      "cost": 624,
+      "economy": 830,
+      "horizon": 0,
+      "readiness": 617,
+      "reveal": 860
+    },
+    "names": [
+      "cost",
+      "reveal",
+      "construction",
+      "readiness",
+      "horizon",
+      "economy",
+      "completion"
+    ],
+    "pops": {
+      "completion": 1294,
+      "construction": 1494,
+      "cost": 1495,
+      "economy": 1494,
+      "horizon": 0,
+      "readiness": 1494,
+      "reveal": 1495
+    },
+    "stale": {
+      "completion": 185,
+      "construction": 74,
+      "cost": 871,
+      "economy": 664,
+      "horizon": 0,
+      "readiness": 877,
+      "reveal": 635
+    }
+  },
+  "lower_bound_prunes": 57270,
+  "max_foundations": 8,
+  "max_g": 197,
+  "min_face_down": 0,
+  "min_g": 130,
+  "n_previewed": 2726,
+  "next_recommendation": "Promote the new autonomous incumbent and return to whole-game optimisation.",
+  "no_new_solution_if_not_improved": false,
+  "peak_rss_mb": 111.96875,
+  "policy_reads_canonical": false,
+  "portfolio": {
+    "cats": {
+      "cheap": 6,
+      "cheap_construction": 8,
+      "cheap_cover": 16,
+      "cheap_fd": 6,
+      "cheap_ready": 5,
+      "cheap_viable": 5,
+      "class_cheap": 1,
+      "deal_now": 1,
+      "economy": 7,
+      "pareto": 9,
+      "post_deal_consolidation": 28,
+      "post_deal_mobility": 8,
+      "post_deal_operational": 40,
+      "post_deal_pareto": 18,
+      "post_deal_reception": 36,
+      "readiness": 13,
+      "ready_div": 13,
+      "workspace": 25
+    },
+    "deal_now": 1,
+    "frozen_v066": true,
+    "transition_share": 0.5078125,
+    "width": 256
+  },
+  "post_stock": {
+    "after_deal_unique": null,
+    "alloc_s": 538.984316600021,
+    "deal_now_kept": null,
+    "elapsed_s": 539.0671039000154,
+    "expanded": 4790,
+    "generated": 184278,
+    "input_roots": 245,
+    "lane_exp": {
+      "completion": 1109,
+      "construction": 1254,
+      "cost": 542,
+      "economy": 748,
+      "horizon": 0,
+      "readiness": 455,
+      "reveal": 682
+    },
+    "lower_bound_calls": null,
+    "lower_bound_prunes": null,
+    "lower_bound_s": null,
+    "max_foundations": 8,
+    "max_g": 197,
+    "max_h": null,
+    "min_f": null,
+    "min_face_down": 0,
+    "min_g": 131,
+    "min_h": null,
+    "portfolio_cats": null,
+    "prunes_by_F": null,
+    "stock_rows": 0,
+    "stop_reason": "time limit",
+    "unique": 76120
+  },
+  "replay_g": 192,
+  "replay_ok": true,
+  "sd5": {
+    "after_deal_unique": 245,
+    "alloc_s": 359.99982795999387,
+    "deal_now_kept": 1,
+    "elapsed_s": 360.6022274999996,
+    "expanded": 670,
+    "generated": 6205,
+    "input_roots": 1,
+    "lane_exp": {
+      "completion": 0,
+      "construction": 166,
+      "cost": 82,
+      "economy": 82,
+      "horizon": 0,
+      "readiness": 162,
+      "reveal": 178
+    },
+    "lower_bound_calls": 2726,
+    "lower_bound_prunes": 0,
+    "lower_bound_s": 0.006412997026927769,
+    "max_foundations": 2,
+    "max_g": 140,
+    "max_h": 0,
+    "min_f": 130,
+    "min_face_down": 2,
+    "min_g": 130,
+    "min_h": 0,
+    "portfolio_cats": {
+      "cheap": 6,
+      "cheap_construction": 8,
+      "cheap_cover": 16,
+      "cheap_fd": 6,
+      "cheap_ready": 5,
+      "cheap_viable": 5,
+      "class_cheap": 1,
+      "deal_now": 1,
+      "economy": 7,
+      "pareto": 9,
+      "post_deal_consolidation": 28,
+      "post_deal_mobility": 8,
+      "post_deal_operational": 40,
+      "post_deal_pareto": 18,
+      "post_deal_reception": 36,
+      "readiness": 13,
+      "ready_div": 13,
+      "workspace": 25
+    },
+    "prunes_by_F": {},
+    "stock_rows": 1,
+    "stop_reason": "time limit",
+    "unique": 2435
+  },
+  "solution_actions": [
+    [
+      2,
+      5,
+      1
+    ],
+    [
+      5,
+      7,
+      2
+    ],
+    [
+      5,
+      7,
+      1
+    ],
+    [
+      0,
+      7,
+      1
+    ],
+    [
+      2,
+      1,
+      1
+    ],
+    [
+      7,
+      2,
+      5
+    ],
+    [
+      2,
+      6,
+      6
+    ],
+    [
+      7,
+      0,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      2,
+      9,
+      2
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      8,
+      1,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      8,
+      0,
+      1
+    ],
+    [
+      5,
+      0,
+      1
+    ],
+    [
+      5,
+      4,
+      1
+    ],
+    [
+      9,
+      4,
+      5
+    ],
+    [
+      3,
+      8,
+      1
+    ],
+    [
+      3,
+      8,
+      1
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      7,
+      8,
+      1
+    ],
+    [
+      5,
+      3,
+      1
+    ],
+    [
+      2,
+      4,
+      1
+    ],
+    [
+      6,
+      5,
+      6
+    ],
+    [
+      2,
+      6,
+      1
+    ],
+    [
+      2,
+      3,
+      1
+    ],
+    [
+      7,
+      2,
+      1
+    ],
+    [
+      8,
+      7,
+      4
+    ],
+    [
+      5,
+      8,
+      6
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      6,
+      5,
+      2
+    ],
+    [
+      6,
+      1,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      6,
+      0,
+      2
+    ],
+    [
+      8,
+      0,
+      1
+    ],
+    [
+      8,
+      0,
+      6
+    ],
+    [
+      1,
+      8,
+      3
+    ],
+    [
+      0,
+      1,
+      10
+    ],
+    [
+      6,
+      7,
+      1
+    ],
+    [
+      5,
+      8,
+      3
+    ],
+    [
+      9,
+      7,
+      1
+    ],
+    [
+      0,
+      5,
+      1
+    ],
+    [
+      0,
+      2,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      9,
+      4,
+      1
+    ],
+    [
+      0,
+      7,
+      1
+    ],
+    [
+      0,
+      8,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      0,
+      9,
+      1
+    ],
+    [
+      5,
+      4,
+      1
+    ],
+    [
+      0,
+      5,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      8,
+      5,
+      1
+    ],
+    [
+      8,
+      3,
+      6
+    ],
+    [
+      1,
+      8,
+      11
+    ],
+    [
+      3,
+      1,
+      7
+    ],
+    [
+      7,
+      5,
+      1
+    ],
+    [
+      8,
+      3,
+      11
+    ],
+    [
+      7,
+      8,
+      2
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      7,
+      6,
+      4
+    ],
+    [
+      1,
+      7,
+      8
+    ],
+    [
+      9,
+      1,
+      1
+    ],
+    [
+      3,
+      9,
+      6
+    ],
+    [
+      "deal"
+    ],
+    [
+      3,
+      0,
+      6
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      8,
+      3,
+      1
+    ],
+    [
+      9,
+      3,
+      2
+    ],
+    [
+      1,
+      9,
+      1
+    ],
+    [
+      9,
+      0,
+      6
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      7,
+      8,
+      8
+    ],
+    [
+      1,
+      7,
+      2
+    ],
+    [
+      "deal"
+    ],
+    [
+      4,
+      5,
+      1
+    ],
+    [
+      4,
+      0,
+      1
+    ],
+    [
+      6,
+      9,
+      1
+    ],
+    [
+      4,
+      9,
+      1
+    ],
+    [
+      4,
+      8,
+      2
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      6,
+      8,
+      1
+    ],
+    [
+      7,
+      4,
+      1
+    ],
+    [
+      4,
+      7,
+      2
+    ],
+    [
+      2,
+      3,
+      1
+    ],
+    [
+      2,
+      4,
+      1
+    ],
+    [
+      2,
+      9,
+      2
+    ],
+    [
+      2,
+      7,
+      2
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      9,
+      7,
+      2
+    ],
+    [
+      8,
+      9,
+      1
+    ],
+    [
+      2,
+      8,
+      2
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      1,
+      9,
+      1
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      1,
+      4,
+      1
+    ],
+    [
+      6,
+      2,
+      5
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      3,
+      6,
+      1
+    ],
+    [
+      1,
+      6,
+      1
+    ],
+    [
+      9,
+      1,
+      1
+    ],
+    [
+      9,
+      2,
+      2
+    ],
+    [
+      9,
+      4,
+      1
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      4,
+      1,
+      3
+    ],
+    [
+      9,
+      4,
+      2
+    ],
+    [
+      1,
+      9,
+      3
+    ],
+    [
+      6,
+      1,
+      1
+    ],
+    [
+      6,
+      3,
+      1
+    ],
+    [
+      4,
+      6,
+      9
+    ],
+    [
+      4,
+      6,
+      1
+    ],
+    [
+      4,
+      9,
+      1
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      8,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      5,
+      0,
+      1
+    ],
+    [
+      5,
+      3,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      4,
+      0,
+      1
+    ],
+    [
+      1,
+      8,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      5,
+      6,
+      1
+    ],
+    [
+      2,
+      6,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      8,
+      3,
+      1
+    ],
+    [
+      8,
+      1,
+      1
+    ],
+    [
+      3,
+      8,
+      2
+    ],
+    [
+      3,
+      0,
+      1
+    ],
+    [
+      3,
+      6,
+      2
+    ],
+    [
+      1,
+      8,
+      1
+    ],
+    [
+      0,
+      6,
+      1
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      4,
+      1,
+      1
+    ],
+    [
+      8,
+      4,
+      1
+    ],
+    [
+      6,
+      1,
+      2
+    ],
+    [
+      8,
+      3,
+      1
+    ],
+    [
+      7,
+      2,
+      1
+    ],
+    [
+      7,
+      6,
+      1
+    ],
+    [
+      7,
+      4,
+      2
+    ],
+    [
+      5,
+      6,
+      1
+    ],
+    [
+      7,
+      9,
+      2
+    ],
+    [
+      2,
+      3,
+      1
+    ],
+    [
+      5,
+      2,
+      1
+    ],
+    [
+      5,
+      7,
+      1
+    ],
+    [
+      4,
+      5,
+      4
+    ],
+    [
+      2,
+      9,
+      2
+    ],
+    [
+      5,
+      6,
+      6
+    ],
+    [
+      9,
+      4,
+      5
+    ],
+    [
+      7,
+      1,
+      3
+    ],
+    [
+      4,
+      7,
+      6
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      7,
+      0,
+      8
+    ],
+    [
+      2,
+      4,
+      2
+    ],
+    [
+      2,
+      5,
+      1
+    ],
+    [
+      3,
+      2,
+      1
+    ],
+    [
+      1,
+      7,
+      1
+    ],
+    [
+      2,
+      1,
+      3
+    ],
+    [
+      7,
+      2,
+      1
+    ],
+    [
+      2,
+      7,
+      7
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      9,
+      8,
+      6
+    ],
+    [
+      1,
+      9,
+      6
+    ],
+    [
+      8,
+      1,
+      6
+    ],
+    [
+      9,
+      2,
+      8
+    ],
+    [
+      1,
+      4,
+      10
+    ],
+    [
+      6,
+      1,
+      10
+    ],
+    [
+      2,
+      6,
+      10
+    ],
+    [
+      3,
+      2,
+      2
+    ],
+    [
+      3,
+      8,
+      1
+    ],
+    [
+      3,
+      9,
+      1
+    ],
+    [
+      0,
+      3,
+      9
+    ],
+    [
+      3,
+      8,
+      11
+    ],
+    [
+      4,
+      7,
+      2
+    ],
+    [
+      4,
+      9,
+      10
+    ],
+    [
+      3,
+      4,
+      2
+    ],
+    [
+      7,
+      3,
+      9
+    ],
+    [
+      1,
+      7,
+      10
+    ],
+    [
+      3,
+      1,
+      10
+    ],
+    [
+      7,
+      3,
+      10
+    ],
+    [
+      3,
+      4,
+      11
+    ],
+    [
+      3,
+      0,
+      1
+    ],
+    [
+      8,
+      3,
+      12
+    ],
+    [
+      3,
+      9,
+      1
+    ],
+    [
+      5,
+      9,
+      1
+    ],
+    [
+      3,
+      2,
+      1
+    ],
+    [
+      6,
+      0,
+      11
+    ],
+    [
+      4,
+      6,
+      11
+    ],
+    [
+      1,
+      4,
+      11
+    ],
+    [
+      2,
+      6,
+      3
+    ]
+  ],
+  "solution_file": "solutions/4925153_autonomous_v0_67.moves",
+  "solution_g": 192,
+  "solved": true,
+  "states_per_s": 6.065858159890426,
+  "stop_reason": "solved",
+  "unique": 78555,
+  "v066_milestones": {
+    "f6": {
+      "F": 6,
+      "best_suit": "s",
+      "boundaries": 2,
+      "by_suit": {
+        "c": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "d": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "h": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 5,
+          "u": 6
+        },
+        "s": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 1,
+          "u": 2
+        }
+      },
+      "copies_remaining": {
+        "c": 0,
+        "d": 0,
+        "h": 1,
+        "s": 1
+      },
+      "elapsed_s": 622.7520215000259,
+      "empty_n": 4,
+      "f": 193,
+      "fd": 0,
+      "g": 187,
+      "h": 6,
+      "legal": 104,
+      "proof_infeasible": false,
+      "slack": 4
+    },
+    "f7": {
+      "note": "v0.66 slim artefacts dropped full_actions/digest; cover=4 implies u>=4, h>=3, f>=199.",
+      "proof_infeasible_under_197": true,
+      "reconstructable_from_v066_json": false,
+      "reported_cover": 4,
+      "reported_g": 196,
+      "synthetic_f": 199,
+      "synthetic_slack": -2,
+      "synthetic_u4_m1_h": 3,
+      "v067_observed_f7": {
+        "F": 7,
+        "best_suit": "c",
+        "boundaries": 0,
+        "by_suit": {
+          "c": {
+            "feasible": true,
+            "m": 1,
+            "suit_lb": 1,
+            "u": 2
+          },
+          "d": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "h": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          },
+          "s": {
+            "feasible": true,
+            "m": 0,
+            "suit_lb": 0,
+            "u": 0
+          }
+        },
+        "copies_remaining": {
+          "c": 1,
+          "d": 0,
+          "h": 0,
+          "s": 0
+        },
+        "elapsed_s": 832.4513827000046,
+        "empty_n": 8,
+        "f": 192,
+        "fd": 0,
+        "g": 191,
+        "h": 1,
+        "legal": 105,
+        "proof_infeasible": false,
+        "slack": 5
+      }
+    },
+    "f7_now": {
+      "F": 7,
+      "best_suit": "c",
+      "boundaries": 0,
+      "by_suit": {
+        "c": {
+          "feasible": true,
+          "m": 1,
+          "suit_lb": 1,
+          "u": 2
+        },
+        "d": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "h": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        },
+        "s": {
+          "feasible": true,
+          "m": 0,
+          "suit_lb": 0,
+          "u": 0
+        }
+      },
+      "copies_remaining": {
+        "c": 1,
+        "d": 0,
+        "h": 0,
+        "s": 0
+      },
+      "elapsed_s": 832.4513827000046,
+      "empty_n": 8,
+      "f": 192,
+      "fd": 0,
+      "g": 191,
+      "h": 1,
+      "legal": 105,
+      "proof_infeasible": false,
+      "slack": 5
+    }
+  },
+  "verdict": "ASSEMBLY_BOUND_COST_IMPROVED",
+  "wall_s": 900.2161666000029
+}
