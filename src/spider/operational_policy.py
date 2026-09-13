@@ -182,12 +182,22 @@ def search_operational_optimisation(
     abort_when=None,
     incumbent_by_rows=None,
     cost_ceiling=None,
+    harvest_cats=None,
+    extra_track=None,
+    enrich_fn=None,
+    on_harvest=None,
 ):
     opening = opening or opening_state()
     trace = incumbent_trace or load_machine_incumbent(opening)
     incumbent_g = int(trace["g"])
     ceiling = int(cost_ceiling) if cost_ceiling is not None else incumbent_g - 1
     tracker = OperationalTracker()
+
+    def track(tops, rec, min_root_g, class_best) -> None:
+        tracker(tops, rec, min_root_g, class_best)
+        if extra_track is not None:
+            extra_track(tops, rec, min_root_g, class_best)
+
     result = search_epoch_portfolio(
         opening=opening,
         max_unique=max_unique,
@@ -197,17 +207,18 @@ def search_operational_optimisation(
         portfolio_width=portfolio_width,
         lane_names=OP_LANES,
         keys_fn=operational_lane_keys,
-        harvest_cats=OP_HARVEST_CATS,
+        harvest_cats=OP_HARVEST_CATS if harvest_cats is None else harvest_cats,
         harvest_slack=-1,
         remaining_deal_bound=True,
         incumbent_by_rows=incumbent_by_rows if incumbent_by_rows is not None else checkpoints_from_trace(trace),
         continue_after_solve=True,
-        extra_track=tracker,
+        extra_track=track,
         harvest_vec_fn=operational_pareto_vec,
         split_pareto=True,
-        enrich_fn=enrich_operational,
+        enrich_fn=enrich_operational if enrich_fn is None else enrich_fn,
         initial_roots=initial_roots,
         abort_when=abort_when,
+        on_harvest=on_harvest,
     )
     result.incumbent_g = incumbent_g
     result.candidate_ceiling = getattr(result, "candidate_ceiling", None) or ceiling

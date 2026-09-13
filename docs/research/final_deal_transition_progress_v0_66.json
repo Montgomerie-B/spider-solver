@@ -1,0 +1,461 @@
+{
+  "epochs": [
+    {
+      "after_deal_unique": 240,
+      "alloc_s": 359.9998158000177,
+      "budget_left": 67,
+      "deal_now_kept": 1,
+      "elapsed_s": 360.6727382000536,
+      "expanded": 663,
+      "generated": 6126,
+      "input_roots": 1,
+      "lane_exp": {
+        "construction": 164,
+        "cost": 82,
+        "economy": 80,
+        "horizon": 0,
+        "readiness": 162,
+        "reveal": 175
+      },
+      "lineage_after_deal": 240,
+      "lineage_roots": 1,
+      "max_foundations": 2,
+      "max_g": 140,
+      "min_face_down": 2,
+      "min_g": 130,
+      "n_ready": 1,
+      "portfolio_cats": {
+        "cheap": 7,
+        "cheap_construction": 9,
+        "cheap_cover": 16,
+        "cheap_fd": 6,
+        "cheap_ready": 6,
+        "cheap_viable": 5,
+        "class_cheap": 1,
+        "deal_now": 1,
+        "economy": 7,
+        "pareto": 9,
+        "post_deal_consolidation": 28,
+        "post_deal_mobility": 7,
+        "post_deal_operational": 40,
+        "post_deal_pareto": 11,
+        "post_deal_reception": 36,
+        "readiness": 13,
+        "ready_div": 13,
+        "workspace": 25
+      },
+      "stock_rows": 1,
+      "stop_reason": "time limit",
+      "unique": 2408
+    },
+    {
+      "after_deal_unique": 0,
+      "alloc_s": 538.9058218999999,
+      "budget_left": 66,
+      "deal_now_kept": 2,
+      "elapsed_s": 539.0981528999982,
+      "expanded": 10234,
+      "generated": 322733,
+      "input_roots": 240,
+      "lane_exp": {
+        "construction": 2432,
+        "cost": 1091,
+        "economy": 1759,
+        "horizon": 0,
+        "readiness": 2477,
+        "reveal": 2475
+      },
+      "lineage_after_deal": 0,
+      "lineage_roots": 240,
+      "max_foundations": 7,
+      "max_g": 197,
+      "min_face_down": 0,
+      "min_g": 131,
+      "n_ready": 4,
+      "portfolio_cats": {
+        "cheap": 6,
+        "cheap_construction": 6,
+        "cheap_cover": 27,
+        "cheap_fd": 5,
+        "cheap_ready": 6,
+        "cheap_viable": 5,
+        "class_cheap": 20,
+        "deal_now": 2,
+        "economy": 5,
+        "operational_alt": 39,
+        "pareto": 14,
+        "readiness": 39,
+        "ready_div": 31,
+        "workspace": 36
+      },
+      "stock_rows": 0,
+      "stop_reason": "time limit",
+      "unique": 81794
+    }
+  ],
+  "f2_digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+  "foundations_cheap": {
+    "2": {
+      "anchor_contention": 1,
+      "best_ready_suit": "h",
+      "boundaries_total": 26,
+      "cover": null,
+      "elapsed_s": 0.04342159995576367,
+      "empty_n": 1,
+      "face_down": 2,
+      "foundation_suits": [
+        "d",
+        "s"
+      ],
+      "foundations": 2,
+      "g": 130,
+      "k_min_blockers": 5,
+      "legal_tableau": 15,
+      "lineage": [
+        "v065_f2_g130"
+      ],
+      "n_ready": 1,
+      "op_blockers": 48,
+      "stock_rows": 1
+    },
+    "3": {
+      "anchor_contention": 0,
+      "best_ready_suit": "s",
+      "boundaries_total": 9,
+      "cover": 3,
+      "elapsed_s": 381.5204744999646,
+      "empty_n": 2,
+      "face_down": 2,
+      "foundation_suits": [
+        "d",
+        "s",
+        "h"
+      ],
+      "foundations": 3,
+      "g": 173,
+      "k_min_blockers": 9,
+      "legal_tableau": 100,
+      "lineage": [
+        "v065_f2_g130"
+      ],
+      "n_ready": 4,
+      "op_blockers": 15,
+      "stock_rows": 0
+    },
+    "4": {
+      "anchor_contention": 0,
+      "best_ready_suit": "s",
+      "boundaries_total": 6,
+      "cover": 3,
+      "elapsed_s": 385.5958497999818,
+      "empty_n": 1,
+      "face_down": 1,
+      "foundation_suits": [
+        "d",
+        "h",
+        "s",
+        "d"
+      ],
+      "foundations": 4,
+      "g": 181,
+      "k_min_blockers": 2,
+      "legal_tableau": 53,
+      "lineage": [
+        "v065_f2_g130"
+      ],
+      "n_ready": 3,
+      "op_blockers": 2,
+      "stock_rows": 0
+    },
+    "5": {
+      "anchor_contention": 0,
+      "best_ready_suit": "s",
+      "boundaries_total": 4,
+      "cover": 2,
+      "elapsed_s": 387.8008057999541,
+      "empty_n": 2,
+      "face_down": 0,
+      "foundation_suits": [
+        "d",
+        "d",
+        "h",
+        "s",
+        "c"
+      ],
+      "foundations": 5,
+      "g": 186,
+      "k_min_blockers": 2,
+      "legal_tableau": 84,
+      "lineage": [
+        "v065_f2_g130"
+      ],
+      "n_ready": 3,
+      "op_blockers": 2,
+      "stock_rows": 0
+    },
+    "6": {
+      "anchor_contention": 0,
+      "best_ready_suit": "s",
+      "boundaries_total": 2,
+      "cover": 2,
+      "elapsed_s": 393.7322873999947,
+      "empty_n": 6,
+      "face_down": 0,
+      "foundation_suits": [
+        "c",
+        "d",
+        "d",
+        "h",
+        "s",
+        "c"
+      ],
+      "foundations": 6,
+      "g": 194,
+      "k_min_blockers": 3,
+      "legal_tableau": 148,
+      "lineage": [
+        "v065_f2_g130"
+      ],
+      "n_ready": 2,
+      "op_blockers": 3,
+      "stock_rows": 0
+    },
+    "7": {
+      "anchor_contention": 0,
+      "best_ready_suit": "h",
+      "boundaries_total": 0,
+      "cover": 4,
+      "elapsed_s": 497.51401300000725,
+      "empty_n": 6,
+      "face_down": 0,
+      "foundation_suits": [
+        "c",
+        "c",
+        "d",
+        "d",
+        "h",
+        "s",
+        "s"
+      ],
+      "foundations": 7,
+      "g": 196,
+      "k_min_blockers": 0,
+      "legal_tableau": 81,
+      "lineage": [
+        "v065_f2_g130"
+      ],
+      "n_ready": 1,
+      "op_blockers": 0,
+      "stock_rows": 0
+    }
+  },
+  "frontier": [
+    {
+      "F": 2,
+      "boundaries": 26,
+      "cover": null,
+      "delta_from_f2": 0,
+      "elapsed_s": 0.04342159995576367,
+      "empty_n": 1,
+      "fd": 2,
+      "legal": 15,
+      "min_g": 130,
+      "rows": 1,
+      "suits": [
+        "d",
+        "s"
+      ]
+    },
+    {
+      "F": 3,
+      "boundaries": 9,
+      "cover": 3,
+      "delta_from_f2": 43,
+      "elapsed_s": 381.5204744999646,
+      "empty_n": 2,
+      "fd": 2,
+      "legal": 100,
+      "min_g": 173,
+      "rows": 0,
+      "suits": [
+        "d",
+        "s",
+        "h"
+      ]
+    },
+    {
+      "F": 4,
+      "boundaries": 6,
+      "cover": 3,
+      "delta_from_f2": 51,
+      "elapsed_s": 385.5958497999818,
+      "empty_n": 1,
+      "fd": 1,
+      "legal": 53,
+      "min_g": 181,
+      "rows": 0,
+      "suits": [
+        "d",
+        "h",
+        "s",
+        "d"
+      ]
+    },
+    {
+      "F": 5,
+      "boundaries": 4,
+      "cover": 2,
+      "delta_from_f2": 56,
+      "elapsed_s": 387.8008057999541,
+      "empty_n": 2,
+      "fd": 0,
+      "legal": 84,
+      "min_g": 186,
+      "rows": 0,
+      "suits": [
+        "d",
+        "d",
+        "h",
+        "s",
+        "c"
+      ]
+    },
+    {
+      "F": 6,
+      "boundaries": 2,
+      "cover": 2,
+      "delta_from_f2": 64,
+      "elapsed_s": 393.7322873999947,
+      "empty_n": 6,
+      "fd": 0,
+      "legal": 148,
+      "min_g": 194,
+      "rows": 0,
+      "suits": [
+        "c",
+        "d",
+        "d",
+        "h",
+        "s",
+        "c"
+      ]
+    },
+    {
+      "F": 7,
+      "boundaries": 0,
+      "cover": 4,
+      "delta_from_f2": 66,
+      "elapsed_s": 497.51401300000725,
+      "empty_n": 6,
+      "fd": 0,
+      "legal": 81,
+      "min_g": 196,
+      "rows": 0,
+      "suits": [
+        "c",
+        "c",
+        "d",
+        "d",
+        "h",
+        "s",
+        "s"
+      ]
+    }
+  ],
+  "frontier_vs_v065": [
+    {
+      "F": 3,
+      "boundaries": 9,
+      "delta": -6,
+      "elapsed_s": 381.5204744999646,
+      "empty_n": 2,
+      "fd": 2,
+      "legal": 100,
+      "v065_min_g": 179,
+      "v066_min_g": 173
+    },
+    {
+      "F": 4,
+      "boundaries": 6,
+      "delta": -5,
+      "elapsed_s": 385.5958497999818,
+      "empty_n": 1,
+      "fd": 1,
+      "legal": 53,
+      "v065_min_g": 186,
+      "v066_min_g": 181
+    },
+    {
+      "F": 5,
+      "boundaries": 4,
+      "delta": -8,
+      "elapsed_s": 387.8008057999541,
+      "empty_n": 2,
+      "fd": 0,
+      "legal": 84,
+      "v065_min_g": 194,
+      "v066_min_g": 186
+    },
+    {
+      "F": 6,
+      "boundaries": 2,
+      "delta": -3,
+      "elapsed_s": 393.7322873999947,
+      "empty_n": 6,
+      "fd": 0,
+      "legal": 148,
+      "v065_min_g": 197,
+      "v066_min_g": 194
+    },
+    {
+      "F": 7,
+      "boundaries": 0,
+      "delta": null,
+      "elapsed_s": 497.51401300000725,
+      "empty_n": 6,
+      "fd": 0,
+      "legal": 81,
+      "v065_min_g": null,
+      "v066_min_g": 196
+    },
+    {
+      "F": 8,
+      "boundaries": null,
+      "delta": null,
+      "elapsed_s": null,
+      "empty_n": null,
+      "fd": null,
+      "legal": null,
+      "v065_min_g": null,
+      "v066_min_g": null
+    }
+  ],
+  "portfolio": {
+    "cats": {
+      "cheap": 7,
+      "cheap_construction": 9,
+      "cheap_cover": 16,
+      "cheap_fd": 6,
+      "cheap_ready": 6,
+      "cheap_viable": 5,
+      "class_cheap": 1,
+      "deal_now": 1,
+      "economy": 7,
+      "pareto": 9,
+      "post_deal_consolidation": 28,
+      "post_deal_mobility": 7,
+      "post_deal_operational": 40,
+      "post_deal_pareto": 11,
+      "post_deal_reception": 36,
+      "readiness": 13,
+      "ready_div": 13,
+      "workspace": 25
+    },
+    "deal_now": 1,
+    "transition_share": 0.4765625,
+    "width": 256
+  },
+  "solution_g": null,
+  "stop_reason": "time limit",
+  "verdict": "FINAL_DEAL_TRANSITION_IMPROVES_CONVERSION"
+}

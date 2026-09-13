@@ -462,6 +462,7 @@ def search_epoch_portfolio(
     enrich_fn=None,
     initial_roots: Optional[Sequence[dict]] = None,
     abort_when=None,
+    on_harvest=None,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
@@ -777,6 +778,8 @@ def search_epoch_portfolio(
             split_pareto=split_pareto,
         )
         attached = _attach_paths(picked, epoch_roots, kr)
+        if on_harvest is not None:
+            on_harvest(rows, picked, cat_counts, attached)
         if epoch_incumbent is not None:
             iid = epoch_incumbent.get("ident")
             if any((r.get("ident") or r.get("whole_game_identity")) == iid for r in attached):
