@@ -44,6 +44,7 @@ COST_CEILING = 300
 SEARCH_UNIQUE = 800_000
 SEARCH_TIME_S = 900.0
 SEARCH_RSS_MB = 2.5 * 1024.0
+AUGMENT_FRACTION = 0.25
 LANES = ("cost", "reveal", "workspace", "construction", "readiness", "horizon")
 HARVEST_CATS = (
     "cheap",
@@ -515,6 +516,9 @@ def search_epoch_portfolio(
     on_harvest=None,
     lower_bound_fn=None,
     finalize_track=None,
+    epoch_augment_fn=None,
+    augment_fraction: float = AUGMENT_FRACTION,
+    augment_when=None,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
@@ -711,11 +715,22 @@ def search_epoch_portfolio(
                     epoch_best_d = snap
                     out.best_durability = snap
 
+        will_augment = epoch_augment_fn is not None and (
+            augment_when is None or bool(augment_when(rows, epoch_roots))
+        )
+        strategic_u, strategic_t = alloc_u, alloc_t
+        augment_u, augment_t = 0, 0.0
+        if will_augment:
+            frac = min(max(float(augment_fraction), 0.0), 0.9)
+            strategic_t = max(0.05, alloc_t * (1.0 - frac))
+            augment_t = max(0.0, alloc_t - strategic_t)
+            strategic_u = max(1, int(alloc_u * (1.0 - frac)))
+            augment_u = max(0, alloc_u - strategic_u)
         kr = run_search(
             epoch_roots,
             limits=SearchLimits(
-                max_unique=alloc_u,
-                time_limit_s=alloc_t,
+                max_unique=strategic_u,
+                time_limit_s=strategic_t,
                 rss_abort_mb=rss_abort_mb,
                 cost_ceiling=epoch_ceil,
                 harvest_slack=harvest_slack,
@@ -848,6 +863,90 @@ def search_epoch_portfolio(
         attached = _attach_paths(picked, epoch_roots, kr)
         if on_harvest is not None:
             on_harvest(rows, picked, cat_counts, attached)
+        augment_stats = {
+            "called": False,
+            "n_probes": 0,
+            "n_terminals": 0,
+            "unique": 0,
+            "expanded": 0,
+            "generated": 0,
+            "elapsed_s": 0.0,
+            "alloc_s": augment_t,
+            "alloc_unique": augment_u,
+            "lane_exp": {},
+        }
+        if will_augment:
+            leftover_t = max(0.0, strategic_t - float(kr.elapsed_s or 0.0))
+            remain_wall = max(0.0, time_limit_s - (time.perf_counter() - started))
+            budget_s = min(augment_t + leftover_t, remain_wall)
+            leftover_u = max(0, strategic_u - int(kr.unique or 0))
+            unique_budget = min(augment_u + leftover_u, max(0, max_unique - out.unique))
+            ctx = {
+                "opening": opening,
+                "epoch_roots": epoch_roots,
+                "min_root_g": min_root_g,
+                "epoch_ceil": epoch_ceil,
+                "cost_ceiling": live_ceiling,
+                "rss_abort_mb": rss_abort_mb,
+                "unique_budget": unique_budget,
+                "kernel": kr,
+                "extra_track": extra_track,
+            }
+            raw = epoch_augment_fn(rows, attached, budget_s, ctx)
+            extra = []
+            stats: dict = {}
+            if isinstance(raw, dict):
+                extra = list(raw.get("attached") or raw.get("roots") or [])
+                stats = raw
+            elif raw:
+                extra = list(raw)
+            seen_att = {
+                rec.get("ident") or rec.get("whole_game_identity") for rec in attached
+            }
+            n_add = 0
+            for rec in extra:
+                ident = rec.get("ident") or rec.get("whole_game_identity")
+                if ident in seen_att:
+                    continue
+                seen_att.add(ident)
+                item = dict(rec)
+                item.setdefault("portfolio_cat", "tactical_cashout")
+                item.setdefault("ident", ident)
+                attached.append(item)
+                n_add += 1
+                _note_foundation(
+                    out,
+                    item,
+                    time.perf_counter() - started,
+                    out.unique,
+                    out.expanded,
+                )
+            aug_unique = int(stats.get("unique") or 0)
+            out.unique += aug_unique
+            remaining_unique = max_unique - out.unique
+            out.expanded += int(stats.get("expanded") or 0)
+            out.generated += int(stats.get("generated") or 0)
+            out.duplicate_skips += int(stats.get("duplicate_skips") or 0)
+            out.stale_skips += int(stats.get("stale_skips") or 0)
+            for name, n in (stats.get("lane_exp") or {}).items():
+                out.lane_exp[name] = out.lane_exp.get(name, 0) + int(n)
+            augment_stats = {
+                "called": True,
+                "n_probes": int(stats.get("n_probes") or stats.get("n_roots") or 0),
+                "n_terminals": n_add,
+                "unique": aug_unique,
+                "expanded": int(stats.get("expanded") or 0),
+                "generated": int(stats.get("generated") or 0),
+                "elapsed_s": float(stats.get("elapsed_s") or 0.0),
+                "alloc_s": budget_s,
+                "alloc_unique": unique_budget,
+                "lane_exp": dict(stats.get("lane_exp") or {}),
+                "found": int(stats.get("n_found") or 0),
+                "n_selected": int(stats.get("n_selected") or 0),
+                "n_ready_roots": int(stats.get("n_ready_roots") or 0),
+                "n_terminals_raw": int(stats.get("n_terminals_raw") or n_add),
+                "probes": list(stats.get("probes") or []),
+            }
         if epoch_incumbent is not None:
             iid = epoch_incumbent.get("ident")
             if any((r.get("ident") or r.get("whole_game_identity")) == iid for r in attached):
@@ -892,6 +991,9 @@ def search_epoch_portfolio(
                 "epoch_ceiling": epoch_ceil,
                 "alloc_unique": alloc_u,
                 "alloc_s": alloc_t,
+                "alloc_unique_strategic": strategic_u,
+                "alloc_s_strategic": strategic_t,
+                "augment": augment_stats,
                 "weight": epoch_weight(rows, n_ready),
                 "unique": kr.unique,
                 "expanded": kr.expanded,

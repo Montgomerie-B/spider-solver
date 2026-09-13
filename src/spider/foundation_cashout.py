@@ -641,6 +641,7 @@ def search_foundation_cashout(
     cost_ceiling: int = TACTICAL_CEILING,
     portfolio_limit: int = PORTFOLIO_LIMIT,
     on_progress: Optional[Callable] = None,
+    skip_preview: bool = False,
 ) -> TacticalCashoutResult:
     """Bounded tableau-only search for one additional target-suit foundation.
 
@@ -729,6 +730,10 @@ def search_foundation_cashout(
         terminals = sorted(unique_terms.values(), key=lambda r: (r["g"], r["ordered_digest"]))
         portfolio = select_terminal_portfolio(terminals, limit=portfolio_limit)
         for rec in portfolio:
+            if rec.get("node") is not None and kernel.nodes:
+                rec["actions"] = dump_actions(kernel.reconstruct(int(rec["node"])))
+            if skip_preview:
+                continue
             st = unpack_state(bytes.fromhex(rec["ordered_digest"]))
             rec["deal_preview"] = compact_preview(preview_next_deal(st, pre_g=int(rec["g"])))
         cheapest = terminals[0] if terminals else None
