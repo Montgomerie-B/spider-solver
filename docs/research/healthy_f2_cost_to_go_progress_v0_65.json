@@ -1,0 +1,299 @@
+{
+  "epochs": [
+    {
+      "after_deal_unique": 187,
+      "budget_left": 67,
+      "elapsed_s": 360.008502200013,
+      "expanded": 21134,
+      "generated": 191221,
+      "input_roots": 1,
+      "lane_exp": {
+        "construction": 5628,
+        "cost": 2230,
+        "economy": 3564,
+        "horizon": 0,
+        "readiness": 6465,
+        "reveal": 3247
+      },
+      "lineage_after_deal": 187,
+      "lineage_roots": 1,
+      "max_foundations": 2,
+      "max_g": 170,
+      "min_face_down": 2,
+      "min_g": 130,
+      "n_ready": 1,
+      "portfolio_cats": {
+        "cheap": 8,
+        "cheap_construction": 11,
+        "cheap_cover": 22,
+        "cheap_fd": 7,
+        "cheap_ready": 7,
+        "cheap_viable": 6,
+        "class_cheap": 2,
+        "deal_now": 1,
+        "economy": 12,
+        "pareto": 10,
+        "readiness": 40,
+        "ready_div": 21,
+        "workspace": 40
+      },
+      "stock_rows": 1,
+      "stop_reason": "time limit",
+      "unique": 75332
+    },
+    {
+      "after_deal_unique": 0,
+      "budget_left": 66,
+      "elapsed_s": 539.5982201999868,
+      "expanded": 31316,
+      "generated": 226180,
+      "input_roots": 187,
+      "lane_exp": {
+        "construction": 9624,
+        "cost": 4465,
+        "economy": 6256,
+        "horizon": 0,
+        "readiness": 5938,
+        "reveal": 5033
+      },
+      "lineage_after_deal": 0,
+      "lineage_roots": 187,
+      "max_foundations": 6,
+      "max_g": 197,
+      "min_face_down": 0,
+      "min_g": 131,
+      "n_ready": 4,
+      "portfolio_cats": {
+        "cheap": 6,
+        "cheap_construction": 6,
+        "cheap_cover": 27,
+        "cheap_fd": 5,
+        "cheap_ready": 6,
+        "cheap_viable": 5,
+        "class_cheap": 14,
+        "deal_now": 2,
+        "economy": 5,
+        "operational_alt": 40,
+        "pareto": 13,
+        "readiness": 40,
+        "ready_div": 32,
+        "workspace": 32
+      },
+      "stock_rows": 0,
+      "stop_reason": "time limit",
+      "unique": 93455
+    }
+  ],
+  "f2_digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+  "foundations_cheap": {
+    "2": {
+      "anchor_contention": 1,
+      "best_ready_suit": "h",
+      "boundaries_total": 26,
+      "cover": null,
+      "elapsed_s": 0.005402600043453276,
+      "empty_n": 1,
+      "face_down": 2,
+      "foundation_suits": [
+        "d",
+        "s"
+      ],
+      "foundations": 2,
+      "g": 130,
+      "k_min_blockers": 5,
+      "lineage": [
+        "v064_f2_g130"
+      ],
+      "n_ready": 1,
+      "op_blockers": 48,
+      "stock_rows": 1
+    },
+    "3": {
+      "anchor_contention": 0,
+      "best_ready_suit": "s",
+      "boundaries_total": 9,
+      "cover": 3,
+      "elapsed_s": 370.7119426000281,
+      "empty_n": 2,
+      "face_down": 2,
+      "foundation_suits": [
+        "d",
+        "s",
+        "c"
+      ],
+      "foundations": 3,
+      "g": 179,
+      "k_min_blockers": 9,
+      "lineage": [
+        "v064_f2_g130"
+      ],
+      "n_ready": 4,
+      "op_blockers": 18,
+      "stock_rows": 0
+    },
+    "4": {
+      "anchor_contention": 0,
+      "best_ready_suit": "s",
+      "boundaries_total": 7,
+      "cover": 3,
+      "elapsed_s": 373.4650393000338,
+      "empty_n": 2,
+      "face_down": 2,
+      "foundation_suits": [
+        "d",
+        "h",
+        "s",
+        "c"
+      ],
+      "foundations": 4,
+      "g": 186,
+      "k_min_blockers": 9,
+      "lineage": [
+        "v064_f2_g130"
+      ],
+      "n_ready": 4,
+      "op_blockers": 15,
+      "stock_rows": 0
+    },
+    "5": {
+      "anchor_contention": 0,
+      "best_ready_suit": "c",
+      "boundaries_total": 3,
+      "cover": 2,
+      "elapsed_s": 376.4162883000099,
+      "empty_n": 3,
+      "face_down": 1,
+      "foundation_suits": [
+        "d",
+        "d",
+        "h",
+        "s",
+        "s"
+      ],
+      "foundations": 5,
+      "g": 194,
+      "k_min_blockers": 0,
+      "lineage": [
+        "v064_f2_g130"
+      ],
+      "n_ready": 2,
+      "op_blockers": 2,
+      "stock_rows": 0
+    },
+    "6": {
+      "anchor_contention": 0,
+      "best_ready_suit": "c",
+      "boundaries_total": 2,
+      "cover": 3,
+      "elapsed_s": 376.9550805000472,
+      "empty_n": 5,
+      "face_down": 0,
+      "foundation_suits": [
+        "d",
+        "d",
+        "h",
+        "s",
+        "s",
+        "c"
+      ],
+      "foundations": 6,
+      "g": 197,
+      "k_min_blockers": 0,
+      "lineage": [
+        "v064_f2_g130"
+      ],
+      "n_ready": 2,
+      "op_blockers": 0,
+      "stock_rows": 0
+    }
+  },
+  "frontier": [
+    {
+      "F": 2,
+      "boundaries": 26,
+      "cover": null,
+      "delta_from_f2": 0,
+      "elapsed_s": 0.005402600043453276,
+      "empty_n": 1,
+      "fd": 2,
+      "min_g": 130,
+      "rows": 1,
+      "suits": [
+        "d",
+        "s"
+      ]
+    },
+    {
+      "F": 3,
+      "boundaries": 9,
+      "cover": 3,
+      "delta_from_f2": 49,
+      "elapsed_s": 370.7119426000281,
+      "empty_n": 2,
+      "fd": 2,
+      "min_g": 179,
+      "rows": 0,
+      "suits": [
+        "d",
+        "s",
+        "c"
+      ]
+    },
+    {
+      "F": 4,
+      "boundaries": 7,
+      "cover": 3,
+      "delta_from_f2": 56,
+      "elapsed_s": 373.4650393000338,
+      "empty_n": 2,
+      "fd": 2,
+      "min_g": 186,
+      "rows": 0,
+      "suits": [
+        "d",
+        "h",
+        "s",
+        "c"
+      ]
+    },
+    {
+      "F": 5,
+      "boundaries": 3,
+      "cover": 2,
+      "delta_from_f2": 64,
+      "elapsed_s": 376.4162883000099,
+      "empty_n": 3,
+      "fd": 1,
+      "min_g": 194,
+      "rows": 0,
+      "suits": [
+        "d",
+        "d",
+        "h",
+        "s",
+        "s"
+      ]
+    },
+    {
+      "F": 6,
+      "boundaries": 2,
+      "cover": 3,
+      "delta_from_f2": 67,
+      "elapsed_s": 376.9550805000472,
+      "empty_n": 5,
+      "fd": 0,
+      "min_g": 197,
+      "rows": 0,
+      "suits": [
+        "d",
+        "d",
+        "h",
+        "s",
+        "s",
+        "c"
+      ]
+    }
+  ],
+  "solution_g": null,
+  "stop_reason": "time limit"
+}
