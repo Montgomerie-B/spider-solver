@@ -944,6 +944,7 @@ def search_epoch_portfolio(
                 "found": int(stats.get("n_found") or 0),
                 "n_selected": int(stats.get("n_selected") or 0),
                 "n_ready_roots": int(stats.get("n_ready_roots") or 0),
+                "control_slot_used": bool(stats.get("control_slot_used")),
                 "n_terminals_raw": int(stats.get("n_terminals_raw") or n_add),
                 "probes": list(stats.get("probes") or []),
             }
