@@ -1,4 +1,4 @@
-# Autonomous v0.59 epoch-portfolio solution. Corrected MW=192. tableau=192 deals=5.
+# Autonomous v0.67 stock-empty assembly solution. Corrected MW=192. tableau=192 deals=5.
 move 3 6 1
 move 6 8 2
 move 6 8 1

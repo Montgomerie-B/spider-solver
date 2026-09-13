@@ -1,0 +1,1227 @@
+{
+  "accounting_fail": false,
+  "base_sha": "a1a935f4bb2c956dc36c06ecbb9e32356b88e56a",
+  "bound_perf": {
+    "calls": 147974,
+    "generated": 281777,
+    "max_h": 96,
+    "min_f": 0,
+    "min_h": 0,
+    "prune_fraction": 0.029874688139912058,
+    "prunes": 8418,
+    "prunes_by_F": {
+      "1": 7279,
+      "2": 1139
+    },
+    "reconcile": {
+      "cumulative_calls": 147974,
+      "cumulative_prunes": 8418,
+      "cumulative_prunes_by_F": {
+        "1": 7279,
+        "2": 1139
+      },
+      "cumulative_seconds": 6.268228498869576,
+      "epoch_calls": 147974,
+      "epoch_prunes": 8418,
+      "epoch_prunes_by_F": {
+        "1": 7279,
+        "2": 1139
+      },
+      "epoch_seconds": 6.268228498869576,
+      "ok": true,
+      "seconds_match": true
+    },
+    "seconds": 6.268228498869576
+  },
+  "branch": "agent/integrated-whole-game-optimisation-v0-68",
+  "checkpoint": {
+    "injected": 5,
+    "survived": 5
+  },
+  "elapsed_s": 900.1881192000001,
+  "envelope": {
+    "base_harvest_cats": [
+      "cheap",
+      "cheap_ready",
+      "cheap_cover",
+      "cheap_construction",
+      "cheap_fd",
+      "workspace",
+      "readiness",
+      "horizon",
+      "ready_div",
+      "economy",
+      "class_cheap",
+      "pareto",
+      "deal_now",
+      "incumbent",
+      "operational_alt",
+      "cheap_viable"
+    ],
+    "base_lanes": [
+      "cost",
+      "reveal",
+      "construction",
+      "readiness",
+      "horizon",
+      "economy"
+    ],
+    "candidate_ceiling": 191,
+    "canonical_mw": 172,
+    "checkpoints": true,
+    "harvest_cats": [
+      "cheap",
+      "cheap_ready",
+      "cheap_cover",
+      "cheap_construction",
+      "cheap_fd",
+      "workspace",
+      "readiness",
+      "horizon",
+      "ready_div",
+      "economy",
+      "class_cheap",
+      "pareto",
+      "deal_now",
+      "incumbent",
+      "operational_alt",
+      "cheap_viable",
+      "post_deal_mobility",
+      "post_deal_consolidation",
+      "post_deal_operational",
+      "post_deal_reception",
+      "post_deal_pareto"
+    ],
+    "incumbent_g": 192,
+    "lanes": [
+      "cost",
+      "reveal",
+      "construction",
+      "readiness",
+      "horizon",
+      "economy",
+      "completion"
+    ],
+    "portfolio_width": 256,
+    "rss_abort_mb": 2560.0,
+    "time_s": 900.0,
+    "unique": 800000
+  },
+  "epochs": [
+    {
+      "after_deal_unique": 148,
+      "alloc_s": 112.49987634999707,
+      "alloc_unique": 100000,
+      "deal_now_kept": 1,
+      "elapsed_s": 112.50234700000146,
+      "expanded": 9250,
+      "generated": 72379,
+      "input_roots": 1,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 2335,
+        "cost": 1082,
+        "economy": 1417,
+        "horizon": 2426,
+        "readiness": 0,
+        "reveal": 1990
+      },
+      "lineage_after_deal": 0,
+      "lineage_roots": 0,
+      "lower_bound_calls": 31312,
+      "lower_bound_prunes": 0,
+      "lower_bound_s": 0.02295289747416973,
+      "max_foundations": 0,
+      "max_g": 38,
+      "max_h": 0,
+      "min_f": 0,
+      "min_face_down": 20,
+      "min_g": 0,
+      "min_h": 0,
+      "n_ready": 0,
+      "portfolio_cats": {
+        "cheap": 13,
+        "cheap_construction": 13,
+        "cheap_fd": 13,
+        "class_cheap": 24,
+        "deal_now": 1,
+        "horizon": 39,
+        "pareto": 13,
+        "workspace": 33
+      },
+      "prunes_by_F": {},
+      "stock_rows": 5,
+      "stop_reason": "time limit",
+      "unique": 29188,
+      "weight": 1
+    },
+    {
+      "after_deal_unique": 153,
+      "alloc_s": 112.48331084286161,
+      "alloc_unique": 110116,
+      "deal_now_kept": 7,
+      "elapsed_s": 112.51453510002466,
+      "expanded": 2888,
+      "generated": 39135,
+      "input_roots": 149,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 790,
+        "cost": 634,
+        "economy": 362,
+        "horizon": 716,
+        "readiness": 0,
+        "reveal": 386
+      },
+      "lineage_after_deal": 0,
+      "lineage_roots": 0,
+      "lower_bound_calls": 27715,
+      "lower_bound_prunes": 0,
+      "lower_bound_s": 0.020404900598805398,
+      "max_foundations": 0,
+      "max_g": 61,
+      "max_h": 0,
+      "min_f": 2,
+      "min_face_down": 10,
+      "min_g": 2,
+      "min_h": 0,
+      "n_ready": 0,
+      "portfolio_cats": {
+        "cheap": 14,
+        "cheap_construction": 19,
+        "cheap_fd": 22,
+        "class_cheap": 11,
+        "deal_now": 7,
+        "horizon": 30,
+        "incumbent": 1,
+        "pareto": 19,
+        "workspace": 31
+      },
+      "prunes_by_F": {},
+      "stock_rows": 4,
+      "stop_reason": "time limit",
+      "unique": 27706,
+      "weight": 1
+    },
+    {
+      "after_deal_unique": 249,
+      "alloc_s": 192.77768771428546,
+      "alloc_unique": 212316,
+      "deal_now_kept": 6,
+      "elapsed_s": 192.77814439998474,
+      "expanded": 11260,
+      "generated": 68195,
+      "input_roots": 154,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 2905,
+        "cost": 1444,
+        "economy": 1755,
+        "horizon": 0,
+        "readiness": 2784,
+        "reveal": 2372
+      },
+      "lineage_after_deal": 0,
+      "lineage_roots": 0,
+      "lower_bound_calls": 37267,
+      "lower_bound_prunes": 0,
+      "lower_bound_s": 0.02834580122726038,
+      "max_foundations": 1,
+      "max_g": 95,
+      "max_h": 0,
+      "min_f": 3,
+      "min_face_down": 9,
+      "min_g": 3,
+      "min_h": 0,
+      "n_ready": 2,
+      "portfolio_cats": {
+        "cheap": 15,
+        "cheap_construction": 9,
+        "cheap_cover": 19,
+        "cheap_fd": 10,
+        "cheap_ready": 8,
+        "cheap_viable": 9,
+        "class_cheap": 29,
+        "deal_now": 6,
+        "economy": 8,
+        "incumbent": 1,
+        "operational_alt": 33,
+        "pareto": 14,
+        "readiness": 36,
+        "ready_div": 18,
+        "workspace": 35
+      },
+      "prunes_by_F": {},
+      "stock_rows": 3,
+      "stop_reason": "time limit",
+      "unique": 33335,
+      "weight": 2
+    },
+    {
+      "after_deal_unique": 247,
+      "alloc_s": 160.53368499999243,
+      "alloc_unique": 236590,
+      "deal_now_kept": 5,
+      "elapsed_s": 160.53864220000105,
+      "expanded": 7472,
+      "generated": 63778,
+      "input_roots": 250,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 2170,
+        "cost": 827,
+        "economy": 1571,
+        "horizon": 0,
+        "readiness": 1392,
+        "reveal": 1512
+      },
+      "lineage_after_deal": 0,
+      "lineage_roots": 0,
+      "lower_bound_calls": 30364,
+      "lower_bound_prunes": 0,
+      "lower_bound_s": 0.02445810235803947,
+      "max_foundations": 1,
+      "max_g": 106,
+      "max_h": 0,
+      "min_f": 4,
+      "min_face_down": 6,
+      "min_g": 4,
+      "min_h": 0,
+      "n_ready": 2,
+      "portfolio_cats": {
+        "cheap": 19,
+        "cheap_construction": 9,
+        "cheap_cover": 19,
+        "cheap_fd": 10,
+        "cheap_ready": 11,
+        "cheap_viable": 9,
+        "class_cheap": 17,
+        "deal_now": 5,
+        "economy": 11,
+        "incumbent": 1,
+        "operational_alt": 34,
+        "pareto": 16,
+        "readiness": 34,
+        "ready_div": 18,
+        "workspace": 35
+      },
+      "prunes_by_F": {},
+      "stock_rows": 2,
+      "stop_reason": "time limit",
+      "unique": 29652,
+      "weight": 2
+    },
+    {
+      "after_deal_unique": 255,
+      "alloc_s": 128.30452219999862,
+      "alloc_unique": 272047,
+      "deal_now_kept": 4,
+      "elapsed_s": 128.88986130000558,
+      "expanded": 86,
+      "generated": 762,
+      "input_roots": 248,
+      "lane_exp": {
+        "completion": 0,
+        "construction": 19,
+        "cost": 17,
+        "economy": 12,
+        "horizon": 0,
+        "readiness": 19,
+        "reveal": 19
+      },
+      "lineage_after_deal": 0,
+      "lineage_roots": 0,
+      "lower_bound_calls": 881,
+      "lower_bound_prunes": 0,
+      "lower_bound_s": 0.0020433011231943965,
+      "max_foundations": 1,
+      "max_g": 137,
+      "max_h": 0,
+      "min_f": 5,
+      "min_face_down": 2,
+      "min_g": 5,
+      "min_h": 0,
+      "n_ready": 3,
+      "portfolio_cats": {
+        "cheap": 15,
+        "cheap_construction": 10,
+        "cheap_cover": 14,
+        "cheap_fd": 10,
+        "cheap_ready": 11,
+        "cheap_viable": 9,
+        "class_cheap": 6,
+        "deal_now": 4,
+        "economy": 8,
+        "incumbent": 1,
+        "operational_alt": 22,
+        "pareto": 16,
+        "post_deal_consolidation": 22,
+        "post_deal_mobility": 9,
+        "post_deal_operational": 21,
+        "post_deal_pareto": 14,
+        "post_deal_reception": 16,
+        "readiness": 12,
+        "ready_div": 14,
+        "workspace": 22
+      },
+      "prunes_by_F": {},
+      "stock_rows": 1,
+      "stop_reason": "time limit",
+      "unique": 875,
+      "weight": 2
+    },
+    {
+      "after_deal_unique": 0,
+      "alloc_s": 191.38071669999044,
+      "alloc_unique": 679244,
+      "deal_now_kept": 3,
+      "elapsed_s": 191.3837195999804,
+      "expanded": 2221,
+      "generated": 37528,
+      "input_roots": 256,
+      "lane_exp": {
+        "completion": 444,
+        "construction": 425,
+        "cost": 162,
+        "economy": 301,
+        "horizon": 0,
+        "readiness": 442,
+        "reveal": 447
+      },
+      "lineage_after_deal": 0,
+      "lineage_roots": 0,
+      "lower_bound_calls": 20435,
+      "lower_bound_prunes": 8418,
+      "lower_bound_s": 6.170023496088106,
+      "max_foundations": 2,
+      "max_g": 167,
+      "max_h": 96,
+      "min_f": 101,
+      "min_face_down": 2,
+      "min_g": 6,
+      "min_h": 25,
+      "n_ready": 4,
+      "portfolio_cats": {
+        "cheap": 22,
+        "cheap_construction": 10,
+        "cheap_cover": 19,
+        "cheap_fd": 10,
+        "cheap_ready": 11,
+        "cheap_viable": 9,
+        "class_cheap": 7,
+        "deal_now": 3,
+        "economy": 8,
+        "incumbent": 1,
+        "operational_alt": 40,
+        "pareto": 18,
+        "readiness": 35,
+        "ready_div": 18,
+        "workspace": 30
+      },
+      "prunes_by_F": {
+        "1": 7279,
+        "2": 1139
+      },
+      "stock_rows": 0,
+      "stop_reason": "time limit",
+      "unique": 19326,
+      "weight": 4
+    }
+  ],
+  "expanded": 33177,
+  "experiment": "integrated_whole_game_v0_68",
+  "forensics_summary": {
+    "assembly_h_192_stock_empty": [
+      {
+        "f": 174,
+        "g": 135,
+        "h": 39,
+        "ok": true,
+        "remain": 57
+      },
+      {
+        "f": 174,
+        "g": 136,
+        "h": 38,
+        "ok": true,
+        "remain": 56
+      },
+      {
+        "f": 174,
+        "g": 137,
+        "h": 37,
+        "ok": true,
+        "remain": 55
+      },
+      {
+        "f": 174,
+        "g": 138,
+        "h": 36,
+        "ok": true,
+        "remain": 54
+      },
+      {
+        "f": 174,
+        "g": 139,
+        "h": 35,
+        "ok": true,
+        "remain": 53
+      },
+      {
+        "f": 175,
+        "g": 140,
+        "h": 35,
+        "ok": true,
+        "remain": 52
+      },
+      {
+        "f": 175,
+        "g": 141,
+        "h": 34,
+        "ok": true,
+        "remain": 51
+      },
+      {
+        "f": 175,
+        "g": 142,
+        "h": 33,
+        "ok": true,
+        "remain": 50
+      },
+      {
+        "f": 175,
+        "g": 143,
+        "h": 32,
+        "ok": true,
+        "remain": 49
+      },
+      {
+        "f": 175,
+        "g": 144,
+        "h": 31,
+        "ok": true,
+        "remain": 48
+      },
+      {
+        "f": 176,
+        "g": 145,
+        "h": 31,
+        "ok": true,
+        "remain": 47
+      },
+      {
+        "f": 176,
+        "g": 146,
+        "h": 30,
+        "ok": true,
+        "remain": 46
+      },
+      {
+        "f": 176,
+        "g": 147,
+        "h": 29,
+        "ok": true,
+        "remain": 45
+      },
+      {
+        "f": 176,
+        "g": 148,
+        "h": 28,
+        "ok": true,
+        "remain": 44
+      },
+      {
+        "f": 176,
+        "g": 149,
+        "h": 27,
+        "ok": true,
+        "remain": 43
+      },
+      {
+        "f": 176,
+        "g": 150,
+        "h": 26,
+        "ok": true,
+        "remain": 42
+      },
+      {
+        "f": 176,
+        "g": 151,
+        "h": 25,
+        "ok": true,
+        "remain": 41
+      },
+      {
+        "f": 177,
+        "g": 152,
+        "h": 25,
+        "ok": true,
+        "remain": 40
+      },
+      {
+        "f": 177,
+        "g": 153,
+        "h": 24,
+        "ok": true,
+        "remain": 39
+      },
+      {
+        "f": 178,
+        "g": 154,
+        "h": 24,
+        "ok": true,
+        "remain": 38
+      },
+      {
+        "f": 178,
+        "g": 155,
+        "h": 23,
+        "ok": true,
+        "remain": 37
+      },
+      {
+        "f": 179,
+        "g": 156,
+        "h": 23,
+        "ok": true,
+        "remain": 36
+      },
+      {
+        "f": 180,
+        "g": 157,
+        "h": 23,
+        "ok": true,
+        "remain": 35
+      },
+      {
+        "f": 180,
+        "g": 158,
+        "h": 22,
+        "ok": true,
+        "remain": 34
+      },
+      {
+        "f": 181,
+        "g": 159,
+        "h": 22,
+        "ok": true,
+        "remain": 33
+      },
+      {
+        "f": 181,
+        "g": 160,
+        "h": 21,
+        "ok": true,
+        "remain": 32
+      },
+      {
+        "f": 181,
+        "g": 161,
+        "h": 20,
+        "ok": true,
+        "remain": 31
+      },
+      {
+        "f": 182,
+        "g": 162,
+        "h": 20,
+        "ok": true,
+        "remain": 30
+      },
+      {
+        "f": 182,
+        "g": 163,
+        "h": 19,
+        "ok": true,
+        "remain": 29
+      },
+      {
+        "f": 183,
+        "g": 164,
+        "h": 19,
+        "ok": true,
+        "remain": 28
+      },
+      {
+        "f": 183,
+        "g": 165,
+        "h": 18,
+        "ok": true,
+        "remain": 27
+      },
+      {
+        "f": 183,
+        "g": 166,
+        "h": 17,
+        "ok": true,
+        "remain": 26
+      },
+      {
+        "f": 183,
+        "g": 167,
+        "h": 16,
+        "ok": true,
+        "remain": 25
+      },
+      {
+        "f": 184,
+        "g": 168,
+        "h": 16,
+        "ok": true,
+        "remain": 24
+      },
+      {
+        "f": 185,
+        "g": 169,
+        "h": 16,
+        "ok": true,
+        "remain": 23
+      },
+      {
+        "f": 185,
+        "g": 170,
+        "h": 15,
+        "ok": true,
+        "remain": 22
+      },
+      {
+        "f": 186,
+        "g": 171,
+        "h": 15,
+        "ok": true,
+        "remain": 21
+      },
+      {
+        "f": 187,
+        "g": 172,
+        "h": 15,
+        "ok": true,
+        "remain": 20
+      },
+      {
+        "f": 188,
+        "g": 173,
+        "h": 15,
+        "ok": true,
+        "remain": 19
+      },
+      {
+        "f": 188,
+        "g": 174,
+        "h": 14,
+        "ok": true,
+        "remain": 18
+      }
+    ],
+    "bucket_172": {
+      "DEAL": 5,
+      "FOUNDATION_TRIGGER": 8,
+      "MIXED_SUIT_PARK": 7,
+      "OTHER_PAID": 5,
+      "PRIMARY_PROGRESS": 17,
+      "REHANDLE": 102,
+      "REVEAL": 28,
+      "ZERO_COST_RELOCATION": 0
+    },
+    "bucket_192": {
+      "DEAL": 5,
+      "FOUNDATION_TRIGGER": 8,
+      "MIXED_SUIT_PARK": 15,
+      "OTHER_PAID": 2,
+      "PRIMARY_PROGRESS": 19,
+      "REHANDLE": 110,
+      "REVEAL": 33,
+      "ZERO_COST_RELOCATION": 0
+    },
+    "bucket_198": {
+      "DEAL": 5,
+      "FOUNDATION_TRIGGER": 8,
+      "MIXED_SUIT_PARK": 10,
+      "OTHER_PAID": 2,
+      "PRIMARY_PROGRESS": 15,
+      "REHANDLE": 126,
+      "REVEAL": 32,
+      "ZERO_COST_RELOCATION": 0
+    },
+    "h_admissible_on_192": true,
+    "post_sd5_172": {
+      "bonds": 54,
+      "empty_n": 0,
+      "fd": 1,
+      "foundations": 2,
+      "g": 150,
+      "legal": 16,
+      "remaining": 22
+    },
+    "post_sd5_192": {
+      "bonds": 33,
+      "empty_n": 0,
+      "fd": 2,
+      "foundations": 2,
+      "g": 135,
+      "legal": 6,
+      "remaining": 57
+    },
+    "post_sd5_198": {
+      "bonds": 65,
+      "empty_n": 0,
+      "fd": 3,
+      "foundations": 0,
+      "g": 131,
+      "legal": 12,
+      "remaining": 67
+    },
+    "rehandle_172": 109,
+    "rehandle_192": 118,
+    "rehandle_198": 133,
+    "saved_vs_198": 6,
+    "waterfall_192_minus_172": {
+      "cumulative": 20,
+      "n": 11,
+      "rows": [
+        {
+          "cumulative": -18,
+          "delta": -18,
+          "g172": 50,
+          "g192": 32,
+          "label": "pre-SD1",
+          "stock_rows": 5
+        },
+        {
+          "cumulative": -18,
+          "delta": 0,
+          "g172": 1,
+          "g192": 1,
+          "label": "SD1",
+          "stock_rows": 5
+        },
+        {
+          "cumulative": -24,
+          "delta": -6,
+          "g172": 37,
+          "g192": 31,
+          "label": "SD1-SD2",
+          "stock_rows": 4
+        },
+        {
+          "cumulative": -24,
+          "delta": 0,
+          "g172": 1,
+          "g192": 1,
+          "label": "SD2",
+          "stock_rows": 4
+        },
+        {
+          "cumulative": -27,
+          "delta": -3,
+          "g172": 11,
+          "g192": 8,
+          "label": "SD2-SD3",
+          "stock_rows": 3
+        },
+        {
+          "cumulative": -27,
+          "delta": 0,
+          "g172": 1,
+          "g192": 1,
+          "label": "SD3",
+          "stock_rows": 3
+        },
+        {
+          "cumulative": 4,
+          "delta": 31,
+          "g172": 17,
+          "g192": 48,
+          "label": "SD3-SD4",
+          "stock_rows": 2
+        },
+        {
+          "cumulative": 4,
+          "delta": 0,
+          "g172": 1,
+          "g192": 1,
+          "label": "SD4",
+          "stock_rows": 2
+        },
+        {
+          "cumulative": -15,
+          "delta": -19,
+          "g172": 30,
+          "g192": 11,
+          "label": "SD4-SD5",
+          "stock_rows": 1
+        },
+        {
+          "cumulative": -15,
+          "delta": 0,
+          "g172": 1,
+          "g192": 1,
+          "label": "SD5",
+          "stock_rows": 1
+        },
+        {
+          "cumulative": 20,
+          "delta": 35,
+          "g172": 22,
+          "g192": 57,
+          "label": "post-SD5",
+          "stock_rows": 0
+        }
+      ]
+    },
+    "waterfall_198_minus_192": {
+      "cumulative": 6,
+      "n": 11,
+      "rows": [
+        {
+          "cumulative": 0,
+          "delta": 0,
+          "g192": 32,
+          "g198": 32,
+          "label": "pre-SD1",
+          "stock_rows": 5
+        },
+        {
+          "cumulative": 0,
+          "delta": 0,
+          "g192": 1,
+          "g198": 1,
+          "label": "SD1",
+          "stock_rows": 5
+        },
+        {
+          "cumulative": -6,
+          "delta": -6,
+          "g192": 31,
+          "g198": 25,
+          "label": "SD1-SD2",
+          "stock_rows": 4
+        },
+        {
+          "cumulative": -6,
+          "delta": 0,
+          "g192": 1,
+          "g198": 1,
+          "label": "SD2",
+          "stock_rows": 4
+        },
+        {
+          "cumulative": 0,
+          "delta": 6,
+          "g192": 8,
+          "g198": 14,
+          "label": "SD2-SD3",
+          "stock_rows": 3
+        },
+        {
+          "cumulative": 0,
+          "delta": 0,
+          "g192": 1,
+          "g198": 1,
+          "label": "SD3",
+          "stock_rows": 3
+        },
+        {
+          "cumulative": -38,
+          "delta": -38,
+          "g192": 48,
+          "g198": 10,
+          "label": "SD3-SD4",
+          "stock_rows": 2
+        },
+        {
+          "cumulative": -38,
+          "delta": 0,
+          "g192": 1,
+          "g198": 1,
+          "label": "SD4",
+          "stock_rows": 2
+        },
+        {
+          "cumulative": -4,
+          "delta": 34,
+          "g192": 11,
+          "g198": 45,
+          "label": "SD4-SD5",
+          "stock_rows": 1
+        },
+        {
+          "cumulative": -4,
+          "delta": 0,
+          "g192": 1,
+          "g198": 1,
+          "label": "SD5",
+          "stock_rows": 1
+        },
+        {
+          "cumulative": 6,
+          "delta": 10,
+          "g192": 57,
+          "g198": 67,
+          "label": "post-SD5",
+          "stock_rows": 0
+        }
+      ]
+    }
+  },
+  "foundations": {
+    "cheap": {
+      "1": {
+        "assembly_f": 71,
+        "assembly_h": 0,
+        "assembly_slack": 120,
+        "best_ready_suit": "h",
+        "boundaries_total": 15,
+        "cover": 8,
+        "elapsed_s": 226.36391110002296,
+        "empty_n": 0,
+        "face_down": 10,
+        "foundation_suits": [
+          "s"
+        ],
+        "foundations": 1,
+        "g": 71,
+        "incumbent_control": null,
+        "legal_tableau": 10,
+        "lineage": [],
+        "portfolio_cat": null,
+        "stock_rows": 3
+      },
+      "2": {
+        "assembly_f": 174,
+        "assembly_h": 39,
+        "assembly_slack": 17,
+        "best_ready_suit": "c",
+        "boundaries_total": 33,
+        "cover": 3,
+        "elapsed_s": 711.5995990000083,
+        "empty_n": 0,
+        "face_down": 2,
+        "foundation_suits": [
+          "d",
+          "s"
+        ],
+        "foundations": 2,
+        "g": 135,
+        "incumbent_control": null,
+        "legal_tableau": 6,
+        "lineage": [],
+        "portfolio_cat": null,
+        "stock_rows": 0
+      }
+    },
+    "first": {
+      "1": {
+        "assembly_f": 71,
+        "assembly_h": 0,
+        "assembly_slack": 120,
+        "best_ready_suit": "h",
+        "boundaries_total": 15,
+        "cover": 8,
+        "elapsed_s": 226.36391110002296,
+        "empty_n": 0,
+        "face_down": 10,
+        "foundation_suits": [
+          "s"
+        ],
+        "foundations": 1,
+        "g": 71,
+        "incumbent_control": null,
+        "legal_tableau": 10,
+        "lineage": [],
+        "portfolio_cat": null,
+        "stock_rows": 3
+      },
+      "2": {
+        "assembly_f": 174,
+        "assembly_h": 39,
+        "assembly_slack": 17,
+        "best_ready_suit": "c",
+        "boundaries_total": 33,
+        "cover": 3,
+        "elapsed_s": 711.5995990000083,
+        "empty_n": 0,
+        "face_down": 2,
+        "foundation_suits": [
+          "d",
+          "s"
+        ],
+        "foundations": 2,
+        "g": 135,
+        "incumbent_control": null,
+        "legal_tableau": 6,
+        "lineage": [],
+        "portfolio_cat": null,
+        "stock_rows": 0
+      }
+    }
+  },
+  "from_untouched_opening": true,
+  "frontier": [
+    {
+      "F": 1,
+      "boundaries": 15,
+      "elapsed_s": 226.36391110002296,
+      "f": 71,
+      "fd": 10,
+      "g": 71,
+      "h": 0,
+      "incumbent_control": null,
+      "legal": 10,
+      "rows": 3,
+      "slack": 120,
+      "suits": [
+        "s"
+      ]
+    },
+    {
+      "F": 2,
+      "boundaries": 33,
+      "elapsed_s": 711.5995990000083,
+      "f": 174,
+      "fd": 2,
+      "g": 135,
+      "h": 39,
+      "incumbent_control": null,
+      "legal": 6,
+      "rows": 0,
+      "slack": 17,
+      "suits": [
+        "d",
+        "s"
+      ]
+    }
+  ],
+  "generality": "whole-game: epoch scheduler, operational viability, Deal preview, and stock-empty assembly bound operate together from move zero",
+  "generated": 281777,
+  "incumbent_g": 192,
+  "incumbent_verify": {
+    "deals": 5,
+    "foundations": 8,
+    "g": 192,
+    "n_actions": 197,
+    "ok": true,
+    "solved": true,
+    "stock_empty": true,
+    "tableau_commands": 192,
+    "tableau_empty": true
+  },
+  "interpretation": "focused endgame mechanisms did not surface a 192-class complete line from move zero",
+  "lanes": {
+    "expansions": {
+      "completion": 444,
+      "construction": 8644,
+      "cost": 4166,
+      "economy": 5418,
+      "horizon": 3142,
+      "readiness": 4637,
+      "reveal": 6726
+    },
+    "names": [
+      "cost",
+      "reveal",
+      "construction",
+      "readiness",
+      "horizon",
+      "economy",
+      "completion"
+    ],
+    "pops": {
+      "completion": 449,
+      "construction": 9162,
+      "cost": 9164,
+      "economy": 9160,
+      "horizon": 3353,
+      "readiness": 5808,
+      "reveal": 9163
+    },
+    "stale": {
+      "completion": 5,
+      "construction": 518,
+      "cost": 4998,
+      "economy": 3742,
+      "horizon": 211,
+      "readiness": 1171,
+      "reveal": 2437
+    }
+  },
+  "max_foundations": 2,
+  "max_g": 167,
+  "min_face_down": 2,
+  "min_g": 0,
+  "n_previewed": 881,
+  "next_recommendation": "Focus on whole-game portfolio survival / Deal-transition reasoning rather than endgame search.",
+  "no_new_solution_if_not_improved": true,
+  "peak_rss_mb": 98.640625,
+  "policy_reads_canonical": false,
+  "portfolio": {
+    "cats": {
+      "cheap": 15,
+      "cheap_construction": 10,
+      "cheap_cover": 14,
+      "cheap_fd": 10,
+      "cheap_ready": 11,
+      "cheap_viable": 9,
+      "class_cheap": 6,
+      "deal_now": 4,
+      "economy": 8,
+      "incumbent": 1,
+      "operational_alt": 22,
+      "pareto": 16,
+      "post_deal_consolidation": 22,
+      "post_deal_mobility": 9,
+      "post_deal_operational": 21,
+      "post_deal_pareto": 14,
+      "post_deal_reception": 16,
+      "readiness": 12,
+      "ready_div": 14,
+      "workspace": 22
+    },
+    "deal_now": 4,
+    "frozen_v066_preview": true,
+    "transition_share": 0.3203125,
+    "width": 256
+  },
+  "preview_perf": {
+    "calls": 886,
+    "compute_s": 3.1447021989151835,
+    "hit_rate": 0.006772009029345372,
+    "hits": 6,
+    "misses": 880
+  },
+  "replay_g": null,
+  "replay_ok": false,
+  "solution_g": null,
+  "solved": false,
+  "states_per_s": 36.85562972046832,
+  "stop_reason": "time limit",
+  "unique": 140082,
+  "v067_compare": {
+    "F3": {
+      "v067": 173,
+      "v068": null
+    },
+    "F5": {
+      "v067": 185,
+      "v068": null
+    },
+    "F7": {
+      "v067": 191,
+      "v068": null
+    },
+    "F8": {
+      "v067": 192,
+      "v068": null
+    },
+    "best_g": {
+      "v067": 192,
+      "v068": null
+    },
+    "proof_prunes": {
+      "v067": 57270,
+      "v068": 8418
+    }
+  },
+  "verdict": "INTEGRATED_WHOLE_GAME_LINEAGE_NOT_REDISCOVERED",
+  "wall_s": 900.9450991000049
+}

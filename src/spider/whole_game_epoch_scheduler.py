@@ -64,6 +64,49 @@ def _n(v, default: int = INF) -> int:
     return default if v is None else int(v)
 
 
+def _lb_epoch_fields(kr: KernelResult) -> dict:
+    """Lower-bound telemetry copied onto every epoch record, including thin exits."""
+
+    return {
+        "lower_bound_prunes": int(getattr(kr, "lower_bound_prunes", 0) or 0),
+        "lower_bound_calls": int(getattr(kr, "lower_bound_calls", 0) or 0),
+        "lower_bound_s": float(getattr(kr, "lower_bound_s", 0.0) or 0.0),
+        "min_h": getattr(kr, "min_h", None),
+        "max_h": getattr(kr, "max_h", None),
+        "min_f": getattr(kr, "min_f", None),
+        "prunes_by_F": dict(getattr(kr, "prunes_by_F", None) or {}),
+    }
+
+
+def reconcile_lower_bound_telemetry(result) -> dict:
+    """Cumulative kernel totals must equal the sum of per-epoch fields."""
+
+    epochs = list(getattr(result, "epochs", None) or [])
+    sum_prunes = sum(int(ep.get("lower_bound_prunes") or 0) for ep in epochs)
+    sum_calls = sum(int(ep.get("lower_bound_calls") or 0) for ep in epochs)
+    sum_s = sum(float(ep.get("lower_bound_s") or 0.0) for ep in epochs)
+    by_f: Dict[int, int] = {}
+    for ep in epochs:
+        for fk, fv in (ep.get("prunes_by_F") or {}).items():
+            by_f[int(fk)] = by_f.get(int(fk), 0) + int(fv)
+    cum_prunes = int(getattr(result, "lower_bound_prunes", 0) or 0)
+    cum_calls = int(getattr(result, "lower_bound_calls", 0) or 0)
+    cum_s = float(getattr(result, "lower_bound_s", 0.0) or 0.0)
+    cum_f = {int(k): int(v) for k, v in (getattr(result, "prunes_by_F", None) or {}).items()}
+    return {
+        "ok": sum_prunes == cum_prunes and sum_calls == cum_calls and by_f == cum_f,
+        "epoch_prunes": sum_prunes,
+        "cumulative_prunes": cum_prunes,
+        "epoch_calls": sum_calls,
+        "cumulative_calls": cum_calls,
+        "epoch_seconds": sum_s,
+        "cumulative_seconds": cum_s,
+        "epoch_prunes_by_F": by_f,
+        "cumulative_prunes_by_F": cum_f,
+        "seconds_match": abs(sum_s - cum_s) < 1e-6,
+    }
+
+
 def epoch_lane_keys(state: SpiderState, g: int) -> Dict[str, Optional[tuple]]:
     """Intra-epoch lanes. ``None`` means the state does not join that heap."""
 
@@ -712,23 +755,23 @@ def search_epoch_portfolio(
 
         if kr.stop_reason == "abort":
             stop = "abort"
-            out.epochs.append(
-                {
-                    "stock_rows": rows,
-                    "input_roots": len(epoch_roots),
-                    "unique": kr.unique,
-                    "expanded": kr.expanded,
-                    "generated": kr.generated,
-                    "elapsed_s": kr.elapsed_s,
-                    "stop_reason": "abort",
-                    "min_g": kr.min_g,
-                    "max_g": kr.max_g,
-                    "min_face_down": epoch_min_fd,
-                    "max_foundations": epoch_max_f,
-                    "n_ready": n_ready,
-                    "lineage_roots": sum(1 for r in epoch_roots if r.get("lineage")),
-                }
-            )
+            rec = {
+                "stock_rows": rows,
+                "input_roots": len(epoch_roots),
+                "unique": kr.unique,
+                "expanded": kr.expanded,
+                "generated": kr.generated,
+                "elapsed_s": kr.elapsed_s,
+                "stop_reason": "abort",
+                "min_g": kr.min_g,
+                "max_g": kr.max_g,
+                "min_face_down": epoch_min_fd,
+                "max_foundations": epoch_max_f,
+                "n_ready": n_ready,
+                "lineage_roots": sum(1 for r in epoch_roots if r.get("lineage")),
+            }
+            rec.update(_lb_epoch_fields(kr))
+            out.epochs.append(rec)
             break
 
         if kr.terminals:
@@ -762,29 +805,29 @@ def search_epoch_portfolio(
                 out.candidate_ceiling = live_ceiling
             if not continue_after_solve or rows == 0:
                 stop = "solved"
-                out.epochs.append(
-                    {
-                        "stock_rows": rows,
-                        "input_roots": len(epoch_roots),
-                        "alloc_unique": alloc_u,
-                        "alloc_s": alloc_t,
-                        "unique": kr.unique,
-                        "expanded": kr.expanded,
-                        "generated": kr.generated,
-                        "elapsed_s": kr.elapsed_s,
-                        "stop_reason": kr.stop_reason,
-                        "lane_exp": kr.lane_exp,
-                        "min_g": kr.min_g,
-                        "max_g": kr.max_g,
-                        "min_face_down": epoch_min_fd,
-                        "max_foundations": epoch_max_f,
-                        "n_ready": n_ready,
-                        "nearest_horizon": ready0.get("nearest_horizon"),
-                        "ready_suits": ready0.get("ready_suits"),
-                        "solved": True,
-                        "candidate_ceiling": live_ceiling,
-                    }
-                )
+                rec = {
+                    "stock_rows": rows,
+                    "input_roots": len(epoch_roots),
+                    "alloc_unique": alloc_u,
+                    "alloc_s": alloc_t,
+                    "unique": kr.unique,
+                    "expanded": kr.expanded,
+                    "generated": kr.generated,
+                    "elapsed_s": kr.elapsed_s,
+                    "stop_reason": kr.stop_reason,
+                    "lane_exp": kr.lane_exp,
+                    "min_g": kr.min_g,
+                    "max_g": kr.max_g,
+                    "min_face_down": epoch_min_fd,
+                    "max_foundations": epoch_max_f,
+                    "n_ready": n_ready,
+                    "nearest_horizon": ready0.get("nearest_horizon"),
+                    "ready_suits": ready0.get("ready_suits"),
+                    "solved": True,
+                    "candidate_ceiling": live_ceiling,
+                }
+                rec.update(_lb_epoch_fields(kr))
+                out.epochs.append(rec)
                 break
 
         picked, cat_counts = harvest_portfolio(
@@ -947,10 +990,16 @@ def choose_verdict(p: dict) -> Tuple[str, str]:
     return "EPOCH_PORTFOLIO_NO_MATERIAL_IMPROVEMENT", "no foundation and no meaningful readiness gain"
 
 
-def save_solution(actions: Sequence[Action], path: Path, *, g: int) -> None:
+def save_solution(
+    actions: Sequence[Action],
+    path: Path,
+    *,
+    g: int,
+    label: str = "Autonomous epoch-portfolio solution",
+) -> None:
     deals = sum(1 for a in actions if is_deal(a))
     header = (
-        f"Autonomous v0.59 epoch-portfolio solution. Corrected MW={g}. "
+        f"{label}. Corrected MW={g}. "
         f"tableau={len(actions) - deals} deals={deals}."
     )
     export_actions_to_moves_file(list(actions), path, header=header)

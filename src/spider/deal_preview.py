@@ -7,6 +7,8 @@ telemetry. Never mutates the caller's state. Uses canonical MW_RULES
 
 from __future__ import annotations
 
+import copy
+import time
 from collections import Counter
 from typing import Optional
 
@@ -28,6 +30,43 @@ from spider.structural_analysis import (
     foundation_suits,
     interference_debt,
 )
+
+_PREVIEW_CACHE: dict = {}
+_PREVIEW_STATS = {"hits": 0, "misses": 0, "compute_s": 0.0, "calls": 0}
+
+
+def preview_cache_stats() -> dict:
+    calls = int(_PREVIEW_STATS["calls"])
+    hits = int(_PREVIEW_STATS["hits"])
+    return {
+        "calls": calls,
+        "hits": hits,
+        "misses": int(_PREVIEW_STATS["misses"]),
+        "hit_rate": 0.0 if calls <= 0 else hits / float(calls),
+        "compute_s": float(_PREVIEW_STATS["compute_s"]),
+    }
+
+
+def clear_preview_cache() -> None:
+    _PREVIEW_CACHE.clear()
+    _PREVIEW_STATS["hits"] = 0
+    _PREVIEW_STATS["misses"] = 0
+    _PREVIEW_STATS["compute_s"] = 0.0
+    _PREVIEW_STATS["calls"] = 0
+
+
+def _apply_pre_g(preview: dict, pre_g: Optional[int]) -> dict:
+    out = copy.deepcopy(preview)
+    out["pre_g"] = pre_g
+    if out.get("ok") and int(out.get("deal_cost") or 0):
+        out["post_g"] = None if pre_g is None else int(pre_g) + int(out["deal_cost"])
+        if isinstance(out.get("post"), dict):
+            out["post"]["g"] = out["post_g"]
+        if isinstance(out.get("pre"), dict):
+            out["pre"]["g"] = pre_g
+    else:
+        out["post_g"] = pre_g
+    return out
 
 
 def _structure(state: SpiderState, g: Optional[int]) -> dict:
@@ -125,11 +164,19 @@ def preview_next_deal(
     unfinished-suit operational facts. Deal cost is always 1 when legal.
     """
 
+    _PREVIEW_STATS["calls"] += 1
+    pre_ident = pack_whole_game_identity(state).hex()
+    cache_key = (pre_ident, detail, bool(rules.can_deal_into_empty))
+    cached = _PREVIEW_CACHE.get(cache_key)
+    if cached is not None:
+        _PREVIEW_STATS["hits"] += 1
+        return _apply_pre_g(cached, pre_g)
+    _PREVIEW_STATS["misses"] += 1
+    t0 = time.perf_counter()
     clone = state.clone()
     pre_digest = pack_state(clone).hex()
-    pre_ident = pack_whole_game_identity(clone).hex()
     if len(clone.stock) < 10 or not clone.can_deal(rules):
-        return {
+        miss = {
             "ok": False,
             "can_deal": False,
             "pre_g": pre_g,
@@ -139,6 +186,9 @@ def preview_next_deal(
             "post_digest": pre_digest,
             "reason": "cannot_deal",
         }
+        _PREVIEW_STATS["compute_s"] += time.perf_counter() - t0
+        _PREVIEW_CACHE[cache_key] = miss
+        return _apply_pre_g(miss, pre_g)
     incoming = list(clone.stock[-10:])
     landings = _landings(clone, incoming)
     pre_fu = [len(col.face_up) for col in clone.columns]
@@ -191,7 +241,7 @@ def preview_next_deal(
     mixed = sum(1 for x in landings if x["mixed_landing"])
     empty_land = sum(1 for x in landings if x["empty"])
     auto_f = sum(1 for x in landings if x["foundation_triggered"])
-    return {
+    result = {
         "ok": True,
         "can_deal": True,
         "pre_g": pre_g,
@@ -231,6 +281,9 @@ def preview_next_deal(
         "solved": post["solved"],
         "expected_deal_cost": deal_cost(),
     }
+    _PREVIEW_STATS["compute_s"] += time.perf_counter() - t0
+    _PREVIEW_CACHE[cache_key] = result
+    return _apply_pre_g(result, pre_g)
 
 
 def compact_preview(preview: dict) -> dict:

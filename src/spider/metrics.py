@@ -29,6 +29,8 @@ LEGACY_CANONICAL_MW_COST = 163
 CANONICAL_MOBILITYWARE_MOVES = 172
 # Back-compat alias used by older optimiser code; means mobilityware_moves.
 CANONICAL_MW_COST = CANONICAL_MOBILITYWARE_MOVES
+# Best replay-valid autonomous complete solution (v0.67). Not the human 172.
+AUTONOMOUS_INCUMBENT_MW = 192
 
 Action = Union[Tuple[int, int, int], Tuple[str]]
 
