@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
 
-from spider.cards import rank_str
+from spider.cards import Card, rank_str
 from spider.deal import load_deal
 from spider.engine import SpiderState
 from spider.metrics import Action
@@ -24,6 +24,17 @@ def is_deal(action: SolverAction) -> bool:
 
 def stock_rows(state: SpiderState) -> int:
     return len(state.stock) // 10
+
+
+def stock_deal_rows(stock: Sequence[Card]) -> List[List[Card]]:
+    """Engine Deal order: each Deal consumes ``stock[-10:]`` left-to-right."""
+
+    remaining = list(stock)
+    rows: List[List[Card]] = []
+    while len(remaining) >= 10:
+        rows.append(list(remaining[-10:]))
+        remaining = remaining[:-10]
+    return rows
 
 
 def face_down_count(state: SpiderState) -> int:

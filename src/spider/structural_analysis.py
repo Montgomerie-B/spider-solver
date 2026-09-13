@@ -5,7 +5,7 @@ No experiment imports, no file I/O, no search policy, no suit preference.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from spider.engine import SpiderState
@@ -21,6 +21,7 @@ from spider.research_actions import (
     pretty_card,
     restore_state,
     step_cost,
+    stock_deal_rows,
     stock_rows,
 )
 
@@ -466,3 +467,218 @@ def direct_condensation(state: SpiderState, suit: str, *, g0: int = 0) -> dict:
 
     dfs(0, 0, [])
     return best
+
+
+def _n(v, default: int = INF) -> int:
+    return default if v is None else int(v)
+
+
+def _complete_sets(counts: Counter) -> int:
+    return min(int(counts.get(rank, 0)) for rank in FULL_RANKS)
+
+
+def _tableau_rank_counts(state: SpiderState, suit: str) -> Counter:
+    counts: Counter = Counter()
+    for col in state.columns:
+        for card in col.face_down:
+            if card.suit == suit:
+                counts[card.rank] += 1
+        for card in col.face_up:
+            if card.suit == suit:
+                counts[card.rank] += 1
+    return counts
+
+
+def suit_foundation_count(state: SpiderState, suit: str) -> int:
+    return sum(1 for run in state.foundations if run and run[0].suit == suit)
+
+
+def suit_material_horizon(state: SpiderState, suit: str, rows: Optional[Sequence[Sequence]] = None) -> dict:
+    """Material availability for the *next* foundation of ``suit``.
+
+    Lower bound only. Does not claim the suit is operationally assemblable.
+    Counts tableau cards for the next set; already-removed foundations are
+    excluded from the next-set requirement.
+    """
+
+    rows = list(rows if rows is not None else stock_deal_rows(state.stock))
+    founded = suit_foundation_count(state, suit)
+    tab = _tableau_rank_counts(state, suit)
+    found_counts: Counter = Counter()
+    for run in state.foundations:
+        if run and run[0].suit == suit:
+            for card in run:
+                found_counts[card.rank] += 1
+    stock_n = sum(1 for card in state.stock if card.suit == suit)
+    capacity = (sum(tab.values()) + sum(found_counts.values()) + stock_n) // 13
+    remaining = capacity - founded
+    missing = [rank for rank in FULL_RANKS if tab.get(rank, 0) < 1]
+    complete_tab = _complete_sets(tab)
+    complete_out = _complete_sets(tab + found_counts)
+    base = {
+        "suit": suit,
+        "founded": founded,
+        "capacity": capacity,
+        "complete_sets_tableau": complete_tab,
+        "complete_sets_outside_stock": complete_out,
+        "missing_ranks": missing,
+        "missing_n": len(missing),
+    }
+    if remaining <= 0:
+        return {
+            **base,
+            "material_complete_now": False,
+            "deals_until_material": None,
+            "completing_deal": None,
+            "supplied_by_completing_row": [],
+            "another_possible": False,
+        }
+    if complete_tab >= 1:
+        return {
+            **base,
+            "material_complete_now": True,
+            "deals_until_material": 0,
+            "completing_deal": 0,
+            "supplied_by_completing_row": [],
+            "another_possible": True,
+        }
+    running = Counter(tab)
+    for i, row in enumerate(rows):
+        missing_before = [rank for rank in FULL_RANKS if running.get(rank, 0) < 1]
+        supplied = []
+        for col_i, card in enumerate(row):
+            if card.suit != suit:
+                continue
+            running[card.rank] += 1
+            if card.rank in missing_before:
+                supplied.append({"column_1": col_i + 1, "rank": int(card.rank), "suit": suit})
+        if _complete_sets(running) >= 1:
+            return {
+                **base,
+                "material_complete_now": False,
+                "deals_until_material": i + 1,
+                "completing_deal": i + 1,
+                "supplied_by_completing_row": supplied,
+                "another_possible": True,
+            }
+    return {
+        **base,
+        "material_complete_now": False,
+        "deals_until_material": None,
+        "completing_deal": None,
+        "supplied_by_completing_row": [],
+        "another_possible": False,
+    }
+
+
+def next_foundation_material(state: SpiderState) -> dict:
+    """Per-suit next-foundation material horizons. No suit preference."""
+
+    rows = stock_deal_rows(state.stock)
+    by_suit = {suit: suit_material_horizon(state, suit, rows) for suit in SUITS}
+    ready = [suit for suit in SUITS if by_suit[suit]["material_complete_now"]]
+    finite = [
+        int(by_suit[suit]["deals_until_material"])
+        for suit in SUITS
+        if by_suit[suit]["deals_until_material"] is not None
+    ]
+    nearest = None if not finite else min(finite)
+    nearest_suits = [
+        suit for suit in SUITS if by_suit[suit]["deals_until_material"] == nearest
+    ] if nearest is not None else []
+    return {
+        "by_suit": by_suit,
+        "ready_suits": ready,
+        "n_ready": len(ready),
+        "nearest_horizon": nearest,
+        "nearest_suits": nearest_suits,
+        "stock_rows": len(rows),
+    }
+
+
+def _visible_suit_structure(state: SpiderState, suit: str, comps: Optional[Sequence[dict]] = None) -> dict:
+    comps = list(comps if comps is not None else visible_components(state, suit))
+    bonds = sum(int(c["length"]) - 1 for c in comps if int(c["length"]) >= 2)
+    longest = 0 if not comps else max(int(c["length"]) for c in comps)
+    merges = sum(len(c["dests_0"]) for c in comps if c["movable"])
+    kc = k_headed(comps)
+    ac = a_ending(comps)
+    return {
+        "bonds": bonds,
+        "longest": longest,
+        "edges": merges,
+        "visible_n": len(comps),
+        "k_len": 0 if not kc else kc["length"],
+        "a_len": 0 if not ac else ac["length"],
+        "gap": ka_gap(kc, ac),
+    }
+
+
+def suit_readiness(state: SpiderState, suit: str, material: Optional[dict] = None) -> dict:
+    """Operational readiness if material-complete now; else visible structure only."""
+
+    mat = dict(material if material is not None else suit_material_horizon(state, suit))
+    vis = _visible_suit_structure(state, suit)
+    if mat.get("material_complete_now"):
+        ops = lane_suit_metrics(state, suit)
+        return {**mat, **ops, **vis, "operational": True}
+    return {
+        **mat,
+        "operational": False,
+        "cover": None,
+        "visible": None,
+        "fd": None,
+        "cond_len": vis["longest"] + (1 if vis["edges"] else 0),
+        **vis,
+    }
+
+
+def _ready_tuple(d: dict) -> tuple:
+    return (
+        _n(d.get("cover")),
+        _n(d.get("fd")),
+        -int(d.get("edges") or 0),
+        -int(d.get("cond_len") or 0),
+        _n(d.get("gap")),
+        -int(d.get("bonds") or 0),
+        -int(d.get("longest") or 0),
+    )
+
+
+def foundation_readiness(state: SpiderState) -> dict:
+    """Generic per-state foundation-readiness summary. Ties retained."""
+
+    material = next_foundation_material(state)
+    by_suit = {
+        suit: suit_readiness(state, suit, material["by_suit"][suit]) for suit in SUITS
+    }
+    ready = [suit for suit in SUITS if by_suit[suit]["material_complete_now"]]
+    ready_sorted = sorted(ready, key=lambda s: _ready_tuple(by_suit[s]))
+    nearest = material["nearest_horizon"]
+    nearest_suits = list(material["nearest_suits"])
+    horizon_bonds = 0
+    horizon_longest = 0
+    horizon_edges = 0
+    for suit in nearest_suits:
+        horizon_bonds = max(horizon_bonds, int(by_suit[suit]["bonds"] or 0))
+        horizon_longest = max(horizon_longest, int(by_suit[suit]["longest"] or 0))
+        horizon_edges = max(horizon_edges, int(by_suit[suit]["edges"] or 0))
+    best = None if not ready_sorted else dict(by_suit[ready_sorted[0]])
+    second = None
+    if len(ready_sorted) >= 2:
+        second = dict(by_suit[ready_sorted[1]])
+    return {
+        "by_suit": by_suit,
+        "ready_suits": ready,
+        "n_ready": len(ready),
+        "nearest_horizon": nearest,
+        "nearest_suits": nearest_suits,
+        "best_ready_suit": None if not ready_sorted else ready_sorted[0],
+        "best_ready": best,
+        "second_ready_suit": None if len(ready_sorted) < 2 else ready_sorted[1],
+        "second_ready": second,
+        "horizon_bonds": horizon_bonds,
+        "horizon_longest": horizon_longest,
+        "horizon_edges": horizon_edges,
+        "foundations": foundation_count(state),
+    }

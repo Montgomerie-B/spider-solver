@@ -24,7 +24,7 @@ from spider.research_actions import (
 )
 
 IdentityFn = Callable[[SpiderState], bytes]
-LaneKeyFn = Callable[[SpiderState, int], tuple]
+LaneKeyFn = Callable[[SpiderState, int], Optional[tuple]]
 TerminalFn = Callable[[SpiderState], bool]
 ActionOrderFn = Callable[[SpiderState, List[Action]], List[Action]]
 ActionsFn = Callable[[SpiderState], List[Action]]
@@ -115,7 +115,8 @@ def run_search(
 ) -> KernelResult:
     """Exact best-g search. ``roots`` need ordered_digest, symmetry_digest, g.
 
-    ``lane_key_fns[i](state, g) -> tuple`` is ordering only. One lane with
+    ``lane_key_fns[i](state, g) -> tuple | None`` is ordering only. ``None``
+    skips that lane for this state (sparse participation). One lane with
     ``lambda st, g: (g,)`` is UCS-like. Multiple lanes round-robin.
     """
 
@@ -155,12 +156,18 @@ def run_search(
         if lane_keys_fn is not None:
             keys = lane_keys_fn(state, g)
             for name in names:
-                heapq.heappush(heaps[name], (*keys[name], seq, node_i))
+                key = keys.get(name)
+                if key is None:
+                    continue
+                heapq.heappush(heaps[name], (*key, seq, node_i))
                 seq += 1
             return
         assert lane_key_fns is not None
         for name, keyfn in zip(names, lane_key_fns):
-            heapq.heappush(heaps[name], (*keyfn(state, g), seq, node_i))
+            key = keyfn(state, g)
+            if key is None:
+                continue
+            heapq.heappush(heaps[name], (*key, seq, node_i))
             seq += 1
 
     order = sorted(range(len(roots)), key=lambda i: (int(roots[i]["g"]), roots[i].get("ordered_digest", "")))
