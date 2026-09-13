@@ -1,0 +1,2413 @@
+{
+  "base_sha": "db18b944f9f612c2ab19ec54fde9f15a46b00218",
+  "branch": "agent/solution-strategy-forensics-v0-61",
+  "bucket_mw_auto": {
+    "DEAL": 5,
+    "FOUNDATION_TRIGGER": 8,
+    "MIXED_SUIT_PARK": 10,
+    "OTHER_PAID": 2,
+    "PRIMARY_PROGRESS": 15,
+    "REHANDLE": 126,
+    "REVEAL": 32,
+    "ZERO_COST_RELOCATION": 0
+  },
+  "bucket_mw_canon": {
+    "DEAL": 5,
+    "FOUNDATION_TRIGGER": 8,
+    "MIXED_SUIT_PARK": 7,
+    "OTHER_PAID": 5,
+    "PRIMARY_PROGRESS": 17,
+    "REHANDLE": 102,
+    "REVEAL": 28,
+    "ZERO_COST_RELOCATION": 0
+  },
+  "cheap_f1_v060": {
+    "by_suit": {
+      "c": {
+        "a_len": 0,
+        "bonds": 6,
+        "cond_len": 7,
+        "cover": null,
+        "deals_until_material": 3,
+        "edges": 0,
+        "fd": null,
+        "founded": 0,
+        "gap": null,
+        "k_len": 7,
+        "longest": 7,
+        "material_complete_now": false,
+        "visible": null
+      },
+      "d": {
+        "a_len": 1,
+        "bonds": 5,
+        "cond_len": 7,
+        "cover": null,
+        "deals_until_material": 2,
+        "edges": 1,
+        "fd": null,
+        "founded": 0,
+        "gap": 11,
+        "k_len": 1,
+        "longest": 6,
+        "material_complete_now": false,
+        "visible": null
+      },
+      "h": {
+        "a_len": 1,
+        "bonds": 3,
+        "cond_len": 4,
+        "cover": 10,
+        "deals_until_material": 0,
+        "edges": 0,
+        "fd": 4,
+        "founded": 0,
+        "gap": 11,
+        "k_len": 1,
+        "longest": 4,
+        "material_complete_now": true,
+        "visible": null
+      },
+      "s": {
+        "a_len": 0,
+        "bonds": 0,
+        "cond_len": 1,
+        "cover": null,
+        "deals_until_material": 3,
+        "edges": 0,
+        "fd": null,
+        "founded": 1,
+        "gap": null,
+        "k_len": 0,
+        "longest": 1,
+        "material_complete_now": false,
+        "visible": null
+      }
+    },
+    "empty_columns": [],
+    "empty_n": 0,
+    "face_down": 17,
+    "foundation_suits": [
+      "s"
+    ],
+    "foundations": 1,
+    "g": 41,
+    "legal_tableau": 7,
+    "longest_run": 7,
+    "merge_edges": 1,
+    "n_ready": 1,
+    "nearest_horizon": 0,
+    "nearest_suits": [
+      "h"
+    ],
+    "note": "v0.60 cheapest F1 snapshot; not a complete solution",
+    "ordered_digest": "53504b310101001e04043a2c360835042302050115191b11282d0003122416020631122d0c3b1a1d07040a260d13343d3c3b3a3938370624210001210102183611000617161514272a00072b2a292827261c0104312332352b131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+    "ready_suits": [
+      "h"
+    ],
+    "run_compression": 14,
+    "same_suit_bonds": 14,
+    "stock_rows": 3,
+    "whole_game_identity": "53504b310101001e04043a2c360835042302050115191b11282d0003122416020631122d0c3b1a1d07040a260d13343d3c3b3a3938370624210001210102183611000617161514272a00072b2a292827261c0104312332352b131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201"
+  },
+  "contract": {
+    "auto_deals": 5,
+    "auto_g": 198,
+    "auto_solved": true,
+    "canon_deals": 5,
+    "canon_g": 172,
+    "canon_solved": true,
+    "gap": 26,
+    "physical_cards": 104
+  },
+  "counts": {
+    "auto_explicit": 208,
+    "auto_tableau": 203,
+    "auto_zero_cost": 10,
+    "canon_explicit": 174,
+    "canon_tableau": 169,
+    "canon_zero_cost": 2
+  },
+  "deals_auto": [
+    {
+      "action_index": 35,
+      "bonds_after": 19,
+      "bonds_before": 16,
+      "cost": 1,
+      "deal_number": 1,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 18,
+      "face_down_before": 18,
+      "foundations_after": 0,
+      "foundations_before": 0,
+      "g": 33,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "JS#B",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9D#B",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "4D#A",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "KH#B",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "4D#B",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "6D#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "9S#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "7D#B",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "8S#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "5C#B",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        }
+      ],
+      "legal_after": 12,
+      "mixed_block": 7,
+      "n_ready_after": 0,
+      "rank_ok": 3,
+      "reception_fitness": 4,
+      "remaining_cost": 165,
+      "same_suit_land": 3,
+      "stock_epoch_before": 5,
+      "zero_cost": false
+    },
+    {
+      "action_index": 66,
+      "bonds_after": 31,
+      "bonds_before": 31,
+      "cost": 1,
+      "deal_number": 2,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 10,
+      "face_down_before": 10,
+      "foundations_after": 0,
+      "foundations_before": 0,
+      "g": 59,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "KS#B",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AS#B",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "6H#B",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "7S#B",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AD#A",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": false
+        },
+        {
+          "card": "AD#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AH#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "10D#B",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "QH#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "JD#B",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        }
+      ],
+      "legal_after": 4,
+      "mixed_block": 9,
+      "n_ready_after": 2,
+      "rank_ok": 1,
+      "reception_fitness": 4,
+      "remaining_cost": 139,
+      "same_suit_land": 0,
+      "stock_epoch_before": 4,
+      "zero_cost": false
+    },
+    {
+      "action_index": 82,
+      "bonds_after": 36,
+      "bonds_before": 35,
+      "cost": 1,
+      "deal_number": 3,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 10,
+      "face_down_before": 10,
+      "foundations_after": 0,
+      "foundations_before": 0,
+      "g": 74,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "2C#B",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "10S#B",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "QD#B",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "KH#A",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "8H#B",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9C#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "3S#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "5S#B",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "5D#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "4H#B",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        }
+      ],
+      "legal_after": 9,
+      "mixed_block": 9,
+      "n_ready_after": 2,
+      "rank_ok": 1,
+      "reception_fitness": 4,
+      "remaining_cost": 124,
+      "same_suit_land": 1,
+      "stock_epoch_before": 3,
+      "zero_cost": false
+    },
+    {
+      "action_index": 93,
+      "bonds_after": 42,
+      "bonds_before": 40,
+      "cost": 1,
+      "deal_number": 4,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 9,
+      "face_down_before": 9,
+      "foundations_after": 0,
+      "foundations_before": 0,
+      "g": 85,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "9D#A",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "JS#A",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "QH#A",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "2D#B",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "4C#B",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "QC#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "KC#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "8C#B",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "JH#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9S#A",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        }
+      ],
+      "legal_after": 15,
+      "mixed_block": 8,
+      "n_ready_after": 3,
+      "rank_ok": 2,
+      "reception_fitness": 8,
+      "remaining_cost": 113,
+      "same_suit_land": 2,
+      "stock_epoch_before": 2,
+      "zero_cost": false
+    },
+    {
+      "action_index": 140,
+      "bonds_after": 65,
+      "bonds_before": 62,
+      "cost": 1,
+      "deal_number": 5,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 3,
+      "face_down_before": 3,
+      "foundations_after": 0,
+      "foundations_before": 0,
+      "g": 131,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "3H#B",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "10H#B",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "2D#A",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "3C#A",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9H#B",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "7C#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "7H#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AS#A",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "3C#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "5D#A",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        }
+      ],
+      "legal_after": 12,
+      "mixed_block": 7,
+      "n_ready_after": 4,
+      "rank_ok": 3,
+      "reception_fitness": 10,
+      "remaining_cost": 67,
+      "same_suit_land": 3,
+      "stock_epoch_before": 1,
+      "zero_cost": false
+    }
+  ],
+  "deals_canon": [
+    {
+      "action_index": 51,
+      "bonds_after": 23,
+      "bonds_before": 22,
+      "cost": 1,
+      "deal_number": 1,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 12,
+      "face_down_before": 12,
+      "foundations_after": 0,
+      "foundations_before": 0,
+      "g": 51,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "JS#B",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9D#B",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "4D#A",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "KH#B",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "4D#B",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "6D#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9S#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "7D#B",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "8S#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "5C#B",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        }
+      ],
+      "legal_after": 8,
+      "mixed_block": 9,
+      "n_ready_after": 0,
+      "rank_ok": 1,
+      "reception_fitness": 2,
+      "remaining_cost": 121,
+      "same_suit_land": 1,
+      "stock_epoch_before": 5,
+      "zero_cost": false
+    },
+    {
+      "action_index": 89,
+      "bonds_after": 40,
+      "bonds_before": 38,
+      "cost": 1,
+      "deal_number": 2,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 8,
+      "face_down_before": 8,
+      "foundations_after": 0,
+      "foundations_before": 0,
+      "g": 89,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "KS#B",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AS#B",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "6H#B",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "7S#B",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AD#A",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AD#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AH#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "10D#B",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "QH#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "JD#B",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        }
+      ],
+      "legal_after": 12,
+      "mixed_block": 8,
+      "n_ready_after": 2,
+      "rank_ok": 2,
+      "reception_fitness": 6,
+      "remaining_cost": 83,
+      "same_suit_land": 2,
+      "stock_epoch_before": 4,
+      "zero_cost": false
+    },
+    {
+      "action_index": 101,
+      "bonds_after": 35,
+      "bonds_before": 35,
+      "cost": 1,
+      "deal_number": 3,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 7,
+      "face_down_before": 7,
+      "foundations_after": 1,
+      "foundations_before": 1,
+      "g": 101,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "2C#B",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "10S#B",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "QD#B",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "KH#A",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "8H#B",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9C#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "3S#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "5S#B",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "5D#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "4H#B",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        }
+      ],
+      "legal_after": 7,
+      "mixed_block": 10,
+      "n_ready_after": 1,
+      "rank_ok": 0,
+      "reception_fitness": 2,
+      "remaining_cost": 71,
+      "same_suit_land": 0,
+      "stock_epoch_before": 3,
+      "zero_cost": false
+    },
+    {
+      "action_index": 119,
+      "bonds_after": 43,
+      "bonds_before": 42,
+      "cost": 1,
+      "deal_number": 4,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 7,
+      "face_down_before": 7,
+      "foundations_after": 1,
+      "foundations_before": 1,
+      "g": 119,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "9D#A",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "JS#A",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "QH#A",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "2D#B",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "4C#B",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "QC#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "KC#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "8C#B",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "JH#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9S#A",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        }
+      ],
+      "legal_after": 10,
+      "mixed_block": 9,
+      "n_ready_after": 2,
+      "rank_ok": 1,
+      "reception_fitness": 4,
+      "remaining_cost": 53,
+      "same_suit_land": 1,
+      "stock_epoch_before": 2,
+      "zero_cost": false
+    },
+    {
+      "action_index": 151,
+      "bonds_after": 54,
+      "bonds_before": 50,
+      "cost": 1,
+      "deal_number": 5,
+      "empty_after": 0,
+      "empty_before": 0,
+      "empty_land": 0,
+      "face_down_after": 1,
+      "face_down_before": 1,
+      "foundations_after": 2,
+      "foundations_before": 2,
+      "g": 150,
+      "kind": "deal",
+      "landings": [
+        {
+          "card": "3H#B",
+          "column_1": 1,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "10H#B",
+          "column_1": 2,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "2D#A",
+          "column_1": 3,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "3C#A",
+          "column_1": 4,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "9H#B",
+          "column_1": 5,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "7C#B",
+          "column_1": 6,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "7H#B",
+          "column_1": 7,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "AS#A",
+          "column_1": 8,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": true,
+          "rank_ok": false,
+          "same_suit": false
+        },
+        {
+          "card": "3C#B",
+          "column_1": 9,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        },
+        {
+          "card": "5D#A",
+          "column_1": 10,
+          "empty_land": false,
+          "king_empty": false,
+          "mixed_block": false,
+          "rank_ok": true,
+          "same_suit": true
+        }
+      ],
+      "legal_after": 16,
+      "mixed_block": 6,
+      "n_ready_after": 4,
+      "rank_ok": 4,
+      "reception_fitness": 22,
+      "remaining_cost": 22,
+      "same_suit_land": 4,
+      "stock_epoch_before": 1,
+      "zero_cost": false
+    }
+  ],
+  "exclusive_bucket_waterfall": {
+    "rows": [
+      {
+        "auto": 5,
+        "bucket": "DEAL",
+        "canon": 5,
+        "delta_198_minus_172": 0
+      },
+      {
+        "auto": 8,
+        "bucket": "FOUNDATION_TRIGGER",
+        "canon": 8,
+        "delta_198_minus_172": 0
+      },
+      {
+        "auto": 10,
+        "bucket": "MIXED_SUIT_PARK",
+        "canon": 7,
+        "delta_198_minus_172": 3
+      },
+      {
+        "auto": 2,
+        "bucket": "OTHER_PAID",
+        "canon": 5,
+        "delta_198_minus_172": -3
+      },
+      {
+        "auto": 15,
+        "bucket": "PRIMARY_PROGRESS",
+        "canon": 17,
+        "delta_198_minus_172": -2
+      },
+      {
+        "auto": 126,
+        "bucket": "REHANDLE",
+        "canon": 102,
+        "delta_198_minus_172": 24
+      },
+      {
+        "auto": 32,
+        "bucket": "REVEAL",
+        "canon": 28,
+        "delta_198_minus_172": 4
+      },
+      {
+        "auto": 0,
+        "bucket": "ZERO_COST_RELOCATION",
+        "canon": 0,
+        "delta_198_minus_172": 0
+      }
+    ],
+    "sum_delta": 26
+  },
+  "experiment": "solution_strategy_forensics_v0_61",
+  "foundations_auto": [
+    {
+      "action_index": 198,
+      "empty_n": 0,
+      "face_down": 1,
+      "g": 189,
+      "n": 1,
+      "observed_remaining_cost": 9,
+      "stock_rows": 0,
+      "suit": "d",
+      "via": "tableau"
+    },
+    {
+      "action_index": 199,
+      "empty_n": 1,
+      "face_down": 1,
+      "g": 190,
+      "n": 2,
+      "observed_remaining_cost": 8,
+      "stock_rows": 0,
+      "suit": "c",
+      "via": "tableau"
+    },
+    {
+      "action_index": 201,
+      "empty_n": 3,
+      "face_down": 0,
+      "g": 192,
+      "n": 3,
+      "observed_remaining_cost": 6,
+      "stock_rows": 0,
+      "suit": "s",
+      "via": "tableau"
+    },
+    {
+      "action_index": 202,
+      "empty_n": 5,
+      "face_down": 0,
+      "g": 193,
+      "n": 4,
+      "observed_remaining_cost": 5,
+      "stock_rows": 0,
+      "suit": "h",
+      "via": "tableau"
+    },
+    {
+      "action_index": 203,
+      "empty_n": 6,
+      "face_down": 0,
+      "g": 194,
+      "n": 5,
+      "observed_remaining_cost": 4,
+      "stock_rows": 0,
+      "suit": "h",
+      "via": "tableau"
+    },
+    {
+      "action_index": 204,
+      "empty_n": 8,
+      "face_down": 0,
+      "g": 195,
+      "n": 6,
+      "observed_remaining_cost": 3,
+      "stock_rows": 0,
+      "suit": "c",
+      "via": "tableau"
+    },
+    {
+      "action_index": 206,
+      "empty_n": 8,
+      "face_down": 0,
+      "g": 197,
+      "n": 7,
+      "observed_remaining_cost": 1,
+      "stock_rows": 0,
+      "suit": "d",
+      "via": "tableau"
+    },
+    {
+      "action_index": 207,
+      "empty_n": 10,
+      "face_down": 0,
+      "g": 198,
+      "n": 8,
+      "observed_remaining_cost": 0,
+      "stock_rows": 0,
+      "suit": "s",
+      "via": "tableau"
+    }
+  ],
+  "foundations_canon": [
+    {
+      "action_index": 90,
+      "empty_n": 0,
+      "face_down": 8,
+      "g": 90,
+      "n": 1,
+      "observed_remaining_cost": 82,
+      "stock_rows": 3,
+      "suit": "s",
+      "via": "tableau"
+    },
+    {
+      "action_index": 139,
+      "empty_n": 2,
+      "face_down": 3,
+      "g": 139,
+      "n": 2,
+      "observed_remaining_cost": 33,
+      "stock_rows": 1,
+      "suit": "d",
+      "via": "tableau"
+    },
+    {
+      "action_index": 159,
+      "empty_n": 3,
+      "face_down": 0,
+      "g": 158,
+      "n": 3,
+      "observed_remaining_cost": 14,
+      "stock_rows": 0,
+      "suit": "c",
+      "via": "tableau"
+    },
+    {
+      "action_index": 169,
+      "empty_n": 4,
+      "face_down": 0,
+      "g": 168,
+      "n": 4,
+      "observed_remaining_cost": 4,
+      "stock_rows": 0,
+      "suit": "d",
+      "via": "tableau"
+    },
+    {
+      "action_index": 170,
+      "empty_n": 5,
+      "face_down": 0,
+      "g": 169,
+      "n": 5,
+      "observed_remaining_cost": 3,
+      "stock_rows": 0,
+      "suit": "s",
+      "via": "tableau"
+    },
+    {
+      "action_index": 171,
+      "empty_n": 6,
+      "face_down": 0,
+      "g": 170,
+      "n": 6,
+      "observed_remaining_cost": 2,
+      "stock_rows": 0,
+      "suit": "c",
+      "via": "tableau"
+    },
+    {
+      "action_index": 172,
+      "empty_n": 8,
+      "face_down": 0,
+      "g": 171,
+      "n": 7,
+      "observed_remaining_cost": 1,
+      "stock_rows": 0,
+      "suit": "h",
+      "via": "tableau"
+    },
+    {
+      "action_index": 173,
+      "empty_n": 10,
+      "face_down": 0,
+      "g": 172,
+      "n": 8,
+      "observed_remaining_cost": 0,
+      "stock_rows": 0,
+      "suit": "h",
+      "via": "tableau"
+    }
+  ],
+  "hypotheses": [
+    {
+      "genericity": "GENERAL",
+      "mechanism": "Penalise repeat paid movement of already-attached cards in ECONOMY/harvest; prefer durable placements.",
+      "name": "rehandling_aware_economy",
+      "rank": 1
+    },
+    {
+      "genericity": "PLAUSIBLY_GENERAL",
+      "mechanism": "Score DEAL_NOW roots by observed landings (rank_ok, same-suit, mixed_block, legal_after), not cheapest g alone.",
+      "name": "deal_reception_shaping",
+      "rank": 2
+    },
+    {
+      "genericity": "PLAUSIBLY_GENERAL",
+      "mechanism": "Seek midgame foundations only when face-down/mobility are healthy; do not harvest cheapest-g F1.",
+      "name": "excavation_gated_foundation_cashout",
+      "rank": 3
+    },
+    {
+      "genericity": "PLAUSIBLY_GENERAL",
+      "mechanism": "Keep a high-excavation cohort alongside cheapest-g so early fd work is not starved.",
+      "name": "early_excavation_vs_cheapest_g",
+      "rank": 4
+    },
+    {
+      "genericity": "PLAUSIBLY_GENERAL",
+      "mechanism": "Post-stock, prefer low cover and small K/A gaps over raw bond count or longest run.",
+      "name": "low_cover_ka_topology",
+      "rank": 5
+    }
+  ],
+  "no_new_solution": true,
+  "policy_unchanged": true,
+  "post_sd5": {
+    "auto": {
+      "action_index": 141,
+      "by_suit": {
+        "c": {
+          "a_len": 2,
+          "bonds": 16,
+          "cond_len": 11,
+          "cover": 2,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 0,
+          "gap": 0,
+          "k_len": 11,
+          "longest": 11,
+          "material_complete_now": true,
+          "visible": 2
+        },
+        "d": {
+          "a_len": 12,
+          "bonds": 18,
+          "cond_len": 12,
+          "cover": 2,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 0,
+          "gap": -6,
+          "k_len": 7,
+          "longest": 12,
+          "material_complete_now": true,
+          "visible": 2
+        },
+        "h": {
+          "a_len": 1,
+          "bonds": 11,
+          "cond_len": 6,
+          "cover": 7,
+          "deals_until_material": 0,
+          "edges": 1,
+          "fd": 0,
+          "founded": 0,
+          "gap": 9,
+          "k_len": 3,
+          "longest": 5,
+          "material_complete_now": true,
+          "visible": 7
+        },
+        "s": {
+          "a_len": 12,
+          "bonds": 20,
+          "cond_len": 12,
+          "cover": 2,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 0,
+          "gap": 0,
+          "k_len": 1,
+          "longest": 12,
+          "material_complete_now": true,
+          "visible": 2
+        }
+      },
+      "empty_columns": [],
+      "empty_n": 0,
+      "face_down": 3,
+      "foundation_suits": [],
+      "foundations": 0,
+      "g": 131,
+      "legal_tableau": 12,
+      "longest_run": 12,
+      "merge_edges": 1,
+      "n_ready": 4,
+      "nearest_horizon": 0,
+      "nearest_suits": [
+        "s",
+        "h",
+        "d",
+        "c"
+      ],
+      "ordered_digest": "53504b3101000000000f180d2c2b2a2928272625242322211300031c1b1a000c122423323116151413321122021531122d0c3b1a1d0c0b0a0908070605040302011d1c1b330102260d1900043a39383700182d2c2b2a2928273635143d3c0b0a0908070605040302211700021101000b3d3c3b3a39383736353433000719181716153425",
+      "ready_suits": [
+        "s",
+        "h",
+        "d",
+        "c"
+      ],
+      "remaining_cost": 67,
+      "run_compression": 65,
+      "same_suit_bonds": 65,
+      "stock_rows": 0,
+      "whole_game_identity": "53505331010000000002110100031c1b1a00043a393837000719181716153425000b3d3c3b3a39383736353433000c122423323116151413321122000f180d2c2b2a2928272625242322211300182d2c2b2a2928273635143d3c0b0a090807060504030221170102260d19021531122d0c3b1a1d0c0b0a0908070605040302011d1c1b33"
+    },
+    "auto_delta": 67,
+    "auto_enter_g": 131,
+    "auto_remaining": 67,
+    "auto_tableau_n": 67,
+    "auto_zero_cost": 0,
+    "canon": {
+      "action_index": 152,
+      "by_suit": {
+        "c": {
+          "a_len": 2,
+          "bonds": 17,
+          "cond_len": 11,
+          "cover": 2,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 0,
+          "gap": 0,
+          "k_len": 11,
+          "longest": 11,
+          "material_complete_now": true,
+          "visible": 2
+        },
+        "d": {
+          "a_len": 1,
+          "bonds": 9,
+          "cond_len": 9,
+          "cover": 4,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 1,
+          "gap": 3,
+          "k_len": 9,
+          "longest": 9,
+          "material_complete_now": true,
+          "visible": 4
+        },
+        "h": {
+          "a_len": 8,
+          "bonds": 18,
+          "cond_len": 9,
+          "cover": 3,
+          "deals_until_material": 0,
+          "edges": 1,
+          "fd": 0,
+          "founded": 0,
+          "gap": -1,
+          "k_len": 6,
+          "longest": 8,
+          "material_complete_now": true,
+          "visible": 3
+        },
+        "s": {
+          "a_len": 1,
+          "bonds": 10,
+          "cond_len": 10,
+          "cover": 3,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 1,
+          "gap": 10,
+          "k_len": 2,
+          "longest": 10,
+          "material_complete_now": true,
+          "visible": 3
+        }
+      },
+      "empty_columns": [],
+      "empty_n": 0,
+      "face_down": 1,
+      "foundation_suits": [
+        "s",
+        "d"
+      ],
+      "foundations": 2,
+      "g": 150,
+      "legal_tableau": 16,
+      "longest_run": 11,
+      "merge_edges": 1,
+      "n_ready": 4,
+      "nearest_horizon": 0,
+      "nearest_suits": [
+        "s",
+        "h",
+        "d",
+        "c"
+      ],
+      "ordered_digest": "53504b310102000000071d1c1b1a19181300041d1c1b1a000824233231161514220103311211330002321900080d0c3b3a21393837001518171615141312113d3c0b0a090807060504030217000436353401000b3d3c3b3a3938373635343300092d2c2b2a29282726250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "ready_suits": [
+        "s",
+        "h",
+        "d",
+        "c"
+      ],
+      "remaining_cost": 22,
+      "run_compression": 54,
+      "same_suit_bonds": 54,
+      "stock_rows": 0,
+      "whole_game_identity": "53505331010200000002321900041d1c1b1a00043635340100071d1c1b1a19181300080d0c3b3a213938370008242332311615142200092d2c2b2a2928272625000b3d3c3b3a39383736353433001518171615141312113d3c0b0a0908070605040302170103311211330d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+    },
+    "canon_delta": 22,
+    "canon_enter_g": 150,
+    "canon_remaining": 22,
+    "canon_tableau_n": 22,
+    "canon_zero_cost": 0,
+    "sd5_land_auto": {
+      "action_index": 141,
+      "by_suit": {
+        "c": {
+          "a_len": 2,
+          "bonds": 16,
+          "cond_len": 11,
+          "cover": 2,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 0,
+          "gap": 0,
+          "k_len": 11,
+          "longest": 11,
+          "material_complete_now": true,
+          "visible": 2
+        },
+        "d": {
+          "a_len": 12,
+          "bonds": 18,
+          "cond_len": 12,
+          "cover": 2,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 0,
+          "gap": -6,
+          "k_len": 7,
+          "longest": 12,
+          "material_complete_now": true,
+          "visible": 2
+        },
+        "h": {
+          "a_len": 1,
+          "bonds": 11,
+          "cond_len": 6,
+          "cover": 7,
+          "deals_until_material": 0,
+          "edges": 1,
+          "fd": 0,
+          "founded": 0,
+          "gap": 9,
+          "k_len": 3,
+          "longest": 5,
+          "material_complete_now": true,
+          "visible": 7
+        },
+        "s": {
+          "a_len": 12,
+          "bonds": 20,
+          "cond_len": 12,
+          "cover": 2,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 0,
+          "gap": 0,
+          "k_len": 1,
+          "longest": 12,
+          "material_complete_now": true,
+          "visible": 2
+        }
+      },
+      "empty_columns": [],
+      "empty_n": 0,
+      "face_down": 3,
+      "foundation_suits": [],
+      "foundations": 0,
+      "g": 131,
+      "legal_tableau": 12,
+      "longest_run": 12,
+      "merge_edges": 1,
+      "n_ready": 4,
+      "nearest_horizon": 0,
+      "nearest_suits": [
+        "s",
+        "h",
+        "d",
+        "c"
+      ],
+      "ordered_digest": "53504b3101000000000f180d2c2b2a2928272625242322211300031c1b1a000c122423323116151413321122021531122d0c3b1a1d0c0b0a0908070605040302011d1c1b330102260d1900043a39383700182d2c2b2a2928273635143d3c0b0a0908070605040302211700021101000b3d3c3b3a39383736353433000719181716153425",
+      "ready_suits": [
+        "s",
+        "h",
+        "d",
+        "c"
+      ],
+      "remaining_cost": 67,
+      "run_compression": 65,
+      "same_suit_bonds": 65,
+      "stock_rows": 0,
+      "whole_game_identity": "53505331010000000002110100031c1b1a00043a393837000719181716153425000b3d3c3b3a39383736353433000c122423323116151413321122000f180d2c2b2a2928272625242322211300182d2c2b2a2928273635143d3c0b0a090807060504030221170102260d19021531122d0c3b1a1d0c0b0a0908070605040302011d1c1b33"
+    },
+    "sd5_land_canon": {
+      "action_index": 152,
+      "by_suit": {
+        "c": {
+          "a_len": 2,
+          "bonds": 17,
+          "cond_len": 11,
+          "cover": 2,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 0,
+          "gap": 0,
+          "k_len": 11,
+          "longest": 11,
+          "material_complete_now": true,
+          "visible": 2
+        },
+        "d": {
+          "a_len": 1,
+          "bonds": 9,
+          "cond_len": 9,
+          "cover": 4,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 1,
+          "gap": 3,
+          "k_len": 9,
+          "longest": 9,
+          "material_complete_now": true,
+          "visible": 4
+        },
+        "h": {
+          "a_len": 8,
+          "bonds": 18,
+          "cond_len": 9,
+          "cover": 3,
+          "deals_until_material": 0,
+          "edges": 1,
+          "fd": 0,
+          "founded": 0,
+          "gap": -1,
+          "k_len": 6,
+          "longest": 8,
+          "material_complete_now": true,
+          "visible": 3
+        },
+        "s": {
+          "a_len": 1,
+          "bonds": 10,
+          "cond_len": 10,
+          "cover": 3,
+          "deals_until_material": 0,
+          "edges": 0,
+          "fd": 0,
+          "founded": 1,
+          "gap": 10,
+          "k_len": 2,
+          "longest": 10,
+          "material_complete_now": true,
+          "visible": 3
+        }
+      },
+      "empty_columns": [],
+      "empty_n": 0,
+      "face_down": 1,
+      "foundation_suits": [
+        "s",
+        "d"
+      ],
+      "foundations": 2,
+      "g": 150,
+      "legal_tableau": 16,
+      "longest_run": 11,
+      "merge_edges": 1,
+      "n_ready": 4,
+      "nearest_horizon": 0,
+      "nearest_suits": [
+        "s",
+        "h",
+        "d",
+        "c"
+      ],
+      "ordered_digest": "53504b310102000000071d1c1b1a19181300041d1c1b1a000824233231161514220103311211330002321900080d0c3b3a21393837001518171615141312113d3c0b0a090807060504030217000436353401000b3d3c3b3a3938373635343300092d2c2b2a29282726250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "ready_suits": [
+        "s",
+        "h",
+        "d",
+        "c"
+      ],
+      "remaining_cost": 22,
+      "run_compression": 54,
+      "same_suit_bonds": 54,
+      "stock_rows": 0,
+      "whole_game_identity": "53505331010200000002321900041d1c1b1a00043635340100071d1c1b1a19181300080d0c3b3a213938370008242332311615142200092d2c2b2a2928272625000b3d3c3b3a39383736353433001518171615141312113d3c0b0a0908070605040302170103311211330d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+    }
+  },
+  "rehandling_auto": {
+    "ambiguous_other_paid_mw": 2,
+    "cards_paid_after_same_suit_attach": [
+      {
+        "label": "4S#B",
+        "paid_after_attach": 12
+      },
+      {
+        "label": "4H#A",
+        "paid_after_attach": 12
+      },
+      {
+        "label": "4S#A",
+        "paid_after_attach": 12
+      },
+      {
+        "label": "3S#B",
+        "paid_after_attach": 12
+      },
+      {
+        "label": "2S#B",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "2S#A",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "3S#A",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "5S#A",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "AC#B",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "5S#B",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "6S#B",
+        "paid_after_attach": 10
+      },
+      {
+        "label": "6D#B",
+        "paid_after_attach": 10
+      },
+      {
+        "label": "6S#A",
+        "paid_after_attach": 9
+      },
+      {
+        "label": "7S#B",
+        "paid_after_attach": 9
+      },
+      {
+        "label": "2C#B",
+        "paid_after_attach": 9
+      },
+      {
+        "label": "8S#A",
+        "paid_after_attach": 8
+      },
+      {
+        "label": "5C#B",
+        "paid_after_attach": 8
+      },
+      {
+        "label": "10S#B",
+        "paid_after_attach": 8
+      },
+      {
+        "label": "8C#B",
+        "paid_after_attach": 8
+      },
+      {
+        "label": "JH#B",
+        "paid_after_attach": 8
+      }
+    ],
+    "n_cards_paid_after_attach": 85,
+    "n_repeat_paid_movers": 93,
+    "note": "Rehandle MW is conservative exclusive-bucket overlap; multi-tags may also apply.",
+    "paid_mw_tagged_rehandle": 133,
+    "rehandle_actions": 133,
+    "repeat_paid_movers": [
+      {
+        "label": "4S#A",
+        "paid_actions": 17
+      },
+      {
+        "label": "2S#A",
+        "paid_actions": 16
+      },
+      {
+        "label": "2C#B",
+        "paid_actions": 15
+      },
+      {
+        "label": "4S#B",
+        "paid_actions": 13
+      },
+      {
+        "label": "4H#A",
+        "paid_actions": 13
+      },
+      {
+        "label": "6S#A",
+        "paid_actions": 13
+      },
+      {
+        "label": "3S#B",
+        "paid_actions": 13
+      },
+      {
+        "label": "2S#B",
+        "paid_actions": 12
+      },
+      {
+        "label": "3S#A",
+        "paid_actions": 12
+      },
+      {
+        "label": "5S#A",
+        "paid_actions": 12
+      },
+      {
+        "label": "AC#B",
+        "paid_actions": 12
+      },
+      {
+        "label": "5S#B",
+        "paid_actions": 12
+      },
+      {
+        "label": "AH#A",
+        "paid_actions": 11
+      },
+      {
+        "label": "6S#B",
+        "paid_actions": 11
+      },
+      {
+        "label": "6D#B",
+        "paid_actions": 11
+      },
+      {
+        "label": "8S#A",
+        "paid_actions": 10
+      },
+      {
+        "label": "7S#A",
+        "paid_actions": 10
+      },
+      {
+        "label": "7S#B",
+        "paid_actions": 10
+      },
+      {
+        "label": "10S#B",
+        "paid_actions": 10
+      },
+      {
+        "label": "6C#A",
+        "paid_actions": 9
+      }
+    ]
+  },
+  "rehandling_canon": {
+    "ambiguous_other_paid_mw": 5,
+    "cards_paid_after_same_suit_attach": [
+      {
+        "label": "4S#B",
+        "paid_after_attach": 12
+      },
+      {
+        "label": "AC#B",
+        "paid_after_attach": 12
+      },
+      {
+        "label": "2S#A",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "3S#A",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "5S#A",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "6S#B",
+        "paid_after_attach": 11
+      },
+      {
+        "label": "7D#A",
+        "paid_after_attach": 6
+      },
+      {
+        "label": "7S#A",
+        "paid_after_attach": 6
+      },
+      {
+        "label": "6D#A",
+        "paid_after_attach": 6
+      },
+      {
+        "label": "6D#B",
+        "paid_after_attach": 6
+      },
+      {
+        "label": "6S#A",
+        "paid_after_attach": 5
+      },
+      {
+        "label": "5C#B",
+        "paid_after_attach": 5
+      },
+      {
+        "label": "4H#B",
+        "paid_after_attach": 5
+      },
+      {
+        "label": "4C#B",
+        "paid_after_attach": 5
+      },
+      {
+        "label": "10C#A",
+        "paid_after_attach": 4
+      },
+      {
+        "label": "6C#B",
+        "paid_after_attach": 4
+      },
+      {
+        "label": "8S#A",
+        "paid_after_attach": 4
+      },
+      {
+        "label": "10D#A",
+        "paid_after_attach": 4
+      },
+      {
+        "label": "8D#B",
+        "paid_after_attach": 4
+      },
+      {
+        "label": "4H#A",
+        "paid_after_attach": 4
+      }
+    ],
+    "n_cards_paid_after_attach": 76,
+    "n_repeat_paid_movers": 83,
+    "note": "Rehandle MW is conservative exclusive-bucket overlap; multi-tags may also apply.",
+    "paid_mw_tagged_rehandle": 109,
+    "rehandle_actions": 109,
+    "repeat_paid_movers": [
+      {
+        "label": "4S#B",
+        "paid_actions": 13
+      },
+      {
+        "label": "AC#B",
+        "paid_actions": 13
+      },
+      {
+        "label": "2S#A",
+        "paid_actions": 12
+      },
+      {
+        "label": "3S#A",
+        "paid_actions": 12
+      },
+      {
+        "label": "5S#A",
+        "paid_actions": 12
+      },
+      {
+        "label": "2C#A",
+        "paid_actions": 12
+      },
+      {
+        "label": "6S#B",
+        "paid_actions": 12
+      },
+      {
+        "label": "7S#A",
+        "paid_actions": 11
+      },
+      {
+        "label": "6S#A",
+        "paid_actions": 11
+      },
+      {
+        "label": "4H#B",
+        "paid_actions": 9
+      },
+      {
+        "label": "2S#B",
+        "paid_actions": 7
+      },
+      {
+        "label": "7D#A",
+        "paid_actions": 7
+      },
+      {
+        "label": "6D#A",
+        "paid_actions": 7
+      },
+      {
+        "label": "6D#B",
+        "paid_actions": 7
+      },
+      {
+        "label": "7D#B",
+        "paid_actions": 7
+      },
+      {
+        "label": "6C#B",
+        "paid_actions": 6
+      },
+      {
+        "label": "8S#A",
+        "paid_actions": 6
+      },
+      {
+        "label": "AH#A",
+        "paid_actions": 6
+      },
+      {
+        "label": "8D#B",
+        "paid_actions": 6
+      },
+      {
+        "label": "4S#A",
+        "paid_actions": 6
+      }
+    ]
+  },
+  "verdict": "FORENSICS_IDENTIFIES_GENERALISABLE_GAP",
+  "waterfall": [
+    {
+      "auto_delta": 32,
+      "auto_g_after": 32,
+      "canon_delta": 50,
+      "cumulative_gap": -18,
+      "delta_198_minus_172": -18,
+      "label": "pre-SD1",
+      "stock_rows": 5
+    },
+    {
+      "auto_delta": 1,
+      "auto_g_after": 33,
+      "canon_delta": 1,
+      "cumulative_gap": -18,
+      "delta_198_minus_172": 0,
+      "label": "SD1",
+      "stock_rows": 5
+    },
+    {
+      "auto_delta": 25,
+      "auto_g_after": 58,
+      "canon_delta": 37,
+      "cumulative_gap": -30,
+      "delta_198_minus_172": -12,
+      "label": "SD1-SD2",
+      "stock_rows": 4
+    },
+    {
+      "auto_delta": 1,
+      "auto_g_after": 59,
+      "canon_delta": 1,
+      "cumulative_gap": -30,
+      "delta_198_minus_172": 0,
+      "label": "SD2",
+      "stock_rows": 4
+    },
+    {
+      "auto_delta": 14,
+      "auto_g_after": 73,
+      "canon_delta": 11,
+      "cumulative_gap": -27,
+      "delta_198_minus_172": 3,
+      "label": "SD2-SD3",
+      "stock_rows": 3
+    },
+    {
+      "auto_delta": 1,
+      "auto_g_after": 74,
+      "canon_delta": 1,
+      "cumulative_gap": -27,
+      "delta_198_minus_172": 0,
+      "label": "SD3",
+      "stock_rows": 3
+    },
+    {
+      "auto_delta": 10,
+      "auto_g_after": 84,
+      "canon_delta": 17,
+      "cumulative_gap": -34,
+      "delta_198_minus_172": -7,
+      "label": "SD3-SD4",
+      "stock_rows": 2
+    },
+    {
+      "auto_delta": 1,
+      "auto_g_after": 85,
+      "canon_delta": 1,
+      "cumulative_gap": -34,
+      "delta_198_minus_172": 0,
+      "label": "SD4",
+      "stock_rows": 2
+    },
+    {
+      "auto_delta": 45,
+      "auto_g_after": 130,
+      "canon_delta": 30,
+      "cumulative_gap": -19,
+      "delta_198_minus_172": 15,
+      "label": "SD4-SD5",
+      "stock_rows": 1
+    },
+    {
+      "auto_delta": 1,
+      "auto_g_after": 131,
+      "canon_delta": 1,
+      "cumulative_gap": -19,
+      "delta_198_minus_172": 0,
+      "label": "SD5",
+      "stock_rows": 1
+    },
+    {
+      "auto_delta": 67,
+      "auto_g_after": 198,
+      "canon_delta": 22,
+      "cumulative_gap": 26,
+      "delta_198_minus_172": 45,
+      "label": "post-SD5",
+      "stock_rows": 0
+    }
+  ]
+}
