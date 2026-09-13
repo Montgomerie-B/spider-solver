@@ -413,6 +413,7 @@ class EpochPortfolioResult:
     incumbent_survived: int = 0
     candidate_ceiling: Optional[int] = None
     incumbent_g: Optional[int] = None
+    best_durability: Optional[dict] = None
 
 
 def _note_foundation(out: EpochPortfolioResult, rec: dict, elapsed: float, unique: int, expanded: int) -> None:
@@ -450,6 +451,7 @@ def search_epoch_portfolio(
     extra_track: Optional[object] = None,
     harvest_vec_fn=None,
     split_pareto: bool = False,
+    enrich_fn=None,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
@@ -503,14 +505,22 @@ def search_epoch_portfolio(
         epoch_max_empty = 0
         epoch_best_c = None
         epoch_best_r = None
+        epoch_best_d = None
+        epoch_debt_n = 0
+        epoch_debt_sum = 0
+        epoch_debt_min = None
+        epoch_debt_samples: List[int] = []
 
         def on_progress(kr: KernelResult, state: SpiderState, g: int, node: int) -> None:
             nonlocal epoch_min_fd, epoch_max_f, epoch_max_empty, epoch_best_c, epoch_best_r
+            nonlocal epoch_best_d, epoch_debt_n, epoch_debt_sum, epoch_debt_min
             if stock_rows(state) != rows:
                 out.accounting_fail = True
             s = current_tableau_summary(state)
             rdy = foundation_readiness(state)
             rec = _snapshot_rec(state, g, node, rdy, s)
+            if enrich_fn is not None:
+                enrich_fn(state, rec)
             rec["origin"] = kr.nodes[node].origin if node < len(kr.nodes) else 0
             src_root = epoch_roots[rec["origin"]] if rec["origin"] < len(epoch_roots) else None
             rec["root_g"] = int(src_root["g"]) if src_root else min_root_g
@@ -599,6 +609,27 @@ def search_epoch_portfolio(
                 tops["deal_now"].add((rec["g"], rec["ordered_digest"]), rec)
             if extra_track is not None:
                 extra_track(tops, rec, min_root_g, class_best)
+            if "boundaries_total" in rec:
+                b = int(rec["boundaries_total"])
+                epoch_debt_n += 1
+                epoch_debt_sum += b
+                if epoch_debt_min is None or b < epoch_debt_min:
+                    epoch_debt_min = b
+                if len(epoch_debt_samples) < 8192:
+                    epoch_debt_samples.append(b)
+                dkey = (
+                    -int(rec["foundations"]),
+                    b,
+                    int(rec.get("component_layers") or 0),
+                    int(rec.get("mixed_supports") or 0),
+                    int(rec["face_down"]),
+                    int(rec["g"]),
+                )
+                if epoch_best_d is None or dkey < epoch_best_d["durability_key"]:
+                    snap = dict(rec)
+                    snap["durability_key"] = dkey
+                    epoch_best_d = snap
+                    out.best_durability = snap
 
         kr = run_search(
             epoch_roots,
@@ -759,6 +790,20 @@ def search_epoch_portfolio(
                 "max_empty": epoch_max_empty,
                 "best_construction": epoch_best_c,
                 "best_readiness": epoch_best_r,
+                "best_durability": epoch_best_d,
+                "interference": None
+                if epoch_debt_n == 0
+                else {
+                    "n": epoch_debt_n,
+                    "min_boundaries": epoch_debt_min,
+                    "mean_boundaries": epoch_debt_sum / epoch_debt_n,
+                    "median_boundaries": sorted(epoch_debt_samples)[len(epoch_debt_samples) // 2]
+                    if epoch_debt_samples
+                    else None,
+                    "selected_boundaries": None
+                    if epoch_best_d is None
+                    else epoch_best_d.get("boundaries_total"),
+                },
                 "n_ready": n_ready,
                 "ready_suits": ready0.get("ready_suits"),
                 "nearest_horizon": ready0.get("nearest_horizon"),

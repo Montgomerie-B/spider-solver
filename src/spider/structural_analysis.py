@@ -682,3 +682,162 @@ def foundation_readiness(state: SpiderState) -> dict:
         "horizon_edges": horizon_edges,
         "foundations": foundation_count(state),
     }
+
+
+def same_suit_component_spans(face_up: Sequence) -> List[Tuple[int, int]]:
+    """Maximal same-suit descending spans on one face-up column. Exclusive end."""
+
+    spans: List[Tuple[int, int]] = []
+    i = 0
+    n = len(face_up)
+    while i < n:
+        j = i + 1
+        while (
+            j < n
+            and face_up[j].suit == face_up[i].suit
+            and face_up[j - 1].rank == face_up[j].rank + 1
+        ):
+            j += 1
+        spans.append((i, j))
+        i = j
+    return spans
+
+
+def interference_debt(state: SpiderState) -> dict:
+    """Prospective interference from the current tableau only.
+
+    No path history, no physical-card identity, no search policy. Two
+    routes that reach the same SpiderState must produce identical facts.
+    """
+
+    off_suit = 0
+    rank_break = 0
+    accessible = 0
+    buried = 0
+    mixed_supports = 0
+    mixed_expose_component = 0
+    mixed_expose_face_down = 0
+    visible_n = 0
+    buried_components = 0
+    component_layers = 0
+    max_layer_depth = 0
+    layers_above_sum = 0
+    visible_cards = 0
+    exposed_on_face_down = 0
+    by_suit = {
+        s: {"components": 0, "cards": 0, "off_suit_boundaries": 0, "rank_break_boundaries": 0}
+        for s in SUITS
+    }
+
+    for col in state.columns:
+        up = col.face_up
+        if not up:
+            continue
+        spans = same_suit_component_spans(up)
+        n = len(spans)
+        visible_n += n
+        visible_cards += len(up)
+        max_layer_depth = max(max_layer_depth, n)
+        if n > 1:
+            component_layers += n - 1
+            buried_components += n - 1
+        for ci, (a, b) in enumerate(spans):
+            suit = up[a].suit
+            by_suit[suit]["components"] += 1
+            by_suit[suit]["cards"] += b - a
+            if ci < n - 1:
+                layers_above_sum += n - 1 - ci
+                deeper_top = up[b - 1]
+                shallower_bot = up[b]
+                rank_cont = deeper_top.rank == shallower_bot.rank + 1
+                if rank_cont:
+                    off_suit += 1
+                    by_suit[deeper_top.suit]["off_suit_boundaries"] += 1
+                    by_suit[shallower_bot.suit]["off_suit_boundaries"] += 1
+                else:
+                    rank_break += 1
+                    by_suit[deeper_top.suit]["rank_break_boundaries"] += 1
+                    by_suit[shallower_bot.suit]["rank_break_boundaries"] += 1
+                if ci == n - 2:
+                    accessible += 1
+                else:
+                    buried += 1
+        exposed = up[spans[-1][0] : spans[-1][1]]
+        movable = SpiderState.is_movable_run(list(exposed))
+        if n >= 2 and movable:
+            mixed_supports += 1
+            mixed_expose_component += 1
+            if spans[-2][0] == 0 and not col.face_down:
+                pass
+        elif n == 1 and movable and col.face_down:
+            exposed_on_face_down += 1
+
+    boundaries_total = off_suit + rank_break
+    fd = face_down_count(state)
+    f_n = foundation_count(state)
+    mean_len = 0.0 if visible_n == 0 else visible_cards / visible_n
+    return {
+        "boundaries_total": boundaries_total,
+        "off_suit_boundaries": off_suit,
+        "rank_break_boundaries": rank_break,
+        "accessible_boundaries": accessible,
+        "buried_boundaries": buried,
+        "component_layers": component_layers,
+        "buried_components": buried_components,
+        "max_layer_depth": max_layer_depth,
+        "layers_above_sum": layers_above_sum,
+        "mixed_supports": mixed_supports,
+        "mixed_expose_component": mixed_expose_component,
+        "mixed_expose_face_down": mixed_expose_face_down,
+        "exposed_on_face_down": exposed_on_face_down,
+        "visible_components": visible_n,
+        "visible_cards": visible_cards,
+        "mean_component_length": mean_len,
+        "foundations": f_n,
+        "face_down": fd,
+        "empty_n": empty_column_count(state),
+        "by_suit": by_suit,
+    }
+
+
+def compact_interference(debt: dict) -> dict:
+    keep = (
+        "boundaries_total",
+        "off_suit_boundaries",
+        "rank_break_boundaries",
+        "accessible_boundaries",
+        "buried_boundaries",
+        "component_layers",
+        "buried_components",
+        "max_layer_depth",
+        "mixed_supports",
+        "visible_components",
+        "visible_cards",
+        "mean_component_length",
+        "foundations",
+        "face_down",
+        "empty_n",
+        "exposed_on_face_down",
+        "layers_above_sum",
+    )
+    return {k: debt.get(k) for k in keep}
+
+
+def durability_key(state: SpiderState, g: int, ready: Optional[dict] = None) -> tuple:
+    """Lexicographic DURABILITY order. Current-state facts only."""
+
+    d = interference_debt(state)
+    r = ready if ready is not None else foundation_readiness(state)
+    cover = INF
+    if int(r.get("n_ready") or 0) > 0:
+        best = r.get("best_ready") or {}
+        cover = _n(best.get("cover"))
+    return (
+        -int(d["foundations"]),
+        int(d["boundaries_total"]),
+        int(d["component_layers"]),
+        int(d["mixed_supports"]),
+        int(d["face_down"]),
+        int(cover),
+        int(g),
+    )
