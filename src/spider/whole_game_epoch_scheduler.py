@@ -206,10 +206,16 @@ def harvest_portfolio(
     min_root_g: int,
     *,
     width: int = PORTFOLIO_WIDTH,
+    cats: Sequence[str] = HARVEST_CATS,
+    incumbent: Optional[dict] = None,
+    vec_fn=None,
+    split_pareto: bool = False,
 ) -> Tuple[List[dict], Dict[str, int]]:
     buckets: Dict[str, List[dict]] = {cat: tops[cat].best() for cat in tops}
     deal_now = [r for r in roots if int(r["g"]) == int(min_root_g)]
     buckets["deal_now"] = sorted(deal_now, key=lambda r: (r["g"], r.get("ordered_digest", "")))[:PER_CAT]
+    if incumbent is not None:
+        buckets["incumbent"] = [incumbent]
     pool = []
     seen_pool = set()
     for cat, rows in buckets.items():
@@ -219,11 +225,24 @@ def harvest_portfolio(
                 continue
             seen_pool.add(ident)
             pool.append(rec)
+    def _dom(a: dict, b: dict) -> bool:
+        if vec_fn is None:
+            return _dominates(a, b)
+        va, vb = vec_fn(a), vec_fn(b)
+        return all(x <= y for x, y in zip(va, vb)) and any(x < y for x, y in zip(va, vb))
+
+    groups = [pool]
+    if split_pareto:
+        groups = [
+            [r for r in pool if r.get("n_ready")],
+            [r for r in pool if not r.get("n_ready")],
+        ]
     pareto = []
-    for rec in pool:
-        if any(_dominates(o, rec) for o in pool if o is not rec):
-            continue
-        pareto.append(rec)
+    for grp in groups:
+        for rec in grp:
+            if any(_dom(o, rec) for o in grp if o is not rec):
+                continue
+            pareto.append(rec)
     buckets["pareto"] = pareto[:PER_CAT]
     picked: List[dict] = []
     seen = set()
@@ -245,9 +264,13 @@ def harvest_portfolio(
         take(rec, "deal_now")
         if len(picked) >= width:
             return picked, dict(counts)
+    if incumbent is not None:
+        take(incumbent, "incumbent")
+        if len(picked) >= width:
+            return picked, dict(counts)
     while len(picked) < width:
         progressed = False
-        for cat in HARVEST_CATS:
+        for cat in cats:
             rows = buckets.get(cat) or []
             while rows:
                 rec = rows.pop(0)
@@ -385,6 +408,11 @@ class EpochPortfolioResult:
     best_readiness: Optional[dict] = None
     states_per_s: float = 0.0
     opening_horizons: Optional[dict] = None
+    class_displaced: int = 0
+    incumbent_injected: int = 0
+    incumbent_survived: int = 0
+    candidate_ceiling: Optional[int] = None
+    incumbent_g: Optional[int] = None
 
 
 def _note_foundation(out: EpochPortfolioResult, rec: dict, elapsed: float, unique: int, expanded: int) -> None:
@@ -412,6 +440,16 @@ def search_epoch_portfolio(
     rss_abort_mb: float = SEARCH_RSS_MB,
     cost_ceiling: int = COST_CEILING,
     portfolio_width: int = PORTFOLIO_WIDTH,
+    lane_names: Sequence[str] = LANES,
+    keys_fn=epoch_lane_keys,
+    harvest_cats: Sequence[str] = HARVEST_CATS,
+    harvest_slack: Optional[int] = None,
+    remaining_deal_bound: bool = False,
+    incumbent_by_rows: Optional[Dict[int, dict]] = None,
+    continue_after_solve: bool = False,
+    extra_track: Optional[object] = None,
+    harvest_vec_fn=None,
+    split_pareto: bool = False,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
@@ -423,8 +461,11 @@ def search_epoch_portfolio(
     roots[0]["categories"] = ["deal_now"]
     out.min_face_down = face_down_count(opening)
     out.max_empty = 0
+    out.candidate_ceiling = cost_ceiling
     remaining_unique = max_unique
+    live_ceiling = cost_ceiling
     stop = ""
+    class_best: Dict[tuple, dict] = {}
 
     while roots and remaining_unique > 0:
         now = time.perf_counter()
@@ -439,8 +480,24 @@ def search_epoch_portfolio(
         alloc_u, alloc_t = allocate_budget(rows, n_ready, remaining_unique, remain_t)
         alloc_u = min(alloc_u, remaining_unique)
         alloc_t = min(alloc_t, remain_t)
-        min_root_g = min(int(r["g"]) for r in roots)
-        tops = {cat: _Top() for cat in HARVEST_CATS}
+        epoch_ceil = live_ceiling - rows if remaining_deal_bound else live_ceiling
+        epoch_ceil = max(0, int(epoch_ceil))
+        epoch_roots = [r for r in roots if int(r["g"]) <= epoch_ceil]
+        epoch_incumbent = None
+        if incumbent_by_rows and rows in incumbent_by_rows:
+            ck = dict(incumbent_by_rows[rows])
+            ck.setdefault("ident", ck.get("whole_game_identity"))
+            epoch_incumbent = ck
+            if int(ck["g"]) <= epoch_ceil:
+                ids = {r.get("ident") or r.get("whole_game_identity") for r in epoch_roots}
+                if ck.get("ident") not in ids:
+                    epoch_roots.append(ck)
+                    out.incumbent_injected += 1
+        if not epoch_roots:
+            stop = "ceiling exhausted"
+            break
+        min_root_g = min(int(r["g"]) for r in epoch_roots)
+        tops = {cat: _Top() for cat in harvest_cats}
         epoch_min_fd = None
         epoch_max_f = 0
         epoch_max_empty = 0
@@ -455,6 +512,9 @@ def search_epoch_portfolio(
             rdy = foundation_readiness(state)
             rec = _snapshot_rec(state, g, node, rdy, s)
             rec["origin"] = kr.nodes[node].origin if node < len(kr.nodes) else 0
+            src_root = epoch_roots[rec["origin"]] if rec["origin"] < len(epoch_roots) else None
+            rec["root_g"] = int(src_root["g"]) if src_root else min_root_g
+            rec["delta_g"] = int(g) - int(rec["root_g"])
             elapsed = time.perf_counter() - started
             _note_foundation(out, rec, elapsed, kr.unique, kr.expanded)
             if out.min_face_down is None or rec["face_down"] < out.min_face_down:
@@ -506,44 +566,54 @@ def search_epoch_portfolio(
                 out.best_state["g"],
             ):
                 out.best_state = rec
-            tops["cheap"].add((rec["g"], rec["ordered_digest"]), rec)
-            tops["foundations"].add((-rec["foundations"], rec["g"], rec["ordered_digest"]), rec)
-            tops["min_fd"].add((rec["face_down"], rec["g"], rec["ordered_digest"]), rec)
-            tops["workspace"].add((-rec["empty_n"], rec["face_down"], rec["g"]), rec)
-            tops["construction"].add((-rec["bonds"], -rec["longest"], -rec["merges"], rec["g"]), rec)
+            if "cheap" in tops:
+                tops["cheap"].add((rec["g"], rec["ordered_digest"]), rec)
+            if "foundations" in tops:
+                tops["foundations"].add((-rec["foundations"], rec["g"], rec["ordered_digest"]), rec)
+            if "min_fd" in tops:
+                tops["min_fd"].add((rec["face_down"], rec["g"], rec["ordered_digest"]), rec)
+            if "workspace" in tops:
+                tops["workspace"].add((-rec["empty_n"], rec["face_down"], rec["g"]), rec)
+            if "construction" in tops:
+                tops["construction"].add((-rec["bonds"], -rec["longest"], -rec["merges"], rec["g"]), rec)
             if rec["n_ready"]:
-                tops["readiness"].add(
-                    (
-                        _n(rec.get("cover")),
-                        _n(rec.get("ready_fd")),
-                        -int(rec.get("ready_edges") or 0),
-                        rec["g"],
-                    ),
-                    rec,
-                )
-                suit = rec.get("best_ready_suit") or "_"
-                tops["ready_div"].add((_n(rec.get("cover")), rec["g"], suit), rec)
-            else:
+                if "readiness" in tops:
+                    tops["readiness"].add(
+                        (
+                            _n(rec.get("cover")),
+                            _n(rec.get("ready_fd")),
+                            -int(rec.get("ready_edges") or 0),
+                            rec["g"],
+                        ),
+                        rec,
+                    )
+                if "ready_div" in tops:
+                    suit = rec.get("best_ready_suit") or "_"
+                    tops["ready_div"].add((_n(rec.get("cover")), rec["g"], suit), rec)
+            elif "horizon" in tops:
                 tops["horizon"].add(
                     (_n(rec.get("nearest_horizon")), -rec["bonds"], rec["g"]),
                     rec,
                 )
-            if rec["g"] == min_root_g:
+            if rec["g"] == min_root_g and "deal_now" in tops:
                 tops["deal_now"].add((rec["g"], rec["ordered_digest"]), rec)
+            if extra_track is not None:
+                extra_track(tops, rec, min_root_g, class_best)
 
         kr = run_search(
-            roots,
+            epoch_roots,
             limits=SearchLimits(
                 max_unique=alloc_u,
                 time_limit_s=alloc_t,
                 rss_abort_mb=rss_abort_mb,
-                cost_ceiling=cost_ceiling,
+                cost_ceiling=epoch_ceil,
+                harvest_slack=harvest_slack,
             ),
             identity_fn=pack_whole_game_identity,
             store_fn=pack_state,
             unpack_fn=unpack_state,
-            lane_names=LANES,
-            lane_keys_fn=epoch_lane_keys,
+            lane_names=list(lane_names),
+            lane_keys_fn=keys_fn,
             is_terminal=lambda st: st.is_solved(),
             actions_fn=tableau_actions,
             on_progress=on_progress,
@@ -556,7 +626,7 @@ def search_epoch_portfolio(
         out.stale_skips += kr.stale_skips
         if kr.peak_rss_mb is not None and (out.peak_rss_mb is None or kr.peak_rss_mb > out.peak_rss_mb):
             out.peak_rss_mb = kr.peak_rss_mb
-        for name in LANES:
+        for name in lane_names:
             out.lane_exp[name] = out.lane_exp.get(name, 0) + kr.lane_exp.get(name, 0)
             out.lane_pops[name] = out.lane_pops.get(name, 0) + kr.lane_pops.get(name, 0)
             out.lane_stale[name] = out.lane_stale.get(name, 0) + kr.lane_stale.get(name, 0)
@@ -566,54 +636,74 @@ def search_epoch_portfolio(
         if kr.terminals:
             best = min(kr.terminals, key=lambda t: (t["g"], t["store"]))
             kn = kr.nodes[best["node"]]
-            src = roots[kn.origin]
+            src = epoch_roots[kn.origin]
             path = reconstruct_path(kr.nodes, best["node"])
             full = as_actions(src.get("full_actions") or []) + path
-            out.solved = True
-            out.solution_g = int(best["g"])
-            out.solution_actions = full
-            end = opening.clone()
-            try:
-                cost = replay_actions(end, full)
-            except Exception:
-                out.accounting_fail = True
-            else:
-                out.replay_g = cost
-                out.replay_ok = (
-                    cost == out.solution_g
-                    and end.is_solved()
-                    and len(end.foundations) == 8
-                    and stock_rows(end) == 0
-                )
-                if not out.replay_ok:
+            cand_g = int(best["g"])
+            if out.solution_g is None or cand_g < out.solution_g:
+                out.solved = True
+                out.solution_g = cand_g
+                out.solution_actions = full
+                end = opening.clone()
+                try:
+                    cost = replay_actions(end, full)
+                except Exception:
                     out.accounting_fail = True
-            stop = "solved"
-            out.epochs.append(
-                {
-                    "stock_rows": rows,
-                    "input_roots": len(roots),
-                    "alloc_unique": alloc_u,
-                    "alloc_s": alloc_t,
-                    "unique": kr.unique,
-                    "expanded": kr.expanded,
-                    "generated": kr.generated,
-                    "elapsed_s": kr.elapsed_s,
-                    "stop_reason": kr.stop_reason,
-                    "lane_exp": kr.lane_exp,
-                    "min_g": kr.min_g,
-                    "max_g": kr.max_g,
-                    "min_face_down": epoch_min_fd,
-                    "max_foundations": epoch_max_f,
-                    "n_ready": n_ready,
-                    "nearest_horizon": ready0.get("nearest_horizon"),
-                    "ready_suits": ready0.get("ready_suits"),
-                    "solved": True,
-                }
-            )
-            break
+                else:
+                    out.replay_g = cost
+                    out.replay_ok = (
+                        cost == out.solution_g
+                        and end.is_solved()
+                        and len(end.foundations) == 8
+                        and stock_rows(end) == 0
+                    )
+                    if not out.replay_ok:
+                        out.accounting_fail = True
+            if continue_after_solve:
+                live_ceiling = min(live_ceiling, cand_g - 1)
+                out.candidate_ceiling = live_ceiling
+            if not continue_after_solve or rows == 0:
+                stop = "solved"
+                out.epochs.append(
+                    {
+                        "stock_rows": rows,
+                        "input_roots": len(epoch_roots),
+                        "alloc_unique": alloc_u,
+                        "alloc_s": alloc_t,
+                        "unique": kr.unique,
+                        "expanded": kr.expanded,
+                        "generated": kr.generated,
+                        "elapsed_s": kr.elapsed_s,
+                        "stop_reason": kr.stop_reason,
+                        "lane_exp": kr.lane_exp,
+                        "min_g": kr.min_g,
+                        "max_g": kr.max_g,
+                        "min_face_down": epoch_min_fd,
+                        "max_foundations": epoch_max_f,
+                        "n_ready": n_ready,
+                        "nearest_horizon": ready0.get("nearest_horizon"),
+                        "ready_suits": ready0.get("ready_suits"),
+                        "solved": True,
+                        "candidate_ceiling": live_ceiling,
+                    }
+                )
+                break
 
-        picked, cat_counts = harvest_portfolio(tops, roots, min_root_g, width=portfolio_width)
-        attached = _attach_paths(picked, roots, kr)
+        picked, cat_counts = harvest_portfolio(
+            tops,
+            epoch_roots,
+            min_root_g,
+            width=portfolio_width,
+            cats=harvest_cats,
+            incumbent=epoch_incumbent if epoch_incumbent and int(epoch_incumbent["g"]) <= epoch_ceil else None,
+            vec_fn=harvest_vec_fn,
+            split_pareto=split_pareto,
+        )
+        attached = _attach_paths(picked, epoch_roots, kr)
+        if epoch_incumbent is not None:
+            iid = epoch_incumbent.get("ident")
+            if any((r.get("ident") or r.get("whole_game_identity")) == iid for r in attached):
+                out.incumbent_survived += 1
         verified = []
         next_raw = []
         for rec in attached:
@@ -650,7 +740,8 @@ def search_epoch_portfolio(
         out.epochs.append(
             {
                 "stock_rows": rows,
-                "input_roots": len(roots),
+                "input_roots": len(epoch_roots),
+                "epoch_ceiling": epoch_ceil,
                 "alloc_unique": alloc_u,
                 "alloc_s": alloc_t,
                 "weight": epoch_weight(rows, n_ready),
@@ -702,6 +793,8 @@ def search_epoch_portfolio(
     out.elapsed_s = time.perf_counter() - started
     out.stop_reason = stop or "complete"
     out.states_per_s = 0.0 if out.elapsed_s <= 0 else out.expanded / out.elapsed_s
+    if extra_track is not None:
+        out.class_displaced = int(getattr(extra_track, "displaced", 0) or 0)
     if out.deal_illegal:
         out.accounting_fail = True
     return out
