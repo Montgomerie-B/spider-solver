@@ -514,6 +514,7 @@ def search_epoch_portfolio(
     abort_when=None,
     on_harvest=None,
     lower_bound_fn=None,
+    finalize_track=None,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
@@ -597,6 +598,8 @@ def search_epoch_portfolio(
             rec["lineage"] = list((src_root or {}).get("lineage") or [])
             rec["root_g"] = int(src_root["g"]) if src_root else min_root_g
             rec["delta_g"] = int(g) - int(rec["root_g"])
+            rec["from_incumbent_ckpt"] = bool((src_root or {}).get("incumbent_control"))
+            rec["root_ident"] = (src_root or {}).get("ident") or (src_root or {}).get("whole_game_identity")
             if int(rec.get("foundations") or 0) > 0 and node < len(kr.nodes):
                 prefix = as_actions((src_root or {}).get("full_actions") or [])
                 rec["full_actions"] = dump_actions(prefix + reconstruct_path(kr.nodes, node))
@@ -830,6 +833,8 @@ def search_epoch_portfolio(
                 out.epochs.append(rec)
                 break
 
+        if finalize_track is not None:
+            finalize_track(tops, epoch_roots, min_root_g, rows)
         picked, cat_counts = harvest_portfolio(
             tops,
             epoch_roots,

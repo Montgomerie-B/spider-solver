@@ -8,6 +8,7 @@ transition scalar. No canonical reads for search.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
@@ -143,6 +144,8 @@ def _dominates(a: dict, b: dict, *, include_op: bool) -> bool:
 
 
 def pareto_preview(rows: Sequence[dict]) -> list:
+    """Full all-pairs Pareto. Reference implementation for tests."""
+
     defined = [r for r in rows if (r.get("preview") or {}).get("op_defined")]
     plain = [r for r in rows if r not in defined]
     out = []
@@ -152,6 +155,54 @@ def pareto_preview(rows: Sequence[dict]) -> list:
                 continue
             out.append(rec)
     return out
+
+
+class IncrementalPareto:
+    """Exact incremental nondominated set. Same dominance as ``pareto_preview``.
+
+    Operationally-defined and plain records are separate fronts. Adding a
+    record compares only against its own front.
+    """
+
+    def __init__(self) -> None:
+        self.defined: list = []
+        self.plain: list = []
+        self.n_add = 0
+        self.n_compared = 0
+        self.seconds = 0.0
+
+    def add(self, rec: dict) -> bool:
+        self.n_add += 1
+        op = bool((rec.get("preview") or {}).get("op_defined"))
+        front = self.defined if op else self.plain
+        t0 = time.perf_counter()
+        for o in front:
+            self.n_compared += 1
+            if _dominates(o, rec, include_op=op):
+                self.seconds += time.perf_counter() - t0
+                return False
+        kept = []
+        for o in front:
+            self.n_compared += 1
+            if _dominates(rec, o, include_op=op):
+                continue
+            kept.append(o)
+        kept.append(rec)
+        if op:
+            self.defined = kept
+        else:
+            self.plain = kept
+        self.seconds += time.perf_counter() - t0
+        return True
+
+    def members(self) -> list:
+        return list(self.defined) + list(self.plain)
+
+    def ident_set(self) -> set:
+        out = set()
+        for rec in self.members():
+            out.add(rec.get("ident") or rec.get("whole_game_identity") or rec.get("ordered_digest"))
+        return out
 
 
 def frontier_row(rec: dict) -> dict:
@@ -184,7 +235,48 @@ def frontier_row(rec: dict) -> dict:
     }
 
 
-class TransitionTracker:
+def _insert_transition_categories(tops, rec, preview) -> None:
+    """Frozen v0.66 ranking vectors. Not Pareto."""
+
+    g = int(rec["g"])
+    digest = rec.get("ordered_digest") or ""
+    legal = int(preview.get("legal_tableau") or 0)
+    bounds = int(preview.get("boundaries") or 0)
+    comps = int(preview.get("visible_components") or 0)
+    layers = int(preview.get("component_layers") or 0)
+    fd = int(preview.get("face_down") or 0)
+    if "post_deal_mobility" in tops:
+        band = legal // 4
+        tops["post_deal_mobility"].add((-band, g, -legal, digest), rec)
+    if "post_deal_consolidation" in tops:
+        tops["post_deal_consolidation"].add(
+            (bounds // 4, comps // 4, layers // 2, fd, g, digest), rec
+        )
+    if preview.get("op_defined") and preview.get("op_key") and "post_deal_operational" in tops:
+        tops["post_deal_operational"].add(tuple(preview["op_key"]) + (g, digest), rec)
+    if "post_deal_reception" in tops:
+        same = int(preview.get("same_suit") or 0)
+        rank_ok = int(preview.get("rank_ok") or 0)
+        mixed = int(preview.get("mixed") or 0)
+        tops["post_deal_reception"].add((-(same + rank_ok), mixed, g, digest), rec)
+
+
+def _materialise_pareto_top(tops, members) -> None:
+    if "post_deal_pareto" not in tops:
+        return
+    for item in members:
+        pd = (item.get("preview") or {}).get("post_digest") or item.get("ordered_digest") or ""
+        tops["post_deal_pareto"].add((_n((item.get("preview") or {}).get("post_g")), pd), item)
+
+
+class TransitionTrackerLegacy:
+    """v0.68 bookkeeping: rebuilds full Pareto on every rows=1 visit.
+
+    Kept as the measured reference. Not used by production search.
+    Truncates the seen pool at 240 via a full Pareto slice of 120, so its
+    Pareto set is not the exact nondominated set of all records.
+    """
+
     def __init__(self) -> None:
         self.n_previewed = 0
         self.selected: list = []
@@ -192,6 +284,10 @@ class TransitionTracker:
         self.pool: list = []
         self.seen_pool: set = set()
         self.displaced = 0
+        self.pareto_calls = 0
+        self.pareto_s = 0.0
+        self.cat_s = 0.0
+        self.n_pool_truncations = 0
 
     def __call__(self, tops, rec, min_root_g, class_best) -> None:
         preview = rec.get("preview") or {}
@@ -200,38 +296,100 @@ class TransitionTracker:
         if int(rec.get("stock_rows") or 0) != 1:
             return
         self.n_previewed += 1
-        g = int(rec["g"])
-        digest = rec.get("ordered_digest") or ""
-        legal = int(preview.get("legal_tableau") or 0)
-        bounds = int(preview.get("boundaries") or 0)
-        comps = int(preview.get("visible_components") or 0)
-        layers = int(preview.get("component_layers") or 0)
-        fd = int(preview.get("face_down") or 0)
-        if "post_deal_mobility" in tops:
-            band = legal // 4
-            tops["post_deal_mobility"].add((-band, g, -legal, digest), rec)
-        if "post_deal_consolidation" in tops:
-            tops["post_deal_consolidation"].add(
-                (bounds // 4, comps // 4, layers // 2, fd, g, digest), rec
-            )
-        if preview.get("op_defined") and preview.get("op_key") and "post_deal_operational" in tops:
-            tops["post_deal_operational"].add(tuple(preview["op_key"]) + (g, digest), rec)
-        if "post_deal_reception" in tops:
-            same = int(preview.get("same_suit") or 0)
-            rank_ok = int(preview.get("rank_ok") or 0)
-            mixed = int(preview.get("mixed") or 0)
-            tops["post_deal_reception"].add((-(same + rank_ok), mixed, g, digest), rec)
-        ident = rec.get("ident") or digest
+        t_cat = time.perf_counter()
+        _insert_transition_categories(tops, rec, preview)
+        self.cat_s += time.perf_counter() - t_cat
+        ident = rec.get("ident") or rec.get("ordered_digest") or ""
+        t_p = time.perf_counter()
         if ident not in self.seen_pool:
             self.seen_pool.add(ident)
             self.pool.append(rec)
             if len(self.pool) > 240:
+                self.n_pool_truncations += 1
+                self.pareto_calls += 1
                 self.pool = pareto_preview(self.pool)[:120] or self.pool[-120:]
                 self.seen_pool = {r.get("ident") or r.get("ordered_digest") for r in self.pool}
         if "post_deal_pareto" in tops:
-            for item in pareto_preview(self.pool)[:40]:
-                pd = (item.get("preview") or {}).get("post_digest") or item.get("ordered_digest") or ""
-                tops["post_deal_pareto"].add((_n((item.get("preview") or {}).get("post_g")), pd), item)
+            self.pareto_calls += 1
+            members = pareto_preview(self.pool)[:40]
+            _materialise_pareto_top(tops, members)
+        self.pareto_s += time.perf_counter() - t_p
+
+    def finalize(self, tops, roots, min_root_g, rows=None) -> None:
+        return
+
+    def on_harvest(self, rows, picked, cat_counts, attached) -> None:
+        if int(rows) != 1:
+            return
+        self.selected_cats = dict(cat_counts or {})
+        self.selected = [frontier_row(rec) for rec in (attached or picked or [])]
+
+
+class TransitionTracker:
+    """v0.69 harvest bookkeeping: incremental exact Pareto, materialised once."""
+
+    def __init__(self) -> None:
+        self.n_previewed = 0
+        self.selected: list = []
+        self.selected_cats: dict = {}
+        self.pool: list = []
+        self.seen_pool: set = set()
+        self.displaced = 0
+        self.front = IncrementalPareto()
+        self.pareto_calls = 0
+        self.pareto_s = 0.0
+        self.cat_s = 0.0
+        self.finalize_s = 0.0
+        self.n_ckpt_desc = 0
+        self.f2_rows1: list = []
+        self.ckpt_f2_rows1: list = []
+
+    def __call__(self, tops, rec, min_root_g, class_best) -> None:
+        preview = rec.get("preview") or {}
+        if not preview.get("ok"):
+            return
+        if int(rec.get("stock_rows") or 0) != 1:
+            return
+        self.n_previewed += 1
+        t_cat = time.perf_counter()
+        _insert_transition_categories(tops, rec, preview)
+        self.cat_s += time.perf_counter() - t_cat
+        ident = rec.get("ident") or rec.get("ordered_digest") or ""
+        if ident not in self.seen_pool:
+            self.seen_pool.add(ident)
+            self.pool.append(rec)
+            self.front.add(rec)
+        self.pareto_calls = self.front.n_add
+        self.pareto_s = self.front.seconds
+        if rec.get("from_incumbent_ckpt"):
+            self.n_ckpt_desc += 1
+        if int(rec.get("foundations") or 0) >= 2:
+            snap = {
+                "g": rec.get("g"),
+                "fd": rec.get("face_down"),
+                "F": rec.get("foundations"),
+                "suits": rec.get("foundation_suits"),
+                "legal": rec.get("legal_tableau"),
+                "boundaries": rec.get("boundaries_total") or preview.get("boundaries"),
+                "from_incumbent_ckpt": bool(rec.get("from_incumbent_ckpt")),
+                "ident": ident,
+                "preview": {
+                    "rank_ok": preview.get("rank_ok"),
+                    "same_suit": preview.get("same_suit"),
+                    "mixed": preview.get("mixed"),
+                    "legal_tableau": preview.get("legal_tableau"),
+                },
+            }
+            self.f2_rows1.append(snap)
+            if snap["from_incumbent_ckpt"]:
+                self.ckpt_f2_rows1.append(snap)
+
+    def finalize(self, tops, roots, min_root_g, rows=None) -> None:
+        if rows is not None and int(rows) != 1:
+            return
+        t0 = time.perf_counter()
+        _materialise_pareto_top(tops, self.front.members())
+        self.finalize_s += time.perf_counter() - t0
 
     def on_harvest(self, rows, picked, cat_counts, attached) -> None:
         if int(rows) != 1:
@@ -251,6 +409,21 @@ class TransitionTracker:
                     rec["preview"] = preview_next_deal(st, pre_g=int(rec.get("g") or 0), detail="full")
             rows_out.append(frontier_row(rec))
         self.selected = rows_out
+
+    def stats(self) -> dict:
+        return {
+            "n_previewed": self.n_previewed,
+            "pareto_calls": self.pareto_calls,
+            "pareto_compared": self.front.n_compared,
+            "pareto_s": self.pareto_s,
+            "cat_s": self.cat_s,
+            "finalize_s": self.finalize_s,
+            "front_n": len(self.front.members()),
+            "pool_n": len(self.pool),
+            "n_ckpt_desc": self.n_ckpt_desc,
+            "n_f2_rows1": len(self.f2_rows1),
+            "n_ckpt_f2_rows1": len(self.ckpt_f2_rows1),
+        }
 
 
 def search_transition_continuation(
@@ -276,6 +449,7 @@ def search_transition_continuation(
         extra_track=tracker,
         enrich_fn=enrich_transition,
         on_harvest=tracker.on_harvest,
+        finalize_track=tracker.finalize,
     )
     result.transition_tracker = tracker
     result.n_previewed = tracker.n_previewed

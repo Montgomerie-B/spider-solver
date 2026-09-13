@@ -100,6 +100,7 @@ def search_integrated_optimisation(
         extra_track=tracker,
         enrich_fn=enrich_integrated,
         on_harvest=tracker.on_harvest,
+        finalize_track=tracker.finalize,
         lane_names=COMPLETION_LANES,
         keys_fn=assembly_lane_keys,
         lower_bound_fn=stock_empty_assembly_h,

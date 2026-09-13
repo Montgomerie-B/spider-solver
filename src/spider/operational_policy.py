@@ -189,6 +189,7 @@ def search_operational_optimisation(
     lane_names=None,
     keys_fn=None,
     lower_bound_fn=None,
+    finalize_track=None,
 ):
     opening = opening or opening_state()
     trace = incumbent_trace or load_machine_incumbent(opening)
@@ -223,6 +224,7 @@ def search_operational_optimisation(
         abort_when=abort_when,
         on_harvest=on_harvest,
         lower_bound_fn=lower_bound_fn,
+        finalize_track=finalize_track,
     )
     result.incumbent_g = incumbent_g
     result.candidate_ceiling = getattr(result, "candidate_ceiling", None) or ceiling
