@@ -140,6 +140,7 @@ def run_search(
 
     best_g: Dict[bytes, int] = {}
     nodes: List[SearchNode] = []
+    result.nodes = nodes
     heaps: Dict[str, list] = {n: [] for n in names}
     seq = 0
     seen_expand: Dict[bytes, int] = {}
@@ -294,7 +295,7 @@ def run_search(
                 push(child_i, state, child_g)
             finally:
                 restore_state(state, cap)
-        if result.stop_reason in ("unique limit", "time limit", "rss abort"):
+        if result.stop_reason in ("unique limit", "time limit", "rss abort", "abort"):
             break
         if incumbent is not None and slack is not None:
             live = []

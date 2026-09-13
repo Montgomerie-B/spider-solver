@@ -178,11 +178,15 @@ def search_operational_optimisation(
     time_limit_s: float = SEARCH_TIME_S,
     rss_abort_mb: float = SEARCH_RSS_MB,
     portfolio_width: int = PORTFOLIO_WIDTH,
+    initial_roots=None,
+    abort_when=None,
+    incumbent_by_rows=None,
+    cost_ceiling=None,
 ):
     opening = opening or opening_state()
     trace = incumbent_trace or load_machine_incumbent(opening)
     incumbent_g = int(trace["g"])
-    ceiling = incumbent_g - 1
+    ceiling = int(cost_ceiling) if cost_ceiling is not None else incumbent_g - 1
     tracker = OperationalTracker()
     result = search_epoch_portfolio(
         opening=opening,
@@ -196,12 +200,14 @@ def search_operational_optimisation(
         harvest_cats=OP_HARVEST_CATS,
         harvest_slack=-1,
         remaining_deal_bound=True,
-        incumbent_by_rows=checkpoints_from_trace(trace),
+        incumbent_by_rows=incumbent_by_rows if incumbent_by_rows is not None else checkpoints_from_trace(trace),
         continue_after_solve=True,
         extra_track=tracker,
         harvest_vec_fn=operational_pareto_vec,
         split_pareto=True,
         enrich_fn=enrich_operational,
+        initial_roots=initial_roots,
+        abort_when=abort_when,
     )
     result.incumbent_g = incumbent_g
     result.candidate_ceiling = getattr(result, "candidate_ceiling", None) or ceiling

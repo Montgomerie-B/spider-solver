@@ -306,6 +306,7 @@ def _attach_paths(picked: Sequence[dict], roots: Sequence[dict], kr: KernelResul
         item["ordered_digest"] = kn.store.hex()
         item["ident"] = kn.ident.hex()
         item["whole_game_identity"] = kn.ident.hex()
+        item["lineage"] = list(rec.get("lineage") or src.get("lineage") or [])
         out.append(item)
     return out
 
@@ -344,6 +345,7 @@ def _verify_and_deal(opening: SpiderState, rec: dict) -> Optional[dict]:
     item["solved"] = end.is_solved()
     item["timings"] = list(rec.get("timings") or [])
     item["categories"] = list(rec.get("categories") or ([rec.get("portfolio_cat")] if rec.get("portfolio_cat") else []))
+    item["lineage"] = list(rec.get("lineage") or [])
     return item
 
 
@@ -361,12 +363,18 @@ def _dedup_roots(rows: Sequence[dict]) -> dict:
             continue
         conv += 1
         cats = sorted(set((prev.get("categories") or []) + (rec.get("categories") or [])))
+        lineage = []
+        for tag in list(prev.get("lineage") or []) + list(rec.get("lineage") or []):
+            if tag not in lineage:
+                lineage.append(tag)
         if rec["g"] < prev["g"]:
             item = dict(rec)
             item["categories"] = cats
+            item["lineage"] = lineage
             classes[ident] = item
         else:
             prev["categories"] = cats
+            prev["lineage"] = lineage
     kept = sorted(classes.values(), key=lambda r: (r["g"], r["ordered_digest"]))
     return {
         "raw": len(rows),
@@ -452,15 +460,26 @@ def search_epoch_portfolio(
     harvest_vec_fn=None,
     split_pareto: bool = False,
     enrich_fn=None,
+    initial_roots: Optional[Sequence[dict]] = None,
+    abort_when=None,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
     out = EpochPortfolioResult()
     out.opening_horizons = foundation_readiness(opening)
-    roots = [opening_root(opening)]
-    roots[0]["ident"] = roots[0]["whole_game_identity"]
-    roots[0]["timings"] = ["OPENING"]
-    roots[0]["categories"] = ["deal_now"]
+    if initial_roots:
+        roots = [dict(r) for r in initial_roots]
+        for rec in roots:
+            rec.setdefault("ident", rec.get("whole_game_identity") or rec.get("ident"))
+            rec.setdefault("timings", list(rec.get("timings") or []))
+            rec.setdefault("categories", list(rec.get("categories") or []))
+            rec.setdefault("lineage", list(rec.get("lineage") or []))
+    else:
+        roots = [opening_root(opening)]
+        roots[0]["ident"] = roots[0]["whole_game_identity"]
+        roots[0]["timings"] = ["OPENING"]
+        roots[0]["categories"] = ["deal_now"]
+        roots[0]["lineage"] = []
     out.min_face_down = face_down_count(opening)
     out.max_empty = 0
     out.candidate_ceiling = cost_ceiling
@@ -523,10 +542,16 @@ def search_epoch_portfolio(
                 enrich_fn(state, rec)
             rec["origin"] = kr.nodes[node].origin if node < len(kr.nodes) else 0
             src_root = epoch_roots[rec["origin"]] if rec["origin"] < len(epoch_roots) else None
+            rec["lineage"] = list((src_root or {}).get("lineage") or [])
             rec["root_g"] = int(src_root["g"]) if src_root else min_root_g
             rec["delta_g"] = int(g) - int(rec["root_g"])
+            if int(rec.get("foundations") or 0) > 0 and node < len(kr.nodes):
+                prefix = as_actions((src_root or {}).get("full_actions") or [])
+                rec["full_actions"] = dump_actions(prefix + reconstruct_path(kr.nodes, node))
             elapsed = time.perf_counter() - started
             _note_foundation(out, rec, elapsed, kr.unique, kr.expanded)
+            if abort_when is not None and abort_when(out, rec):
+                kr.stop_reason = "abort"
             if out.min_face_down is None or rec["face_down"] < out.min_face_down:
                 out.min_face_down = rec["face_down"]
             if rec["empty_n"] > (out.max_empty or 0):
@@ -663,6 +688,27 @@ def search_epoch_portfolio(
             out.lane_stale[name] = out.lane_stale.get(name, 0) + kr.lane_stale.get(name, 0)
         out.min_g = kr.min_g if out.min_g is None else min(out.min_g, kr.min_g if kr.min_g is not None else out.min_g)
         out.max_g = kr.max_g if out.max_g is None else max(out.max_g, kr.max_g if kr.max_g is not None else out.max_g)
+
+        if kr.stop_reason == "abort":
+            stop = "abort"
+            out.epochs.append(
+                {
+                    "stock_rows": rows,
+                    "input_roots": len(epoch_roots),
+                    "unique": kr.unique,
+                    "expanded": kr.expanded,
+                    "generated": kr.generated,
+                    "elapsed_s": kr.elapsed_s,
+                    "stop_reason": "abort",
+                    "min_g": kr.min_g,
+                    "max_g": kr.max_g,
+                    "min_face_down": epoch_min_fd,
+                    "max_foundations": epoch_max_f,
+                    "n_ready": n_ready,
+                    "lineage_roots": sum(1 for r in epoch_roots if r.get("lineage")),
+                }
+            )
+            break
 
         if kr.terminals:
             best = min(kr.terminals, key=lambda t: (t["g"], t["store"]))
@@ -817,6 +863,10 @@ def search_epoch_portfolio(
                 "after_deal_raw": dedup["raw"] if rows > 0 else 0,
                 "after_deal_unique": dedup["unique"] if rows > 0 else 0,
                 "after_deal_convergences": dedup["convergences"] if rows > 0 else 0,
+                "lineage_roots": sum(1 for r in epoch_roots if r.get("lineage")),
+                "lineage_after_deal": 0
+                if rows == 0
+                else sum(1 for r in dedup["states"] if r.get("lineage")),
             }
         )
         if kr.stop_reason == "rss abort":
