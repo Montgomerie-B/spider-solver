@@ -1,0 +1,8 @@
+{
+  "cheaper_prefix_hits": 0,
+  "hits": 99,
+  "max_foundations": 2,
+  "phase": "complete",
+  "solution_g": null,
+  "verdict": "CONTINUATION_TABLE_VALID_NO_IMPROVEMENT"
+}

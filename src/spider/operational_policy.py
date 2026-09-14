@@ -193,6 +193,7 @@ def search_operational_optimisation(
     epoch_augment_fn=None,
     augment_fraction=None,
     augment_when=None,
+    continuation_table=None,
 ):
     opening = opening or opening_state()
     trace = incumbent_trace or load_machine_incumbent(opening)
@@ -231,6 +232,7 @@ def search_operational_optimisation(
         epoch_augment_fn=epoch_augment_fn,
         augment_fraction=0.25 if augment_fraction is None else augment_fraction,
         augment_when=augment_when,
+        continuation_table=continuation_table,
     )
     result.incumbent_g = incumbent_g
     result.candidate_ceiling = getattr(result, "candidate_ceiling", None) or ceiling

@@ -519,6 +519,7 @@ def search_epoch_portfolio(
     epoch_augment_fn=None,
     augment_fraction: float = AUGMENT_FRACTION,
     augment_when=None,
+    continuation_table=None,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
@@ -575,6 +576,12 @@ def search_epoch_portfolio(
             stop = "ceiling exhausted"
             break
         min_root_g = min(int(r["g"]) for r in epoch_roots)
+        if continuation_table is not None:
+            for rec in epoch_roots:
+                spliced_g = continuation_table.consider_rec(opening, rec, out, live_ceiling)
+                if spliced_g is not None:
+                    live_ceiling = min(live_ceiling, int(spliced_g) - 1)
+                    out.candidate_ceiling = live_ceiling
         tops = {cat: _Top() for cat in harvest_cats}
         epoch_min_fd = None
         epoch_max_f = 0
@@ -589,7 +596,7 @@ def search_epoch_portfolio(
 
         def on_progress(kr: KernelResult, state: SpiderState, g: int, node: int) -> None:
             nonlocal epoch_min_fd, epoch_max_f, epoch_max_empty, epoch_best_c, epoch_best_r
-            nonlocal epoch_best_d, epoch_debt_n, epoch_debt_sum, epoch_debt_min
+            nonlocal epoch_best_d, epoch_debt_n, epoch_debt_sum, epoch_debt_min, live_ceiling
             if stock_rows(state) != rows:
                 out.accounting_fail = True
             s = current_tableau_summary(state)
@@ -609,6 +616,13 @@ def search_epoch_portfolio(
                 rec["full_actions"] = dump_actions(prefix + reconstruct_path(kr.nodes, node))
             elapsed = time.perf_counter() - started
             _note_foundation(out, rec, elapsed, kr.unique, kr.expanded)
+            if continuation_table is not None:
+                spliced_g = continuation_table.consider_generated(
+                    opening, rec, g, kr, node, src_root, out, live_ceiling
+                )
+                if spliced_g is not None:
+                    live_ceiling = min(live_ceiling, int(spliced_g) - 1)
+                    out.candidate_ceiling = live_ceiling
             if abort_when is not None and abort_when(out, rec):
                 kr.stop_reason = "abort"
             if out.min_face_down is None or rec["face_down"] < out.min_face_down:
@@ -948,6 +962,12 @@ def search_epoch_portfolio(
                 "n_terminals_raw": int(stats.get("n_terminals_raw") or n_add),
                 "probes": list(stats.get("probes") or []),
             }
+        if continuation_table is not None:
+            for rec in attached:
+                spliced_g = continuation_table.consider_rec(opening, rec, out, live_ceiling)
+                if spliced_g is not None:
+                    live_ceiling = min(live_ceiling, int(spliced_g) - 1)
+                    out.candidate_ceiling = live_ceiling
         if epoch_incumbent is not None:
             iid = epoch_incumbent.get("ident")
             if any((r.get("ident") or r.get("whole_game_identity")) == iid for r in attached):
@@ -984,6 +1004,12 @@ def search_epoch_portfolio(
                     stop = "solved"
             else:
                 next_raw.append(rec)
+        if continuation_table is not None:
+            for rec in next_raw:
+                spliced_g = continuation_table.consider_rec(opening, rec, out, live_ceiling)
+                if spliced_g is not None:
+                    live_ceiling = min(live_ceiling, int(spliced_g) - 1)
+                    out.candidate_ceiling = live_ceiling
         dedup = _dedup_roots(next_raw) if rows > 0 else {"raw": len(next_raw), "unique": len(next_raw), "convergences": 0, "states": list(next_raw)}
         out.epochs.append(
             {

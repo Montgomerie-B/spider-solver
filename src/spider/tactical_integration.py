@@ -637,6 +637,7 @@ def search_integrated_tactical(
     rss_abort_mb: float = SEARCH_RSS_MB,
     portfolio_width: int = PORTFOLIO_WIDTH,
     use_checkpoints: bool = True,
+    continuation_table=None,
 ):
     opening = opening or opening_state()
     trace = load_autonomous_192(opening)
@@ -664,6 +665,7 @@ def search_integrated_tactical(
         epoch_augment_fn=rows1_cashout_augment,
         augment_fraction=ROWS1_AUGMENT_FRACTION,
         augment_when=lambda rows, _roots: int(rows) == 1,
+        continuation_table=continuation_table,
     )
     result.transition_tracker = tracker
     result.n_previewed = tracker.n_previewed
