@@ -1,10 +1,8 @@
 {
   "cheapest_f4_g": 163,
-  "cheapest_f4_h": 29,
-  "continuation_pruned": true,
   "max_foundations": 5,
   "n_f4": 16,
   "phase": "complete",
   "solution_g": null,
-  "verdict": "F3_BRIDGE_REACHES_F4"
+  "verdict": "F3_TACTICAL_BRIDGE_DEEP_ENDGAME"
 }
