@@ -627,6 +627,16 @@ class TacticalCashoutResult:
     elapsed_s: float = 0.0
     stop_reason: str = ""
     cheapest_digest: Optional[str] = None
+    lower_bound_prunes: int = 0
+    lower_bound_calls: int = 0
+    lower_bound_s: float = 0.0
+    viable_terminals: List[dict] = field(default_factory=list)
+    raw_count: int = 0
+    viable_count: int = 0
+    cheapest_viable_g: Optional[int] = None
+    first_viable_g: Optional[int] = None
+    first_viable_s: Optional[float] = None
+    lane_names: Tuple[str, ...] = TACTICAL_LANES
 
 
 def search_foundation_cashout(
@@ -642,11 +652,17 @@ def search_foundation_cashout(
     portfolio_limit: int = PORTFOLIO_LIMIT,
     on_progress: Optional[Callable] = None,
     skip_preview: bool = False,
+    lower_bound_fn: Optional[Callable[[SpiderState, int], int]] = None,
+    future_cost_key_fn: Optional[Callable[[SpiderState, int], tuple]] = None,
+    terminal_viability_fn: Optional[Callable[[SpiderState, int], bool]] = None,
 ) -> TacticalCashoutResult:
     """Bounded tableau-only search for one additional target-suit foundation.
 
     Inputs are a serialized/current root, absolute g, and an already-chosen
     target. The autonomous suffix must not be supplied.
+
+    Optional stock-empty proof hooks default to None so v0.71/v0.73
+    pre-stock probes are unchanged.
     """
 
     with tactical_search_session():
@@ -667,14 +683,24 @@ def search_foundation_cashout(
             "symmetry_digest": packed.hex(),
         }
         progress = TacticalProgress()
+        names = TACTICAL_LANES
+        if future_cost_key_fn is not None:
+            names = TACTICAL_LANES + ("target_future",)
+        started = time.perf_counter()
+        first_viable_g: Optional[int] = None
+        first_viable_s: Optional[float] = None
 
         def keys_fn(st: SpiderState, g: int) -> Dict[str, tuple]:
-            return tactical_lane_keys(st, g, target_suit)
+            keys = tactical_lane_keys(st, g, target_suit)
+            if future_cost_key_fn is not None:
+                keys["target_future"] = future_cost_key_fn(st, g)
+            return keys
 
         def terminal_fn(st: SpiderState) -> bool:
             return is_target_cashout(st, target_suit, before)
 
         def child_cb(st: SpiderState, g: int, node_i: int) -> None:
+            nonlocal first_viable_g, first_viable_s
             hit = is_target_cashout(st, target_suit, before)
             snap = {
                 "g": g,
@@ -693,6 +719,14 @@ def search_foundation_cashout(
                 snap["k_access"] = v.get("k_min_blockers")
                 snap["a_access"] = v.get("a_min_blockers")
             progress.observe(snap, is_terminal=hit)
+            if (
+                hit
+                and terminal_viability_fn is not None
+                and first_viable_g is None
+                and terminal_viability_fn(st, int(g))
+            ):
+                first_viable_g = int(g)
+                first_viable_s = time.perf_counter() - started
             if on_progress is not None:
                 on_progress(progress, st, g, node_i)
 
@@ -709,11 +743,12 @@ def search_foundation_cashout(
             identity_fn=pack_whole_game_identity,
             store_fn=pack_state,
             unpack_fn=unpack_state,
-            lane_names=TACTICAL_LANES,
+            lane_names=names,
             lane_keys_fn=keys_fn,
             is_terminal=terminal_fn,
             actions_fn=_tactical_actions,
             on_child=child_cb,
+            lower_bound_fn=lower_bound_fn,
         )
         unique_terms: Dict[str, dict] = {}
         for rec in kernel.terminals:
@@ -728,7 +763,20 @@ def search_foundation_cashout(
             enriched["delta_g"] = int(rec["g"]) - int(root_g)
             unique_terms[ident_h] = enriched
         terminals = sorted(unique_terms.values(), key=lambda r: (r["g"], r["ordered_digest"]))
-        portfolio = select_terminal_portfolio(terminals, limit=portfolio_limit)
+        viable: List[dict] = []
+        for rec in terminals:
+            st = unpack_state(bytes.fromhex(rec["ordered_digest"]))
+            rec["class"] = "RAW_TARGET_CASHOUT"
+            if terminal_viability_fn is None:
+                rec["viable"] = None
+                continue
+            ok = bool(terminal_viability_fn(st, int(rec["g"])))
+            rec["viable"] = ok
+            rec["class"] = "VIABLE_TARGET_CASHOUT" if ok else "RAW_TARGET_CASHOUT"
+            if ok:
+                viable.append(rec)
+        production = terminals if terminal_viability_fn is None else viable
+        portfolio = select_terminal_portfolio(production, limit=portfolio_limit)
         for rec in portfolio:
             if rec.get("node") is not None and kernel.nodes:
                 rec["actions"] = dump_actions(kernel.reconstruct(int(rec["node"])))
@@ -737,10 +785,12 @@ def search_foundation_cashout(
             st = unpack_state(bytes.fromhex(rec["ordered_digest"]))
             rec["deal_preview"] = compact_preview(preview_next_deal(st, pre_g=int(rec["g"])))
         cheapest = terminals[0] if terminals else None
+        cheapest_viable = viable[0] if viable else None
         path: List[Action] = []
         path_trace: dict = {}
-        if cheapest is not None and kernel.nodes:
-            path = kernel.reconstruct(int(cheapest["node"]))
+        source = cheapest if terminal_viability_fn is None else cheapest_viable
+        if source is not None and kernel.nodes:
+            path = kernel.reconstruct(int(source["node"]))
             path_trace = trace_tactical_path(state0, int(root_g), path, target_suit)
         first_s = kernel.first_s
         if first_s is None:
@@ -769,4 +819,14 @@ def search_foundation_cashout(
             elapsed_s=kernel.elapsed_s,
             stop_reason=kernel.stop_reason,
             cheapest_digest=None if cheapest is None else cheapest["ordered_digest"],
+            lower_bound_prunes=int(kernel.lower_bound_prunes or 0),
+            lower_bound_calls=int(kernel.lower_bound_calls or 0),
+            lower_bound_s=float(kernel.lower_bound_s or 0.0),
+            viable_terminals=viable,
+            raw_count=len(terminals),
+            viable_count=len(viable),
+            cheapest_viable_g=None if cheapest_viable is None else int(cheapest_viable["g"]),
+            first_viable_g=first_viable_g,
+            first_viable_s=first_viable_s,
+            lane_names=tuple(names),
         )
