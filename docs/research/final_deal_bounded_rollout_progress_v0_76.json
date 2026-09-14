@@ -1,0 +1,15 @@
+{
+  "canonical_rank": 1,
+  "phase": "complete",
+  "ranking": [
+    "tactical_f2_g128",
+    "ctrl_187",
+    "ctrl_192",
+    "fill_operational",
+    "ctrl_198",
+    "fill_low_f",
+    "fill_mobility",
+    "fill_consolidation"
+  ],
+  "verdict": "ROLLOUT_SIGNAL_STRONGLY_DISCRIMINATES"
+}
