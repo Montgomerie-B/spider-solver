@@ -1,0 +1,10 @@
+{
+  "cheapest_F3_g": 141,
+  "elapsed_s": 900.3039740999811,
+  "first_F3_g": 158,
+  "max_foundations": 3,
+  "phase": "complete",
+  "rollout_assessment": "LONG_SEARCH_STILL_INCONCLUSIVE",
+  "solution_g": null,
+  "verdict": "G128_FOCUSED_SEARCH_LIMITED"
+}

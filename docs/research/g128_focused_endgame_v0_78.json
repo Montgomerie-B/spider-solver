@@ -1,0 +1,426 @@
+{
+  "accounting_fail": false,
+  "base_sha": "e6e33061c539f32a10bfda597c4e5c57270fffe3",
+  "bound_perf": {
+    "calls": 115086,
+    "max_h": 44,
+    "min_f": 172,
+    "min_h": 16,
+    "prunes": 59640,
+    "prunes_by_F": {
+      "2": 56228,
+      "3": 3412
+    },
+    "reconcile": {
+      "cumulative_calls": 115086,
+      "cumulative_prunes": 59640,
+      "cumulative_prunes_by_F": {
+        "2": 56228,
+        "3": 3412
+      },
+      "cumulative_seconds": 23.434579704422504,
+      "epoch_calls": 115086,
+      "epoch_prunes": 59640,
+      "epoch_prunes_by_F": {
+        "2": 56228,
+        "3": 3412
+      },
+      "epoch_seconds": 23.434579704422504,
+      "ok": true,
+      "seconds_match": true
+    },
+    "seconds": 23.434579704422504
+  },
+  "branch": "agent/g128-focused-endgame-v0-78",
+  "candidate_ceiling": 186,
+  "canonical_mw": 172,
+  "continuation_impact": null,
+  "elapsed_s": 900.3039740999811,
+  "envelope": {
+    "ceiling": 186,
+    "rss_abort_mb": 2560.0,
+    "time_s": 900.0,
+    "unique": 800000
+  },
+  "expanded": 9762,
+  "experiment": "g128_focused_endgame_v0_78",
+  "focused_ceiling": 186,
+  "frontier_list": [
+    {
+      "F": 2,
+      "boundaries": 47,
+      "elapsed_s": 0.0,
+      "empty_n": 0,
+      "f": 172,
+      "face_down": 2,
+      "foundations": 2,
+      "g": 129,
+      "h": 43,
+      "legal": 5,
+      "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a39183300032634190007363504213c1b37000c3d3c3b3a3938373635343d17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+    },
+    {
+      "F": 3,
+      "boundaries": 28,
+      "elapsed_s": 90.11182159994496,
+      "empty_n": 2,
+      "f": 174,
+      "face_down": 2,
+      "foundations": 3,
+      "g": 141,
+      "h": 33,
+      "legal": 41,
+      "ordered_digest": "53504b310103000000030d291300013d000e0a1918171615140302111c0b2201020f31122d0c3b1a1d1c2b2a1d2c1b3a393837000426343332000a363504213c1b1a191817000000062827060524230000000a080716151413121109250d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+    }
+  ],
+  "g123": {
+    "digest_match": true,
+    "face_down": 2,
+    "foundations": 1,
+    "g": 123,
+    "n_prefix": 127,
+    "ok": true,
+    "ordered_digest": "53504b310101000a00020d2900010b000b0a1918171615140302111c020f31122d0c3b1a1d1c2b2a1d2c1b3a391822000226340005363504213c000b3d3c3b3a3938373635343d0009282706052423323138000e2d2c2b2a2928272625242332211b0009080716151413121109131a22331937170133250d0d0c0b0a090807060504030201",
+    "reason": null,
+    "stock_rows": 1
+  },
+  "g128": {
+    "delta_g": 5,
+    "face_down": 2,
+    "foundations": 2,
+    "g": 128,
+    "n_tactical": 5,
+    "ok": true,
+    "ordered_digest": "53504b310102000a00020d29000132000c0a1918171615140302111c0b020e31122d0c3b1a1d1c2b2a1d2c1b3a3918000226340006363504213c1b000b3d3c3b3a3938373635343d000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "reason": null,
+    "same_as_187_f2": false,
+    "stock_rows": 1,
+    "target_suit": "d"
+  },
+  "g_first_increase": 158,
+  "generated": 253066,
+  "incumbent_g": 187,
+  "incumbent_updated": false,
+  "interpretation": "F3+ frontier still live at 900s; terminal unresolved",
+  "lanes": {
+    "expansions": {
+      "completion": 1686,
+      "construction": 1955,
+      "cost": 734,
+      "economy": 1392,
+      "horizon": 0,
+      "readiness": 1986,
+      "reveal": 2009
+    }
+  },
+  "max_foundations": 3,
+  "next_recommendation": "Improve stock-empty conversion efficiency on this g128-derived F3 continuation rather than pre-Deal selection or more wall time.",
+  "peak_rss_mb": 136.63671875,
+  "policy_reads_canonical": false,
+  "post": {
+    "assembly_f": 172,
+    "assembly_h": 43,
+    "boundaries_total": 47,
+    "deal_cost": 1,
+    "empty_n": 0,
+    "face_down": 2,
+    "foundations": 2,
+    "g": 129,
+    "legal_tableau": 5,
+    "ok": true,
+    "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a39183300032634190007363504213c1b37000c3d3c3b3a3938373635343d17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "reason": null,
+    "stock_rows": 0,
+    "v076_digest_available": true,
+    "v076_digest_match": true,
+    "visible_components": 47,
+    "whole_game_identity": "53505331010200000001330002321a00030d291300032634190007363504213c1b37000a08071615141312110925000a28270605242332313801000c3d3c3b3a3938373635343d17000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a3918330d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+  },
+  "record_mw": 119,
+  "replay_g": null,
+  "replay_ok": false,
+  "rollout_assessment": "LONG_SEARCH_STILL_INCONCLUSIVE",
+  "rollout_assessment_reason": "no terminal; F3+ reached but conversion unresolved",
+  "snapshots": [
+    {
+      "best_mobility": 68,
+      "cheap_F": {
+        "2": {
+          "boundaries": 47,
+          "elapsed_s": 0.0,
+          "empty_n": 0,
+          "f": 172,
+          "face_down": 2,
+          "foundations": 2,
+          "g": 129,
+          "h": 43,
+          "legal": 5,
+          "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a39183300032634190007363504213c1b37000c3d3c3b3a3938373635343d17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        }
+      },
+      "elapsed_s": 10.00715619995026,
+      "expanded": 0,
+      "generated": 0,
+      "label": "t10",
+      "max_F": 2,
+      "min_boundaries": 18,
+      "min_f": 172,
+      "min_h": 23,
+      "proof_prunes": 0,
+      "solution_g": null,
+      "solved": false,
+      "unique": 0
+    },
+    {
+      "best_mobility": 153,
+      "cheap_F": {
+        "2": {
+          "boundaries": 47,
+          "elapsed_s": 0.0,
+          "empty_n": 0,
+          "f": 172,
+          "face_down": 2,
+          "foundations": 2,
+          "g": 129,
+          "h": 43,
+          "legal": 5,
+          "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a39183300032634190007363504213c1b37000c3d3c3b3a3938373635343d17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        },
+        "3": {
+          "boundaries": 18,
+          "elapsed_s": 10.8889768999652,
+          "empty_n": 3,
+          "f": 180,
+          "face_down": 2,
+          "foundations": 3,
+          "g": 158,
+          "h": 22,
+          "legal": 80,
+          "ordered_digest": "53504b3101030000000a0d29282726252423222100010100140a1918171615140302111c1b1a19181706050413021431122d0c3b1a1d1c2b2a1d2c1b3a393837363534333200023d3c00010b00000000000000090807161514131211090d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        }
+      },
+      "elapsed_s": 30.002210499951616,
+      "expanded": 0,
+      "generated": 0,
+      "label": "t30",
+      "max_F": 3,
+      "min_boundaries": 11,
+      "min_f": 172,
+      "min_h": 16,
+      "proof_prunes": 0,
+      "solution_g": null,
+      "solved": false,
+      "unique": 0
+    },
+    {
+      "best_mobility": 153,
+      "cheap_F": {
+        "2": {
+          "boundaries": 47,
+          "elapsed_s": 0.0,
+          "empty_n": 0,
+          "f": 172,
+          "face_down": 2,
+          "foundations": 2,
+          "g": 129,
+          "h": 43,
+          "legal": 5,
+          "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a39183300032634190007363504213c1b37000c3d3c3b3a3938373635343d17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        },
+        "3": {
+          "boundaries": 18,
+          "elapsed_s": 10.8889768999652,
+          "empty_n": 3,
+          "f": 180,
+          "face_down": 2,
+          "foundations": 3,
+          "g": 158,
+          "h": 22,
+          "legal": 80,
+          "ordered_digest": "53504b3101030000000a0d29282726252423222100010100140a1918171615140302111c1b1a19181706050413021431122d0c3b1a1d1c2b2a1d2c1b3a393837363534333200023d3c00010b00000000000000090807161514131211090d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        }
+      },
+      "elapsed_s": 60.0050691999495,
+      "expanded": 0,
+      "generated": 0,
+      "label": "t60",
+      "max_F": 3,
+      "min_boundaries": 11,
+      "min_f": 172,
+      "min_h": 16,
+      "proof_prunes": 0,
+      "solution_g": null,
+      "solved": false,
+      "unique": 0
+    },
+    {
+      "best_mobility": 153,
+      "cheap_F": {
+        "2": {
+          "boundaries": 47,
+          "elapsed_s": 0.0,
+          "empty_n": 0,
+          "f": 172,
+          "face_down": 2,
+          "foundations": 2,
+          "g": 129,
+          "h": 43,
+          "legal": 5,
+          "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a39183300032634190007363504213c1b37000c3d3c3b3a3938373635343d17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        },
+        "3": {
+          "boundaries": 28,
+          "elapsed_s": 90.11182159994496,
+          "empty_n": 2,
+          "f": 174,
+          "face_down": 2,
+          "foundations": 3,
+          "g": 141,
+          "h": 33,
+          "legal": 41,
+          "ordered_digest": "53504b310103000000030d291300013d000e0a1918171615140302111c0b2201020f31122d0c3b1a1d1c2b2a1d2c1b3a393837000426343332000a363504213c1b1a191817000000062827060524230000000a080716151413121109250d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        }
+      },
+      "elapsed_s": 120.003178199986,
+      "expanded": 0,
+      "generated": 0,
+      "label": "t120",
+      "max_F": 3,
+      "min_boundaries": 11,
+      "min_f": 172,
+      "min_h": 16,
+      "proof_prunes": 0,
+      "solution_g": null,
+      "solved": false,
+      "unique": 0
+    },
+    {
+      "best_mobility": 153,
+      "cheap_F": {
+        "2": {
+          "boundaries": 47,
+          "elapsed_s": 0.0,
+          "empty_n": 0,
+          "f": 172,
+          "face_down": 2,
+          "foundations": 2,
+          "g": 129,
+          "h": 43,
+          "legal": 5,
+          "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a39183300032634190007363504213c1b37000c3d3c3b3a3938373635343d17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        },
+        "3": {
+          "boundaries": 28,
+          "elapsed_s": 90.11182159994496,
+          "empty_n": 2,
+          "f": 174,
+          "face_down": 2,
+          "foundations": 3,
+          "g": 141,
+          "h": 33,
+          "legal": 41,
+          "ordered_digest": "53504b310103000000030d291300013d000e0a1918171615140302111c0b2201020f31122d0c3b1a1d1c2b2a1d2c1b3a393837000426343332000a363504213c1b1a191817000000062827060524230000000a080716151413121109250d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        }
+      },
+      "elapsed_s": 300.001909899991,
+      "expanded": 0,
+      "generated": 0,
+      "label": "t300",
+      "max_F": 3,
+      "min_boundaries": 11,
+      "min_f": 172,
+      "min_h": 16,
+      "proof_prunes": 0,
+      "solution_g": null,
+      "solved": false,
+      "unique": 0
+    },
+    {
+      "best_mobility": 153,
+      "cheap_F": {
+        "2": {
+          "boundaries": 47,
+          "elapsed_s": 0.0,
+          "empty_n": 0,
+          "f": 172,
+          "face_down": 2,
+          "foundations": 2,
+          "g": 129,
+          "h": 43,
+          "legal": 5,
+          "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c0b22020f31122d0c3b1a1d1c2b2a1d2c1b3a39183300032634190007363504213c1b37000c3d3c3b3a3938373635343d17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        },
+        "3": {
+          "boundaries": 28,
+          "elapsed_s": 90.11182159994496,
+          "empty_n": 2,
+          "f": 174,
+          "face_down": 2,
+          "foundations": 3,
+          "g": 141,
+          "h": 33,
+          "legal": 41,
+          "ordered_digest": "53504b310103000000030d291300013d000e0a1918171615140302111c0b2201020f31122d0c3b1a1d1c2b2a1d2c1b3a393837000426343332000a363504213c1b1a191817000000062827060524230000000a080716151413121109250d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+        }
+      },
+      "elapsed_s": 900.340029999963,
+      "expanded": 9762,
+      "generated": 253066,
+      "label": "end",
+      "max_F": 3,
+      "min_boundaries": 11,
+      "min_f": 172,
+      "min_h": 16,
+      "proof_prunes": 59640,
+      "solution_g": null,
+      "solved": false,
+      "unique": 105020
+    }
+  ],
+  "solution_g": null,
+  "solved": false,
+  "states_per_s": 10.84300445275598,
+  "stop_reason": "time limit",
+  "terminal_lineage": null,
+  "time_first_increase": 10.8889768999652,
+  "unique": 105020,
+  "v074_control": {
+    "F3": {
+      "f": 183,
+      "g": 156,
+      "h": 27
+    },
+    "F4": {
+      "f": 188,
+      "g": 175,
+      "h": 13
+    },
+    "F5": {
+      "f": 189,
+      "g": 180,
+      "h": 9
+    },
+    "F6": {
+      "f": 187,
+      "g": 183,
+      "h": 4
+    },
+    "F7": {
+      "f": 187,
+      "g": 186,
+      "h": 1
+    },
+    "F8": {
+      "f": 187,
+      "g": 187,
+      "h": 0
+    },
+    "root_f": 171,
+    "root_h": 41,
+    "root_post_g": 130,
+    "terminal": 187
+  },
+  "verdict": "G128_FOCUSED_SEARCH_LIMITED",
+  "verdict_reason": "F3+ frontier still live at 900s; terminal unresolved",
+  "wall_s": 900.340173900011
+}
