@@ -200,7 +200,15 @@ def immediate_deal_control(f2: dict, *, cache: Optional[ExactHCache] = None) -> 
     return post
 
 
-def harvest_preparation(opening, f2: dict, *, time_s: float, unique: int = PREP_UNIQUE, max_dg: int = MAX_DG) -> dict:
+def harvest_preparation(
+    opening,
+    f2: dict,
+    *,
+    time_s: float,
+    unique: int = PREP_UNIQUE,
+    max_dg: int = MAX_DG,
+    materialize_paths: bool = True,
+) -> dict:
     root_g = int(f2["g"])
     archive: Dict[str, dict] = {}
     prefix = as_actions(f2.get("full_actions") or [])
@@ -251,30 +259,31 @@ def harvest_preparation(opening, f2: dict, *, time_s: float, unique: int = PREP_
     )
     cands = []
     for digest, rec in archive.items():
-        path = []
-        if rec["node"] and kr.nodes:
-            path = kr.reconstruct(int(rec["node"]))
-        if any(is_deal(a) for a in path):
-            continue
         dg = int(rec["g"]) - root_g
-        cands.append(
-            {
-                "source": f2.get("name"),
-                "g": rec["g"],
-                "prep_delta_g": dg,
-                "prep_band": prep_cost_band(dg),
-                "n_actions": len(path),
-                "foundations": rec["foundations"],
-                "empty_n": rec["empty_n"],
-                "legal_tableau": rec["legal_tableau"],
-                "visible_runs": rec["visible_runs"],
-                "face_down": rec["face_down"],
-                "ordered_digest": digest,
-                "full_actions": dump_actions(prefix + path),
-                "stock_rows": 1,
-                "can_deal": True,
-            }
-        )
+        item = {
+            "source": f2.get("name"),
+            "g": rec["g"],
+            "prep_delta_g": dg,
+            "prep_band": prep_cost_band(dg),
+            "foundations": rec["foundations"],
+            "empty_n": rec["empty_n"],
+            "legal_tableau": rec["legal_tableau"],
+            "visible_runs": rec["visible_runs"],
+            "face_down": rec["face_down"],
+            "ordered_digest": digest,
+            "stock_rows": 1,
+            "can_deal": True,
+            "node": rec["node"],
+        }
+        if materialize_paths:
+            path = []
+            if rec["node"] and kr.nodes:
+                path = kr.reconstruct(int(rec["node"]))
+            if any(is_deal(a) for a in path):
+                continue
+            item["n_actions"] = len(path)
+            item["full_actions"] = dump_actions(prefix + path)
+        cands.append(item)
     cands.sort(key=lambda r: (int(r["g"]), r["ordered_digest"]))
     n_f3 = sum(1 for r in cands if int(r["foundations"]) >= 3)
     return {
@@ -289,6 +298,8 @@ def harvest_preparation(opening, f2: dict, *, time_s: float, unique: int = PREP_
         "n_predeal_f3": n_f3,
         "candidates": cands,
         "peak_rss_mb": kr.peak_rss_mb,
+        "kernel": None if materialize_paths else kr,
+        "prefix": dump_actions(prefix),
     }
 
 

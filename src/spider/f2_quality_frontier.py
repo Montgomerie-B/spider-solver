@@ -393,6 +393,8 @@ def as_rollout_post(post: dict) -> dict:
     rec["role"] = rec["tag"]
     rec["legal"] = post.get("legal") or post.get("legal_tableau")
     rec["ident"] = post.get("ident") or post.get("whole_game_identity")
+    if rec.get("boundaries") is None:
+        rec["boundaries"] = post.get("visible_runs") or post.get("mixed_suit_boundaries") or 0
     return rec
 
 

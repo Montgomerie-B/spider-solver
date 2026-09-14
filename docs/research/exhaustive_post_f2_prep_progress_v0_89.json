@@ -1,0 +1,7 @@
+{
+  "min_f": 171,
+  "n_eval": 89227,
+  "n_unique_post": 86416,
+  "phase": "complete",
+  "verdict": "EXHAUSTIVE_PREP_FINDS_SUPERIOR_ROOT"
+}
