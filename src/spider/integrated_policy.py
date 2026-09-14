@@ -1,8 +1,8 @@
-"""v0.68 integrated whole-game optimisation from the autonomous 192 incumbent.
+"""v0.68 integrated whole-game optimisation from the current autonomous incumbent.
 
 Starts from the untouched opening. Retains operational viability, frozen
 v0.66 final-Deal preview, and the v0.67 stock-empty assembly bound.
-No canonical reads for search. No DURABILITY.
+No canonical reads for search. No DURABILITY. Current incumbent is v0.74 / 187.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from spider.whole_game_epoch_scheduler import (
     SEARCH_UNIQUE,
 )
 
-INCUMBENT_MOVES = Path(__file__).resolve().parents[2] / "solutions" / "4925153_autonomous_v0_67.moves"
+INCUMBENT_MOVES = Path(__file__).resolve().parents[2] / "solutions" / "4925153_autonomous_v0_74.moves"
 CANDIDATE_CEILING = AUTONOMOUS_INCUMBENT_MW - 1
 PARENT_INCUMBENT = AUTONOMOUS_INCUMBENT_MW
 

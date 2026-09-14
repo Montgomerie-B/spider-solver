@@ -77,23 +77,24 @@ def _columns(*runs, down=None, foundations=None, stock=None) -> SpiderState:
 
 
 def test_192_incumbent_replay_and_constants():
-    assert AUTONOMOUS_INCUMBENT_MW == 192
-    assert CANDIDATE_CEILING == 191
+    assert AUTONOMOUS_INCUMBENT_MW == 187
+    assert CANDIDATE_CEILING == 186
     assert RECORD_MW_COST == 119
     assert CANONICAL_MW_COST == 172
     assert AUTONOMOUS_INCUMBENT_MW != CANONICAL_MW_COST
     opening = opening_state()
     v = verify_autonomous_192(opening)
     assert v["ok"]
-    assert v["g"] == 192
+    assert v["g"] == AUTONOMOUS_INCUMBENT_MW == 187
     assert v["deals"] == 5
     assert v["solved"]
     assert v["foundations"] == 8
     assert v["stock_empty"]
     assert v["tableau_empty"]
     end = opening.clone()
-    assert replay_actions(end, parse_moves_file(INCUMBENT_MOVES)) == 192
+    assert replay_actions(end, parse_moves_file(INCUMBENT_MOVES)) == 187
     assert end.is_solved()
+    assert replay_actions(opening.clone(), parse_moves_file(V067)) == 192
 
 
 def test_v067_header_fix_does_not_change_moves():
@@ -102,10 +103,9 @@ def test_v067_header_fix_does_not_change_moves():
     assert "v0.59" not in text.splitlines()[0]
     opening = opening_state()
     a = parse_moves_file(V067)
-    b = verify_autonomous_192(opening)["actions"]
-    assert a == b
     end = opening.clone()
     assert replay_actions(end, a) == 192
+    assert end.is_solved()
 
 
 def test_preview_cache_preserves_exact_result():
@@ -218,7 +218,7 @@ def test_no_canonical_in_search_ceiling_and_opening_root():
     assert "durability" not in src
     src_i = inspect.getsource(search_integrated_optimisation)
     assert "cost_ceiling=CANDIDATE_CEILING" in src_i
-    assert CANDIDATE_CEILING == 191
+    assert CANDIDATE_CEILING == 186
     opening = opening_state()
     root = opening_root(opening)
     assert root["g"] == 0

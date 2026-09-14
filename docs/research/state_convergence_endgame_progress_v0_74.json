@@ -1,0 +1,10 @@
+{
+  "ceiling": 186,
+  "max_foundations": 8,
+  "min_f": 171,
+  "phase": "complete",
+  "promoted_g": 187,
+  "solution_g": 187,
+  "spliced_g": 191,
+  "verdict": "STATE_CONVERGENCE_ENDGAME_COST_IMPROVED"
+}

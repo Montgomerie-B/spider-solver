@@ -1,0 +1,1736 @@
+{
+  "accounting_fail": false,
+  "actual_post_sd5_same": false,
+  "autonomy": {
+    "canonical_input": false,
+    "prefix_source": "v0.73",
+    "route_construction_187": "autonomous prefix to F2 plus independently searched stock-empty continuation",
+    "route_construction_191": "exact autonomous state convergence",
+    "stock_empty_187_source": "v0.74 focused search",
+    "suffix_191_source": "v0.67"
+  },
+  "base_sha": "7ea8583bcd691cdf70524b70b18180baf15f8ffb",
+  "bound_perf": {
+    "calls": 123222,
+    "max_h": 42,
+    "min_f": 171,
+    "min_h": 1,
+    "prunes": 65969,
+    "prunes_by_F": {
+      "2": 57561,
+      "3": 5749,
+      "4": 1945,
+      "5": 482,
+      "6": 190,
+      "7": 42
+    },
+    "reconcile": {
+      "cumulative_calls": 123222,
+      "cumulative_prunes": 65969,
+      "cumulative_prunes_by_F": {
+        "2": 57561,
+        "3": 5749,
+        "4": 1945,
+        "5": 482,
+        "6": 190,
+        "7": 42
+      },
+      "cumulative_seconds": 22.844201305066235,
+      "epoch_calls": 123222,
+      "epoch_prunes": 65969,
+      "epoch_prunes_by_F": {
+        "2": 57561,
+        "3": 5749,
+        "4": 1945,
+        "5": 482,
+        "6": 190,
+        "7": 42
+      },
+      "epoch_seconds": 22.844201305066235,
+      "ok": true,
+      "seconds_match": true
+    },
+    "seconds": 22.844201305066235
+  },
+  "branch": "agent/state-convergence-endgame-v0-74",
+  "candidate_ceiling": 190,
+  "candidate_ceiling_after": 186,
+  "canonical_eval_g": 172,
+  "canonical_mw": 172,
+  "checkpoints_187": {
+    "0": {
+      "face_down": 2,
+      "foundations": 2,
+      "g": 130,
+      "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c1b22020f31122d0c3b1a1d1c2b2a1d2c1b3a391833000326341900053635042137000e3d3c3b3a3938373635343d3c0b17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_rows": 0
+    },
+    "1": {
+      "face_down": 2,
+      "foundations": 1,
+      "g": 123,
+      "ordered_digest": "53504b310101000a00020d2900010b000b0a1918171615140302111c020f31122d0c3b1a1d1c2b2a1d2c1b3a391822000226340005363504213c000b3d3c3b3a3938373635343d0009282706052423323138000e2d2c2b2a2928272625242332211b0009080716151413121109131a22331937170133250d0d0c0b0a090807060504030201",
+      "stock_rows": 1
+    },
+    "2": {
+      "face_down": 9,
+      "foundations": 1,
+      "g": 74,
+      "ordered_digest": "53504b310101001400023a32030215191b110a00071224233231162c020931122d0c3b1a1d1c2b2a1d040d260d13343d3c3b3a39383706242302211800053635042139000718171615141103000328270500092d2c2b2a292827262500050807363514131a2233193717013325290b1c22343c3d381b090d0d0c0b0a090807060504030201",
+      "stock_rows": 2
+    },
+    "3": {
+      "face_down": 10,
+      "foundations": 0,
+      "g": 65,
+      "ordered_digest": "53504b310100001e00023a0d040315191b112827010006122423323116020b31122d0c3b1a1d0c0b0a090807040c260d13343d3c3b3a3938370624230221000436350421000618171615141100092d2c2b2a292827262a000336351c0008080706050403022b131a2233193717013325290b1c22343c3d381b09320a2c1d183903052514",
+      "stock_rows": 3
+    },
+    "4": {
+      "face_down": 18,
+      "foundations": 0,
+      "g": 33,
+      "ordered_digest": "53504b310100002804053a2c3608350423020b050515191b11282d0c2b2a2900021224020531122d0c3b1a1d0409260d13343d3c3b3a39383706240003282726020218360a0900051716151427000707060504030208010331233235131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b",
+      "stock_rows": 4
+    },
+    "5": {
+      "face_down": 44,
+      "foundations": 0,
+      "g": 0,
+      "ordered_digest": "53504b310100003205013a2c36083502050115191b11282d05013b273a070c04050131122d1a16170401260d13343d04010c3c020305040118360a2a2804011214320406040123062b383904013123153b37131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b0b29241d242609270835",
+      "stock_rows": 5
+    }
+  },
+  "checkpoints_191": {
+    "0": {
+      "face_down": 2,
+      "foundations": 2,
+      "g": 134,
+      "ordered_digest": "53504b310102000000030d291300021b1a000d0a1918171615140302111c1b22020b31122d0c3b1a1d1c2b2a1d2c3300032634190005363504213700113d3c3b3a3938373635343d3c0b3a391817000a2827060524233231380100023233000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_rows": 0
+    },
+    "1": {
+      "face_down": 2,
+      "foundations": 1,
+      "g": 123,
+      "ordered_digest": "53504b310101000a00020d2900010b000b0a1918171615140302111c020f31122d0c3b1a1d1c2b2a1d2c1b3a391822000226340005363504213c000b3d3c3b3a3938373635343d0009282706052423323138000e2d2c2b2a2928272625242332211b0009080716151413121109131a22331937170133250d0d0c0b0a090807060504030201",
+      "stock_rows": 1
+    },
+    "2": {
+      "face_down": 9,
+      "foundations": 1,
+      "g": 74,
+      "ordered_digest": "53504b310101001400023a32030215191b110a00071224233231162c020931122d0c3b1a1d1c2b2a1d040d260d13343d3c3b3a39383706242302211800053635042139000718171615141103000328270500092d2c2b2a292827262500050807363514131a2233193717013325290b1c22343c3d381b090d0d0c0b0a090807060504030201",
+      "stock_rows": 2
+    },
+    "3": {
+      "face_down": 10,
+      "foundations": 0,
+      "g": 65,
+      "ordered_digest": "53504b310100001e00023a0d040315191b112827010006122423323116020b31122d0c3b1a1d0c0b0a090807040c260d13343d3c3b3a3938370624230221000436350421000618171615141100092d2c2b2a292827262a000336351c0008080706050403022b131a2233193717013325290b1c22343c3d381b09320a2c1d183903052514",
+      "stock_rows": 3
+    },
+    "4": {
+      "face_down": 18,
+      "foundations": 0,
+      "g": 33,
+      "ordered_digest": "53504b310100002804053a2c3608350423020b050515191b11282d0c2b2a2900021224020531122d0c3b1a1d0409260d13343d3c3b3a39383706240003282726020218360a0900051716151427000707060504030208010331233235131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b",
+      "stock_rows": 4
+    },
+    "5": {
+      "face_down": 44,
+      "foundations": 0,
+      "g": 0,
+      "ordered_digest": "53504b310100003205013a2c36083502050115191b11282d05013b273a070c04050131122d1a16170401260d13343d04010c3c020305040118360a2a2804011214320406040123062b383904013123153b37131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b0b29241d242609270835",
+      "stock_rows": 5
+    }
+  },
+  "digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+  "elapsed_s": 900.1279853000306,
+  "envelope": {
+    "ceiling": 190,
+    "root_g": 130,
+    "rss_abort_mb": 2560.0,
+    "time_s": 900.0,
+    "unique": 800000
+  },
+  "expanded": 9421,
+  "expected_g": 191,
+  "experiment": "state_convergence_endgame_v0_74",
+  "focused": {
+    "assembly_f": 171,
+    "assembly_h": 41,
+    "boundaries_total": 45,
+    "deal_cost": 1,
+    "empty_n": 0,
+    "face_down": 2,
+    "foundation_suits": [
+      "s",
+      "d"
+    ],
+    "foundations": 2,
+    "g": 130,
+    "legal_mobility": 5,
+    "legal_tableau": 5,
+    "ok": true,
+    "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c1b22020f31122d0c3b1a1d1c2b2a1d2c1b3a391833000326341900053635042137000e3d3c3b3a3938373635343d3c0b17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "pre_digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "stock_rows": 0,
+    "visible_components": 45,
+    "whole_game_identity": "53505331010200000001330002321a00030d2913000326341900053635042137000a08071615141312110925000a28270605242332313801000d0a1918171615140302111c1b22000e3d3c3b3a3938373635343d3c0b17020f31122d0c3b1a1d1c2b2a1d2c1b3a3918330d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+  },
+  "foundations": {
+    "cheap": {
+      "2": {
+        "assembly_f": 171,
+        "assembly_h": 41,
+        "boundaries_total": 35,
+        "elapsed_s": 0.011559700011275709,
+        "empty_n": 0,
+        "face_down": 2,
+        "foundations": 2,
+        "from_incumbent_ckpt": false,
+        "g": 130,
+        "legal_tableau": 5,
+        "slack_190": 19,
+        "stock_rows": 0
+      },
+      "3": {
+        "assembly_f": 183,
+        "assembly_h": 27,
+        "boundaries_total": 21,
+        "elapsed_s": 368.25595520000206,
+        "empty_n": 1,
+        "face_down": 2,
+        "foundations": 3,
+        "from_incumbent_ckpt": false,
+        "g": 156,
+        "legal_tableau": 30,
+        "slack_190": 7,
+        "stock_rows": 0
+      },
+      "4": {
+        "assembly_f": 188,
+        "assembly_h": 13,
+        "boundaries_total": 8,
+        "elapsed_s": 307.8015088000102,
+        "empty_n": 3,
+        "face_down": 2,
+        "foundations": 4,
+        "from_incumbent_ckpt": false,
+        "g": 175,
+        "legal_tableau": 109,
+        "slack_190": 2,
+        "stock_rows": 0
+      },
+      "5": {
+        "assembly_f": 189,
+        "assembly_h": 9,
+        "boundaries_total": 3,
+        "elapsed_s": 26.17981190001592,
+        "empty_n": 2,
+        "face_down": 1,
+        "foundations": 5,
+        "from_incumbent_ckpt": false,
+        "g": 180,
+        "legal_tableau": 45,
+        "slack_190": 1,
+        "stock_rows": 0
+      },
+      "6": {
+        "assembly_f": 187,
+        "assembly_h": 4,
+        "boundaries_total": 1,
+        "elapsed_s": 244.63178980001248,
+        "empty_n": 5,
+        "face_down": 0,
+        "foundations": 6,
+        "from_incumbent_ckpt": false,
+        "g": 183,
+        "legal_tableau": 84,
+        "slack_190": 3,
+        "stock_rows": 0
+      },
+      "7": {
+        "assembly_f": 187,
+        "assembly_h": 1,
+        "boundaries_total": 0,
+        "elapsed_s": 246.01152410003124,
+        "empty_n": 8,
+        "face_down": 0,
+        "foundations": 7,
+        "from_incumbent_ckpt": false,
+        "g": 186,
+        "legal_tableau": 105,
+        "slack_190": 3,
+        "stock_rows": 0
+      },
+      "8": {
+        "assembly_f": 187,
+        "assembly_h": 0,
+        "boundaries_total": 0,
+        "elapsed_s": 246.36587949999375,
+        "empty_n": 10,
+        "face_down": 0,
+        "foundations": 8,
+        "from_incumbent_ckpt": false,
+        "g": 187,
+        "legal_tableau": 0,
+        "slack_190": 3,
+        "stock_rows": 0
+      }
+    }
+  },
+  "frontier": [
+    {
+      "F": 2,
+      "assembly_f": 171,
+      "assembly_h": 41,
+      "boundaries_total": 35,
+      "elapsed_s": 0.011559700011275709,
+      "empty_n": 0,
+      "face_down": 2,
+      "foundations": 2,
+      "from_incumbent_ckpt": false,
+      "g": 130,
+      "legal_tableau": 5,
+      "slack_190": 19,
+      "stock_rows": 0
+    },
+    {
+      "F": 3,
+      "assembly_f": 183,
+      "assembly_h": 27,
+      "boundaries_total": 21,
+      "elapsed_s": 368.25595520000206,
+      "empty_n": 1,
+      "face_down": 2,
+      "foundations": 3,
+      "from_incumbent_ckpt": false,
+      "g": 156,
+      "legal_tableau": 30,
+      "slack_190": 7,
+      "stock_rows": 0
+    },
+    {
+      "F": 4,
+      "assembly_f": 188,
+      "assembly_h": 13,
+      "boundaries_total": 8,
+      "elapsed_s": 307.8015088000102,
+      "empty_n": 3,
+      "face_down": 2,
+      "foundations": 4,
+      "from_incumbent_ckpt": false,
+      "g": 175,
+      "legal_tableau": 109,
+      "slack_190": 2,
+      "stock_rows": 0
+    },
+    {
+      "F": 5,
+      "assembly_f": 189,
+      "assembly_h": 9,
+      "boundaries_total": 3,
+      "elapsed_s": 26.17981190001592,
+      "empty_n": 2,
+      "face_down": 1,
+      "foundations": 5,
+      "from_incumbent_ckpt": false,
+      "g": 180,
+      "legal_tableau": 45,
+      "slack_190": 1,
+      "stock_rows": 0
+    },
+    {
+      "F": 6,
+      "assembly_f": 187,
+      "assembly_h": 4,
+      "boundaries_total": 1,
+      "elapsed_s": 244.63178980001248,
+      "empty_n": 5,
+      "face_down": 0,
+      "foundations": 6,
+      "from_incumbent_ckpt": false,
+      "g": 183,
+      "legal_tableau": 84,
+      "slack_190": 3,
+      "stock_rows": 0
+    },
+    {
+      "F": 7,
+      "assembly_f": 187,
+      "assembly_h": 1,
+      "boundaries_total": 0,
+      "elapsed_s": 246.01152410003124,
+      "empty_n": 8,
+      "face_down": 0,
+      "foundations": 7,
+      "from_incumbent_ckpt": false,
+      "g": 186,
+      "legal_tableau": 105,
+      "slack_190": 3,
+      "stock_rows": 0
+    },
+    {
+      "F": 8,
+      "assembly_f": 187,
+      "assembly_h": 0,
+      "boundaries_total": 0,
+      "elapsed_s": 246.36587949999375,
+      "empty_n": 10,
+      "face_down": 0,
+      "foundations": 8,
+      "from_incumbent_ckpt": false,
+      "g": 187,
+      "legal_tableau": 0,
+      "slack_190": 3,
+      "stock_rows": 0
+    }
+  ],
+  "generated": 274649,
+  "improved_file": "solutions/4925153_autonomous_v0_74_best.moves",
+  "incumbent_g": 191,
+  "incumbent_g_after": 187,
+  "inherited_suffix_foundations": [
+    {
+      "F": 0,
+      "assembly_f": 1,
+      "assembly_h": 0,
+      "empty_n": 0,
+      "face_down": 43,
+      "g": 1,
+      "legal_tableau": 8,
+      "ordered_digest": "53504b310100003205013a2c36083502050115191b11282d04013b273a070c050131122d1a16170401260d13343d04020c3c02030504040118360a2a2804011214320406040123062b383904013123153b37131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b0b29241d242609270835",
+      "slack_190": 189,
+      "stock_rows": 5
+    },
+    {
+      "F": 1,
+      "assembly_f": 71,
+      "assembly_h": 0,
+      "empty_n": 0,
+      "face_down": 10,
+      "g": 71,
+      "legal_tableau": 10,
+      "ordered_digest": "53504b310101001e00013a040215191b1128270006122423323116020831122d0c3b1a1d1c2b2a040c260d13343d3c3b3a3938370624230221000436350421000618171615141100082d2c2b2a292827260002363500020807131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0d0c0b0a090807060504030201",
+      "slack_190": 119,
+      "stock_rows": 3
+    },
+    {
+      "F": 2,
+      "assembly_f": 129,
+      "assembly_h": 0,
+      "empty_n": 1,
+      "face_down": 2,
+      "g": 129,
+      "legal_tableau": 15,
+      "ordered_digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "slack_190": 61,
+      "stock_rows": 1
+    },
+    {
+      "F": 3,
+      "assembly_f": 191,
+      "assembly_h": 7,
+      "empty_n": 2,
+      "face_down": 1,
+      "g": 184,
+      "legal_tableau": 117,
+      "ordered_digest": "53504b310103000000020d0c000b1b1a1918171615141312110002333201013112000d1d1c3b3a39383736353433323100011100173d3c3b3a3938373635343d3c0b0a09080706050403020100000000000b1d1c1b1a191817161514130d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "slack_190": -1,
+      "stock_rows": 0
+    },
+    {
+      "F": 4,
+      "assembly_f": 191,
+      "assembly_h": 5,
+      "empty_n": 4,
+      "face_down": 0,
+      "g": 186,
+      "legal_tableau": 159,
+      "ordered_digest": "53504b310104000000020d0c000b1b1a19181716151413121100023332000131000d1d1c3b3a393837363534333231000000173d3c3b3a3938373635343d3c0b0a0908070605040302010000000000000d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+      "slack_190": -1,
+      "stock_rows": 0
+    },
+    {
+      "F": 5,
+      "assembly_f": 191,
+      "assembly_h": 3,
+      "empty_n": 6,
+      "face_down": 0,
+      "g": 188,
+      "legal_tableau": 164,
+      "ordered_digest": "53504b31010500000000000b1b1a19181716151413121100033332310000000d1d1c3b3a3938373635343332310000000c3d3c3b3a3938373635343d3c0000000000000d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+      "slack_190": -1,
+      "stock_rows": 0
+    },
+    {
+      "F": 6,
+      "assembly_f": 191,
+      "assembly_h": 2,
+      "empty_n": 6,
+      "face_down": 0,
+      "g": 189,
+      "legal_tableau": 160,
+      "ordered_digest": "53504b31010600000000000b1b1a1918171615141312110003333231000000021d1c0000000a3d3c3b3a3938373635340000000000000d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+      "slack_190": -1,
+      "stock_rows": 0
+    },
+    {
+      "F": 7,
+      "assembly_f": 191,
+      "assembly_h": 1,
+      "empty_n": 8,
+      "face_down": 0,
+      "g": 190,
+      "legal_tableau": 105,
+      "ordered_digest": "53504b3101070000000000000003333231000000000000000a3d3c3b3a3938373635340000000000000d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+      "slack_190": -1,
+      "stock_rows": 0
+    },
+    {
+      "F": 8,
+      "assembly_f": 191,
+      "assembly_h": 0,
+      "empty_n": 10,
+      "face_down": 0,
+      "g": 191,
+      "legal_tableau": 0,
+      "ordered_digest": "53504b310108000000000000000000000000000000000000000000000d3d3c3b3a3938373635343332310d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+      "slack_190": -1,
+      "stock_rows": 0
+    }
+  ],
+  "interpretation": "Immediate Deal from the cheaper autonomous F2 is a different stock-empty node than the 192 suffix. Frozen endgame search completed at 187.",
+  "lanes": {
+    "expansions": {
+      "completion": 1814,
+      "construction": 1920,
+      "cost": 813,
+      "economy": 1308,
+      "horizon": 0,
+      "readiness": 1581,
+      "reveal": 1985
+    },
+    "pops": {
+      "completion": 2067,
+      "construction": 2068,
+      "cost": 2068,
+      "economy": 2068,
+      "horizon": 0,
+      "readiness": 2068,
+      "reveal": 2068
+    }
+  },
+  "locate": {
+    "action_index": 133,
+    "deals": 4,
+    "digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "face_down": 2,
+    "foundation_suits": [
+      "s",
+      "d"
+    ],
+    "foundations": 2,
+    "g": 130,
+    "n_hits": 1,
+    "n_prefix": 134,
+    "n_suffix": 63,
+    "ok": true,
+    "stock_rows": 1
+  },
+  "max_foundations": 8,
+  "max_h": 42,
+  "min_f": 171,
+  "min_h": 1,
+  "n_prefix": 133,
+  "n_spliced": 196,
+  "n_suffix": 63,
+  "next_recommendation": "187 is the autonomous incumbent; return to whole-game optimisation with ceiling 186.",
+  "old_192": {
+    "deals": 5,
+    "g": 192,
+    "n_actions": 197,
+    "ok": true,
+    "solved": true
+  },
+  "old_actual_post_sd5": {
+    "deal_suffix_index": 5,
+    "face_down": 2,
+    "foundations": 2,
+    "g": 135,
+    "kind": "actual_192_deal",
+    "ok": true,
+    "ordered_digest": "53504b310102000000030d291300021b1a000d0a1918171615140302111c1b22020b31122d0c3b1a1d1c2b2a1d2c3300032634190005363504213700113d3c3b3a3938373635343d3c0b3a391817000a2827060524233231380100023233000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "stock_rows": 0,
+    "tableau_before_deal": 5,
+    "whole_game_identity": "535053310102000000021b1a0002323300030d2913000326341900053635042137000a08071615141312110925000a28270605242332313801000d0a1918171615140302111c1b2200113d3c3b3a3938373635343d3c0b3a391817020b31122d0c3b1a1d1c2b2a1d2c330d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+  },
+  "old_post_sd5": {
+    "face_down": 2,
+    "foundations": 2,
+    "g": 131,
+    "kind": "immediate_deal_from_f2",
+    "ok": true,
+    "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c1b22020f31122d0c3b1a1d1c2b2a1d2c1b3a391833000326341900053635042137000e3d3c3b3a3938373635343d3c0b17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "stock_rows": 0,
+    "whole_game_identity": "53505331010200000001330002321a00030d2913000326341900053635042137000a08071615141312110925000a28270605242332313801000d0a1918171615140302111c1b22000e3d3c3b3a3938373635343d3c0b17020f31122d0c3b1a1d1c2b2a1d2c1b3a3918330d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201"
+  },
+  "policy_reads_canonical": false,
+  "post_sd5_match": true,
+  "prefix": {
+    "checkpoint_g": 123,
+    "digest": "53504b310102000a00020d29000132000c0a1918171615140302111c1b020e31122d0c3b1a1d1c2b2a1d2c1b3a391800022634000436350421000d3d3c3b3a3938373635343d3c0b000928270605242332313800000009080716151413121109131a22331937170133250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "face_down": 2,
+    "foundation_suits": [
+      "s",
+      "d"
+    ],
+    "foundations": 2,
+    "g": 129,
+    "n_checkpoint": 127,
+    "n_tactical": 6,
+    "ok": true,
+    "reason": null,
+    "stock_rows": 1,
+    "tactical_actions": [
+      [
+        8,
+        2,
+        1
+      ],
+      [
+        8,
+        3,
+        1
+      ],
+      [
+        5,
+        6,
+        1
+      ],
+      [
+        1,
+        6,
+        1
+      ],
+      [
+        8,
+        1,
+        1
+      ],
+      [
+        3,
+        8,
+        2
+      ]
+    ],
+    "target_suit": "d"
+  },
+  "promoted_file": "solutions/4925153_autonomous_v0_74.moves",
+  "promoted_g": 187,
+  "record_mw": 119,
+  "replay": {
+    "deals": 5,
+    "g": 191,
+    "n_actions": 196,
+    "ok": true,
+    "solved": true,
+    "splice_g": 129,
+    "splice_ok": true
+  },
+  "replay_g": 187,
+  "replay_ok": true,
+  "solution_actions": [
+    [
+      2,
+      5,
+      1
+    ],
+    [
+      5,
+      7,
+      2
+    ],
+    [
+      5,
+      7,
+      1
+    ],
+    [
+      0,
+      7,
+      1
+    ],
+    [
+      2,
+      1,
+      1
+    ],
+    [
+      7,
+      2,
+      5
+    ],
+    [
+      2,
+      6,
+      6
+    ],
+    [
+      7,
+      0,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      2,
+      9,
+      2
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      8,
+      1,
+      1
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      8,
+      0,
+      1
+    ],
+    [
+      5,
+      0,
+      1
+    ],
+    [
+      5,
+      4,
+      1
+    ],
+    [
+      9,
+      4,
+      5
+    ],
+    [
+      3,
+      8,
+      1
+    ],
+    [
+      3,
+      8,
+      1
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      7,
+      8,
+      1
+    ],
+    [
+      5,
+      3,
+      1
+    ],
+    [
+      2,
+      4,
+      1
+    ],
+    [
+      6,
+      5,
+      6
+    ],
+    [
+      2,
+      6,
+      1
+    ],
+    [
+      2,
+      3,
+      1
+    ],
+    [
+      7,
+      2,
+      1
+    ],
+    [
+      8,
+      7,
+      4
+    ],
+    [
+      5,
+      8,
+      6
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      6,
+      5,
+      2
+    ],
+    [
+      6,
+      1,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      6,
+      0,
+      2
+    ],
+    [
+      8,
+      0,
+      1
+    ],
+    [
+      8,
+      0,
+      6
+    ],
+    [
+      1,
+      8,
+      3
+    ],
+    [
+      0,
+      1,
+      10
+    ],
+    [
+      6,
+      7,
+      1
+    ],
+    [
+      5,
+      8,
+      3
+    ],
+    [
+      9,
+      7,
+      1
+    ],
+    [
+      0,
+      5,
+      1
+    ],
+    [
+      0,
+      2,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      9,
+      4,
+      1
+    ],
+    [
+      0,
+      7,
+      1
+    ],
+    [
+      0,
+      8,
+      1
+    ],
+    [
+      9,
+      2,
+      1
+    ],
+    [
+      0,
+      9,
+      1
+    ],
+    [
+      5,
+      4,
+      1
+    ],
+    [
+      0,
+      5,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      8,
+      5,
+      1
+    ],
+    [
+      8,
+      3,
+      6
+    ],
+    [
+      1,
+      8,
+      11
+    ],
+    [
+      3,
+      1,
+      7
+    ],
+    [
+      7,
+      5,
+      1
+    ],
+    [
+      8,
+      3,
+      11
+    ],
+    [
+      7,
+      8,
+      2
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      7,
+      6,
+      4
+    ],
+    [
+      1,
+      7,
+      8
+    ],
+    [
+      9,
+      1,
+      1
+    ],
+    [
+      3,
+      9,
+      6
+    ],
+    [
+      "deal"
+    ],
+    [
+      3,
+      0,
+      6
+    ],
+    [
+      7,
+      9,
+      1
+    ],
+    [
+      8,
+      3,
+      1
+    ],
+    [
+      9,
+      3,
+      2
+    ],
+    [
+      1,
+      9,
+      1
+    ],
+    [
+      9,
+      0,
+      6
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      7,
+      8,
+      8
+    ],
+    [
+      1,
+      7,
+      2
+    ],
+    [
+      "deal"
+    ],
+    [
+      4,
+      5,
+      1
+    ],
+    [
+      4,
+      0,
+      1
+    ],
+    [
+      6,
+      9,
+      1
+    ],
+    [
+      4,
+      9,
+      1
+    ],
+    [
+      4,
+      8,
+      2
+    ],
+    [
+      9,
+      8,
+      1
+    ],
+    [
+      6,
+      8,
+      1
+    ],
+    [
+      7,
+      4,
+      1
+    ],
+    [
+      4,
+      7,
+      2
+    ],
+    [
+      2,
+      3,
+      1
+    ],
+    [
+      2,
+      4,
+      1
+    ],
+    [
+      2,
+      9,
+      2
+    ],
+    [
+      2,
+      7,
+      2
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      9,
+      7,
+      2
+    ],
+    [
+      8,
+      9,
+      1
+    ],
+    [
+      2,
+      8,
+      2
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      1,
+      9,
+      1
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      1,
+      4,
+      1
+    ],
+    [
+      6,
+      2,
+      5
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      3,
+      6,
+      1
+    ],
+    [
+      1,
+      6,
+      1
+    ],
+    [
+      9,
+      1,
+      1
+    ],
+    [
+      9,
+      2,
+      2
+    ],
+    [
+      9,
+      4,
+      1
+    ],
+    [
+      1,
+      2,
+      1
+    ],
+    [
+      4,
+      1,
+      3
+    ],
+    [
+      9,
+      4,
+      2
+    ],
+    [
+      1,
+      9,
+      3
+    ],
+    [
+      6,
+      1,
+      1
+    ],
+    [
+      6,
+      3,
+      1
+    ],
+    [
+      4,
+      6,
+      9
+    ],
+    [
+      4,
+      6,
+      1
+    ],
+    [
+      4,
+      9,
+      1
+    ],
+    [
+      1,
+      3,
+      1
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      8,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      5,
+      0,
+      1
+    ],
+    [
+      5,
+      3,
+      1
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      4,
+      0,
+      1
+    ],
+    [
+      1,
+      8,
+      1
+    ],
+    [
+      "deal"
+    ],
+    [
+      8,
+      2,
+      1
+    ],
+    [
+      8,
+      3,
+      1
+    ],
+    [
+      5,
+      6,
+      1
+    ],
+    [
+      1,
+      6,
+      1
+    ],
+    [
+      8,
+      1,
+      1
+    ],
+    [
+      3,
+      8,
+      2
+    ],
+    [
+      "deal"
+    ],
+    [
+      4,
+      1,
+      1
+    ],
+    [
+      3,
+      4,
+      1
+    ],
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      6,
+      1,
+      1
+    ],
+    [
+      7,
+      2,
+      1
+    ],
+    [
+      7,
+      3,
+      1
+    ],
+    [
+      7,
+      8,
+      2
+    ],
+    [
+      5,
+      3,
+      1
+    ],
+    [
+      7,
+      9,
+      2
+    ],
+    [
+      1,
+      6,
+      4
+    ],
+    [
+      1,
+      4,
+      1
+    ],
+    [
+      3,
+      1,
+      4
+    ],
+    [
+      6,
+      3,
+      4
+    ],
+    [
+      2,
+      4,
+      1
+    ],
+    [
+      5,
+      2,
+      1
+    ],
+    [
+      5,
+      7,
+      1
+    ],
+    [
+      2,
+      9,
+      2
+    ],
+    [
+      5,
+      1,
+      2
+    ],
+    [
+      4,
+      5,
+      1
+    ],
+    [
+      4,
+      1,
+      3
+    ],
+    [
+      9,
+      4,
+      5
+    ],
+    [
+      7,
+      3,
+      3
+    ],
+    [
+      4,
+      7,
+      6
+    ],
+    [
+      0,
+      3,
+      1
+    ],
+    [
+      7,
+      0,
+      8
+    ],
+    [
+      2,
+      4,
+      2
+    ],
+    [
+      2,
+      1,
+      1
+    ],
+    [
+      5,
+      2,
+      1
+    ],
+    [
+      2,
+      5,
+      3
+    ],
+    [
+      3,
+      2,
+      1
+    ],
+    [
+      5,
+      3,
+      3
+    ],
+    [
+      2,
+      5,
+      7
+    ],
+    [
+      2,
+      6,
+      1
+    ],
+    [
+      9,
+      6,
+      1
+    ],
+    [
+      9,
+      2,
+      6
+    ],
+    [
+      3,
+      9,
+      6
+    ],
+    [
+      2,
+      3,
+      6
+    ],
+    [
+      9,
+      6,
+      8
+    ],
+    [
+      3,
+      2,
+      11
+    ],
+    [
+      3,
+      7,
+      1
+    ],
+    [
+      4,
+      3,
+      2
+    ],
+    [
+      3,
+      4,
+      3
+    ],
+    [
+      3,
+      7,
+      2
+    ],
+    [
+      0,
+      7,
+      9
+    ],
+    [
+      2,
+      3,
+      11
+    ],
+    [
+      3,
+      4,
+      1
+    ],
+    [
+      3,
+      2,
+      1
+    ],
+    [
+      3,
+      0,
+      1
+    ],
+    [
+      7,
+      3,
+      12
+    ],
+    [
+      3,
+      5,
+      1
+    ],
+    [
+      5,
+      4,
+      8
+    ],
+    [
+      6,
+      0,
+      11
+    ],
+    [
+      1,
+      4,
+      1
+    ],
+    [
+      1,
+      2,
+      9
+    ],
+    [
+      2,
+      6,
+      10
+    ],
+    [
+      3,
+      6,
+      1
+    ],
+    [
+      8,
+      6,
+      3
+    ]
+  ],
+  "solution_g": 187,
+  "solved": true,
+  "splice_191_file": "solutions/4925153_autonomous_v0_74_splice191.moves",
+  "spliced_ok": true,
+  "split_ok": true,
+  "states_per_s": 10.466289409788535,
+  "stop_reason": "solved",
+  "suffix_cost": 62,
+  "suffix_sequence": {
+    "n": 63,
+    "ok": true,
+    "solved": true,
+    "terminal_new_g": 191,
+    "terminal_old_g": 192
+  },
+  "unique": 110583,
+  "v073_diagnosis": "v0.73 integrated stock-empty failed to rediscover the 192 suffix because: 256-root dilution, too little stock-empty search time, transition portfolio competition. v0.73 rows=0 used 264 roots in 205.5s (expanded=1351, maxF=2, min_g=6); focused used 1 root in 900.1s (expanded=9421, maxF=8, min_f=171, solved g=187).",
+  "v073_vs_focused": {
+    "focused": {
+      "alloc_s": null,
+      "elapsed_s": 900.1279853000306,
+      "expanded": 9421,
+      "generated": 274649,
+      "input_roots": 1,
+      "lane_exp": {
+        "completion": 1814,
+        "construction": 1920,
+        "cost": 813,
+        "economy": 1308,
+        "horizon": 0,
+        "readiness": 1581,
+        "reveal": 1985
+      },
+      "lower_bound_prunes": 65969,
+      "max_foundations": 8,
+      "min_f": 171,
+      "stop_reason": "solved",
+      "unique": 110583
+    },
+    "v073_rows0": {
+      "alloc_s": 205.51721389999148,
+      "elapsed_s": 205.5629233000218,
+      "expanded": 1351,
+      "generated": 20488,
+      "input_roots": 264,
+      "lane_exp": null,
+      "max_foundations": 2,
+      "max_g": 165,
+      "min_g": 6,
+      "stop_reason": "time limit",
+      "unique": 12627
+    }
+  },
+  "verdict": "STATE_CONVERGENCE_ENDGAME_COST_IMPROVED",
+  "verdict_reason": "solved at g=187",
+  "viability": {
+    "best_boundaries": {
+      "assembly_f": 189,
+      "assembly_h": 3,
+      "boundaries_total": 0,
+      "cover": 2,
+      "empty_n": 5,
+      "face_down": 0,
+      "foundations": 6,
+      "g": 186,
+      "legal_tableau": 136,
+      "op_blockers": 0,
+      "ordered_digest": "53504b310106000000000000000b1b1a191817161514131211000000011c0000000a3d3c3b3a3938373635340000000333323100011d0d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+      "slack_190": 1
+    },
+    "best_f": {
+      "assembly_f": 171,
+      "assembly_h": 41,
+      "boundaries_total": 35,
+      "cover": 3,
+      "empty_n": 0,
+      "face_down": 2,
+      "foundations": 2,
+      "g": 130,
+      "legal_tableau": 5,
+      "op_blockers": 43,
+      "ordered_digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c1b22020f31122d0c3b1a1d1c2b2a1d2c1b3a391833000326341900053635042137000e3d3c3b3a3938373635343d3c0b17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "slack_190": 19
+    },
+    "best_h": {
+      "assembly_f": 187,
+      "assembly_h": 0,
+      "boundaries_total": 0,
+      "cover": null,
+      "empty_n": 10,
+      "face_down": 0,
+      "foundations": 8,
+      "g": 187,
+      "legal_tableau": 0,
+      "op_blockers": null,
+      "ordered_digest": "53504b310108000000000000000000000000000000000000000000000d3d3c3b3a3938373635343332310d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+      "slack_190": 3
+    },
+    "best_mobility": {
+      "assembly_f": 189,
+      "assembly_h": 4,
+      "boundaries_total": 4,
+      "cover": 2,
+      "empty_n": 6,
+      "face_down": 0,
+      "foundations": 4,
+      "g": 185,
+      "legal_tableau": 216,
+      "op_blockers": 11,
+      "ordered_digest": "53504b3101040000000d0d0c1b1a1918171615141312110000000000000000000000173d3c3b3a3938373635343d3c0b0a09080706050403020100000003333231000d1d1c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+      "slack_190": 1
+    },
+    "best_operational": {
+      "assembly_f": 189,
+      "assembly_h": 7,
+      "boundaries_total": 3,
+      "cover": 2,
+      "empty_n": 1,
+      "face_down": 0,
+      "foundations": 3,
+      "g": 182,
+      "legal_tableau": 59,
+      "op_blockers": 0,
+      "op_key": [
+        0,
+        2,
+        0,
+        0,
+        0,
+        99,
+        99,
+        -12,
+        -12,
+        -2,
+        -1,
+        -4,
+        182
+      ],
+      "ordered_digest": "53504b310103000000020d0c000a3a393837363534333211000c1d1c1b1a1918171615141312000131000c1c1b1a19181716151413121100013b00173d3c3b3a3938373635343d3c0b0a0908070605040302010000000333323100011d0d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "slack_190": 1
+    },
+    "n_seen": 123225
+  },
+  "wall_s": 900.1795210999553
+}

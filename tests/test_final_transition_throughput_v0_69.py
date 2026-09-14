@@ -222,8 +222,8 @@ def test_no_canonical_ceiling_192_replay_assembly_lanes():
     assert set(TRANSITION_CATS) <= set(TRANSITION_HARVEST_CATS)
     opening = opening_state()
     v = verify_autonomous_192(opening)
-    assert v["ok"] and v["g"] == AUTONOMOUS_INCUMBENT_MW == 192
-    assert CANDIDATE_CEILING == 191
+    assert v["ok"] and v["g"] == AUTONOMOUS_INCUMBENT_MW == 187
+    assert CANDIDATE_CEILING == 186
     trace = load_autonomous_192(opening)
     from spider.autonomous_cost import checkpoints_from_trace
 

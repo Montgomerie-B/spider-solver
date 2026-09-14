@@ -146,8 +146,8 @@ def test_no_suit_literals_in_policy_tt_preview_bound_192():
     assert pack_state(opening) == packed
     assert pack_whole_game_identity(opening) == ident
     v = verify_autonomous_192(opening)
-    assert v["ok"] and v["g"] == AUTONOMOUS_INCUMBENT_MW == 192
-    assert CANDIDATE_CEILING == 191
+    assert v["ok"] and v["g"] == AUTONOMOUS_INCUMBENT_MW == 187
+    assert CANDIDATE_CEILING == 186
 
 
 def test_checkpoint_prefix_and_audit_is_evaluation_only():
