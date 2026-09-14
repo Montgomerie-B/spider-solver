@@ -1,0 +1,8 @@
+{
+  "best_new_f": 181,
+  "n_closed": 0,
+  "n_reopen": 0,
+  "phase": "complete",
+  "stop_reason": "time limit",
+  "verdict": "NEW_F3_BRIDGE_FINDS_STRONG_SURPLUS"
+}
