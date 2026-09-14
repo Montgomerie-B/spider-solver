@@ -1,0 +1,7 @@
+{
+  "best_bridge_loss": 12,
+  "best_new_f": 186,
+  "phase": "complete",
+  "stop_reason": null,
+  "verdict": "F3_CALIBRATION_ZERO_SLACK_ONLY"
+}
