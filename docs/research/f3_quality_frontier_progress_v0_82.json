@@ -1,0 +1,9 @@
+{
+  "best_new_f": null,
+  "n_f3": 499,
+  "n_selected": 6,
+  "phase": "complete",
+  "screening_time_limited": true,
+  "stop_reason": null,
+  "verdict": "F3_FRONTIER_SEARCH_LIMITED"
+}

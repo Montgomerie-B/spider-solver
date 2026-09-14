@@ -463,6 +463,30 @@ def _probe_one(
     }
 
 
+def probe_proof_aware_target(
+    root_record: dict,
+    target: dict,
+    *,
+    time_s: float,
+    unique: int,
+    stage: str,
+    ceiling: int = BRIDGE_CEILING,
+) -> dict:
+    """Public screening wrapper. Economics derive from the supplied root."""
+
+    inspect = inspect_stock_empty_root(root_record["ordered_digest"], g=int(root_record["g"]))
+    return _probe_one(
+        root_record,
+        target,
+        time_s=float(time_s),
+        unique=int(unique),
+        stage=stage,
+        root_g=int(inspect["g"]),
+        root_h=int(inspect["assembly_h"]),
+        ceiling=int(ceiling),
+    )
+
+
 def _family_key(probe: dict) -> tuple:
     if int(probe.get("viable_count") or 0) > 0:
         slack = probe.get("max_viable_slack")
