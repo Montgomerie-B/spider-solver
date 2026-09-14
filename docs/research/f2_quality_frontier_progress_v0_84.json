@@ -1,0 +1,8 @@
+{
+  "max_F": 3,
+  "n_unique_pre": 279,
+  "n_viable_post": 279,
+  "phase": "complete",
+  "stop_reason": "time limit",
+  "verdict": "F2_FRONTIER_FINDS_SUPERIOR_ROOT"
+}
