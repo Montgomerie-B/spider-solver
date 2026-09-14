@@ -47,6 +47,7 @@ FOCUSED_CEILING = BRIDGE_CEILING
 FOCUSED_UNIQUE = 800_000
 SNAPSHOT_S = (5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0)
 CLOSED_GUARD = False
+V090_F3_SUMMARY_FORMATTING_FIX = True
 V085_ROOT_A = {
     "post_g": 129,
     "h": 42,
@@ -74,6 +75,36 @@ V074_FOCUSED = {
     "F7": {"g": 186, "h": 1, "f": 187},
     "F8": {"g": 187, "h": 0, "f": 187},
 }
+
+
+def format_v090_f3_summary(first: dict, cheap: dict) -> dict:
+    """Keep first-F3 economics/time separate from cheapest-g F3. Do not cross-wire."""
+
+    def one(rec: dict) -> dict:
+        rec = rec or {}
+        return {
+            "g": rec.get("g"),
+            "h": rec.get("h") or rec.get("assembly_h"),
+            "f": rec.get("f") or rec.get("assembly_f"),
+            "elapsed_s": rec.get("elapsed_s"),
+        }
+
+    first_s = one(first)
+    cheap_s = one(cheap)
+    cross = (
+        first_s.get("g") is not None
+        and cheap_s.get("g") is not None
+        and int(first_s["g"]) != int(cheap_s["g"])
+        and first_s.get("elapsed_s") is not None
+        and cheap_s.get("elapsed_s") is not None
+        and first_s["elapsed_s"] == cheap_s["elapsed_s"]
+    )
+    return {
+        "first_F3": first_s,
+        "cheap_F3": cheap_s,
+        "cross_wired": bool(cross),
+        "fix": "V090_F3_SUMMARY_FORMATTING_FIX",
+    }
 
 
 def load_f172_mobility_candidate() -> dict:
@@ -675,7 +706,14 @@ def choose_f172_verdict(p: dict) -> tuple:
         if like_a and not strong:
             return "F172_MOBILITY_ROLLOUT_OVERSTATED", "focused F3 basin matches Root A; short-rollout mobility did not deepen conversion"
         if strong:
-            return "F172_MOBILITY_STRONG_F3_STALL", f"F3 g={cheap3.get('g')} f={cheap3.get('f')} t={t3}"
+            summary = format_v090_f3_summary(first3, cheap3)
+            a = summary["first_F3"]
+            b = summary["cheap_F3"]
+            return (
+                "F172_MOBILITY_STRONG_F3_STALL",
+                f"first F3 g={a.get('g')}/h={a.get('h')}/f={a.get('f')} t={a.get('elapsed_s')}; "
+                f"cheap F3 g={b.get('g')}/h={b.get('h')}/f={b.get('f')} t={b.get('elapsed_s')}",
+            )
         like_187 = cheap3.get("g") == V074_FOCUSED["F3"]["g"] or (
             cheap3.get("f") is not None and int(cheap3["f"]) >= int(V074_FOCUSED["F3"]["f"])
         )

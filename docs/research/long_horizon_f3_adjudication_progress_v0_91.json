@@ -1,0 +1,7 @@
+{
+  "max_F": 4,
+  "n_dead": 4,
+  "n_live": 0,
+  "phase": "complete",
+  "verdict": "LONG_HORIZON_F3_EXHAUSTED"
+}
