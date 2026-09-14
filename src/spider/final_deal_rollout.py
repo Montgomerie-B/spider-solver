@@ -57,6 +57,14 @@ ROLLOUT_RSS_MB = SEARCH_RSS_MB
 ROLLOUT_CEILING = 186
 PILOT_N = 8
 INF = 10**9
+STAGE_A_S = 10.0
+STAGE_B_S = 10.0
+STAGE_A_N = 8
+STAGE_B_N = 4
+ROLLOUT_RESERVE_S = 120.0
+STAGE_UNIQUE = 15_000
+ROWS0_TARGET = 32
+ROWS0_MAX = 64
 
 
 def pre_sd5_from_actions(opening, actions: Sequence[Action]) -> dict:
@@ -322,6 +330,24 @@ class RolloutTracker:
     min_components: Optional[int] = None
     time_first_increase: Optional[float] = None
     g_first_increase: Optional[int] = None
+    kept: List[dict] = field(default_factory=list)
+
+    def _keep_best(self, rec, n, g, h, f, legal, b) -> None:
+        snap = {
+            "g": g,
+            "foundations": n,
+            "ordered_digest": rec.get("ordered_digest"),
+            "full_actions": rec.get("full_actions"),
+            "ident": rec.get("ident") or rec.get("whole_game_identity"),
+            "face_down": rec.get("face_down"),
+            "assembly_h": h,
+            "assembly_f": f,
+            "legal_tableau": legal,
+            "boundaries_total": b,
+        }
+        self.kept.append(snap)
+        if len(self.kept) > 64:
+            self.kept = self.kept[-64:]
 
     def __call__(self, tops, rec, min_root_g, class_best) -> None:
         n = int(rec.get("foundations") or 0)
@@ -344,7 +370,16 @@ class RolloutTracker:
                 "elapsed_s": elapsed,
                 "legal": legal,
                 "boundaries": b,
+                "ordered_digest": rec.get("ordered_digest"),
+                "full_actions": rec.get("full_actions"),
+                "ident": rec.get("ident") or rec.get("whole_game_identity"),
+                "foundations": n,
+                "face_down": rec.get("face_down"),
+                "assembly_h": h,
+                "assembly_f": f,
             }
+        if rec.get("full_actions"):
+            self._keep_best(rec, n, g, h, f, legal, b)
         if n > self.start_F and self.time_first_increase is None:
             self.time_first_increase = elapsed
             self.g_first_increase = g
@@ -396,29 +431,133 @@ def rollout_key(sig: dict) -> tuple:
     )
 
 
-def run_rollout(opening, post: dict, *, time_s: float = ROLLOUT_TIME_S, unique: int = ROLLOUT_UNIQUE) -> dict:
-    """Stock-empty search from one post-SD5 state. No suffixes. No continuation table."""
-
-    tracker = RolloutTracker(start_F=int(post["foundations"]), start_g=int(post["post_g"]))
-    root = {
+def _post_as_root(post: dict, *, cat: str = "rollout_root") -> dict:
+    return {
         "g": int(post["post_g"]),
         "ordered_digest": post["post_digest"],
-        "ident": post["whole_game_identity"],
-        "whole_game_identity": post["whole_game_identity"],
+        "ident": post.get("whole_game_identity") or post.get("ident"),
+        "whole_game_identity": post.get("whole_game_identity") or post.get("ident"),
         "full_actions": post["full_actions"],
         "stock_rows": 0,
         "foundations": post["foundations"],
         "face_down": post["face_down"],
-        "lineage": ["final_deal_rollout_v076"],
-        "portfolio_cat": "rollout_root",
+        "lineage": list(post.get("lineage") or []) + ["final_deal_rollout"],
+        "portfolio_cat": cat,
+        "parent_root": post.get("post_digest"),
+        "assembly_h": post.get("assembly_h"),
+        "assembly_f": post.get("assembly_f"),
+        "legal_tableau": post.get("legal"),
+        "pre_g": post.get("pre_g"),
+        "pre_digest": post.get("pre_digest"),
+        "role": post.get("role") or post.get("tag"),
     }
+
+
+def _rec_as_root(rec: dict, *, parent: str, cat: str = "rollout_descendant") -> Optional[dict]:
+    if not rec.get("full_actions") or not rec.get("ordered_digest"):
+        return None
+    ident = rec.get("ident") or rec.get("whole_game_identity")
+    if not ident:
+        return None
+    return {
+        "g": int(rec["g"]),
+        "ordered_digest": rec["ordered_digest"],
+        "ident": ident,
+        "whole_game_identity": ident,
+        "full_actions": rec["full_actions"],
+        "stock_rows": 0,
+        "foundations": int(rec.get("foundations") or 0),
+        "face_down": rec.get("face_down"),
+        "lineage": list(rec.get("lineage") or []) + ["rollout_descendant"],
+        "portfolio_cat": cat,
+        "parent_root": parent,
+        "assembly_h": rec.get("assembly_h") or rec.get("h"),
+        "assembly_f": rec.get("assembly_f") or rec.get("f"),
+        "legal_tableau": rec.get("legal_tableau") or rec.get("legal"),
+    }
+
+
+def verify_root_ancestry(opening, rec: dict) -> bool:
+    try:
+        end = opening.clone()
+        g = replay_actions(end, as_actions(rec["full_actions"]))
+    except Exception:
+        return False
+    return g == int(rec["g"]) and pack_state(end).hex() == rec["ordered_digest"] and stock_rows(end) == 0
+
+
+def collect_descendants(opening, post: dict, res, tracker: RolloutTracker) -> List[dict]:
+    parent = post["post_digest"]
+    pool = [_post_as_root(post)]
+    for rec in (res.foundations_cheap or {}).values():
+        root = _rec_as_root(rec, parent=parent)
+        if root:
+            pool.append(root)
+    for rec in tracker.kept:
+        root = _rec_as_root(rec, parent=parent)
+        if root:
+            pool.append(root)
+    if res.solved and res.solution_actions:
+        end = opening.clone()
+        try:
+            g = replay_actions(end, list(res.solution_actions))
+        except Exception:
+            g = None
+        if g is not None and end.is_solved():
+            pool.append(
+                {
+                    "g": int(g),
+                    "ordered_digest": pack_state(end).hex(),
+                    "ident": pack_whole_game_identity(end).hex(),
+                    "whole_game_identity": pack_whole_game_identity(end).hex(),
+                    "full_actions": dump_actions(res.solution_actions),
+                    "stock_rows": 0,
+                    "foundations": 8,
+                    "face_down": 0,
+                    "lineage": ["rollout_terminal"],
+                    "portfolio_cat": "rollout_terminal",
+                    "parent_root": parent,
+                }
+            )
+    kept = []
+    seen = set()
+    for rec in pool:
+        if not verify_root_ancestry(opening, rec):
+            continue
+        ident = rec["ident"]
+        prev = next((k for k in kept if k["ident"] == ident), None)
+        if prev is None:
+            kept.append(rec)
+            seen.add(ident)
+        elif int(rec["g"]) < int(prev["g"]):
+            kept.remove(prev)
+            kept.append(rec)
+    return kept
+
+
+def run_rollout(
+    opening,
+    post: dict,
+    *,
+    time_s: float = ROLLOUT_TIME_S,
+    unique: int = ROLLOUT_UNIQUE,
+    extra_roots: Optional[Sequence[dict]] = None,
+) -> dict:
+    """Stock-empty search from one post-SD5 state. No suffixes. No continuation table."""
+
+    tracker = RolloutTracker(start_F=int(post["foundations"]), start_g=int(post["post_g"]))
+    root = _post_as_root(post)
+    roots = [root]
+    for extra in extra_roots or []:
+        if extra.get("ordered_digest") and extra.get("full_actions"):
+            roots.append(dict(extra))
     t0 = time.perf_counter()
     res = search_operational_optimisation(
         opening=opening,
         incumbent_trace={"g": 187},
         cost_ceiling=ROLLOUT_CEILING,
         incumbent_by_rows={},
-        initial_roots=[root],
+        initial_roots=roots,
         max_unique=int(unique),
         time_limit_s=float(time_s),
         rss_abort_mb=ROLLOUT_RSS_MB,
@@ -475,7 +614,313 @@ def run_rollout(opening, post: dict, *, time_s: float = ROLLOUT_TIME_S, unique: 
     sig["rollout_key"] = list(rollout_key(sig))
     if sig["solved"] and res.solution_actions:
         sig["solution_actions"] = dump_actions(res.solution_actions)
+    descendants = collect_descendants(opening, post, res, tracker)
+    sig["descendants"] = descendants
+    sig["n_descendants"] = len(descendants)
     return sig
+
+
+def _attached_as_pre(rec: dict) -> Optional[dict]:
+    if int(rec.get("stock_rows") or -1) != 1:
+        return None
+    if rec.get("full_actions") is None or rec.get("ordered_digest") is None:
+        return None
+    return {
+        "ok": True,
+        "tag": rec.get("portfolio_cat") or rec.get("role") or "harvest",
+        "pre_g": int(rec["g"]),
+        "pre_digest": rec["ordered_digest"],
+        "pre_identity": rec.get("ident") or rec.get("whole_game_identity"),
+        "stock_rows": 1,
+        "foundations": int(rec.get("foundations") or 0),
+        "face_down": rec.get("face_down"),
+        "full_actions": rec["full_actions"],
+        "can_deal": True,
+        "portfolio_cat": rec.get("portfolio_cat"),
+        "from_incumbent_ckpt": bool(rec.get("from_incumbent_ckpt") or rec.get("incumbent_control")),
+        "control_slot": bool(rec.get("control_slot")),
+        "tactical_target": rec.get("tactical_target"),
+        "categories": list(rec.get("categories") or []),
+        "preview": rec.get("preview") or rec.get("deal_preview") or {},
+        "assembly_h": rec.get("assembly_h"),
+        "assembly_f": rec.get("assembly_f"),
+        "legal_tableau": rec.get("legal_tableau"),
+    }
+
+
+def select_attached_rollout_candidates(attached: Sequence[dict], *, n: int = STAGE_A_N, ceiling: int = ROLLOUT_CEILING) -> List[dict]:
+    """Diversity prefilter of rows=1 harvest roots. Not cheapest-g."""
+
+    pool = []
+    seen = set()
+    for rec in attached:
+        pre = _attached_as_pre(rec)
+        if not pre or int(pre["pre_g"]) > int(ceiling):
+            continue
+        if pre["pre_digest"] in seen:
+            continue
+        seen.add(pre["pre_digest"])
+        pool.append(pre)
+    slots = [
+        ("tactical_cashout", lambda r: r.get("portfolio_cat") == "tactical_cashout" or r.get("tactical_target")),
+        ("incumbent", lambda r: r.get("from_incumbent_ckpt") or r.get("control_slot") or r.get("portfolio_cat") == "incumbent"),
+        ("post_deal_operational", lambda r: r.get("portfolio_cat") == "post_deal_operational" or "post_deal_operational" in (r.get("categories") or [])),
+        ("post_deal_consolidation", lambda r: r.get("portfolio_cat") == "post_deal_consolidation"),
+        ("post_deal_mobility", lambda r: r.get("portfolio_cat") == "post_deal_mobility"),
+        ("post_deal_reception", lambda r: r.get("portfolio_cat") == "post_deal_reception"),
+        ("post_deal_pareto", lambda r: r.get("portfolio_cat") == "post_deal_pareto"),
+        ("cheap", lambda r: r.get("portfolio_cat") in ("cheap", "deal_now", "cheap_viable")),
+    ]
+    selected = []
+    used = set()
+    for name, pred in slots:
+        cands = [p for p in pool if p["pre_digest"] not in used and pred(p)]
+        if not cands:
+            continue
+        pick = min(cands, key=lambda p: (int(p.get("assembly_f") or INF), -int(p.get("legal_tableau") or 0), p["pre_digest"]))
+        pick = dict(pick)
+        pick["role"] = name
+        selected.append(pick)
+        used.add(pick["pre_digest"])
+        if len(selected) >= n:
+            return selected
+    rest = [p for p in pool if p["pre_digest"] not in used]
+    rest.sort(key=lambda p: (int(p.get("assembly_f") or INF), -int(p.get("legal_tableau") or 0), p["pre_digest"]))
+    for p in rest:
+        if len(selected) >= n:
+            break
+        q = dict(p)
+        q["role"] = q.get("portfolio_cat") or "fill"
+        selected.append(q)
+        used.add(q["pre_digest"])
+    return selected[:n]
+
+
+def _portfolio_sort_key(rec: dict) -> tuple:
+    f = rec.get("assembly_f")
+    if f is None:
+        h = rec.get("assembly_h")
+        f = INF if h is None else int(rec["g"]) + int(h)
+    return (-int(rec.get("foundations") or 0), int(f), int(rec["g"]), rec.get("ordered_digest") or "")
+
+
+def build_rows0_portfolio(
+    *,
+    original_posts: Sequence[dict],
+    stage_b: Sequence[dict],
+    incumbent_post: Optional[dict] = None,
+    target: int = ROWS0_TARGET,
+    hard_max: int = ROWS0_MAX,
+) -> List[dict]:
+    pool = []
+    for sig in stage_b:
+        pool.extend(sig.get("descendants") or [])
+    for post in original_posts:
+        pool.append(_post_as_root(post, cat="post_deal_control"))
+    if incumbent_post is not None:
+        pool.append(_post_as_root(incumbent_post, cat="incumbent_post_deal"))
+    dedup = {}
+    for rec in pool:
+        ident = rec.get("ident")
+        if not ident:
+            continue
+        prev = dedup.get(ident)
+        if prev is None or int(rec["g"]) < int(prev["g"]):
+            dedup[ident] = rec
+    ranked = sorted(dedup.values(), key=_portfolio_sort_key)
+    must = []
+    seen = set()
+
+    def _take(rec):
+        if rec and rec.get("ident") not in seen:
+            must.append(rec)
+            seen.add(rec["ident"])
+
+    for sig in stage_b[:4]:
+        d = sig.get("post_digest")
+        orig = next((r for r in ranked if r.get("ordered_digest") == d), None)
+        _take(orig)
+        desc = next(
+            (r for r in ranked if r.get("parent_root") == d and r.get("ordered_digest") != d),
+            None,
+        )
+        _take(desc)
+    if incumbent_post is not None:
+        _take(next((r for r in ranked if r.get("ordered_digest") == incumbent_post.get("post_digest")), None))
+    for post in original_posts:
+        _take(next((r for r in ranked if r.get("ordered_digest") == post.get("post_digest")), None))
+    out = list(must)
+    for rec in ranked:
+        if rec["ident"] in seen:
+            continue
+        out.append(rec)
+        seen.add(rec["ident"])
+        if len(out) >= int(target):
+            break
+    return out[: int(hard_max)]
+
+
+def guided_final_deal_transition(attached: Sequence[dict], budget_s: float, context: dict) -> dict:
+    """Rows=1 harvest → staged rollout → narrowed rows=0 roots. No canonical."""
+
+    opening = context["opening"]
+    ceiling = int(context.get("live_ceiling") or context.get("cost_ceiling") or ROLLOUT_CEILING)
+    prefilter_n = sum(1 for r in attached if int(r.get("stock_rows") or -1) == 1)
+    selected_pre = select_attached_rollout_candidates(attached, n=STAGE_A_N, ceiling=ceiling)
+    posts = []
+    for pre in selected_pre:
+        post = apply_sd5(opening, pre)
+        if not post.get("ok"):
+            continue
+        post["role"] = pre.get("role") or pre.get("tag")
+        post["portfolio_cat"] = pre.get("portfolio_cat")
+        post["from_incumbent_ckpt"] = pre.get("from_incumbent_ckpt")
+        post["tactical_target"] = pre.get("tactical_target")
+        posts.append(post)
+    n_a = max(1, len(posts))
+    time_a = min(STAGE_A_S, float(budget_s) / float(n_a)) if n_a else 0.0
+    unique_left = int(context.get("remaining_unique") or STAGE_UNIQUE * n_a)
+    unique_a = max(1000, min(STAGE_UNIQUE, unique_left // max(1, n_a)))
+    stage_a = []
+    t0 = time.perf_counter()
+    tot_u = tot_e = tot_g = 0
+    best_sol = None
+    for post in posts:
+        sig = run_rollout(opening, post, time_s=time_a, unique=unique_a)
+        tot_u += int(sig.get("unique") or 0)
+        tot_e += int(sig.get("expanded") or 0)
+        tot_g += int(sig.get("generated") or 0)
+        stage_a.append(sig)
+        if sig.get("solved") and sig.get("terminal_g") is not None:
+            if best_sol is None or int(sig["terminal_g"]) < int(best_sol["terminal_g"]):
+                best_sol = sig
+    stage_a_ranked = sorted(stage_a, key=lambda s: tuple(s.get("rollout_key") or rollout_key(s)))
+    remain_b = max(0.0, float(budget_s) - (time.perf_counter() - t0))
+    promoted = stage_a_ranked[:STAGE_B_N]
+    n_b = len(promoted)
+    time_b = min(STAGE_B_S, remain_b / float(n_b)) if n_b and remain_b >= 1.0 else 0.0
+    stage_b = []
+    if time_b > 0:
+        unique_b = max(1000, min(STAGE_UNIQUE, unique_a))
+        for sig_a in promoted:
+            post = next((p for p in posts if p.get("post_digest") == sig_a.get("post_digest")), None)
+            if post is None:
+                stage_b.append(dict(sig_a, stage="B_missing_post"))
+                continue
+            extra = [d for d in (sig_a.get("descendants") or []) if d.get("ordered_digest") != post["post_digest"]]
+            sig = run_rollout(opening, post, time_s=time_b, unique=unique_b, extra_roots=extra)
+            tot_u += int(sig.get("unique") or 0)
+            tot_e += int(sig.get("expanded") or 0)
+            tot_g += int(sig.get("generated") or 0)
+            sig["stage"] = "B"
+            sig["stage_a_max_F"] = sig_a.get("max_F")
+            stage_b.append(sig)
+            if sig.get("solved") and sig.get("terminal_g") is not None:
+                if best_sol is None or int(sig["terminal_g"]) < int(best_sol["terminal_g"]):
+                    best_sol = sig
+    else:
+        stage_b = [dict(s, stage="B_skipped") for s in promoted]
+    stage_b_ranked = sorted(stage_b, key=lambda s: tuple(s.get("rollout_key") or rollout_key(s)))
+    incumbent_post = next((p for p in posts if p.get("from_incumbent_ckpt") or p.get("role") == "incumbent"), None)
+    roots = build_rows0_portfolio(
+        original_posts=posts,
+        stage_b=stage_b_ranked or stage_a_ranked,
+        incumbent_post=incumbent_post,
+    )
+    elapsed = time.perf_counter() - t0
+    report = {
+        "prefilter_n": prefilter_n,
+        "n_selected": len(posts),
+        "selected": [
+            {
+                "role": p.get("role"),
+                "pre_g": p.get("pre_g"),
+                "post_g": p.get("post_g"),
+                "F": p.get("foundations"),
+                "fd": p.get("face_down"),
+                "h": p.get("assembly_h"),
+                "f": p.get("assembly_f"),
+                "legal": p.get("legal"),
+                "tactical_target": p.get("tactical_target"),
+                "from_incumbent_ckpt": p.get("from_incumbent_ckpt"),
+            }
+            for p in posts
+        ],
+        "stage_a": [_slim_rollout(s) for s in stage_a_ranked],
+        "stage_b": [_slim_rollout(s) for s in stage_b_ranked],
+        "ranking_a": [s.get("role") for s in stage_a_ranked],
+        "ranking_b": [s.get("role") for s in stage_b_ranked],
+        "n_roots0": len(roots),
+        "root_F": [int(r.get("foundations") or 0) for r in roots],
+        "elapsed_s": elapsed,
+        "stage_a_s": time_a * n_a,
+        "stage_b_s": time_b * n_b,
+        "budget_s": float(budget_s),
+    }
+    return {
+        "roots": roots,
+        "unique": tot_u,
+        "expanded": tot_e,
+        "generated": tot_g,
+        "elapsed_s": elapsed,
+        "report": report,
+        "solution_g": None if best_sol is None else best_sol.get("terminal_g"),
+        "solution_actions": None if best_sol is None else best_sol.get("solution_actions"),
+        "replay_ok": bool(best_sol and best_sol.get("replay_ok")),
+    }
+
+
+def _slim_cheap_f(cheap) -> dict:
+    out = {}
+    for k, rec in (cheap or {}).items():
+        if not isinstance(rec, dict):
+            out[str(k)] = rec
+            continue
+        out[str(k)] = {
+            kk: rec.get(kk)
+            for kk in (
+                "g",
+                "h",
+                "f",
+                "elapsed_s",
+                "legal",
+                "boundaries",
+                "foundations",
+                "face_down",
+                "ordered_digest",
+                "ident",
+            )
+            if rec.get(kk) is not None
+        }
+    return out
+
+
+def _slim_rollout(sig: dict) -> dict:
+    return {
+        "role": sig.get("role"),
+        "pre_g": sig.get("pre_g"),
+        "post_g": sig.get("post_g"),
+        "post_digest": sig.get("post_digest"),
+        "start_F": sig.get("start_F"),
+        "start_h": sig.get("start_h"),
+        "start_f": sig.get("start_f"),
+        "elapsed_s": sig.get("elapsed_s"),
+        "unique": sig.get("unique"),
+        "expanded": sig.get("expanded"),
+        "max_F": sig.get("max_F"),
+        "cheap_F": _slim_cheap_f(sig.get("cheap_F")),
+        "min_h": sig.get("min_h"),
+        "min_f": sig.get("min_f"),
+        "best_mobility": sig.get("best_mobility"),
+        "time_first_increase": sig.get("time_first_increase"),
+        "g_first_increase": sig.get("g_first_increase"),
+        "cost_first_increase": sig.get("cost_first_increase"),
+        "solved": sig.get("solved"),
+        "terminal_g": sig.get("terminal_g"),
+        "n_descendants": sig.get("n_descendants"),
+        "rollout_key": sig.get("rollout_key"),
+        "stage": sig.get("stage"),
+    }
 
 
 def choose_rollout_verdict(p: dict) -> tuple:
@@ -506,3 +951,30 @@ def choose_rollout_verdict(p: dict) -> tuple:
     if spread and not disagree:
         return "ROLLOUT_SIGNAL_STATIC_EQUIVALENT", "rollout order matches one-step static ranking"
     return "ROLLOUT_SIGNAL_TOO_SHALLOW", "equal bounded searches did not differentiate roots"
+
+
+def choose_guided_verdict(p: dict) -> tuple:
+    if p.get("accounting_fail") or p.get("incumbent_fail") or (p.get("solved") and not p.get("replay_ok")):
+        return "ROLLOUT_GUIDED_CONTRACT_FAILURE", p.get("contract_reason") or "rules/accounting/ancestry/replay failure"
+    elapsed = float(p.get("elapsed_s") or 0.0)
+    roll_s = float(((p.get("rollout") or {}).get("elapsed_s")) or 0.0)
+    if elapsed > 200 and roll_s > 0.28 * elapsed:
+        return "ROLLOUT_GUIDED_OVERHEAD_FAILURE", f"rollout used {roll_s:.0f}s of {elapsed:.0f}s"
+    inc = int(p.get("incumbent_g") or 187)
+    best = p.get("solution_g")
+    if p.get("solved") and p.get("replay_ok") and best is not None and int(best) < inc:
+        return "ROLLOUT_GUIDED_COST_IMPROVED", f"solved at g={best}"
+    max_f = int(p.get("max_foundations") or 0)
+    rows0_f = int((p.get("rows0") or {}).get("max_foundations") or 0)
+    stage_max = 0
+    for s in ((p.get("rollout") or {}).get("stage_a") or []) + ((p.get("rollout") or {}).get("stage_b") or []):
+        stage_max = max(stage_max, int(s.get("max_F") or 0))
+    integrated_f = max(max_f, rows0_f)
+    if integrated_f >= 3:
+        return "ROLLOUT_GUIDED_REACHES_DEEP_ENDGAME", f"integrated search reached F{integrated_f}"
+    if stage_max >= 3:
+        return "ROLLOUT_GUIDED_SELECTS_STRONG_ROOT_NO_CONVERSION", "rollout found F3+ but main rows=0 did not convert further"
+    n_sel = int((p.get("rollout") or {}).get("n_selected") or 0)
+    if n_sel == 0 and int((p.get("rollout") or {}).get("prefilter_n") or 0) > 0:
+        return "ROLLOUT_GUIDED_SIGNAL_LOST_INTEGRATION", "rollout candidates were not produced from autonomous harvest"
+    return "ROLLOUT_GUIDED_SIGNAL_LOST_INTEGRATION", "pilot signal did not survive integrated candidate generation"

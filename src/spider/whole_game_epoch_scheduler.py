@@ -520,6 +520,7 @@ def search_epoch_portfolio(
     augment_fraction: float = AUGMENT_FRACTION,
     augment_when=None,
     continuation_table=None,
+    final_deal_rollout_fn=None,
 ) -> EpochPortfolioResult:
     opening = opening or opening_state()
     started = time.perf_counter()
@@ -559,6 +560,9 @@ def search_epoch_portfolio(
         alloc_u, alloc_t = allocate_budget(rows, n_ready, remaining_unique, remain_t)
         alloc_u = min(alloc_u, remaining_unique)
         alloc_t = min(alloc_t, remain_t)
+        if final_deal_rollout_fn is not None and rows == 1:
+            reserve = min(120.0, max(0.0, remain_t - 60.0))
+            alloc_t = min(alloc_t, max(0.05, remain_t - reserve))
         epoch_ceil = live_ceiling - rows if remaining_deal_bound else live_ceiling
         epoch_ceil = max(0, int(epoch_ceil))
         epoch_roots = [r for r in roots if int(r["g"]) <= epoch_ceil]
@@ -974,36 +978,70 @@ def search_epoch_portfolio(
                 out.incumbent_survived += 1
         verified = []
         next_raw = []
-        for rec in attached:
-            live = _verify_and_deal(opening, rec) if rows > 0 else rec
-            if live is None:
-                if rows > 0:
-                    out.deal_illegal = True
-                    out.accounting_fail = True
-                continue
-            verified.append(rec)
-            if rows > 0:
-                next_raw.append(live)
-                if live.get("deal_auto_foundation") or live.get("foundations"):
-                    elapsed = time.perf_counter() - started
-                    _note_foundation(out, live, elapsed, out.unique, out.expanded)
-                if live.get("solved") and not out.solved:
-                    out.solved = True
-                    out.solution_g = int(live["g"])
-                    out.solution_actions = as_actions(live["full_actions"])
-                    end = opening.clone()
-                    try:
-                        cost = replay_actions(end, out.solution_actions)
-                    except Exception:
+        used_rollout = False
+        if rows == 1 and final_deal_rollout_fn is not None:
+            remain_wall = max(0.0, time_limit_s - (time.perf_counter() - started))
+            budget = min(120.0, remain_wall)
+            if budget >= 8.0:
+                ctx = {
+                    "opening": opening,
+                    "remain_wall": remain_wall,
+                    "remaining_unique": remaining_unique,
+                    "live_ceiling": live_ceiling,
+                    "cost_ceiling": live_ceiling,
+                    "rss_abort_mb": rss_abort_mb,
+                }
+                guided = final_deal_rollout_fn(attached, budget, ctx)
+                if guided and guided.get("roots"):
+                    used_rollout = True
+                    next_raw = list(guided["roots"])
+                    verified = list(attached)
+                    out.unique += int(guided.get("unique") or 0)
+                    remaining_unique = max_unique - out.unique
+                    out.expanded += int(guided.get("expanded") or 0)
+                    out.generated += int(guided.get("generated") or 0)
+                    out.rollout_guided = guided.get("report") or guided
+                    if guided.get("replay_ok") and guided.get("solution_g") is not None:
+                        gsol = int(guided["solution_g"])
+                        if out.solution_g is None or gsol < out.solution_g:
+                            out.solved = True
+                            out.solution_g = gsol
+                            out.solution_actions = as_actions(guided.get("solution_actions") or [])
+                            out.replay_g = gsol
+                            out.replay_ok = True
+                            live_ceiling = min(live_ceiling, gsol - 1)
+                            out.candidate_ceiling = live_ceiling
+        if not used_rollout:
+            for rec in attached:
+                live = _verify_and_deal(opening, rec) if rows > 0 else rec
+                if live is None:
+                    if rows > 0:
+                        out.deal_illegal = True
                         out.accounting_fail = True
-                    else:
-                        out.replay_g = cost
-                        out.replay_ok = cost == out.solution_g and end.is_solved()
-                        if not out.replay_ok:
+                    continue
+                verified.append(rec)
+                if rows > 0:
+                    next_raw.append(live)
+                    if live.get("deal_auto_foundation") or live.get("foundations"):
+                        elapsed = time.perf_counter() - started
+                        _note_foundation(out, live, elapsed, out.unique, out.expanded)
+                    if live.get("solved") and not out.solved:
+                        out.solved = True
+                        out.solution_g = int(live["g"])
+                        out.solution_actions = as_actions(live["full_actions"])
+                        end = opening.clone()
+                        try:
+                            cost = replay_actions(end, out.solution_actions)
+                        except Exception:
                             out.accounting_fail = True
-                    stop = "solved"
-            else:
-                next_raw.append(rec)
+                        else:
+                            out.replay_g = cost
+                            out.replay_ok = cost == out.solution_g and end.is_solved()
+                            if not out.replay_ok:
+                                out.accounting_fail = True
+                        stop = "solved"
+                else:
+                    next_raw.append(rec)
         if continuation_table is not None:
             for rec in next_raw:
                 spliced_g = continuation_table.consider_rec(opening, rec, out, live_ceiling)
@@ -1069,6 +1107,7 @@ def search_epoch_portfolio(
                 "deal_now_kept": cat_counts.get("deal_now", 0),
                 "after_deal_raw": dedup["raw"] if rows > 0 else 0,
                 "after_deal_unique": dedup["unique"] if rows > 0 else 0,
+                "rollout_guided": getattr(out, "rollout_guided", None) if rows == 1 else None,
                 "after_deal_convergences": dedup["convergences"] if rows > 0 else 0,
                 "lineage_roots": sum(1 for r in epoch_roots if r.get("lineage")),
                 "lineage_after_deal": 0

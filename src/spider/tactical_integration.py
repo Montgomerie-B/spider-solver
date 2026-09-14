@@ -676,6 +676,64 @@ def search_integrated_tactical(
     return result
 
 
+def search_rollout_guided(
+    *,
+    opening: Optional[SpiderState] = None,
+    max_unique: int = SEARCH_UNIQUE,
+    time_limit_s: float = SEARCH_TIME_S,
+    rss_abort_mb: float = SEARCH_RSS_MB,
+    portfolio_width: int = PORTFOLIO_WIDTH,
+    use_checkpoints: bool = True,
+    continuation_table=None,
+):
+    """v0.77: v0.75 whole-game plus staged final-Deal rollout and frontier reuse."""
+
+    from spider.autonomous_continuations import build_autonomous_continuation_table
+    from spider.final_deal_rollout import guided_final_deal_transition
+
+    opening = opening or opening_state()
+    trace = load_autonomous_192(opening)
+    if int(trace["g"]) != AUTONOMOUS_INCUMBENT_MW:
+        raise ValueError("autonomous 187 incumbent failed to replay")
+    tracker = TransitionTracker()
+    ck = checkpoints_from_trace(trace) if use_checkpoints else {}
+    table = continuation_table
+    if table is None:
+        table = build_autonomous_continuation_table(opening, ceiling=CANDIDATE_CEILING)
+    result = search_operational_optimisation(
+        opening=opening,
+        incumbent_trace=trace,
+        cost_ceiling=CANDIDATE_CEILING,
+        incumbent_by_rows=ck,
+        max_unique=max_unique,
+        time_limit_s=time_limit_s,
+        rss_abort_mb=rss_abort_mb,
+        portfolio_width=portfolio_width,
+        harvest_cats=TRANSITION_HARVEST_CATS,
+        extra_track=tracker,
+        enrich_fn=enrich_integrated_tactical,
+        on_harvest=tracker.on_harvest,
+        finalize_track=tracker.finalize,
+        lane_names=STRATEGIC_LANES,
+        keys_fn=strategic_lane_keys,
+        lower_bound_fn=stock_empty_assembly_h,
+        epoch_augment_fn=rows1_cashout_augment,
+        augment_fraction=ROWS1_AUGMENT_FRACTION,
+        augment_when=lambda rows, _roots: int(rows) == 1,
+        continuation_table=table,
+        final_deal_rollout_fn=guided_final_deal_transition,
+    )
+    result.transition_tracker = tracker
+    result.n_previewed = tracker.n_previewed
+    result.transition_selected = tracker.selected
+    result.transition_cats = tracker.selected_cats
+    result.incumbent_g = AUTONOMOUS_INCUMBENT_MW
+    result.candidate_ceiling = getattr(result, "candidate_ceiling", None) or CANDIDATE_CEILING
+    result.continuation_stats = table.stats() if table is not None else {}
+    result.continuation_table = table
+    return result
+
+
 def choose_integrated_tactical_verdict(p: dict) -> Tuple[str, str]:
     if p.get("incumbent_fail") or p.get("accounting_fail") or (p.get("solved") and not p.get("replay_ok")):
         return (

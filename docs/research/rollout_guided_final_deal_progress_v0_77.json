@@ -1,0 +1,10 @@
+{
+  "best_complete_g": 187,
+  "elapsed_s": 900.3281966999639,
+  "max_foundations": 3,
+  "n_roots0": 32,
+  "phase": "complete",
+  "solution_g": null,
+  "unique": 128444,
+  "verdict": "ROLLOUT_GUIDED_REACHES_DEEP_ENDGAME"
+}
