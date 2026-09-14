@@ -1,0 +1,9 @@
+{
+  "exhausted": true,
+  "n_raw": 37,
+  "n_surplus": 5,
+  "n_viable": 16,
+  "phase": "complete",
+  "stop_reason": "complete",
+  "verdict": "G158_BRIDGE_DEEP_ENDGAME"
+}
