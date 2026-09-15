@@ -22,7 +22,7 @@ else:
 from spider.app_paths import data_folder, default_campaigns_dir
 from spider.campaign_bundle import export_campaign, import_campaign
 from spider.campaign_exchange import ingest_results, publish_result
-from spider.campaign_autonomous import PROFILES, run_autonomous_campaign
+from spider.campaign_autonomous import PROFILES, campaign_stats, run_autonomous_campaign
 from spider.campaign_expand import (
     create_g123_campaign,
     create_opening_campaign,
@@ -86,7 +86,7 @@ class CampaignApp(tk.Tk):
         af = ttk.Frame(adv)
         af.pack(fill=tk.X, padx=8, pady=6)
         self._mode = tk.StringVar(value="AUTO")
-        self._campaign_profile = tk.StringVar(value="DEEP")
+        self._campaign_profile = tk.StringVar(value="G123_DIAMOND_DEEP")
         self._workers = tk.IntVar(value=1)
         self._rss = tk.DoubleVar(value=2560.0)
         ttk.Label(af, text="Mode").grid(row=0, column=0, sticky=tk.W)
@@ -100,7 +100,7 @@ class CampaignApp(tk.Tk):
             af,
             textvariable=self._campaign_profile,
             values=tuple(k for k in PROFILES if k != "SMOKE"),
-            width=18,
+            width=22,
             state="readonly",
         ).grid(row=1, column=1, padx=6, pady=(6, 0), sticky=tk.W)
 
@@ -112,9 +112,10 @@ class CampaignApp(tk.Tk):
         bt.pack(fill=tk.X, padx=8, pady=(0, 6))
         ttk.Button(bt, text="New Campaign", command=self._new_campaign).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(bt, text="Open Campaign", command=self._choose_folder).pack(side=tk.LEFT, padx=(0, 4))
-        self._start = ttk.Button(bt, text="Start", command=self._start_run)
+        self._start = ttk.Button(bt, text="Start Autopilot", command=self._start_run)
         self._start.pack(side=tk.LEFT, padx=(0, 4))
-        ttk.Button(bt, text="Resume", command=self._start_run).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(bt, text="Resume Autopilot", command=self._start_run).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(bt, text="Pause After Current Operation", command=self._pause).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(bt, text="Pause after current job", command=self._pause).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(bt, text="Stop", command=self._stop).pack(side=tk.LEFT, padx=(0, 4))
         row2 = ttk.Frame(camp)
@@ -133,7 +134,9 @@ class CampaignApp(tk.Tk):
         ttk.Button(row4, text="Create Opening Campaign", command=self._create_opening).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(row4, text="Create Known g123 Campaign", command=self._create_g123).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(row4, text="Generate Children", command=self._generate_children).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row4, text="Generate More", command=self._generate_children).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(row4, text="Evaluate / Start", command=self._start_run).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row4, text="Run Deep Campaign", command=self._start_run).pack(side=tk.LEFT, padx=(0, 4))
         row5 = ttk.Frame(camp)
         row5.pack(fill=tk.X, padx=8, pady=(0, 6))
         ttk.Button(row5, text="Deepen Selected", command=self._deepen_selected).pack(side=tk.LEFT, padx=(0, 4))
@@ -241,10 +244,16 @@ class CampaignApp(tk.Tk):
         done = sum(1 for j in jobs if j.get("status") == "done")
         imported = len(data.get("imported_results") or [])
         running = next((j for j in jobs if j.get("status") == "running"), None)
+        ap = data.get("autopilot") or {}
+        st = campaign_stats(data)
         self._camp_info.set(
-            f"UUID {data.get('uuid')} · incumbent {data.get('incumbent_g')} (registry {current_incumbent_g()}) · ceiling {data.get('production_ceiling')} (registry {production_ceiling()}) · "
-            f"candidates {len(data.get('candidates') or [])} · nodes {len(data.get('nodes') or [])} · pending {pending} · done {done} · imported {imported} · "
-            f"current {str((running or {}).get('id') or '-')[:8]} · worker {data.get('scientific_worker') or WORKER_MODE}"
+            f"UUID {data.get('uuid')} · incumbent {st.get('incumbent_g')} (registry {current_incumbent_g()}) · "
+            f"ceiling {st.get('production_ceiling')} (registry {production_ceiling()}) · "
+            f"profile {ap.get('profile') or self._campaign_profile.get()} · Autopilot {ap.get('state') or 'STOPPED'} · "
+            f"op {ap.get('current_type') or '-'} {ap.get('current_step') or ''} · "
+            f"F2 {st.get('n_f2')} post-SD5 {st.get('n_post_sd5')} live {st.get('proof_live')} dead {st.get('proof_dead')} "
+            f"unresolved {st.get('unresolved')} solved {st.get('solved')} exhausted {st.get('exhausted')} "
+            f"hours {st.get('search_hours')} · worker {data.get('scientific_worker') or WORKER_MODE}"
         )
         self._fill_tree(data)
 
@@ -349,8 +358,8 @@ class CampaignApp(tk.Tk):
                 p.unlink()
         self._running = True
         self._start.configure(state=tk.DISABLED)
-        profile = self._campaign_profile.get() or "DEEP"
-        self._log_line(f"Starting autonomous profile {profile} with LEAN CONSEQUENCE worker...")
+        profile = self._campaign_profile.get() or "G123_DIAMOND_DEEP"
+        self._log_line(f"Starting Autopilot profile {profile} with LEAN CONSEQUENCE worker...")
 
         def work():
             try:

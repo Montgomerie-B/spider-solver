@@ -48,6 +48,8 @@ def new_campaign(*, incumbent_g: Optional[int] = None, ceiling: Optional[int] = 
         "nodes": [],
         "edges": [],
         "graph_version": 1,
+        "operations": [],
+        "autopilot": {"state": "STOPPED", "profile": None, "plan_index": 0, "current_op_id": None},
     }
 
 

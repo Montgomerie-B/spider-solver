@@ -38,7 +38,8 @@ def load_incumbent() -> dict:
     local = local_incumbent_path()
     if local.exists():
         overlay = _read(local)
-        if int(overlay.get("incumbent_g") or 0) >= int(data.get("incumbent_g") or 0):
+        # Lower g is a better incumbent. A worse overlay must not hide the bundled 186.
+        if int(overlay.get("incumbent_g") or 10**9) <= int(data.get("incumbent_g") or 10**9):
             overlay["_overlay"] = True
             return overlay
     data["_overlay"] = False

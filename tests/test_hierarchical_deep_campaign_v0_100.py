@@ -82,17 +82,20 @@ def test_campaign_graph_opening_g123_reopening(tmp_path: Path):
     assert g123["ancestry_verified"] is True
     assert g123["n_deal"] == 4
     assert any(e["child"] == g123["id"] for e in gcamp["edges"])
+    orig_g = int(g123["g"])
     cheap = make_node(
-        g=int(g123["g"]) - 1,
+        g=orig_g - 1,
         ordered_digest=g123["ordered_digest"],
         full_actions=g123["full_actions"],
         parent_ids=[g123["parent_ids"][0]],
         source="test",
         ancestry_verified=True,
     )
-    add_node(gcamp, cheap)
-    assert cheap.get("lower_g_reopening") is True
-    assert identity_key(cheap) == identity_key(g123)
+    stored = add_node(gcamp, cheap)
+    assert stored.get("lower_g_reopening") is True
+    assert identity_key(stored) == identity_key(g123)
+    assert stored["g"] == orig_g - 1
+    assert sum(1 for n in gcamp["nodes"] if identity_key(n) == identity_key(g123)) == 1
     folder = tmp_path / "g"
     save_campaign(folder, gcamp)
     bundle = export_campaign(folder, tmp_path / "g.spidercampaign")
@@ -145,6 +148,8 @@ def test_gui_hierarchy_controls():
         "Import Campaign",
         "Sync Results",
         "Pause after current job",
+        "Pause After Current Operation",
+        "Start Autopilot",
         "Stop",
         "LEAN CONSEQUENCE",
         "Hardware mode:",

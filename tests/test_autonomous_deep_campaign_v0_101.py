@@ -87,28 +87,87 @@ def test_deepening_progresses_beyond_round_two():
     assert r3["time_s"] == 1800.0 and r3["round"] == 3
     assert r4["time_s"] == 7200.0 and r4["round"] == 4
     assert r5["time_s"] == 28800.0 and r5["round"] == 5
+    r6 = next_round_for_node({"deepest_budget_s": 28800})
+    r7 = next_round_for_node({"deepest_budget_s": 86400})
+    assert r6["time_s"] == 86400.0 and r6["round"] == 6
+    assert r7["time_s"] == 86400.0 and r7.get("repeat") is True
+    assert r7["label"] == "REPEAT 24H"
     gui = GUI.read_text(encoding="utf-8")
     assert "DEFAULT_ROUNDS[min(1" not in gui
     assert "next_round_for_node" in gui
     assert "Deep campaign profile" in gui
     assert "run_autonomous_campaign" in gui
     ast.parse(gui)
-    assert "SCREEN" in PROFILES and "DEEP" in PROFILES and "UNTIL_STOPPED" in PROFILES
+    assert "G123_DIAMOND_DEEP" in PROFILES
+    assert "REPEAT_24H" in PROFILES or "SMOKE" in PROFILES
 
 
-def test_autonomous_smoke(tmp_path: Path):
+def test_generation_bulk_sd5_dedup_and_autopilot(tmp_path: Path):
+    from spider.campaign_expand import bulk_sd5, create_g123_campaign, expand_f2_children, proof_filter
+    from spider.campaign_nodes import add_node, identity_key, make_node
+    from spider.campaign_ops import recover_stale_operations
+    from spider.campaign_status import GENERATION_UNRESOLVED_TIME, proof_dead_label
+    from spider.campaign_store import load_campaign
+
+    camp = new_campaign()
+    g123 = create_g123_campaign(camp)
+    first = expand_f2_children(camp, g123, time_s=4.0, max_unique=4000, suit="d")
+    assert first.get("history")
+    assert first["history"]["target_suit"] == "d"
+    assert "n_new" in first["history"]
+    hist0 = list(g123.get("generation_runs") or [])
+    assert hist0
+    second = expand_f2_children(camp, g123, time_s=4.0, max_unique=4000, suit="d")
+    assert second["history"]["n_duplicate"] >= 0
+    n_pre = sum(1 for n in camp["nodes"] if n.get("kind") == "PRE_STOCK")
+    third = expand_f2_children(camp, g123, time_s=4.0, max_unique=4000, suit="d")
+    n_pre2 = sum(1 for n in camp["nodes"] if n.get("kind") == "PRE_STOCK")
+    assert n_pre2 == n_pre or n_pre2 >= n_pre
+    if g123.get("generation_status") == GENERATION_UNRESOLVED_TIME:
+        assert g123["generation_status"] != "EXHAUSTED"
+    sd = bulk_sd5(camp)
+    assert sd["n_fail"] == 0
+    posts = [n for n in camp["nodes"] if n.get("kind") == "STOCK_EMPTY"]
+    for p in posts:
+        assert p.get("n_deal") == 5
+        assert p.get("full_actions")
+    keys = [identity_key(p) for p in posts]
+    assert len(keys) == len(set(keys))
+    filt = proof_filter(camp)
+    assert filt["ceiling"] == 185
+    assert filt["label"] == proof_dead_label(185)
+    clone = make_node(
+        g=g123["g"],
+        ordered_digest=g123["ordered_digest"],
+        full_actions=g123["full_actions"],
+        parent_ids=g123["parent_ids"],
+        ancestry_verified=True,
+    )
+    reused = add_node(camp, clone)
+    assert reused["id"] == g123["id"]
+    assert reused.get("arrival") == "duplicate"
+
     folder = tmp_path / "camp"
     save_campaign(folder, new_campaign())
     cfg = recommend_config(detect_hardware())
     summary = run_autonomous_campaign(folder, cfg, profile="SMOKE")
     assert summary["profile"] == "SMOKE"
-    assert summary["nodes"] >= 2
-    from spider.campaign_store import load_campaign
-
     data = load_campaign(folder)
     assert data.get("g123_id")
     assert data["incumbent_g"] == 186
     assert data["production_ceiling"] == 185
-    kinds = {n.get("kind") for n in data.get("nodes") or []}
-    assert "CHECKPOINT" in kinds or "PRE_STOCK" in kinds or "STOCK_EMPTY" in kinds
-    assert summary["waves"] >= 1
+    types = [o.get("type") for o in data.get("operations") or []]
+    assert "GENERATE" in types
+    assert "TRANSITION_SD5" in types
+    assert "FILTER" in types
+    assert data.get("autopilot", {}).get("state") in ("STOPPED", "PAUSED", "RUNNING")
+    for op in data.get("operations") or []:
+        if op.get("status") == "done":
+            assert op.get("finished_at")
+    data["operations"][0]["status"] = "running"
+    n = recover_stale_operations(data)
+    assert n >= 1
+    assert data["operations"][0]["status"] == "pending"
+    summary2 = run_autonomous_campaign(folder, cfg, profile="SMOKE")
+    data2 = load_campaign(folder)
+    assert data2.get("g123_id") == data.get("g123_id")

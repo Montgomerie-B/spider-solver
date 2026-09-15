@@ -145,6 +145,12 @@ def opening_node() -> dict:
 
 
 def add_node(campaign: dict, node: dict) -> dict:
+    """Reuse the scientific state node on same identity at same/worse g.
+
+    Cheaper g: update the search representative in place, keep old ancestry
+    as provenance, mark LOWER_G_REOPENING. Do not append redundant nodes.
+    """
+
     campaign.setdefault("nodes", [])
     campaign.setdefault("edges", [])
     key = identity_key(node)
@@ -154,15 +160,38 @@ def add_node(campaign: dict, node: dict) -> dict:
             existing = prev
             break
     if existing is not None:
+        alt = {
+            "g": node.get("g"),
+            "parent_ids": list(node.get("parent_ids") or []),
+            "full_actions": node.get("full_actions"),
+            "source": node.get("source"),
+            "n_deal": node.get("n_deal"),
+        }
         if int(node["g"]) < int(existing["g"]):
-            node["lower_g_reopening"] = True
-            node["status"] = "LOWER_G_REOPENING"
-            node["prior_g"] = existing["g"]
-            node["prior_id"] = existing["id"]
-            existing["cheaper_arrival_ids"] = list(existing.get("cheaper_arrival_ids") or []) + [node["id"]]
+            existing.setdefault("alternate_ancestries", []).append(
+                {
+                    "g": existing.get("g"),
+                    "full_actions": existing.get("full_actions"),
+                    "parent_ids": list(existing.get("parent_ids") or []),
+                    "n_deal": existing.get("n_deal"),
+                }
+            )
+            existing["g"] = int(node["g"])
+            existing["full_actions"] = node.get("full_actions")
+            existing["action_count"] = node.get("action_count") or existing.get("action_count")
+            existing["n_deal"] = node.get("n_deal")
+            existing["lower_g_reopening"] = True
+            existing["status"] = "LOWER_G_REOPENING"
+            existing["prior_g"] = existing["alternate_ancestries"][-1]["g"]
+            existing["arrival"] = "lower_g_reopening"
         else:
-            node["duplicate_of"] = existing["id"]
-            node["prior_g"] = existing["g"]
+            existing.setdefault("alternate_ancestries", []).append(alt)
+            existing["duplicate_arrivals"] = int(existing.get("duplicate_arrivals") or 0) + 1
+            existing["arrival"] = "duplicate"
+        for pid in node.get("parent_ids") or []:
+            add_edge(campaign, pid, existing["id"])
+        return existing
+    node["arrival"] = "new"
     campaign["nodes"].append(node)
     for pid in node.get("parent_ids") or []:
         add_edge(campaign, pid, node["id"])
@@ -239,4 +268,7 @@ def deepen_priority(node: dict) -> tuple:
 
 
 def status_unresolved(node: dict) -> bool:
-    return str(node.get("status") or "") in ("OPEN", "UNRESOLVED_TIME", "UNRESOLVED_UNIQUE")
+    s = str(node.get("status") or "")
+    if s.startswith("PROOF_DEAD") or s in ("SOLVED", "EXHAUSTED", "KNOWN_CLOSED", "FAILED_CONTRACT"):
+        return False
+    return s in ("OPEN", "UNRESOLVED_TIME", "UNRESOLVED_UNIQUE", "GENERATION_UNRESOLVED_TIME", "LOWER_G_REOPENING", "")

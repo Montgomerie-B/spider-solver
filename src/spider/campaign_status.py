@@ -12,19 +12,27 @@ UNRESOLVED_UNIQUE = "UNRESOLVED_UNIQUE"
 CANCELLED = "CANCELLED"
 FAILED_CONTRACT = "FAILED_CONTRACT"
 OPEN = "OPEN"
+GENERATION_UNRESOLVED_TIME = "GENERATION_UNRESOLVED_TIME"
+PROOF_DEAD_185 = "PROOF_DEAD_185"
 
 OUTCOMES = (
     SOLVED,
     PROOF_DEAD,
+    PROOF_DEAD_185,
     EXHAUSTED,
     KNOWN_CLOSED,
     LOWER_G_REOPENING,
     UNRESOLVED_TIME,
     UNRESOLVED_UNIQUE,
+    GENERATION_UNRESOLVED_TIME,
     CANCELLED,
     FAILED_CONTRACT,
     OPEN,
 )
+
+
+def proof_dead_label(ceiling: int) -> str:
+    return f"PROOF_DEAD_{int(ceiling)}"
 
 
 def classify_outcome(result: dict, *, ceiling: int, assembly_f=None, cancelled: bool = False) -> str:
@@ -47,7 +55,7 @@ def classify_outcome(result: dict, *, ceiling: int, assembly_f=None, cancelled: 
     if stop == "complete":
         return EXHAUSTED
     if assembly_f is not None and int(assembly_f) > int(ceiling):
-        return PROOF_DEAD
+        return proof_dead_label(ceiling)
     if stop == "unique limit":
         return UNRESOLVED_UNIQUE
     if stop in ("time limit", "rss abort"):
@@ -58,8 +66,8 @@ def classify_outcome(result: dict, *, ceiling: int, assembly_f=None, cancelled: 
 
 
 def status_is_unresolved(status: str) -> bool:
-    return status in (UNRESOLVED_TIME, UNRESOLVED_UNIQUE, OPEN)
+    return status in (UNRESOLVED_TIME, UNRESOLVED_UNIQUE, OPEN, GENERATION_UNRESOLVED_TIME, LOWER_G_REOPENING)
 
 
 def status_is_dead_or_failed(status: str) -> bool:
-    return status in (PROOF_DEAD, FAILED_CONTRACT)
+    return status in (PROOF_DEAD, FAILED_CONTRACT) or str(status).startswith("PROOF_DEAD")

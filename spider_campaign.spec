@@ -36,6 +36,7 @@ a = Analysis(
         "spider.campaign_nodes",
         "spider.campaign_status",
         "spider.incumbent",
+        "spider.campaign_ops",
         "spider.consequence_search",
         "spider.assembly_lower_bound",
         "spider.assembly_policy",
