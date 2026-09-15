@@ -2,5 +2,5 @@
   "lean_terminal_s": 26.050170499999695,
   "phase": "complete",
   "speedup": 2.955020313590689,
-  "verdict": "LEAN_EVALUATOR_SEMANTIC_DRIFT"
+  "verdict": "LEAN_EVALUATOR_MAJOR_SPEEDUP"
 }
