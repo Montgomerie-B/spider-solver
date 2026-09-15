@@ -170,14 +170,17 @@ def _execute_op(data: dict, op: dict, cfg: ResourceConfig, campaign_dir: Path, l
         if float(p.get("time_s") or 0) >= 120 and int(n_f2) < 50:
             log(f"WARNING Diamond generation produced only {n_f2} unique F2s (v0.84/v0.100 reference ~279)")
         summary["ok"] = True
+        save_campaign(campaign_dir, data)
         return summary
     if typ == OP_SD5:
         rec = bulk_sd5(data)
         rec["ok"] = True
+        save_campaign(campaign_dir, data)
         return rec
     if typ == OP_FILTER:
         rec = proof_filter(data)
         rec["ok"] = True
+        save_campaign(campaign_dir, data)
         return rec
     if typ in (OP_EVALUATE, OP_DEEPEN):
         time_s = float(p.get("time_s") or 300.0)
