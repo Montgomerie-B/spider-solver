@@ -1,0 +1,15 @@
+{
+  "base_sha": "198281f7e7ca18ce966d0fd12056d1c7062360df",
+  "branch": "agent/autopilot-integrity-v0-102",
+  "build_host_note": "build/test host, not the Dell Optiplex",
+  "experiment": "autopilot_integrity_v0_102",
+  "incumbent_g": 186,
+  "production_ceiling": 185,
+  "lower_g_policy": "same_ordered_digest_updates; distinct_ordered_same_symmetry_is_separate_searchable_node",
+  "source_of_truth": "graph_node_with_sync_candidate_from_node",
+  "worker_crash": "FAILED_CONTRACT",
+  "pause": "pending_partial_then_resume_same_operation",
+  "operation_attribution": "job.operation_id",
+  "pipeline_fixture": "autonomous_186_pre_f2",
+  "verdict": "AUTOPILOT_INTEGRITY_READY"
+}

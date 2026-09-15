@@ -18,13 +18,18 @@ from spider.campaign_expand import (
 )
 from spider.campaign_nodes import deepen_priority, get_node, status_unresolved
 from spider.campaign_ops import (
+    FAILED,
     OP_DEEPEN,
     OP_EVALUATE,
     OP_FILTER,
     OP_GENERATE,
     OP_SD5,
+    PAUSED_ERROR,
+    PENDING_PARTIAL,
     enqueue_operation,
     mark_done,
+    mark_failed,
+    mark_partial,
     mark_running,
     next_pending,
     recover_stale_operations,
@@ -164,31 +169,60 @@ def _execute_op(data: dict, op: dict, cfg: ResourceConfig, campaign_dir: Path, l
         n_f2 = hist.get("n_unique") or summary.get("n_children") or 0
         if float(p.get("time_s") or 0) >= 120 and int(n_f2) < 50:
             log(f"WARNING Diamond generation produced only {n_f2} unique F2s (v0.84/v0.100 reference ~279)")
+        summary["ok"] = True
         return summary
     if typ == OP_SD5:
-        return bulk_sd5(data)
+        rec = bulk_sd5(data)
+        rec["ok"] = True
+        return rec
     if typ == OP_FILTER:
-        return proof_filter(data)
+        rec = proof_filter(data)
+        rec["ok"] = True
+        return rec
     if typ in (OP_EVALUATE, OP_DEEPEN):
         time_s = float(p.get("time_s") or 300.0)
         unique = int(p.get("unique") or cfg.max_unique)
         scope = p.get("scope") or "unresolved"
-        nodes = _live_stockempty(data, only_new=(scope == "new_live"))
-        nq = 0
-        for node in nodes:
-            if typ == OP_EVALUATE and any(abs(float(r.get("time_s") or 0) - time_s) < 0.05 for r in node.get("runs") or []):
-                continue
-            if typ == OP_DEEPEN and float(node.get("deepest_budget_s") or 0) + 1e-6 >= time_s:
-                continue
-            if enqueue_deepen(data, node, time_s=time_s, max_unique=unique):
-                nq += 1
+        oid = op.get("id")
+        already = set(op.get("member_job_ids") or [])
+        if not already:
+            nodes = _live_stockempty(data, only_new=(scope == "new_live"))
+            nq = 0
+            member_jobs = []
+            member_nodes = []
+            for node in nodes:
+                if typ == OP_EVALUATE and any(abs(float(r.get("time_s") or 0) - time_s) < 0.05 for r in node.get("runs") or []):
+                    continue
+                if typ == OP_DEEPEN and float(node.get("deepest_budget_s") or 0) + 1e-6 >= time_s:
+                    continue
+                job = enqueue_deepen(data, node, time_s=time_s, max_unique=unique, operation_id=oid)
+                if job:
+                    nq += 1
+                    member_jobs.append(job["id"])
+                    member_nodes.append(node["id"])
+            op["member_job_ids"] = member_jobs
+            op["member_node_ids"] = member_nodes
+            op["expected"] = nq
         save_campaign(campaign_dir, data)
-        finished = {"queued": nq, "finished": 0}
-        if nq:
-            summary = run_pending_jobs(campaign_dir, cfg, on_log=log)
-            finished["finished"] = int(summary.get("finished") or 0)
-        return finished
-    return {"op": "noop"}
+        summary = run_pending_jobs(campaign_dir, cfg, on_log=log, operation_id=oid)
+        data = load_campaign(campaign_dir)
+        members = [j for j in data.get("jobs") or [] if j.get("operation_id") == oid]
+        pending_m = [j for j in members if j.get("status") == "pending"]
+        failed_m = [j for j in members if j.get("outcome") == "FAILED_CONTRACT" or j.get("status") == "failed"]
+        result = {
+            "queued": len(members),
+            "finished": summary.get("finished"),
+            "failed": len(failed_m),
+            "pending": len(pending_m),
+            "paused": bool(summary.get("paused")),
+            "ok": not failed_m,
+            "incomplete": bool(pending_m) or bool(summary.get("paused")),
+        }
+        if failed_m:
+            result["failed"] = True
+            result["ok"] = False
+        return result
+    return {"op": "noop", "ok": True}
 
 
 def run_autonomous_campaign(
@@ -245,18 +279,32 @@ def run_autonomous_campaign(
         try:
             result = _execute_op(data, op, cfg, campaign_dir, log)
             data = load_campaign(campaign_dir)
-            for rec in data.get("operations") or []:
-                if rec.get("id") == op["id"]:
-                    mark_done(rec, result)
-                    break
+            rec = next((o for o in data.get("operations") or [] if o.get("id") == op["id"]), None)
+            if rec is None:
+                break
+            if result.get("failed") or result.get("ok") is False:
+                mark_failed(rec, result)
+                data["autopilot"]["state"] = PAUSED_ERROR
+                data["autopilot"]["current_op_id"] = rec["id"]
+                save_campaign(campaign_dir, data)
+                log("OP FAILED_CONTRACT; autopilot PAUSED_ERROR")
+                break
+            if result.get("incomplete"):
+                mark_partial(rec, result)
+                data["autopilot"]["state"] = "PAUSED"
+                save_campaign(campaign_dir, data)
+                log("OP incomplete after pause; remaining members stay on this operation")
+                break
+            mark_done(rec, result)
         except Exception as exc:
             data = load_campaign(campaign_dir)
-            for rec in data.get("operations") or []:
-                if rec.get("id") == op["id"]:
-                    rec["status"] = "failed"
-                    rec["result"] = {"error": str(exc)}
-                    break
+            rec = next((o for o in data.get("operations") or [] if o.get("id") == op["id"]), None)
+            if rec is not None:
+                mark_failed(rec, {"error": str(exc), "ok": False, "failed": True})
+            data["autopilot"]["state"] = PAUSED_ERROR
+            save_campaign(campaign_dir, data)
             log(f"OP failed: {exc}")
+            break
         data["autopilot"]["current_op_id"] = None
         save_campaign(campaign_dir, data)
         ran += 1

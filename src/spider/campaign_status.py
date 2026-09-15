@@ -43,7 +43,7 @@ def classify_outcome(result: dict, *, ceiling: int, assembly_f=None, cancelled: 
 
     if cancelled or result.get("cancelled"):
         return CANCELLED
-    if result.get("contract_fail") or result.get("status") == "failed":
+    if result.get("contract_fail") or result.get("status") == "failed" or result.get("outcome") == FAILED_CONTRACT:
         return FAILED_CONTRACT
     if result.get("solved") and result.get("terminal_g") is not None:
         return SOLVED

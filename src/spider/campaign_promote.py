@@ -91,7 +91,10 @@ def promote_if_solved(campaign: dict, candidate: dict, result: dict, *, folder: 
     }
     campaign.setdefault("solutions", []).append(sol)
     campaign["incumbent"] = sol
+    from spider.campaign_integrity import refilter_graph
+
     reevaluate_proof_viability(campaign)
+    refilter_graph(campaign)
     if folder is not None:
         dest = Path(folder) / "solutions"
         dest.mkdir(parents=True, exist_ok=True)

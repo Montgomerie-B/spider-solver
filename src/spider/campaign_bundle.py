@@ -97,4 +97,7 @@ def import_campaign(bundle: Path, dest_folder: Path) -> dict:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(zf.read(name))
     save_campaign(dest_folder, campaign)
+    from spider.campaign_integrity import maybe_adopt_imported_incumbent
+
+    campaign["_adopt"] = maybe_adopt_imported_incumbent(campaign, dest_folder)
     return campaign

@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
 
-SOLVER_VERSION = "0.101"
+SOLVER_VERSION = "0.102"
 
 
 @dataclass

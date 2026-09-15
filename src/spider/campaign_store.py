@@ -113,10 +113,22 @@ def add_candidate(
     return rec
 
 
-def enqueue_job(data: dict, candidate_id: str, *, ceiling: int, time_s: float, max_unique: int, round_n: Optional[int] = None) -> dict:
+def enqueue_job(
+    data: dict,
+    candidate_id: str,
+    *,
+    ceiling: int,
+    time_s: float,
+    max_unique: int,
+    round_n: Optional[int] = None,
+    operation_id: Optional[str] = None,
+    node_id: Optional[str] = None,
+) -> dict:
     job = {
         "id": str(uuid.uuid4()),
         "candidate_id": candidate_id,
+        "node_id": node_id,
+        "operation_id": operation_id,
         "ceiling": int(ceiling),
         "time_s": float(time_s),
         "max_unique": int(max_unique),

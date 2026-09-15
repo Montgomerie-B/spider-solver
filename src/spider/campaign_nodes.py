@@ -43,10 +43,17 @@ def classify_kind(*, stock_rows_n: int, foundations: int, solved: bool, g: int) 
 
 
 def identity_key(node: dict) -> tuple:
-    rows = int(node.get("stock_rows") or 0)
-    if rows == 0:
-        return ("stock_empty", node.get("ident") or node.get("whole_game_identity") or node.get("ordered_digest"))
+    """Exact ordered state is the scientific node identity. Never merge distinct ordered_digests."""
+
     return ("ordered", node.get("ordered_digest"))
+
+
+def symmetry_key(node: dict) -> Optional[str]:
+    """Post-stock whole-column permutation identity. None while stock remains."""
+
+    if int(node.get("stock_rows") or 0) != 0:
+        return None
+    return node.get("ident") or node.get("whole_game_identity")
 
 
 def telemetry_from_digest(digest: str, g: int, full_actions=None) -> dict:
@@ -144,12 +151,32 @@ def opening_node() -> dict:
     )
 
 
-def add_node(campaign: dict, node: dict) -> dict:
-    """Reuse the scientific state node on same identity at same/worse g.
+def _link_symmetry_group(campaign: dict, node: dict) -> None:
+    key = symmetry_key(node)
+    if not key:
+        return
+    group = None
+    for prev in campaign.get("nodes") or []:
+        if prev.get("id") == node.get("id"):
+            continue
+        if symmetry_key(prev) == key:
+            group = prev.get("symmetry_group_id") or prev.get("id")
+            prev["symmetry_group_id"] = group
+            break
+    node["symmetry_group_id"] = group or node.get("id")
+    if group:
+        node["symmetry_equivalent"] = True
 
-    Cheaper g: update the search representative in place, keep old ancestry
-    as provenance, mark LOWER_G_REOPENING. Do not append redundant nodes.
+
+def add_node(campaign: dict, node: dict) -> dict:
+    """Exact ordered_digest is the node. Symmetric-but-different ordered states stay separate.
+
+    Same ordered_digest + cheaper g: update representative and sync candidate.
+    Same post-stock symmetry, different ordered_digest, cheaper g: new searchable
+    LOWER_G_REOPENING node; do not overwrite the other ancestry.
     """
+
+    from spider.campaign_integrity import recompute_assembly, refilter_graph, sync_candidate_from_node
 
     campaign.setdefault("nodes", [])
     campaign.setdefault("edges", [])
@@ -166,6 +193,7 @@ def add_node(campaign: dict, node: dict) -> dict:
             "full_actions": node.get("full_actions"),
             "source": node.get("source"),
             "n_deal": node.get("n_deal"),
+            "ordered_digest": node.get("ordered_digest"),
         }
         if int(node["g"]) < int(existing["g"]):
             existing.setdefault("alternate_ancestries", []).append(
@@ -174,16 +202,21 @@ def add_node(campaign: dict, node: dict) -> dict:
                     "full_actions": existing.get("full_actions"),
                     "parent_ids": list(existing.get("parent_ids") or []),
                     "n_deal": existing.get("n_deal"),
+                    "ordered_digest": existing.get("ordered_digest"),
                 }
             )
             existing["g"] = int(node["g"])
             existing["full_actions"] = node.get("full_actions")
             existing["action_count"] = node.get("action_count") or existing.get("action_count")
             existing["n_deal"] = node.get("n_deal")
+            existing["ordered_digest"] = node.get("ordered_digest")
             existing["lower_g_reopening"] = True
             existing["status"] = "LOWER_G_REOPENING"
             existing["prior_g"] = existing["alternate_ancestries"][-1]["g"]
             existing["arrival"] = "lower_g_reopening"
+            recompute_assembly(existing)
+            sync_candidate_from_node(campaign, existing)
+            refilter_graph(campaign)
         else:
             existing.setdefault("alternate_ancestries", []).append(alt)
             existing["duplicate_arrivals"] = int(existing.get("duplicate_arrivals") or 0) + 1
@@ -192,6 +225,15 @@ def add_node(campaign: dict, node: dict) -> dict:
             add_edge(campaign, pid, existing["id"])
         return existing
     node["arrival"] = "new"
+    _link_symmetry_group(campaign, node)
+    if node.get("symmetry_equivalent") and int(node.get("g") or 0) < min(
+        (int(p.get("g") or 10**9) for p in campaign["nodes"] if symmetry_key(p) == symmetry_key(node)),
+        default=10**9,
+    ):
+        node["lower_g_reopening"] = True
+        node["status"] = "LOWER_G_REOPENING"
+        node["arrival"] = "lower_g_reopening_ordered"
+        recompute_assembly(node)
     campaign["nodes"].append(node)
     for pid in node.get("parent_ids") or []:
         add_edge(campaign, pid, node["id"])

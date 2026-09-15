@@ -245,7 +245,11 @@ def expand_sd5_child(campaign: dict, node: dict) -> Optional[dict]:
     stored = add_node(campaign, child)
     if stored.get("n_deal") != 5 and stored.get("arrival") == "new":
         stored["n_deal"] = sum(1 for a in as_actions(stored.get("full_actions") or []) if is_deal(a))
+    from spider.campaign_integrity import recompute_assembly, sync_candidate_from_node
+
+    recompute_assembly(stored)
     _attach_stockempty_candidate(campaign, stored)
+    sync_candidate_from_node(campaign, stored)
     return stored
 
 
@@ -278,33 +282,9 @@ def bulk_sd5(campaign: dict) -> dict:
 
 
 def proof_filter(campaign: dict) -> dict:
-    from spider.incumbent import production_ceiling as live_ceiling
+    from spider.campaign_integrity import refilter_graph
 
-    ceiling = int(campaign.get("production_ceiling") or live_ceiling())
-    n_dead = 0
-    n_live = 0
-    label = proof_dead_label(ceiling)
-    for node in campaign.get("nodes") or []:
-        if node.get("kind") not in ("STOCK_EMPTY", "SOLVED"):
-            continue
-        h = node.get("assembly_h")
-        f = node.get("assembly_f")
-        if f is None and h is not None:
-            f = int(node["g"]) + int(h)
-            node["assembly_f"] = f
-        if f is None:
-            continue
-        if int(f) > ceiling:
-            node.setdefault("proof", {})["proof_dead"] = True
-            node["proof"]["ceiling"] = ceiling
-            if node.get("status") != "SOLVED":
-                node["status"] = label
-                n_dead += 1
-        else:
-            n_live += 1
-            node.setdefault("proof", {})["proof_dead"] = False
-            node["proof"]["ceiling"] = ceiling
-    return {"ceiling": ceiling, "proof_dead": n_dead, "proof_live": n_live, "label": label}
+    return refilter_graph(campaign)
 
 
 def evaluate_stockempty(campaign: dict, node: dict, *, time_s: float, max_unique: int, rss_mb: float = 2560.0) -> dict:
@@ -377,11 +357,22 @@ def deepen_node(campaign: dict, node: dict, *, time_s: float, max_unique: int = 
     return evaluate_node(campaign, node, time_s=time_s, max_unique=max_unique)
 
 
-def enqueue_deepen(campaign: dict, node: dict, *, time_s: float, max_unique: int, round_n: Optional[int] = None) -> Optional[dict]:
+def enqueue_deepen(
+    campaign: dict,
+    node: dict,
+    *,
+    time_s: float,
+    max_unique: int,
+    round_n: Optional[int] = None,
+    operation_id: Optional[str] = None,
+) -> Optional[dict]:
     st = str(node.get("status") or "")
-    if st.startswith("PROOF_DEAD") or st in ("EXHAUSTED", "SOLVED", "KNOWN_CLOSED"):
+    if st.startswith("PROOF_DEAD") or st in ("EXHAUSTED", "SOLVED", "KNOWN_CLOSED", "FAILED_CONTRACT"):
         return None
+    from spider.campaign_integrity import sync_candidate_from_node
+
     _attach_stockempty_candidate(campaign, node)
+    sync_candidate_from_node(campaign, node)
     cid = node.get("candidate_id")
     if not cid:
         return None
@@ -392,4 +383,6 @@ def enqueue_deepen(campaign: dict, node: dict, *, time_s: float, max_unique: int
         time_s=float(time_s),
         max_unique=int(max_unique),
         round_n=round_n,
+        operation_id=operation_id,
+        node_id=node.get("id"),
     )
