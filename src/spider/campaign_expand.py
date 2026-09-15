@@ -20,6 +20,7 @@ from spider.campaign_nodes import (
 from spider.campaign_status import classify_outcome
 from spider.campaign_store import add_candidate, enqueue_job
 from spider.campaign_worker import run_lean_job
+from spider.incumbent import production_ceiling
 from spider.f2_quality_frontier import apply_exact_final_deal, g123_ready_targets, harvest_f2_target, verify_g123_root
 from spider.packed_state import unpack_state
 from spider.research_actions import as_actions, dump_actions, is_deal
@@ -84,7 +85,7 @@ def expand_opening(campaign: dict, node: dict, *, time_s: float = 3.0, max_uniqu
         time_limit_s=float(time_s),
         max_unique=int(max_unique),
         portfolio_width=8,
-        cost_ceiling=int(campaign.get("production_ceiling") or 186),
+        cost_ceiling=int(campaign.get("production_ceiling") or production_ceiling()),
         on_harvest=on_harvest,
         initial_roots=[
             {
@@ -189,7 +190,7 @@ def expand_sd5_child(campaign: dict, node: dict) -> Optional[dict]:
 
 
 def evaluate_stockempty(campaign: dict, node: dict, *, time_s: float, max_unique: int, rss_mb: float = 2560.0) -> dict:
-    ceiling = int(campaign.get("production_ceiling") or 186)
+    ceiling = int(campaign.get("production_ceiling") or production_ceiling())
     job = {
         "id": f"eval_{node['id'][:8]}",
         "candidate_id": node.get("candidate_id") or node["id"],
@@ -265,7 +266,7 @@ def enqueue_deepen(campaign: dict, node: dict, *, time_s: float, max_unique: int
     return enqueue_job(
         campaign,
         cid,
-        ceiling=int(campaign.get("production_ceiling") or 186),
+        ceiling=int(campaign.get("production_ceiling") or production_ceiling()),
         time_s=float(time_s),
         max_unique=int(max_unique),
         round_n=round_n,

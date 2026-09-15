@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from spider.campaign_store import save_campaign
+from spider.incumbent import production_ceiling, promote_incumbent
 from spider.metrics import replay_actions
 from spider.research_actions import as_actions, dump_actions, format_moves_text, is_deal
 from spider.whole_game_anytime import opening_state
@@ -47,7 +48,7 @@ def reconstruct_and_replay(candidate: dict, result: dict) -> dict:
 
 
 def reevaluate_proof_viability(campaign: dict) -> int:
-    ceiling = int(campaign.get("production_ceiling") or 186)
+    ceiling = int(campaign.get("production_ceiling") or production_ceiling())
     marked = 0
     by_id = {c.get("id"): c for c in campaign.get("candidates") or []}
     for cand in campaign.get("candidates") or []:
@@ -71,7 +72,7 @@ def promote_if_solved(campaign: dict, candidate: dict, result: dict, *, folder: 
     if not result.get("solved") or result.get("terminal_g") is None:
         return {"promoted": False, "reason": "not_solved"}
     g = int(result["terminal_g"])
-    ceiling = int(campaign.get("production_ceiling") or 186)
+    ceiling = int(campaign.get("production_ceiling") or production_ceiling())
     if g > ceiling:
         return {"promoted": False, "reason": "above_ceiling", "g": g}
     replay = reconstruct_and_replay(candidate, result)
@@ -94,9 +95,21 @@ def promote_if_solved(campaign: dict, candidate: dict, result: dict, *, folder: 
     if folder is not None:
         dest = Path(folder) / "solutions"
         dest.mkdir(parents=True, exist_ok=True)
-        (dest / f"incumbent_g{replay['g']}.moves").write_text(
+        moves_path = dest / f"incumbent_g{replay['g']}.moves"
+        moves_path.write_text(
             format_moves_text(as_actions(replay.get("full_actions") or []), header=f"# incumbent g={replay['g']}\n"),
             encoding="utf-8",
         )
         save_campaign(folder, campaign)
+        promote_incumbent(
+            g=int(replay["g"]),
+            moves_path=str(moves_path),
+            source="campaign_promote",
+        )
+    else:
+        promote_incumbent(
+            g=int(replay["g"]),
+            moves_path=f"solutions/incumbent_g{replay['g']}.moves",
+            source="campaign_promote",
+        )
     return {"promoted": True, "g": replay["g"], "ceiling": campaign["production_ceiling"], "replay": replay}

@@ -1,0 +1,14 @@
+{
+  "deal_id": "4925153",
+  "incumbent_g": 186,
+  "production_ceiling": 185,
+  "moves_path": "solutions/4925153_autonomous_v0_100.moves",
+  "metadata_path": "solutions/4925153_autonomous_v0_100.json",
+  "solver_version": "0.100",
+  "solver_sha": "dcde6bc20ba898c45c37ac102c72e9326f33331d",
+  "verified_replay": true,
+  "promoted_at": "2026-09-15T00:00:00+00:00",
+  "source": "hierarchical_deep_campaign_v0_100",
+  "rules_profile": "mobilityware_unrestricted",
+  "notes": "Current autonomous incumbent. Historical v0.74 g=187 remains an immutable parent artefact."
+}

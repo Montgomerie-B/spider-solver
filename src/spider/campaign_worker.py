@@ -17,6 +17,7 @@ from spider.assembly_lower_bound import stock_empty_assembly_h
 from spider.assembly_policy import COMPLETION_LANES
 from spider.consequence_search import MinimalConsequenceObserver, run_stockempty_consequence
 from spider.hardware import SOLVER_VERSION
+from spider.incumbent import production_ceiling
 from spider.packed_state import pack_whole_game_identity, unpack_state
 from spider.research_actions import dump_actions
 from spider.tactical_integration import strategic_lane_keys
@@ -92,7 +93,7 @@ def run_lean_job(job: dict, *, rss_abort_mb: float, trace: bool = False) -> dict
     if not digest:
         raise ValueError("scientific lean jobs require ordered_digest")
     g = int(job.get("g") or 0)
-    ceiling = int(job.get("ceiling") or 186)
+    ceiling = int(job.get("ceiling") or production_ceiling())
     obs = MinimalConsequenceObserver(trace=bool(trace or job.get("trace")))
     root = {
         "g": g,

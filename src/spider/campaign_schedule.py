@@ -20,3 +20,17 @@ def round_spec(n: int, rounds=DEFAULT_ROUNDS) -> Optional[dict]:
         if int(rec["round"]) == int(n):
             return dict(rec)
     return None
+
+
+def next_round_for_node(node: dict, rounds=DEFAULT_ROUNDS) -> dict:
+    """Return the next deeper unattempted round from this node's own history.
+
+    deepest_budget_s of 0 -> Round 1 (60s). 60s -> 5 min. 5 min -> 30 min.
+    Never stick on DEFAULT_ROUNDS[1]. UNTIL STOPPED may repeat.
+    """
+
+    deepest = float(node.get("deepest_budget_s") or 0.0)
+    for rec in rounds:
+        if float(rec["time_s"]) > deepest + 1e-6:
+            return dict(rec)
+    return dict(rounds[-1])

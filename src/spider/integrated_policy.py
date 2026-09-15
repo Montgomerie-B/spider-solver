@@ -2,7 +2,10 @@
 
 Starts from the untouched opening. Retains operational viability, frozen
 v0.66 final-Deal preview, and the v0.67 stock-empty assembly bound.
-No canonical reads for search. No DURABILITY. Current incumbent is v0.74 / 187.
+No canonical reads for search. No DURABILITY.
+This module is the frozen v0.68 parent experiment: it verifies
+solutions/4925153_autonomous_v0_74.moves at historical g=187.
+Current autonomous incumbent is spider.incumbent (186 as of v0.100).
 """
 
 from __future__ import annotations

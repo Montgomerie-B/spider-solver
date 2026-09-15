@@ -22,6 +22,7 @@ else:
 from spider.app_paths import data_folder, default_campaigns_dir
 from spider.campaign_bundle import export_campaign, import_campaign
 from spider.campaign_exchange import ingest_results, publish_result
+from spider.campaign_autonomous import PROFILES, run_autonomous_campaign
 from spider.campaign_expand import (
     create_g123_campaign,
     create_opening_campaign,
@@ -30,8 +31,9 @@ from spider.campaign_expand import (
     expand_sd5_child,
 )
 from spider.campaign_import_v084 import import_v084_population
+from spider.incumbent import current_incumbent_g, production_ceiling
 from spider.campaign_nodes import deepen_priority, get_node, status_unresolved
-from spider.campaign_schedule import DEFAULT_ROUNDS
+from spider.campaign_schedule import next_round_for_node
 from spider.campaign_scheduler import run_pending_jobs
 from spider.campaign_store import load_campaign, new_campaign, save_campaign
 from spider.campaign_worker import WORKER_MODE
@@ -84,6 +86,7 @@ class CampaignApp(tk.Tk):
         af = ttk.Frame(adv)
         af.pack(fill=tk.X, padx=8, pady=6)
         self._mode = tk.StringVar(value="AUTO")
+        self._campaign_profile = tk.StringVar(value="DEEP")
         self._workers = tk.IntVar(value=1)
         self._rss = tk.DoubleVar(value=2560.0)
         ttk.Label(af, text="Mode").grid(row=0, column=0, sticky=tk.W)
@@ -92,6 +95,14 @@ class CampaignApp(tk.Tk):
         ttk.Spinbox(af, from_=1, to=8, textvariable=self._workers, width=4).grid(row=0, column=3, padx=6)
         ttk.Label(af, text="Per-worker RSS MB").grid(row=0, column=4, sticky=tk.W)
         ttk.Spinbox(af, from_=512, to=8192, increment=128, textvariable=self._rss, width=7).grid(row=0, column=5, padx=6)
+        ttk.Label(af, text="Deep campaign profile").grid(row=1, column=0, sticky=tk.W, pady=(6, 0))
+        ttk.Combobox(
+            af,
+            textvariable=self._campaign_profile,
+            values=tuple(k for k in PROFILES if k != "SMOKE"),
+            width=18,
+            state="readonly",
+        ).grid(row=1, column=1, padx=6, pady=(6, 0), sticky=tk.W)
 
         camp = ttk.LabelFrame(self, text="Campaign")
         camp.pack(fill=tk.X, **pad)
@@ -231,7 +242,7 @@ class CampaignApp(tk.Tk):
         imported = len(data.get("imported_results") or [])
         running = next((j for j in jobs if j.get("status") == "running"), None)
         self._camp_info.set(
-            f"UUID {data.get('uuid')} · incumbent {data.get('incumbent_g')} · ceiling {data.get('production_ceiling')} · "
+            f"UUID {data.get('uuid')} · incumbent {data.get('incumbent_g')} (registry {current_incumbent_g()}) · ceiling {data.get('production_ceiling')} (registry {production_ceiling()}) · "
             f"candidates {len(data.get('candidates') or [])} · nodes {len(data.get('nodes') or [])} · pending {pending} · done {done} · imported {imported} · "
             f"current {str((running or {}).get('id') or '-')[:8]} · worker {data.get('scientific_worker') or WORKER_MODE}"
         )
@@ -338,7 +349,32 @@ class CampaignApp(tk.Tk):
                 p.unlink()
         self._running = True
         self._start.configure(state=tk.DISABLED)
-        self._log_line("Starting/resuming campaign with LEAN CONSEQUENCE worker…")
+        profile = self._campaign_profile.get() or "DEEP"
+        self._log_line(f"Starting autonomous profile {profile} with LEAN CONSEQUENCE worker...")
+
+        def work():
+            try:
+                summary = run_autonomous_campaign(self._campaign_dir, cfg, profile=profile, on_log=self._log_line)
+                self._log_q.put(f"Autonomous done {summary}")
+            except Exception as exc:
+                self._log_q.put(f"Run failed: {exc}")
+            self._running = False
+            self.after(0, lambda: self._start.configure(state=tk.NORMAL))
+            self.after(0, self._refresh_campaign_info)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _start_jobs(self) -> None:
+        if self._running:
+            return
+        self._campaign_dir = Path(self._camp_var.get())
+        snap = detect_hardware()
+        cfg = recommend_config(snap, measured_rss_mb=(self._profile or {}).get("peak_rss_mb"), measured_unique_per_s=(self._profile or {}).get("unique_per_s"))
+        if self._mode.get() == "MANUAL":
+            cfg.workers = int(self._workers.get())
+            cfg.per_worker_rss_mb = float(self._rss.get())
+        self._running = True
+        self._start.configure(state=tk.DISABLED)
 
         def work():
             try:
@@ -444,25 +480,28 @@ class CampaignApp(tk.Tk):
         if node is None:
             self._log_line("Select a node first.")
             return
-        spec = DEFAULT_ROUNDS[min(1, len(DEFAULT_ROUNDS) - 1)]
+        spec = next_round_for_node(node)
         job = enqueue_deepen(data, node, time_s=float(spec["time_s"]), max_unique=300_000, round_n=int(spec["round"]))
         self._save(data)
-        self._log_line(f"Deepen Selected queued {None if job is None else job.get('id')} t={spec['time_s']}s (timeout is UNRESOLVED, not dead)")
-        self._start_run()
+        self._log_line(
+            f"Deepen Selected queued {None if job is None else job.get('id')} round {spec['round']} t={spec['time_s']}s "
+            f"(timeout is UNRESOLVED, not dead)"
+        )
+        self._start_jobs()
 
     def _deepen_unresolved(self) -> None:
         data = self._data()
         nodes = [n for n in data.get("nodes") or [] if status_unresolved(n) and n.get("kind") == "STOCK_EMPTY"]
         nodes.sort(key=deepen_priority)
-        spec = DEFAULT_ROUNDS[min(1, len(DEFAULT_ROUNDS) - 1)]
         nq = 0
         for node in nodes:
+            spec = next_round_for_node(node)
             if enqueue_deepen(data, node, time_s=float(spec["time_s"]), max_unique=300_000, round_n=int(spec["round"])):
                 nq += 1
         self._save(data)
-        self._log_line(f"Deepen All Unresolved queued {nq} STOCK_EMPTY nodes at {spec['time_s']}s")
+        self._log_line(f"Deepen All Unresolved queued {nq} STOCK_EMPTY nodes at next per-node round")
         if nq:
-            self._start_run()
+            self._start_jobs()
 
     def _step_parent(self) -> None:
         data = self._data()

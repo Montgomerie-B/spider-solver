@@ -23,12 +23,9 @@ RULES = "mobilityware_unrestricted"
 
 
 def verified_incumbent() -> tuple:
-    from pathlib import Path
+    from spider.incumbent import current_incumbent_g, production_ceiling
 
-    moves = Path(__file__).resolve().parents[2] / "solutions" / "4925153_autonomous_v0_100.moves"
-    if moves.exists():
-        return 186, 185
-    return 187, 186
+    return current_incumbent_g(), production_ceiling()
 
 
 def classify_kind(*, stock_rows_n: int, foundations: int, solved: bool, g: int) -> str:

@@ -1,0 +1,51 @@
+{
+  "autonomous_smoke": {
+    "f2_generated": 3,
+    "incumbent_g": 186,
+    "jobs_run": 4,
+    "nodes": 8,
+    "pending": 0,
+    "production_ceiling": 185,
+    "profile": "SMOKE",
+    "sd5": 3,
+    "waves": 2
+  },
+  "base_sha": "dcde6bc20ba898c45c37ac102c72e9326f33331d",
+  "branch": "agent/autonomous-deep-campaign-v0-101",
+  "build_host": {
+    "logical_cores": 8,
+    "physical_cores": 4,
+    "ram_total_gb": 15.88
+  },
+  "build_host_note": "build/test host, not the Dell Optiplex",
+  "experiment": "autonomous_deep_campaign_v0_101",
+  "incumbent": {
+    "_overlay": false,
+    "deal_id": "4925153",
+    "incumbent_g": 186,
+    "metadata_path": "solutions/4925153_autonomous_v0_100.json",
+    "moves_path": "solutions/4925153_autonomous_v0_100.moves",
+    "notes": "Current autonomous incumbent. Historical v0.74 g=187 remains an immutable parent artefact.",
+    "production_ceiling": 185,
+    "promoted_at": "2026-09-15T00:00:00+00:00",
+    "rules_profile": "mobilityware_unrestricted",
+    "solver_sha": "dcde6bc20ba898c45c37ac102c72e9326f33331d",
+    "solver_version": "0.100",
+    "source": "hierarchical_deep_campaign_v0_100",
+    "verified_replay": true
+  },
+  "incumbent_g": 186,
+  "next_rounds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "packaged_incumbent": true,
+  "production_ceiling": 185,
+  "replay_g": 186,
+  "verdict": "AUTONOMOUS_DEEP_CAMPAIGN_READY"
+}

@@ -18,6 +18,7 @@ from spider.campaign_promote import promote_if_solved
 from spider.campaign_status import classify_outcome
 from spider.campaign_store import load_campaign, record_run, record_throttle, save_campaign
 from spider.campaign_worker import WORKER_MODE, current_solver_sha, job_worker
+from spider.incumbent import production_ceiling
 from spider.hardware import detect_hardware, memory_pressure
 from spider.resource_policy import ResourceConfig
 
@@ -105,7 +106,7 @@ def run_pending_jobs(
                 job["status"] = "done"
             outcome = classify_outcome(
                 result,
-                ceiling=int(job.get("ceiling") or data.get("production_ceiling") or 186),
+                ceiling=int(job.get("ceiling") or data.get("production_ceiling") or production_ceiling()),
                 assembly_f=cand.get("assembly_f"),
             )
             result["outcome"] = outcome

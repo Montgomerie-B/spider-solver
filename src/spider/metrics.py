@@ -29,9 +29,12 @@ LEGACY_CANONICAL_MW_COST = 163
 CANONICAL_MOBILITYWARE_MOVES = 172
 # Back-compat alias used by older optimiser code; means mobilityware_moves.
 CANONICAL_MW_COST = CANONICAL_MOBILITYWARE_MOVES
-# Best replay-valid autonomous complete solution (v0.74 focused stock-empty).
-# Not the human 172. Historical v0.67 artefact remains 192; 191 splice is preserved.
-AUTONOMOUS_INCUMBENT_MW = 187
+# Historical v0.74 autonomous parent (solutions/4925153_autonomous_v0_74.moves).
+# Frozen experiments that intentionally require that parent must use this name.
+V074_AUTONOMOUS_INCUMBENT_MW = 187
+# Back-compat alias for frozen v0.68-v0.99 modules/tests. NOT the current incumbent.
+# Current autonomous incumbent is spider.incumbent.current_incumbent_g() (186 as of v0.100).
+AUTONOMOUS_INCUMBENT_MW = V074_AUTONOMOUS_INCUMBENT_MW
 
 Action = Union[Tuple[int, int, int], Tuple[str]]
 

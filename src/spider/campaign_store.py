@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from spider.campaign_nodes import verified_incumbent
 from spider.campaign_schedule import DEFAULT_ROUNDS
+from spider.incumbent import current_incumbent_g, production_ceiling
 
 CAMPAIGN_FILE = "campaign.json"
 
@@ -19,7 +19,7 @@ def campaign_path(folder: Path) -> Path:
 
 
 def new_campaign(*, incumbent_g: Optional[int] = None, ceiling: Optional[int] = None, deal_id: str = "4925153") -> dict:
-    inc, ceil = verified_incumbent()
+    inc, ceil = current_incumbent_g(), production_ceiling()
     if incumbent_g is not None:
         inc = int(incumbent_g)
     if ceiling is not None:
