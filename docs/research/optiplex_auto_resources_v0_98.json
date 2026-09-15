@@ -1,0 +1,17 @@
+{
+  "experiment": "optiplex_auto_resources_v0_98",
+  "base_sha": "48be90500a4681108f0e35236bcfe1607869c266",
+  "branch": "agent/optiplex-auto-resources-v0-98",
+  "mode": "AUTO",
+  "target": "Dell Optiplex ~16GB HDD",
+  "disk_speed_used": false,
+  "defaults_16gb": {
+    "workers": 1,
+    "per_worker_rss_gb": 2.5,
+    "global_ram_limit_gb": 11
+  },
+  "calibration_s": 15,
+  "profile_location": "%LOCALAPPDATA%\\\\SpiderSolver\\\\hardware_profile.json",
+  "campaign_file": "campaigns/<name>/campaign.json",
+  "shared_tt": false
+}
