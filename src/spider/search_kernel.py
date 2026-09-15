@@ -120,6 +120,7 @@ def run_search(
     on_child: Optional[Callable[[SpiderState, int, int], None]] = None,
     on_progress: Optional[Callable[["KernelResult", SpiderState, int, int], None]] = None,
     lower_bound_fn: Optional[Callable[[SpiderState, int], int]] = None,
+    stop_on_first_terminal: bool = False,
 ) -> KernelResult:
     """Exact best-g search. ``roots`` need ordered_digest, symmetry_digest, g.
 
@@ -324,13 +325,16 @@ def run_search(
                         result.incumbent_g = child_g
                         if slack is not None and ceiling is not None:
                             ceiling = min(ceiling, incumbent + slack)
+                    if stop_on_first_terminal:
+                        result.stop_reason = "solved"
+                        break
                     continue
                 if proof_dead(state, child_g):
                     continue
                 push(child_i, state, child_g)
             finally:
                 restore_state(state, cap)
-        if result.stop_reason in ("unique limit", "time limit", "rss abort", "abort"):
+        if result.stop_reason in ("unique limit", "time limit", "rss abort", "abort", "solved"):
             break
         if incumbent is not None and slack is not None:
             live = []

@@ -1,0 +1,508 @@
+{
+  "base_sha": "f3053bf5917add8fa53b95a380ea1af213b5b8c8",
+  "baseline": {
+    "F3_s": 26.60136710000006,
+    "F4_s": 74.26541390000011,
+    "expanded": 8255,
+    "generated": 231663,
+    "lanes": {
+      "completion": 1630,
+      "construction": 1638,
+      "cost": 634,
+      "economy": 1066,
+      "horizon": 0,
+      "readiness": 1615,
+      "reveal": 1672
+    },
+    "proof_calls": 105638,
+    "proof_prunes": 54321,
+    "source": "v0.93 recorded",
+    "terminal_g": 187,
+    "terminal_s": 76.97878300000002,
+    "unique": 99147
+  },
+  "branch": "agent/lean-consequence-evaluator-v0-94",
+  "calibration_ceiling": 187,
+  "candidate_ceiling": 186,
+  "canonical_mw": 172,
+  "control": {
+    "digest": "53504b310102000000030d29130002321a000d0a1918171615140302111c1b22020f31122d0c3b1a1d1c2b2a1d2c1b3a391833000326341900053635042137000e3d3c3b3a3938373635343d3c0b17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+    "f": 171,
+    "g": 130,
+    "h": 41
+  },
+  "drift_reason": null,
+  "equivalence": {
+    "duplicate_skips": {
+      "lean": 4644,
+      "legacy": 4644,
+      "match": true
+    },
+    "expanded": {
+      "lean": 355,
+      "legacy": 355,
+      "match": true
+    },
+    "generated": {
+      "lean": 9737,
+      "legacy": 9737,
+      "match": true
+    },
+    "lane_exp": {
+      "lean": {
+        "completion": 64,
+        "construction": 74,
+        "cost": 36,
+        "economy": 38,
+        "horizon": 0,
+        "readiness": 69,
+        "reveal": 74
+      },
+      "legacy": {
+        "completion": 64,
+        "construction": 74,
+        "cost": 36,
+        "economy": 38,
+        "horizon": 0,
+        "readiness": 69,
+        "reveal": 74
+      },
+      "match": true
+    },
+    "lower_bound_calls": {
+      "lean": 5093,
+      "legacy": 5093,
+      "match": true
+    },
+    "lower_bound_prunes": {
+      "lean": 1935,
+      "legacy": 1935,
+      "match": true
+    },
+    "note": "Compared at unique=5000 (before terminal). unique=10000 diverged only because legacy harvest_slack=-1 tightens ceiling after solve; that is epoch machinery the lean path correctly omits.",
+    "stale_skips": {
+      "lean": 92,
+      "legacy": 92,
+      "match": true
+    },
+    "unique": {
+      "lean": 5000,
+      "legacy": 5000,
+      "match": true
+    }
+  },
+  "equivalence_ok": true,
+  "experiment": "lean_consequence_evaluator_v0_94",
+  "g_le_186": false,
+  "incumbent_g": 187,
+  "incumbent_updated": false,
+  "interpretation": "Pre-terminal search is semantically identical (unique=5000 counters match exactly). Legacy on_progress/enrich/double-tracker _update was ~2x telemetry per unique and dominated by visible_components/pretty_card. Lean run_search with stop_on_first_terminal rediscovered g=187 in 26.05s vs v0.93 77.0s (2.96x), F3 at 12.1s, F4 at 25.7s. Minimal observer tax ~4%. Horizon=0. Incumbent unchanged.",
+  "known_route_guidance_used": false,
+  "lean_eq_counters": {
+    "duplicate_skips": 11189,
+    "elapsed_s": 28.347536199999922,
+    "expanded": 643,
+    "first_g": 187,
+    "first_s": 26.339615599999888,
+    "generated": 21529,
+    "incumbent_g": 187,
+    "lane_exp": {
+      "completion": 98,
+      "construction": 140,
+      "cost": 77,
+      "economy": 79,
+      "horizon": 0,
+      "readiness": 123,
+      "reveal": 126
+    },
+    "lower_bound_calls": 10339,
+    "lower_bound_prunes": 5724,
+    "lower_bound_s": 1.816045599980498,
+    "n_terminals": 1,
+    "peak_rss_mb": 35.03515625,
+    "stale_skips": 216,
+    "stop_reason": "unique limit",
+    "unique": 10000
+  },
+  "lean_g": 187,
+  "lean_profile": {
+    "elapsed_s": 25.03670449999936,
+    "top": [
+      {
+        "cumtime": 10.6979206,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\structural_analysis.py:109:visible_components",
+        "ncalls": 29286,
+        "tottime": 4.4569744
+      },
+      {
+        "cumtime": 4.3798766,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\research_actions.py:48:pretty_card",
+        "ncalls": 2244264,
+        "tottime": 1.8522557000000002
+      },
+      {
+        "cumtime": 1.7600113000000002,
+        "func": "~:0:<built-in method builtins.len>",
+        "ncalls": 10157319,
+        "tottime": 1.7600113000000002
+      },
+      {
+        "cumtime": 2.0150883,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\cards.py:11:rank_str",
+        "ncalls": 2244264,
+        "tottime": 1.5101844000000002
+      },
+      {
+        "cumtime": 1.9579012000000002,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:70:is_desc_run",
+        "ncalls": 630617,
+        "tottime": 1.3278328000000001
+      },
+      {
+        "cumtime": 1.5264456000000002,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\assembly_lower_bound.py:76:physical_units",
+        "ncalls": 20564,
+        "tottime": 1.0862499
+      },
+      {
+        "cumtime": 0.9386028000000001,
+        "func": "~:0:<method 'get' of 'dict' objects>",
+        "ncalls": 4180177,
+        "tottime": 0.9386028000000001
+      },
+      {
+        "cumtime": 3.0661606000000003,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:83:can_move",
+        "ncalls": 346658,
+        "tottime": 0.7971455000000001
+      },
+      {
+        "cumtime": 1.2384268,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:74:is_same_suit",
+        "ncalls": 547250,
+        "tottime": 0.7969683000000001
+      },
+      {
+        "cumtime": 3.8868148000000002,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:78:is_movable_run",
+        "ncalls": 630617,
+        "tottime": 0.6904868000000001
+      },
+      {
+        "cumtime": 0.733098,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\assembly_lower_bound.py:104:min_interval_multicover",
+        "ncalls": 20564,
+        "tottime": 0.6848214
+      },
+      {
+        "cumtime": 1.0430561,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\operational_viability.py:29:tableau_access_scan",
+        "ncalls": 3254,
+        "tottime": 0.5471904000000001
+      }
+    ]
+  },
+  "lean_run": {
+    "bound_calls": 8581,
+    "bound_prunes": 4146,
+    "bound_s": 1.567326100079299,
+    "cheap_F": {
+      "2": {
+        "elapsed_s": 0.006298100000094564,
+        "f": 171,
+        "foundations": 2,
+        "g": 130,
+        "h": 41,
+        "ident": "53505331010200000001330002321a00030d2913000326341900053635042137000a08071615141312110925000a28270605242332313801000d0a1918171615140302111c1b22000e3d3c3b3a3938373635343d3c0b17020f31122d0c3b1a1d1c2b2a1d2c1b3a3918330d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+        "node": 0,
+        "slack_187": 16
+      },
+      "3": {
+        "elapsed_s": 12.055910999999469,
+        "f": 186,
+        "foundations": 3,
+        "g": 172,
+        "h": 14,
+        "ident": "53505331010300000000000000011b00012c0003333231000719181716151413000a0d292827262524232221000a3a39383736353433321100173d3c3b3a3938373635343d3c0b0a090807060504030201020831122d0c3b1a1d1c2b2a0d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+        "node": 2422,
+        "slack_187": 1
+      },
+      "4": {
+        "elapsed_s": 25.650602799999433,
+        "f": 187,
+        "foundations": 4,
+        "g": 179,
+        "h": 8,
+        "ident": "53505331010400000000000000013b000333323100041d1c1b1a000719181716151413000a3a393837363534333211000c2c2b2a292827262524232221000c3d3c3b3a3938373635343d3c020131122d0d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8112,
+        "slack_187": 0
+      },
+      "5": {
+        "elapsed_s": 25.69963860000007,
+        "f": 187,
+        "foundations": 5,
+        "g": 180,
+        "h": 7,
+        "ident": "535053310105000000000000000000013b000333323100041d1c1b1a000719181716151413000a3a393837363534333211000c3d3c3b3a3938373635343d3c010131120d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8166,
+        "slack_187": 0
+      },
+      "6": {
+        "elapsed_s": 25.82452310000008,
+        "f": 187,
+        "foundations": 6,
+        "g": 183,
+        "h": 4,
+        "ident": "53505331010600000000000000000000000000013100013b000333323100093a3938373635343332000c3d3c3b3a3938373635343d3c0d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8321,
+        "slack_187": 0
+      },
+      "7": {
+        "elapsed_s": 25.98687289999998,
+        "f": 187,
+        "foundations": 7,
+        "g": 186,
+        "h": 1,
+        "ident": "5350533101070000000000000000000000000000000000000003333231000a3d3c3b3a3938373635340d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8506,
+        "slack_187": 0
+      },
+      "8": {
+        "elapsed_s": 26.050146599999607,
+        "f": 187,
+        "foundations": 8,
+        "g": 187,
+        "h": 0,
+        "ident": "535053310108000000000000000000000000000000000000000000000d3d3c3b3a3938373635343332310d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8581,
+        "slack_187": 0
+      }
+    },
+    "duplicate_skips": 8055,
+    "expanded": 543,
+    "first_F": {
+      "2": {
+        "elapsed_s": 0.006298100000094564,
+        "f": 171,
+        "foundations": 2,
+        "g": 130,
+        "h": 41,
+        "ident": "53505331010200000001330002321a00030d2913000326341900053635042137000a08071615141312110925000a28270605242332313801000d0a1918171615140302111c1b22000e3d3c3b3a3938373635343d3c0b17020f31122d0c3b1a1d1c2b2a1d2c1b3a3918330d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+        "node": 0,
+        "slack_187": 16
+      },
+      "3": {
+        "elapsed_s": 12.055910999999469,
+        "f": 186,
+        "foundations": 3,
+        "g": 172,
+        "h": 14,
+        "ident": "53505331010300000000000000011b00012c0003333231000719181716151413000a0d292827262524232221000a3a39383736353433321100173d3c3b3a3938373635343d3c0b0a090807060504030201020831122d0c3b1a1d1c2b2a0d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+        "node": 2422,
+        "slack_187": 1
+      },
+      "4": {
+        "elapsed_s": 25.650602799999433,
+        "f": 187,
+        "foundations": 4,
+        "g": 179,
+        "h": 8,
+        "ident": "53505331010400000000000000013b000333323100041d1c1b1a000719181716151413000a3a393837363534333211000c2c2b2a292827262524232221000c3d3c3b3a3938373635343d3c020131122d0d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8112,
+        "slack_187": 0
+      },
+      "5": {
+        "elapsed_s": 25.69963860000007,
+        "f": 187,
+        "foundations": 5,
+        "g": 180,
+        "h": 7,
+        "ident": "535053310105000000000000000000013b000333323100041d1c1b1a000719181716151413000a3a393837363534333211000c3d3c3b3a3938373635343d3c010131120d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8166,
+        "slack_187": 0
+      },
+      "6": {
+        "elapsed_s": 25.82452310000008,
+        "f": 187,
+        "foundations": 6,
+        "g": 183,
+        "h": 4,
+        "ident": "53505331010600000000000000000000000000013100013b000333323100093a3938373635343332000c3d3c3b3a3938373635343d3c0d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8321,
+        "slack_187": 0
+      },
+      "7": {
+        "elapsed_s": 25.98687289999998,
+        "f": 187,
+        "foundations": 7,
+        "g": 186,
+        "h": 1,
+        "ident": "5350533101070000000000000000000000000000000000000003333231000a3d3c3b3a3938373635340d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8506,
+        "slack_187": 0
+      },
+      "8": {
+        "elapsed_s": 26.050146599999607,
+        "f": 187,
+        "foundations": 8,
+        "g": 187,
+        "h": 0,
+        "ident": "535053310108000000000000000000000000000000000000000000000d3d3c3b3a3938373635343332310d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+        "node": 8581,
+        "slack_187": 0
+      }
+    },
+    "first_g": 187,
+    "first_s": 26.050170499999695,
+    "generated": 16636,
+    "lanes": {
+      "completion": 98,
+      "construction": 113,
+      "cost": 52,
+      "economy": 57,
+      "horizon": 0,
+      "readiness": 109,
+      "reveal": 114
+    },
+    "n_h_calls": 5293,
+    "n_progress": 8582,
+    "peak_rss_mb": 53.94140625,
+    "stale_skips": 145,
+    "stop": "solved",
+    "unique": 8290
+  },
+  "lean_solved": true,
+  "lean_terminal_s": 26.050170499999695,
+  "legacy_eq_counters": {
+    "duplicate_skips": 10011,
+    "elapsed_s": 86.15081029999965,
+    "expanded": 638,
+    "first_g": null,
+    "first_s": null,
+    "generated": 20332,
+    "incumbent_g": 187,
+    "lane_exp": {
+      "completion": 98,
+      "construction": 137,
+      "cost": 73,
+      "economy": 77,
+      "horizon": 0,
+      "readiness": 123,
+      "reveal": 130
+    },
+    "lower_bound_calls": 10320,
+    "lower_bound_prunes": 5653,
+    "lower_bound_s": 1.9623556000133249,
+    "n_terminals": 0,
+    "peak_rss_mb": 40.18359375,
+    "stale_skips": 199,
+    "stop_reason": "solved",
+    "unique": 10000
+  },
+  "legacy_profile": {
+    "elapsed_s": 25.59341190000032,
+    "top": [
+      {
+        "cumtime": 12.3538624,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\structural_analysis.py:109:visible_components",
+        "ncalls": 31781,
+        "tottime": 5.269482
+      },
+      {
+        "cumtime": 4.900239,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\research_actions.py:48:pretty_card",
+        "ncalls": 2601098,
+        "tottime": 2.0707552000000002
+      },
+      {
+        "cumtime": 2.2461519,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\cards.py:11:rank_str",
+        "ncalls": 2601098,
+        "tottime": 1.6691202
+      },
+      {
+        "cumtime": 1.6273140000000001,
+        "func": "~:0:<built-in method builtins.len>",
+        "ncalls": 9468457,
+        "tottime": 1.6273140000000001
+      },
+      {
+        "cumtime": 1.8554708000000002,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:70:is_desc_run",
+        "ncalls": 627047,
+        "tottime": 1.2857133
+      },
+      {
+        "cumtime": 1.0540488000000001,
+        "func": "~:0:<method 'get' of 'dict' objects>",
+        "ncalls": 4726645,
+        "tottime": 1.0540488000000001
+      },
+      {
+        "cumtime": 1.1343618,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:74:is_same_suit",
+        "ncalls": 537348,
+        "tottime": 0.7431469
+      },
+      {
+        "cumtime": 2.7485869000000003,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:83:can_move",
+        "ncalls": 323783,
+        "tottime": 0.7380611
+      },
+      {
+        "cumtime": 3.6655807,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:78:is_movable_run",
+        "ncalls": 627047,
+        "tottime": 0.6757481000000001
+      },
+      {
+        "cumtime": 0.5833337000000001,
+        "func": "~:0:<method 'upper' of 'str' objects>",
+        "ncalls": 2601102,
+        "tottime": 0.5833337000000001
+      },
+      {
+        "cumtime": 0.7654954,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\assembly_lower_bound.py:76:physical_units",
+        "ncalls": 10032,
+        "tottime": 0.5454269
+      },
+      {
+        "cumtime": 0.44806510000000005,
+        "func": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\src\\spider\\engine.py:72:<genexpr>",
+        "ncalls": 1603966,
+        "tottime": 0.44806510000000005
+      }
+    ]
+  },
+  "legacy_terminal_s": 76.97878300000002,
+  "next_recommendation": "Make the lean evaluator the consequence-analysis primitive. Next: blinded F2 set under ceiling 187.",
+  "observer_overhead": {
+    "enrich_calls": 727,
+    "expected_update_multiplier": 2,
+    "legacy_unique": 717,
+    "note": "CalibrationTracker.extra_track and abort_when each call _update; telemetry is per _update",
+    "telemetry_calls": 1455
+  },
+  "observer_tax": {
+    "bare_s": 15.10269900000003,
+    "counters_match": true,
+    "minimal_s": 15.702655500000219,
+    "n_h_calls": 3062,
+    "n_progress": 4064,
+    "tax_frac": 0.03972511800706546,
+    "tax_s": 0.5999565000001894
+  },
+  "production_ceiling": 186,
+  "record_mw": 119,
+  "replay_g": 187,
+  "replay_ok": true,
+  "semantic_drift": false,
+  "speedup": 2.955834780428823,
+  "trace_hash": "b07b58570b7775f6698df6a2f1e12abf933f704a527709292b35febc728e1a81",
+  "trace_hash_match": true,
+  "verdict": "LEAN_EVALUATOR_MAJOR_SPEEDUP",
+  "verdict_reason": "speedup=2.96x terminal=26.05s replay-valid g=187",
+  "wall_s": 230.6793103
+}
