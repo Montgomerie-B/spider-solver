@@ -1,0 +1,6 @@
+{
+  "max_F": 5,
+  "phase": "complete",
+  "stop": "time limit",
+  "verdict": "F5_PRODUCTION_F5_STALL"
+}
