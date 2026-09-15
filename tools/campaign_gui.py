@@ -23,6 +23,7 @@ from spider.app_paths import data_folder, default_campaigns_dir
 from spider.campaign_bundle import export_campaign, import_campaign
 from spider.campaign_exchange import ingest_results, publish_result
 from spider.campaign_autonomous import PROFILES, campaign_stats, run_autonomous_campaign
+from spider.campaign_ops import retry_failed_operation
 from spider.campaign_expand import (
     create_g123_campaign,
     create_opening_campaign,
@@ -115,7 +116,7 @@ class CampaignApp(tk.Tk):
         self._start = ttk.Button(bt, text="Start Autopilot", command=self._start_run)
         self._start.pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(bt, text="Resume Autopilot", command=self._start_run).pack(side=tk.LEFT, padx=(0, 4))
-        ttk.Button(bt, text="Pause After Current Operation", command=self._pause).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(bt, text="Retry Failed Operation", command=self._retry_failed).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(bt, text="Pause after current job", command=self._pause).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(bt, text="Stop", command=self._stop).pack(side=tk.LEFT, padx=(0, 4))
         row2 = ttk.Frame(camp)
@@ -270,7 +271,7 @@ class CampaignApp(tk.Tk):
 
     def _pause(self) -> None:
         (Path(self._camp_var.get()) / "_pause").write_text("1", encoding="utf-8")
-        self._log_line("Pause requested after current job batch.")
+        self._log_line("Pause after current job")
 
     def _stop(self) -> None:
         (Path(self._camp_var.get()) / "_stop").write_text("1", encoding="utf-8")
@@ -338,7 +339,22 @@ class CampaignApp(tk.Tk):
         Path(dest).write_text(json.dumps(data, indent=2), encoding="utf-8")
         self._log_line(f"Wrote report {dest}")
 
-    def _start_run(self) -> None:
+    def _retry_failed(self) -> None:
+        data = self._data()
+        op = retry_failed_operation(data)
+        self._save(data)
+        if op is None:
+            self._log_line("No FAILED operation to retry.")
+            return
+        counts = op.get("retry_counts") or {}
+        self._log_line(
+            f"Retry Failed Operation {str(op.get('id') or '')[:8]} "
+            f"reset={counts.get('reset')} kept_done={counts.get('kept_done')} kept_skipped={counts.get('kept_skipped')}"
+        )
+        self._refresh_campaign_info()
+        self._start_run(explicit_retry=True)
+
+    def _start_run(self, explicit_retry: bool = False) -> None:
         if self._running:
             return
         self._campaign_dir = Path(self._camp_var.get())
@@ -363,7 +379,9 @@ class CampaignApp(tk.Tk):
 
         def work():
             try:
-                summary = run_autonomous_campaign(self._campaign_dir, cfg, profile=profile, on_log=self._log_line)
+                summary = run_autonomous_campaign(
+                    self._campaign_dir, cfg, profile=profile, on_log=self._log_line, explicit_retry=explicit_retry
+                )
                 self._log_q.put(f"Autonomous done {summary}")
             except Exception as exc:
                 self._log_q.put(f"Run failed: {exc}")

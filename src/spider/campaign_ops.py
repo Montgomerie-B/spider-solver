@@ -91,11 +91,67 @@ def mark_partial(op: dict, result: Optional[dict] = None) -> None:
 
 
 def retry_failed_operation(campaign: dict) -> Optional[dict]:
-    for op in reversed(campaign.get("operations") or []):
-        if op.get("status") == FAILED:
-            op["status"] = PENDING_PARTIAL if op.get("member_job_ids") else PENDING
-            op["retried"] = True
-            ap = campaign.setdefault("autopilot", {})
-            ap["state"] = "RUNNING"
-            return op
-    return None
+    """Reset the most recent FAILED operation and its failed member jobs only.
+
+    Done/skipped members stay. Failure diagnostics go to retry_history.
+    """
+
+    op = None
+    for rec in reversed(campaign.get("operations") or []):
+        if rec.get("status") == FAILED:
+            op = rec
+            break
+    if op is None:
+        return None
+    hist = {
+        "retried_at": datetime.now(timezone.utc).isoformat(),
+        "previous_status": op.get("status"),
+        "previous_result": op.get("result"),
+        "jobs": [],
+    }
+    member_ids = set(op.get("member_job_ids") or [])
+    oid = op.get("id")
+    reset = 0
+    kept_done = 0
+    kept_skipped = 0
+    for job in campaign.get("jobs") or []:
+        if job.get("id") not in member_ids and job.get("operation_id") != oid:
+            continue
+        st = str(job.get("status") or "")
+        outcome = str(job.get("outcome") or "")
+        if st in ("skipped_proof_dead", "skipped_known_closed"):
+            kept_skipped += 1
+            continue
+        failed = st == "failed" or outcome == "FAILED_CONTRACT"
+        if failed:
+            hist["jobs"].append(
+                {
+                    "job_id": job.get("id"),
+                    "status": st,
+                    "outcome": outcome,
+                    "exitcode": job.get("exitcode"),
+                    "result": job.get("result"),
+                }
+            )
+            job["status"] = PENDING
+            job["outcome"] = None
+            job["result"] = None
+            job["exitcode"] = None
+            reset += 1
+            continue
+        if st == "done":
+            kept_done += 1
+    op.setdefault("retry_history", []).append(hist)
+    op["status"] = PENDING_PARTIAL if (member_ids or reset) else PENDING
+    op["retried"] = True
+    op["finished_at"] = None
+    counts = {"reset": reset, "kept_done": kept_done, "kept_skipped": kept_skipped}
+    op["retry_counts"] = counts
+    ap = campaign.setdefault("autopilot", {})
+    ap["state"] = "RUNNING"
+    ap["retry_required"] = False
+    return op
+
+
+def has_failed_operation(campaign: dict) -> bool:
+    return any(op.get("status") == FAILED for op in campaign.get("operations") or [])

@@ -148,7 +148,6 @@ def test_gui_hierarchy_controls():
         "Import Campaign",
         "Sync Results",
         "Pause after current job",
-        "Pause After Current Operation",
         "Start Autopilot",
         "Stop",
         "LEAN CONSEQUENCE",

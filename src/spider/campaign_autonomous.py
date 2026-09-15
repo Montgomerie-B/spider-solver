@@ -27,6 +27,7 @@ from spider.campaign_ops import (
     PAUSED_ERROR,
     PENDING_PARTIAL,
     enqueue_operation,
+    has_failed_operation,
     mark_done,
     mark_failed,
     mark_partial,
@@ -232,6 +233,7 @@ def run_autonomous_campaign(
     profile: str = "G123_DIAMOND_DEEP",
     on_log: Optional[Callable[[str], None]] = None,
     max_ops: Optional[int] = None,
+    explicit_retry: bool = False,
 ) -> dict:
     def log(msg: str) -> None:
         if on_log:
@@ -242,7 +244,28 @@ def run_autonomous_campaign(
     data = load_campaign(campaign_dir)
     data["autonomous_profile"] = profile
     data.setdefault("autopilot", {})["profile"] = profile
+    if has_failed_operation(data) and not explicit_retry:
+        data["autopilot"]["state"] = PAUSED_ERROR
+        data["autopilot"]["retry_required"] = True
+        save_campaign(campaign_dir, data)
+        log("FAILED operation present; Retry Failed Operation required. Not advancing. Not complete.")
+        stats = campaign_stats(data)
+        return {
+            "profile": profile,
+            "ops_run": 0,
+            "autopilot": data.get("autopilot"),
+            "stats": stats,
+            "incumbent_g": data.get("incumbent_g"),
+            "production_ceiling": data.get("production_ceiling"),
+            "nodes": len(data.get("nodes") or []),
+            "operations": len(data.get("operations") or []),
+            "retry_required": True,
+            "f2_generated": stats.get("n_f2"),
+            "sd5": stats.get("n_post_sd5"),
+            "waves": 0,
+        }
     data["autopilot"]["state"] = "RUNNING"
+    data["autopilot"]["retry_required"] = False
     recover = recover_stale_operations(data)
     if recover:
         log(f"Recovered {recover} stale RUNNING operation(s)")
@@ -266,6 +289,12 @@ def run_autonomous_campaign(
             save_campaign(campaign_dir, data)
             op = next_pending(data)
             if op is None:
+                if has_failed_operation(data):
+                    data["autopilot"]["state"] = PAUSED_ERROR
+                    data["autopilot"]["retry_required"] = True
+                    save_campaign(campaign_dir, data)
+                    log("FAILED operation present; Retry Failed Operation required. Not complete.")
+                    break
                 data["autopilot"]["state"] = "STOPPED"
                 save_campaign(campaign_dir, data)
                 log("Autopilot plan complete")
