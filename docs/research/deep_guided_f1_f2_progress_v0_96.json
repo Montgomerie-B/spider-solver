@@ -1,0 +1,11 @@
+{
+  "classes": {
+    "CONTROL_187": "CLASS_187",
+    "ORIGINAL_G123": "UNRESOLVED_187",
+    "PREP": "UNRESOLVED_187",
+    "PREP_3-4": "UNRESOLVED_187",
+    "PREP_7-8": "UNRESOLVED_187"
+  },
+  "phase": "complete",
+  "verdict": "DEEP_GUIDED_F1_F2_DEEP_CANDIDATE"
+}
