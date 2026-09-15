@@ -1,0 +1,126 @@
+{
+  "base_sha": "1a5a765ced06a01fdfa3ceb7f29659b6800e1c80",
+  "branch": "agent/hierarchical-deep-campaign-v0-100",
+  "build_host": {
+    "logical_cores": 8,
+    "physical_cores": 4,
+    "ram_total_gb": 15.88
+  },
+  "build_host_note": "build/test host, not the Dell Optiplex",
+  "experiment": "hierarchical_deep_campaign_v0_100",
+  "hierarchy_smoke": {
+    "f2_children": 22,
+    "g123_g": 123,
+    "g123_n_deal": 4,
+    "g123_ok": true,
+    "graph_roundtrip": true,
+    "n_edges": 24,
+    "n_nodes": 25,
+    "opening_actions": [],
+    "opening_children": 12,
+    "opening_g": 0,
+    "opening_id": "7745a808-250b-4530-8d17-f95405ccaf66",
+    "sd5_child": "STOCK_EMPTY",
+    "timeout_status": "UNRESOLVED_TIME"
+  },
+  "incumbent_g": 186,
+  "production_ceiling": 185,
+  "recovery": {
+    "attempts": [
+      {
+        "lean": {
+          "elapsed_s": 29.77380540000013,
+          "max_foundations": 8,
+          "stop": "solved",
+          "terminal_g": 186,
+          "terminal_s": 29.773790200000803,
+          "unique": 10264
+        },
+        "ok": true,
+        "post_g": 131,
+        "pre_g": 130,
+        "reason": null,
+        "replay": {
+          "foundations": 8,
+          "g": 186,
+          "n_actions": 190,
+          "n_deal": 5,
+          "ok": true,
+          "reason": null,
+          "solved": true,
+          "stock_empty": true,
+          "tableau_empty": true
+        },
+        "tactical_delta_g": 7,
+        "winner": "WINNER_A",
+        "winner_id": "79e127c0-bb18-4a6f-958e-386eeeab516b"
+      }
+    ],
+    "canonical_used": false,
+    "ceiling_after": 185,
+    "g123": {
+      "digest_ok": true,
+      "face_down": 2,
+      "foundations": 1,
+      "g": 123,
+      "n_deal": 4,
+      "n_prefix": 127,
+      "ok": true,
+      "stock_rows": 1
+    },
+    "harvest": {
+      "cheapest_g": 128,
+      "elapsed_s": 180.0003422000009,
+      "expanded": 10220,
+      "generated": 92552,
+      "n_f2": 279,
+      "n_unique": 279,
+      "stop_reason": "time limit",
+      "unique": 32041
+    },
+    "incumbent_after": 186,
+    "n_found": 2,
+    "ok": true,
+    "saved": {
+      "json": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\solutions\\4925153_autonomous_v0_100.json",
+      "moves": "C:\\Users\\Codex\\Documents\\Grok Build\\spider-solver-intent-v01\\solutions\\4925153_autonomous_v0_100.moves",
+      "ok": true
+    },
+    "verified": {
+      "lean": {
+        "elapsed_s": 29.77380540000013,
+        "max_foundations": 8,
+        "stop": "solved",
+        "terminal_g": 186,
+        "terminal_s": 29.773790200000803,
+        "unique": 10264
+      },
+      "ok": true,
+      "post": {
+        "match_ok": true,
+        "post_digest": "53504b310102000000030d2913000332211a000d0a1918171615140302111c1b22020f31122d0c3b1a1d1c2b2a1d2c1b3a3918330003263419000436350437000e3d3c3b3a3938373635343d3c0b17000a28270605242332313801000133000a080716151413121109250d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+        "post_g": 131
+      },
+      "post_g": 131,
+      "pre_g": 130,
+      "reason": null,
+      "replay": {
+        "foundations": 8,
+        "g": 186,
+        "n_actions": 190,
+        "n_deal": 5,
+        "ok": true,
+        "reason": null,
+        "solved": true,
+        "stock_empty": true,
+        "tableau_empty": true
+      },
+      "tactical_delta_g": 7,
+      "winner": "WINNER_A",
+      "winner_id": "79e127c0-bb18-4a6f-958e-386eeeab516b"
+    },
+    "winner_a_recovered": true,
+    "winner_b_recovered": true
+  },
+  "verdict": "HIERARCHICAL_CAMPAIGN_186_VERIFIED"
+}

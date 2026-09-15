@@ -5,10 +5,13 @@ from __future__ import annotations
 from typing import Optional
 
 DEFAULT_ROUNDS = (
-    {"round": 1, "time_s": 60.0, "max_candidates": None, "label": "all proof-live"},
-    {"round": 2, "time_s": 300.0, "max_candidates": 64, "label": "selected survivors"},
-    {"round": 3, "time_s": 1800.0, "max_candidates": 16, "label": "deep survivors"},
-    {"round": 4, "time_s": 7200.0, "max_candidates": 4, "label": "finalists"},
+    {"round": 1, "time_s": 60.0, "max_candidates": None, "label": "all unresolved"},
+    {"round": 2, "time_s": 300.0, "max_candidates": None, "label": "5 minutes"},
+    {"round": 3, "time_s": 1800.0, "max_candidates": None, "label": "30 minutes"},
+    {"round": 4, "time_s": 7200.0, "max_candidates": None, "label": "2 hours"},
+    {"round": 5, "time_s": 28800.0, "max_candidates": None, "label": "8 hours"},
+    {"round": 6, "time_s": 86400.0, "max_candidates": None, "label": "24 hours"},
+    {"round": 7, "time_s": 604800.0, "max_candidates": None, "label": "UNTIL STOPPED"},
 )
 
 

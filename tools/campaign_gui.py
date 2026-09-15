@@ -22,7 +22,16 @@ else:
 from spider.app_paths import data_folder, default_campaigns_dir
 from spider.campaign_bundle import export_campaign, import_campaign
 from spider.campaign_exchange import ingest_results, publish_result
+from spider.campaign_expand import (
+    create_g123_campaign,
+    create_opening_campaign,
+    enqueue_deepen,
+    expand_node,
+    expand_sd5_child,
+)
 from spider.campaign_import_v084 import import_v084_population
+from spider.campaign_nodes import deepen_priority, get_node, status_unresolved
+from spider.campaign_schedule import DEFAULT_ROUNDS
 from spider.campaign_scheduler import run_pending_jobs
 from spider.campaign_store import load_campaign, new_campaign, save_campaign
 from spider.campaign_worker import WORKER_MODE
@@ -37,8 +46,9 @@ class CampaignApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Spider Solver — Campaign (AUTO / LEAN CONSEQUENCE)")
-        self.minsize(720, 620)
-        self.geometry("820x700")
+        self.minsize(860, 720)
+        self.geometry("960x820")
+        self._selected_node = None
         self._log_q: queue.Queue[str] = queue.Queue()
         self._campaign_dir = DEFAULT_CAMPAIGN
         self._profile = load_profile()
@@ -107,6 +117,29 @@ class CampaignApp(tk.Tk):
         row3.pack(fill=tk.X, padx=8, pady=(0, 6))
         ttk.Button(row3, text="Open Data Folder", command=self._open_data).pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(row3, text="Export Report", command=self._export_report).pack(side=tk.LEFT)
+        row4 = ttk.Frame(camp)
+        row4.pack(fill=tk.X, padx=8, pady=(0, 6))
+        ttk.Button(row4, text="Create Opening Campaign", command=self._create_opening).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row4, text="Create Known g123 Campaign", command=self._create_g123).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row4, text="Generate Children", command=self._generate_children).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row4, text="Evaluate / Start", command=self._start_run).pack(side=tk.LEFT, padx=(0, 4))
+        row5 = ttk.Frame(camp)
+        row5.pack(fill=tk.X, padx=8, pady=(0, 6))
+        ttk.Button(row5, text="Deepen Selected", command=self._deepen_selected).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row5, text="Deepen All Unresolved", command=self._deepen_unresolved).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row5, text="Step to Parent", command=self._step_parent).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row5, text="Open Root/Node", command=self._open_node).pack(side=tk.LEFT, padx=(0, 4))
+
+        tree_f = ttk.LabelFrame(self, text="Campaign graph")
+        tree_f.pack(fill=tk.BOTH, expand=False, **pad)
+        cols = ("kind", "g", "F", "rows", "deals", "status", "budget", "maxF", "term")
+        self._tree = ttk.Treeview(tree_f, columns=cols, show="tree headings", height=8)
+        self._tree.heading("#0", text="node")
+        for c, w in zip(cols, (90, 40, 30, 40, 40, 140, 70, 50, 50)):
+            self._tree.heading(c, text=c)
+            self._tree.column(c, width=w, stretch=True)
+        self._tree.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+        self._tree.bind("<<TreeviewSelect>>", self._on_tree_select)
 
         logf = ttk.LabelFrame(self, text="Log")
         logf.pack(fill=tk.BOTH, expand=True, **pad)
@@ -199,9 +232,10 @@ class CampaignApp(tk.Tk):
         running = next((j for j in jobs if j.get("status") == "running"), None)
         self._camp_info.set(
             f"UUID {data.get('uuid')} · incumbent {data.get('incumbent_g')} · ceiling {data.get('production_ceiling')} · "
-            f"candidates {len(data.get('candidates') or [])} · pending {pending} · done {done} · imported {imported} · "
-            f"current {str((running or {}).get('id') or '—')[:8]} · worker {data.get('scientific_worker') or WORKER_MODE}"
+            f"candidates {len(data.get('candidates') or [])} · nodes {len(data.get('nodes') or [])} · pending {pending} · done {done} · imported {imported} · "
+            f"current {str((running or {}).get('id') or '-')[:8]} · worker {data.get('scientific_worker') or WORKER_MODE}"
         )
+        self._fill_tree(data)
 
     def _new_campaign(self) -> None:
         path = filedialog.askdirectory(initialdir=str(default_campaigns_dir()))
@@ -317,6 +351,136 @@ class CampaignApp(tk.Tk):
             self.after(0, self._refresh_campaign_info)
 
         threading.Thread(target=work, daemon=True).start()
+
+    def _data(self) -> dict:
+        return load_campaign(Path(self._camp_var.get()))
+
+    def _save(self, data: dict) -> None:
+        save_campaign(Path(self._camp_var.get()), data)
+
+    def _fill_tree(self, data: dict) -> None:
+        if not hasattr(self, "_tree"):
+            return
+        self._tree.delete(*self._tree.get_children())
+        nodes = {n["id"]: n for n in data.get("nodes") or []}
+        children = {n["id"]: [] for n in nodes.values()}
+        roots = []
+        for n in nodes.values():
+            parents = [p for p in (n.get("parent_ids") or []) if p in nodes]
+            if not parents:
+                roots.append(n)
+            for p in parents:
+                children[p].append(n)
+
+        seen = set()
+
+        def insert(parent_iid, node):
+            iid = node["id"]
+            if iid in seen:
+                return
+            seen.add(iid)
+            self._tree.insert(
+                parent_iid,
+                "end",
+                iid=iid,
+                text=(node.get("label") or iid[:8]),
+                values=(
+                    node.get("kind"),
+                    node.get("g"),
+                    node.get("foundations"),
+                    node.get("stock_rows"),
+                    node.get("n_deal"),
+                    node.get("status"),
+                    node.get("deepest_budget_s"),
+                    node.get("max_foundations"),
+                    node.get("best_terminal_g") or "",
+                ),
+            )
+            for ch in children.get(iid) or []:
+                if ch["id"] != iid:
+                    insert(iid, ch)
+
+        for r in roots:
+            insert("", r)
+
+    def _on_tree_select(self, _evt=None) -> None:
+        sel = self._tree.selection()
+        self._selected_node = sel[0] if sel else None
+
+    def _create_opening(self) -> None:
+        data = self._data()
+        node = create_opening_campaign(data)
+        self._save(data)
+        self._log_line(f"Opening root {node['id'][:8]} g=0")
+        self._refresh_campaign_info()
+
+    def _create_g123(self) -> None:
+        data = self._data()
+        node = create_g123_campaign(data)
+        self._save(data)
+        self._log_line(f"g123 checkpoint {node['id'][:8]} g={node['g']} deals={node['n_deal']} ancestry_verified={node['ancestry_verified']}")
+        self._refresh_campaign_info()
+
+    def _generate_children(self) -> None:
+        data = self._data()
+        nid = self._selected_node or data.get("g123_id") or data.get("root_id")
+        node = get_node(data, nid) if nid else None
+        if node is None:
+            self._log_line("Select a node first.")
+            return
+        if int(node.get("stock_rows") or 0) == 1 and node.get("foundations", 0) >= 2:
+            child = expand_sd5_child(data, node)
+            self._save(data)
+            self._log_line(f"Exact SD5 child {None if child is None else child.get('id')}")
+        else:
+            summary = expand_node(data, node)
+            self._save(data)
+            self._log_line(f"Generate Children {summary}")
+        self._refresh_campaign_info()
+
+    def _deepen_selected(self) -> None:
+        data = self._data()
+        node = get_node(data, self._selected_node) if self._selected_node else None
+        if node is None:
+            self._log_line("Select a node first.")
+            return
+        spec = DEFAULT_ROUNDS[min(1, len(DEFAULT_ROUNDS) - 1)]
+        job = enqueue_deepen(data, node, time_s=float(spec["time_s"]), max_unique=300_000, round_n=int(spec["round"]))
+        self._save(data)
+        self._log_line(f"Deepen Selected queued {None if job is None else job.get('id')} t={spec['time_s']}s (timeout is UNRESOLVED, not dead)")
+        self._start_run()
+
+    def _deepen_unresolved(self) -> None:
+        data = self._data()
+        nodes = [n for n in data.get("nodes") or [] if status_unresolved(n) and n.get("kind") == "STOCK_EMPTY"]
+        nodes.sort(key=deepen_priority)
+        spec = DEFAULT_ROUNDS[min(1, len(DEFAULT_ROUNDS) - 1)]
+        nq = 0
+        for node in nodes:
+            if enqueue_deepen(data, node, time_s=float(spec["time_s"]), max_unique=300_000, round_n=int(spec["round"])):
+                nq += 1
+        self._save(data)
+        self._log_line(f"Deepen All Unresolved queued {nq} STOCK_EMPTY nodes at {spec['time_s']}s")
+        if nq:
+            self._start_run()
+
+    def _step_parent(self) -> None:
+        data = self._data()
+        node = get_node(data, self._selected_node) if self._selected_node else None
+        if node is None or not (node.get("parent_ids") or []):
+            self._log_line("No parent.")
+            return
+        pid = node["parent_ids"][0]
+        if self._tree.exists(pid):
+            self._tree.selection_set(pid)
+            self._tree.see(pid)
+            self._selected_node = pid
+        self._log_line(f"Step to Parent {pid[:8]}")
+
+    def _open_node(self) -> None:
+        if self._selected_node:
+            self._log_line(f"Open Root/Node {self._selected_node}")
+            self._refresh_campaign_info()
 
 
 def main() -> None:

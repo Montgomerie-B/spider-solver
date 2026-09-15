@@ -13,7 +13,9 @@ import sys
 from pathlib import Path
 from typing import Callable, Optional
 
+from spider.campaign_nodes import get_node, record_node_run
 from spider.campaign_promote import promote_if_solved
+from spider.campaign_status import classify_outcome
 from spider.campaign_store import load_campaign, record_run, record_throttle, save_campaign
 from spider.campaign_worker import WORKER_MODE, current_solver_sha, job_worker
 from spider.hardware import detect_hardware, memory_pressure
@@ -101,15 +103,28 @@ def run_pending_jobs(
                 job["status"] = "failed"
             else:
                 job["status"] = "done"
+            outcome = classify_outcome(
+                result,
+                ceiling=int(job.get("ceiling") or data.get("production_ceiling") or 186),
+                assembly_f=cand.get("assembly_f"),
+            )
+            result["outcome"] = outcome
+            job["outcome"] = outcome
             job["result"] = result
             job["exitcode"] = proc.exitcode
             record_run(data, job, result)
+            for node in data.get("nodes") or []:
+                if node.get("candidate_id") == job.get("candidate_id") or node.get("id") == job.get("candidate_id"):
+                    record_node_run(node, {**result, "time_s": job.get("time_s"), "outcome": outcome})
             if result.get("solved"):
                 promo = promote_if_solved(data, cand, result, folder=campaign_dir)
                 log(f"PROMOTE {promo}")
                 cand_by_id = {c["id"]: c for c in data.get("candidates") or []}
             finished += 1
-            log(f"JOB {str(job['id'])[:8]} {job['status']} unique={result.get('unique')} stop={result.get('stop_reason')} mode={WORKER_MODE}")
+            log(
+                f"JOB {str(job['id'])[:8]} {job['status']} outcome={outcome} "
+                f"unique={result.get('unique')} stop={result.get('stop_reason')} mode={WORKER_MODE}"
+            )
         save_campaign(campaign_dir, data)
         i += len(batch)
         snap = detect_hardware()

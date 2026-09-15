@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from spider.campaign_nodes import verified_incumbent
 from spider.campaign_schedule import DEFAULT_ROUNDS
 
 CAMPAIGN_FILE = "campaign.json"
@@ -17,15 +18,20 @@ def campaign_path(folder: Path) -> Path:
     return Path(folder) / CAMPAIGN_FILE
 
 
-def new_campaign(*, incumbent_g: int = 187, ceiling: int = 186, deal_id: str = "4925153") -> dict:
+def new_campaign(*, incumbent_g: Optional[int] = None, ceiling: Optional[int] = None, deal_id: str = "4925153") -> dict:
+    inc, ceil = verified_incumbent()
+    if incumbent_g is not None:
+        inc = int(incumbent_g)
+    if ceiling is not None:
+        ceil = int(ceiling)
     return {
-        "version": 1,
+        "version": 2,
         "uuid": str(uuid.uuid4()),
         "deal_id": deal_id,
         "rules_profile": "mobilityware_unrestricted",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "incumbent_g": int(incumbent_g),
-        "production_ceiling": int(ceiling),
+        "incumbent_g": int(inc),
+        "production_ceiling": int(ceil),
         "created_host_note": "informational only; results remain valid on other machines",
         "scientific_worker": "LEAN_CONSEQUENCE",
         "schedule": [dict(r) for r in DEFAULT_ROUNDS],
@@ -39,6 +45,9 @@ def new_campaign(*, incumbent_g: int = 187, ceiling: int = 186, deal_id: str = "
         "closed_registry": [],
         "solutions": [],
         "shared_folder": None,
+        "nodes": [],
+        "edges": [],
+        "graph_version": 1,
     }
 
 

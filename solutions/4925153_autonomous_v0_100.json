@@ -1,0 +1,32 @@
+{
+  "canonical_used": false,
+  "experiment": "hierarchical_deep_campaign_v0_100",
+  "incumbent_after": 186,
+  "incumbent_before": 187,
+  "lean": {
+    "elapsed_s": 29.77380540000013,
+    "max_foundations": 8,
+    "stop": "solved",
+    "terminal_g": 186,
+    "terminal_s": 29.773790200000803,
+    "unique": 10264
+  },
+  "moves_path": "solutions/4925153_autonomous_v0_100.moves",
+  "n_actions": 190,
+  "production_ceiling_after": 185,
+  "production_ceiling_before": 186,
+  "replay": {
+    "foundations": 8,
+    "g": 186,
+    "n_actions": 190,
+    "n_deal": 5,
+    "ok": true,
+    "reason": null,
+    "solved": true,
+    "stock_empty": true,
+    "tableau_empty": true
+  },
+  "tactical_delta_g": 7,
+  "winner": "WINNER_A",
+  "winner_id": "79e127c0-bb18-4a6f-958e-386eeeab516b"
+}
