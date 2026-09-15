@@ -31,6 +31,9 @@ Thumbs.db
 # Local campaign / machine profile (portable DB is copied by the user)
 campaigns/
 hardware_profile.json
+build/
+dist/
+*.spec.bak
 
 # Opt011B feasibility runtime
 artifacts/opt011/feas_*/

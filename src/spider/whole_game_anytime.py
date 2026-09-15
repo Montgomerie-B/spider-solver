@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from spider.app_paths import repo_root
 from spider.engine import SpiderState
 from spider.metrics import Action, export_actions_to_moves_file, replay_actions
 from spider.packed_state import pack_state, pack_whole_game_identity, unpack_state
@@ -28,7 +29,7 @@ from spider.research_actions import (
 from spider.search_kernel import KernelResult, SearchLimits, reconstruct_path, run_search
 from spider.structural_analysis import current_tableau_summary
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = repo_root()
 DEAL_PATH = ROOT / "deals" / "4925153.txt"
 
 LANES = (

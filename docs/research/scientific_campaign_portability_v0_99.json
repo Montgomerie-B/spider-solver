@@ -1,0 +1,147 @@
+{
+  "base_sha": "29899dad5ac9c8ddc83e4fbb51223fb2b07460cf",
+  "branch": "agent/scientific-campaign-portability-v0-99",
+  "build_host": {
+    "auto": {
+      "global_ram_limit_gb": 10.88,
+      "max_unique": 300000,
+      "mode": "AUTO",
+      "notes": "AUTO from 8p/8l 16GB; disk speed unused",
+      "per_worker_rss_mb": 2560.0,
+      "workers": 1
+    },
+    "logical_cores": 8,
+    "note": "build/test host, not the Dell Optiplex",
+    "physical_cores": 8,
+    "profile_present": false,
+    "ram_total_gb": 15.88
+  },
+  "control_187_calibration": {
+    "expanded": 543,
+    "generated": 16636,
+    "lane_exp": {
+      "completion": 98,
+      "construction": 113,
+      "cost": 52,
+      "economy": 57,
+      "horizon": 0,
+      "readiness": 109,
+      "reveal": 114
+    },
+    "lower_bound_prunes": 4146,
+    "max_foundations": 8,
+    "solved": true,
+    "stop": "solved",
+    "terminal_g": 187,
+    "terminal_s": 27.69185909999942,
+    "unique": 8290,
+    "worker_mode": "LEAN_CONSEQUENCE"
+  },
+  "experiment": "scientific_campaign_portability_v0_99",
+  "export_import_ok": true,
+  "incumbent_g": 187,
+  "optiplex_acceptance": "user must run scripts/optiplex_acceptance_v0_99.ps1 on the Dell Optiplex; not claimed here",
+  "packaging": {
+    "committed_binary": false,
+    "entrypoint_ok": true,
+    "one_folder_build": true,
+    "pyinstaller_version": "6.22.3",
+    "exe": "dist/SpiderCampaign/SpiderCampaign.exe",
+    "script": "scripts/build_spider_app.ps1",
+    "spec": "spider_campaign.spec",
+    "note": "one-folder build succeeded on the build/test host; dist/ is gitignored and not committed"
+  },
+  "production_ceiling": 186,
+  "production_smoke_186": {
+    "bound_calls": 1551,
+    "ceiling": 186,
+    "max_F": 2,
+    "no_deal": true,
+    "prunes": 71,
+    "stop": "time limit"
+  },
+  "semantic_equivalence": {
+    "ok": true,
+    "table": {
+      "duplicate_skips": [
+        1639,
+        1639
+      ],
+      "expanded": [
+        160,
+        160
+      ],
+      "generated": [
+        3656,
+        3656
+      ],
+      "lane_exp": [
+        {
+          "completion": 24,
+          "construction": 35,
+          "cost": 19,
+          "economy": 14,
+          "horizon": 0,
+          "readiness": 34,
+          "reveal": 34
+        },
+        {
+          "completion": 24,
+          "construction": 35,
+          "cost": 19,
+          "economy": 14,
+          "horizon": 0,
+          "readiness": 34,
+          "reveal": 34
+        }
+      ],
+      "lower_bound_calls": [
+        2017,
+        2017
+      ],
+      "lower_bound_prunes": [
+        142,
+        142
+      ],
+      "max_foundations": [
+        2,
+        2
+      ],
+      "stale_skips": [
+        47,
+        47
+      ],
+      "trace_hash": [
+        "dd9be99423b170214b8b7e0d9c836505af955364c27c9f2f5740e4c0834d4708",
+        "dd9be99423b170214b8b7e0d9c836505af955364c27c9f2f5740e4c0834d4708"
+      ],
+      "unique": [
+        2000,
+        2000
+      ]
+    }
+  },
+  "shared_ingest": {
+    "added": 1,
+    "conflicts": 0,
+    "redundant": 0,
+    "skipped": 1,
+    "idempotent": true
+  },
+  "solver_sha": "29899dad5ac9c8ddc83e4fbb51223fb2b07460cf",
+  "v084_import": {
+    "ancestry_failures": 0,
+    "closed_pruned": 0,
+    "closed_registry_n": 30,
+    "lower_g_reopenings": 0,
+    "n_persisted_pre": 56,
+    "proof_dead": 0,
+    "proof_live": 56,
+    "raw_n_f2": 279,
+    "reconstructed": 56,
+    "round1_jobs": 56,
+    "unique_post_stock": 56
+  },
+  "v098_mismatch": "v0.98 job_worker called generic run_search with identity_fn=pack_state, lane_names=cost/reveal/construction, and lower_bound_fn=None. That is not the calibrated lean consequence evaluator. v0.99 job_worker calls run_stockempty_consequence with pack_whole_game_identity, COMPLETION_LANES, strategic_lane_keys, stock_empty_assembly_h, stop_on_first_terminal=True.",
+  "verdict": "SCIENTIFIC_CAMPAIGN_READY"
+}

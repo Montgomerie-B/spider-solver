@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Optiplex-first campaign GUI. AUTO hardware; no SSD assumptions."""
+"""Campaign GUI. AUTO hardware; scientific worker = LEAN CONSEQUENCE."""
 
 from __future__ import annotations
 
+import json
+import os
 import queue
 import sys
 import threading
@@ -10,24 +12,33 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    ROOT = Path(sys._MEIPASS)
+    sys.path.insert(0, str(ROOT))
+else:
+    ROOT = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(ROOT / "src"))
 
+from spider.app_paths import data_folder, default_campaigns_dir
+from spider.campaign_bundle import export_campaign, import_campaign
+from spider.campaign_exchange import ingest_results, publish_result
+from spider.campaign_import_v084 import import_v084_population
 from spider.campaign_scheduler import run_pending_jobs
-from spider.campaign_store import add_candidate, enqueue_job, load_campaign, save_campaign
+from spider.campaign_store import load_campaign, new_campaign, save_campaign
+from spider.campaign_worker import WORKER_MODE
 from spider.hardware import detect_hardware
 from spider.hardware_profile import calibrate_and_save, load_profile, profile_mismatch, profile_path
 from spider.resource_policy import recommend_config
 
-DEFAULT_CAMPAIGN = ROOT / "campaigns" / "default"
+DEFAULT_CAMPAIGN = default_campaigns_dir() / "default"
 
 
 class CampaignApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Spider Solver — Campaign (AUTO)")
-        self.minsize(640, 560)
-        self.geometry("760x640")
+        self.title("Spider Solver — Campaign (AUTO / LEAN CONSEQUENCE)")
+        self.minsize(720, 620)
+        self.geometry("820x700")
         self._log_q: queue.Queue[str] = queue.Queue()
         self._campaign_dir = DEFAULT_CAMPAIGN
         self._profile = load_profile()
@@ -42,7 +53,13 @@ class CampaignApp(tk.Tk):
     def _build(self) -> None:
         pad = {"padx": 8, "pady": 4}
         ttk.Label(self, text="Deep campaign runner", font=("Segoe UI", 12, "bold")).pack(anchor=tk.W, **pad)
-        ttk.Label(self, text="Target: Dell Optiplex (AUTO). Disk speed is not a search input.", font=("Segoe UI", 9)).pack(anchor=tk.W, padx=8)
+        ttk.Label(
+            self,
+            text="AUTO resources. Scientific worker = LEAN CONSEQUENCE. Disk speed unused.",
+            font=("Segoe UI", 9),
+        ).pack(anchor=tk.W, padx=8)
+        self._camp_info = tk.StringVar(value="Campaign: —")
+        ttk.Label(self, textvariable=self._camp_info, font=("Segoe UI", 9)).pack(anchor=tk.W, padx=8)
 
         hw = ttk.LabelFrame(self, text="Hardware")
         hw.pack(fill=tk.X, **pad)
@@ -72,10 +89,24 @@ class CampaignApp(tk.Tk):
         ttk.Entry(camp, textvariable=self._camp_var).pack(fill=tk.X, padx=8, pady=4)
         bt = ttk.Frame(camp)
         bt.pack(fill=tk.X, padx=8, pady=(0, 6))
-        ttk.Button(bt, text="New / Open folder", command=self._choose_folder).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(bt, text="Create smoke jobs", command=self._smoke).pack(side=tk.LEFT, padx=(0, 6))
-        self._start = ttk.Button(bt, text="Start / Resume", command=self._start_run)
-        self._start.pack(side=tk.LEFT)
+        ttk.Button(bt, text="New Campaign", command=self._new_campaign).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(bt, text="Open Campaign", command=self._choose_folder).pack(side=tk.LEFT, padx=(0, 4))
+        self._start = ttk.Button(bt, text="Start", command=self._start_run)
+        self._start.pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(bt, text="Resume", command=self._start_run).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(bt, text="Pause after current job", command=self._pause).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(bt, text="Stop", command=self._stop).pack(side=tk.LEFT, padx=(0, 4))
+        row2 = ttk.Frame(camp)
+        row2.pack(fill=tk.X, padx=8, pady=(0, 6))
+        ttk.Button(row2, text="Export Campaign", command=self._export).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row2, text="Import Campaign", command=self._import).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row2, text="Shared Research Folder", command=self._shared).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row2, text="Sync Results", command=self._sync).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row2, text="Import v0.84 F2s", command=self._import_v084).pack(side=tk.LEFT, padx=(0, 4))
+        row3 = ttk.Frame(camp)
+        row3.pack(fill=tk.X, padx=8, pady=(0, 6))
+        ttk.Button(row3, text="Open Data Folder", command=self._open_data).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row3, text="Export Report", command=self._export_report).pack(side=tk.LEFT)
 
         logf = ttk.LabelFrame(self, text="Log")
         logf.pack(fill=tk.BOTH, expand=True, **pad)
@@ -91,6 +122,7 @@ class CampaignApp(tk.Tk):
             self._rss.set(cfg.per_worker_rss_mb)
         thru = prof.get("unique_per_s")
         thru_s = "—" if thru is None else f"{thru:.0f} unique states/sec"
+        cal = "missing / mismatch — Recalibrate" if profile_mismatch(prof, snap) else "ok"
         self._hw.set(
             "\n".join(
                 [
@@ -101,10 +133,13 @@ class CampaignApp(tk.Tk):
                     f"Per-worker RSS cap: {self._rss.get()/1024:.1f} GB",
                     f"Global campaign RAM limit: {cfg.global_ram_limit_gb:.0f} GB",
                     f"Measured throughput: {thru_s}",
+                    f"Calibration status: {cal}",
+                    f"Scientific worker mode = {WORKER_MODE}",
                     f"Profile: {profile_path()}",
                 ]
             )
         )
+        self._refresh_campaign_info()
 
     def _log_line(self, msg: str) -> None:
         self._log_q.put(msg)
@@ -150,18 +185,104 @@ class CampaignApp(tk.Tk):
         self._camp_var.set(str(self._campaign_dir))
         load_campaign(self._campaign_dir)
         self._log_line(f"Campaign folder {self._campaign_dir}")
+        self._refresh_campaign_info()
 
-    def _smoke(self) -> None:
-        data = load_campaign(self._campaign_dir)
-        if not data.get("candidates"):
-            a = add_candidate(data, g=0, ordered_digest="", label="smoke_a")
-            b = add_candidate(data, g=0, ordered_digest="", label="smoke_b")
-            enqueue_job(data, a["id"], ceiling=186, time_s=6.0, max_unique=8_000)
-            enqueue_job(data, b["id"], ceiling=186, time_s=6.0, max_unique=8_000)
-            save_campaign(self._campaign_dir, data)
-            self._log_line("Created two smoke jobs (6 s kernel probes).")
-        else:
-            self._log_line("Campaign already has candidates; not duplicating smoke jobs.")
+    def _refresh_campaign_info(self) -> None:
+        try:
+            data = load_campaign(Path(self._camp_var.get()))
+        except Exception:
+            return
+        jobs = data.get("jobs") or []
+        pending = sum(1 for j in jobs if j.get("status") == "pending")
+        done = sum(1 for j in jobs if j.get("status") == "done")
+        imported = len(data.get("imported_results") or [])
+        running = next((j for j in jobs if j.get("status") == "running"), None)
+        self._camp_info.set(
+            f"UUID {data.get('uuid')} · incumbent {data.get('incumbent_g')} · ceiling {data.get('production_ceiling')} · "
+            f"candidates {len(data.get('candidates') or [])} · pending {pending} · done {done} · imported {imported} · "
+            f"current {str((running or {}).get('id') or '—')[:8]} · worker {data.get('scientific_worker') or WORKER_MODE}"
+        )
+
+    def _new_campaign(self) -> None:
+        path = filedialog.askdirectory(initialdir=str(default_campaigns_dir()))
+        if not path:
+            return
+        self._campaign_dir = Path(path)
+        self._camp_var.set(str(self._campaign_dir))
+        data = new_campaign()
+        save_campaign(self._campaign_dir, data)
+        self._refresh_campaign_info()
+        self._log_line(f"New campaign {data.get('uuid')} in {self._campaign_dir}")
+
+    def _pause(self) -> None:
+        (Path(self._camp_var.get()) / "_pause").write_text("1", encoding="utf-8")
+        self._log_line("Pause requested after current job batch.")
+
+    def _stop(self) -> None:
+        (Path(self._camp_var.get()) / "_stop").write_text("1", encoding="utf-8")
+        self._log_line("Stop requested after current job batch. Pending work remains.")
+
+    def _import_v084(self) -> None:
+        camp = import_v084_population()
+        save_campaign(Path(self._camp_var.get()), camp)
+        stats = camp.get("import_stats") or {}
+        self._log_line(f"Imported v0.84 F2s {stats}")
+        self._refresh_campaign_info()
+
+    def _export(self) -> None:
+        dest = filedialog.asksaveasfilename(defaultextension=".spidercampaign", filetypes=[("Campaign", "*.spidercampaign")])
+        if not dest:
+            return
+        path = export_campaign(Path(self._camp_var.get()), Path(dest))
+        self._log_line(f"Exported {path}")
+
+    def _import(self) -> None:
+        src = filedialog.askopenfilename(filetypes=[("Campaign", "*.spidercampaign")])
+        if not src:
+            return
+        dest = filedialog.askdirectory(initialdir=str(default_campaigns_dir()))
+        if not dest:
+            return
+        import_campaign(Path(src), Path(dest))
+        self._campaign_dir = Path(dest)
+        self._camp_var.set(str(dest))
+        self._refresh_campaign_info()
+        self._log_line(f"Imported campaign into {dest}")
+
+    def _shared(self) -> None:
+        path = filedialog.askdirectory()
+        if not path:
+            return
+        data = load_campaign(Path(self._camp_var.get()))
+        data["shared_folder"] = path
+        save_campaign(Path(self._camp_var.get()), data)
+        self._log_line(
+            f"Shared Research Folder {path}. Live campaign stays local; only immutable exchange artefacts are published."
+        )
+
+    def _sync(self) -> None:
+        data = load_campaign(Path(self._camp_var.get()))
+        shared = data.get("shared_folder")
+        if not shared:
+            self._log_line("Set Shared Research Folder first.")
+            return
+        for job in data.get("jobs") or []:
+            if job.get("status") == "done" and job.get("result"):
+                publish_result(Path(shared), data, job)
+        summary = ingest_results(Path(shared), Path(self._camp_var.get()))
+        self._log_line(f"Sync {summary}")
+        self._refresh_campaign_info()
+
+    def _open_data(self) -> None:
+        os.startfile(str(data_folder()))  # type: ignore[attr-defined]
+
+    def _export_report(self) -> None:
+        dest = filedialog.asksaveasfilename(defaultextension=".json")
+        if not dest:
+            return
+        data = load_campaign(Path(self._camp_var.get()))
+        Path(dest).write_text(json.dumps(data, indent=2), encoding="utf-8")
+        self._log_line(f"Wrote report {dest}")
 
     def _start_run(self) -> None:
         if self._running:
@@ -169,7 +290,7 @@ class CampaignApp(tk.Tk):
         self._campaign_dir = Path(self._camp_var.get())
         snap = detect_hardware()
         if profile_mismatch(self._profile, snap):
-            if messagebox.askyesno("Hardware changed", "Hardware profile does not match this machine. Recalibrate and resume?"):
+            if messagebox.askyesno("Hardware changed", "Hardware profile does not match this machine. Recalibrate and resume? Campaign scientific history is preserved."):
                 self._recalibrate()
                 self.after(16000, self._start_run)
             return
@@ -177,9 +298,13 @@ class CampaignApp(tk.Tk):
         if self._mode.get() == "MANUAL":
             cfg.workers = int(self._workers.get())
             cfg.per_worker_rss_mb = float(self._rss.get())
+        for name in ("_pause", "_stop"):
+            p = self._campaign_dir / name
+            if p.exists():
+                p.unlink()
         self._running = True
         self._start.configure(state=tk.DISABLED)
-        self._log_line("Starting/resuming campaign…")
+        self._log_line("Starting/resuming campaign with LEAN CONSEQUENCE worker…")
 
         def work():
             try:
@@ -189,6 +314,7 @@ class CampaignApp(tk.Tk):
                 self._log_q.put(f"Run failed: {exc}")
             self._running = False
             self.after(0, lambda: self._start.configure(state=tk.NORMAL))
+            self.after(0, self._refresh_campaign_info)
 
         threading.Thread(target=work, daemon=True).start()
 
