@@ -46,7 +46,7 @@ def classify_outcome(result: dict, *, ceiling: int, assembly_f=None, cancelled: 
     if result.get("contract_fail") or result.get("status") == "failed" or result.get("outcome") == FAILED_CONTRACT:
         return FAILED_CONTRACT
     if result.get("solved") and result.get("terminal_g") is not None:
-        return SOLVED
+        return SOLVED if int(result["terminal_g"]) <= int(ceiling) else UNRESOLVED_TIME
     if result.get("lower_g_reopening"):
         return LOWER_G_REOPENING
     if result.get("known_closed"):

@@ -86,6 +86,8 @@ def run_pending_jobs(
             break
         procs = []
         for job in batch:
+            current_ceiling = int(data.get("production_ceiling") or production_ceiling())
+            job["ceiling"] = current_ceiling
             node = get_node(data, job.get("node_id") or "") if job.get("node_id") else None
             if node is None:
                 for n in data.get("nodes") or []:
@@ -158,7 +160,7 @@ def run_pending_jobs(
                 job["status"] = "done"
                 outcome = classify_outcome(
                     result,
-                    ceiling=int(job.get("ceiling") or data.get("production_ceiling") or production_ceiling()),
+                    ceiling=int(data.get("production_ceiling") or production_ceiling()),
                     assembly_f=(node or cand).get("assembly_f") if isinstance(node or cand, dict) else None,
                 )
             result["outcome"] = outcome
@@ -174,7 +176,7 @@ def run_pending_jobs(
                         break
             if target_node is not None:
                 record_node_run(target_node, {**result, "time_s": job.get("time_s"), "outcome": outcome})
-            if result.get("solved") and not crash:
+            if outcome == "SOLVED" and result.get("solved") and not crash:
                 src = node or cand
                 promo = promote_if_solved(data, src, result, folder=campaign_dir)
                 log(f"PROMOTE {promo}")
