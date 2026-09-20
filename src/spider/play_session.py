@@ -107,7 +107,7 @@ class HistoryNode:
 
 
 class PlaySession:
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self, cards: list[Card], deal_id: str, *, name: str | None = None,
                  path: Path | None = None):
@@ -124,6 +124,8 @@ class PlaySession:
         self.preferred: dict[str, str] = {}
         self.routes: dict[str, dict] = {}
         self.active_route: str | None = None
+        self.campaigns: dict[str, dict] = {}
+        self.active_campaign: str | None = None
         self._disk_digest: str | None = None
         self.dirty = False
         root = self._make_node(None, None, SpiderState.from_cards(list(cards)), 0)
@@ -174,6 +176,49 @@ class PlaySession:
 
     def actions(self) -> list[Action]:
         return normalize_actions([self.nodes[n].action for n in self.path_ids()[1:]])
+
+    def clean_record(self) -> list[HistoryNode]:
+        """The recorder and export use the same lineage, never navigation events."""
+        return [self.nodes[n] for n in self.path_ids()[1:]]
+
+    @property
+    def campaign(self) -> dict | None:
+        return self.campaigns.get(self.active_campaign)
+
+    def start_campaign(self, name: str | None = None) -> str:
+        if self.dirty:
+            raise AutosaveError("Save/recover before starting a branch campaign.")
+        route = self.routes.get(self.active_route)
+        campaign_id = uuid4().hex
+        self.campaigns[campaign_id] = {
+            "name": (name or "").strip() or f"{self.deal_id} · action {self.node.ordinal} · branch {len(self.campaigns)+1}",
+            "origin_node": self.current, "origin_action": self.node.ordinal,
+            "origin_g": self.node.g, "parent_route": self.active_route,
+            "parent_solution": route["name"] if route else None,
+            "parent_path": route["source"] if route else None,
+            "parent_campaign": self.active_campaign, "created": timestamp(),
+            "current_node": self.current,
+        }
+        self.active_campaign = campaign_id
+        self.save()
+        return campaign_id
+
+    def select_campaign(self, campaign_id: str) -> None:
+        if self.dirty:
+            raise AutosaveError("Save/recover before switching campaigns.")
+        campaign = self.campaigns[campaign_id]
+        self.active_campaign = campaign_id
+        self.active_route = campaign["parent_route"]
+        self.goto(campaign["current_node"])
+
+    def select_route(self, route_id: str) -> None:
+        if self.dirty:
+            raise AutosaveError("Save/recover before switching replay routes.")
+        if route_id not in self.routes:
+            raise ValueError("Unknown replay route")
+        self.active_campaign = None
+        self.active_route = route_id
+        self.goto(self.root)
 
     def act(self, action: Action) -> None:
         if self.dirty:
@@ -237,6 +282,7 @@ class PlaySession:
         route_id = uuid4().hex
         self.routes[route_id] = {"name": path.name, "source": str(path), "nodes": ids}
         self.active_route = route_id
+        self.active_campaign = None
         self.current = self.root
         self.save()
         return route_id
@@ -254,6 +300,8 @@ class PlaySession:
         return route, common - 1, self.current not in route["nodes"]
 
     def expected_action(self) -> Action | None:
+        if self.active_campaign:
+            return None
         route, index, branched = self.route_position()
         if route and not branched and index + 1 < len(route["nodes"]):
             return normalize_actions([self.nodes[route["nodes"][index + 1]].action])[0]
@@ -261,7 +309,7 @@ class PlaySession:
 
     def next(self) -> None:
         route, index, branched = self.route_position()
-        if route and not branched and index + 1 < len(route["nodes"]):
+        if route and not branched and not self.active_campaign and index + 1 < len(route["nodes"]):
             self.goto(route["nodes"][index + 1])
         else:
             self.redo()
@@ -269,7 +317,7 @@ class PlaySession:
     def last(self) -> None:
         route, _, branched = self.route_position()
         target = self.current
-        if route and not branched:
+        if route and not branched and not self.active_campaign:
             target = route["nodes"][-1]
         else:
             while self.children[target]:
@@ -285,9 +333,12 @@ class PlaySession:
                 "cards": [str(c) for c in self.cards], "root": self.root,
                 "current": self.current, "nodes": [asdict(n) for n in self.nodes.values()],
                 "preferred": self.preferred, "routes": self.routes,
-                "active_route": self.active_route, "rules": "MW_RULES_corrected_v1"}
+                "active_route": self.active_route, "rules": "MW_RULES_corrected_v1",
+                "campaigns": self.campaigns, "active_campaign": self.active_campaign}
 
     def save(self, path: Path | None = None) -> None:
+        if self.campaign is not None:
+            self.campaign["current_node"] = self.current
         destination = Path(path) if path else self.path
         try:
             with writer_lock(destination):
@@ -309,7 +360,7 @@ class PlaySession:
     def load(cls, path: Path) -> PlaySession:
         raw = path.read_bytes()
         data = json.loads(raw)
-        if data["version"] != cls.VERSION or data["rules"] != "MW_RULES_corrected_v1":
+        if data["version"] not in (1, cls.VERSION) or data["rules"] != "MW_RULES_corrected_v1":
             raise ValueError("Unsupported session or rules version")
         self = cls.__new__(cls)
         self.cards = tuple(Card.parse(c) for c in data["cards"])
@@ -347,6 +398,26 @@ class PlaySession:
                 raise ValueError("Invalid replay route")
         if self.active_route is not None and self.active_route not in self.routes:
             raise ValueError("Missing active route")
+        self.campaigns = data.get("campaigns", {}) if data["version"] >= 2 else {}
+        self.active_campaign = data.get("active_campaign") if data["version"] >= 2 else None
+        validated_campaigns = set()
+        for campaign_id, campaign in self.campaigns.items():
+            origin = self.nodes.get(campaign["origin_node"])
+            route = self.routes.get(campaign["parent_route"])
+            if (origin is None or campaign["origin_action"] != origin.ordinal
+                    or campaign["origin_g"] != origin.g
+                    or campaign["current_node"] not in self.nodes
+                    or (campaign["parent_route"] is not None and route is None)
+                    or campaign["parent_solution"] != (route["name"] if route else None)
+                    or campaign["parent_path"] != (route["source"] if route else None)
+                    or (campaign["parent_campaign"] is not None
+                        and campaign["parent_campaign"] not in validated_campaigns)):
+                raise ValueError("Branch campaign metadata integrity check failed")
+            validated_campaigns.add(campaign_id)
+        if self.active_campaign is not None and (self.active_campaign not in self.campaigns
+                or self.campaign["current_node"] != self.current
+                or self.campaign["parent_route"] != self.active_route):
+            raise ValueError("Invalid active branch campaign")
         self.path, self.dirty = path, False
         self._disk_digest = hashlib.sha256(raw).hexdigest()
         return self
