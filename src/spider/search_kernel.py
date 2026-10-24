@@ -37,6 +37,8 @@ class SearchLimits:
     rss_abort_mb: float = 2.5 * 1024.0
     cost_ceiling: Optional[int] = None
     harvest_slack: Optional[int] = None
+    # None preserves the historical unbounded-depth behaviour.
+    max_depth: Optional[int] = None
 
 
 @dataclass
@@ -47,6 +49,7 @@ class SearchNode:
     origin: int
     parent: int
     action: Optional[Action]
+    depth: int = 0
 
 
 @dataclass
@@ -79,6 +82,8 @@ class KernelResult:
     max_h: Optional[int] = None
     min_f: Optional[int] = None
     prunes_by_F: Dict[int, int] = field(default_factory=dict)
+    depth_skips: int = 0
+    hit_depth_limit: bool = False
 
     def reconstruct(self, node: int) -> List[Action]:
         path: List[Action] = []
@@ -266,6 +271,11 @@ def run_search(
             continue
         empty_streak = 0
         seen_expand[node.ident] = g
+        if limits.max_depth is not None and node.depth >= int(limits.max_depth):
+            result.depth_skips += 1
+            result.hit_depth_limit = True
+            empty_streak = 0
+            continue
         state = unpack_fn(node.store)
         if is_terminal(state):
             continue
@@ -297,7 +307,15 @@ def run_search(
                 best_g[child_ident] = child_g
                 child_i = len(nodes)
                 nodes.append(
-                    SearchNode(child_ident, child_store, child_g, node.origin, node_i, action)
+                    SearchNode(
+                        child_ident,
+                        child_store,
+                        child_g,
+                        node.origin,
+                        node_i,
+                        action,
+                        node.depth + 1,
+                    )
                 )
                 result.min_g = child_g if result.min_g is None else min(result.min_g, child_g)
                 result.max_g = child_g if result.max_g is None else max(result.max_g, child_g)
@@ -345,7 +363,7 @@ def run_search(
                 result.stop_reason = "harvested"
                 break
     if not result.stop_reason:
-        result.stop_reason = "complete"
+        result.stop_reason = "depth limit" if result.hit_depth_limit else "complete"
     live_g = [nodes[heaps[n][0][-1]].g for n in names if heaps[n]]
     if live_g:
         result.min_live_g = min(live_g)
