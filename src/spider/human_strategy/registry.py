@@ -116,10 +116,10 @@ PRINCIPLES: List[Dict[str, str]] = [
     {
         "id": "11",
         "name": "Identify realistically removable suits",
-        "implementation": "The longest same-suit run is a tie-break and an ordering signal. Extending it is preferred to starting a shorter run. rank_ready_suits and foundation feasibility are not called, so a suit is not judged removable from the whole deal.",
+        "implementation": "The longest same-suit run is a tie-break and an ordering signal. Extending it is preferred to starting a shorter run. The default play goal still does not call rank_ready_suits. The first-foundation goal calls analyze_foundation_campaigns, which ranks the next ordinal of every suit by schedule, and that ranking chooses the campaign.",
         "trigger": "Two same-suit joins of equal immediate cost.",
-        "effect": "The join that lengthens the longer run is selected. No decision uses a suit-removability ranking.",
-        "conditions": "Both joins are legal and neither splits a longer run.",
+        "effect": "The join that lengthens the longer run is selected. The default play goal still does not rank suits for removal. The first-foundation goal does, and its choice is tested separately.",
+        "conditions": "Both joins are legal and neither splits a longer run. Suit ranking applies only when goal is first-foundation.",
         "test": "test_longer_run_is_extended_first",
         "status": "CONDITIONAL",
     },

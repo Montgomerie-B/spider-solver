@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Integrated human-strategy controller for Spider Solitaire. v0.108.
+"""Integrated human-strategy controller for Spider Solitaire. v0.109.
 
-The controller does not start a campaign, write the production incumbent,
-or change MobilityWare rules. ``--profile extended`` runs only when named.
+The controller does not start a historical campaign, write the production
+incumbent, or change MobilityWare rules. ``--profile extended`` runs only
+when named. ``--goal first-foundation`` keeps a foundation campaign. The
+default goal ``play`` is the v0.108 controller.
 
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode cold --profile smoke
-    py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode cold --profile pilot
+    py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode cold --profile pilot --goal first-foundation --time-limit 150
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode optimise --incumbent solutions/4925153_autonomous_185.moves --profile pilot
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode diagnose --root post-sd3 --profile smoke --time-limit 60
 """
@@ -21,6 +23,7 @@ if not getattr(sys, "frozen", False):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from spider.counterfactual.experiment import reconstruct_roots
+from spider.deal import load_deal
 from spider.human_strategy import SCHEMA_VERSION, coverage_matrix, resolve_profile, solve
 from spider.human_strategy.evaluation import cost_led_action
 from spider.metrics import export_actions_to_moves_file, format_action, parse_moves_file, replay_actions
@@ -31,9 +34,15 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.108")
+    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.109")
     parser.add_argument("--deal", required=True)
     parser.add_argument("--mode", choices=("cold", "optimise", "diagnose"), default="cold")
+    parser.add_argument(
+        "--goal",
+        choices=("play", "first-foundation"),
+        default="play",
+        help="play keeps the v0.108 controller. first-foundation pursues one foundation campaign.",
+    )
     parser.add_argument("--profile", choices=("smoke", "pilot", "extended"), default="smoke")
     parser.add_argument("--incumbent", help="Verified .moves file used only as an optimise ceiling")
     parser.add_argument(
@@ -79,6 +88,7 @@ def main(argv=None) -> int:
         consult_portfolio=False if args.no_portfolio else None,
     )
     opening = opening_from_deal(deal_path)
+    deal_cards = load_deal(deal_path) if args.goal == "first-foundation" else None
     incumbent_actions = None
     incumbent_mw = None
     opening_g = 0
@@ -111,9 +121,11 @@ def main(argv=None) -> int:
         incumbent_mw=incumbent_mw,
         opening_g=opening_g,
         provenance_note=note,
+        goal=args.goal,
+        deal_cards=deal_cards,
     )
     document = _document(args, deal_path, result, opening)
-    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_108" / f"{args.mode}_{args.profile}.json"
+    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_109" / f"{args.mode}_{args.profile}.json"
     if not out.is_absolute():
         out = REPO / out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +137,7 @@ def main(argv=None) -> int:
             list(result.actions),
             moves_path,
             header=(
-                f"v0.108 {args.mode} {args.profile} "
+                f"v0.109 {args.mode} {args.profile} goal={args.goal} "
                 f"mw={result.cumulative_g} replay_ok={result.replay and result.replay.get('ok')}"
             ),
         )
@@ -134,6 +146,14 @@ def main(argv=None) -> int:
     if result.decisions:
         first = result.decisions[0]
         print(f"first={first.chosen_kind} {first.chosen_id} cost_led={first.cost_led}")
+    foundation = result.provenance.get("foundation") or []
+    if foundation:
+        last = foundation[-1]
+        print(
+            f"foundation={last.get('label')} "
+            f"partial={result.provenance.get('partial_trajectory')} "
+            f"foundations={result.foundations}"
+        )
     fallback = result.provenance.get("kernel_fallback")
     if fallback:
         print(
@@ -166,6 +186,7 @@ def _document(args, deal_path: Path, result, opening) -> dict:
         "schema": SCHEMA_VERSION,
         "deal": str(deal_path),
         "mode": args.mode,
+        "goal": args.goal,
         "profile": args.profile,
         "estimates_are_estimates": True,
         "comparison": {

@@ -32,6 +32,7 @@ from .evaluation import (
     same_suit_bonds,
 )
 from .portfolio import Candidate, _score_action, build_candidates, select_candidate
+from .foundation_direction import propose_foundation_step, rank_foundations
 from .preparation import (
     DealComparison,
     PreparationOption,
@@ -492,11 +493,17 @@ def solve(
     incumbent_mw: Optional[int] = None,
     opening_g: int = 0,
     provenance_note: str = "",
+    goal: str = "play",
+    deal_cards: Optional[Sequence] = None,
 ) -> SolveResult:
     """Search from ``state``. The caller's state is not mutated."""
 
     if mode not in {"cold", "optimise", "diagnose"}:
         raise ValueError(f"unknown mode {mode!r}")
+    if goal not in {"play", "first-foundation"}:
+        raise ValueError(f"unknown goal {goal!r}")
+    if goal == "first-foundation" and not deal_cards:
+        raise ValueError("first-foundation goal requires the full deal")
     if mode == "cold" and incumbent_actions:
         raise ValueError("cold mode does not accept an incumbent sequence")
     if mode == "optimise" and incumbent_mw is None:
@@ -522,6 +529,10 @@ def solve(
     revisited: set = set()
     released_soft: set = set()
     boost_ident = None
+    foundation_cache: dict = {}
+    foundation_lock: dict = {}
+    foundation_trace: List[dict] = []
+    start_foundations = len(root.foundations)
 
     while True:
         _remember(stats)
@@ -558,6 +569,10 @@ def solve(
                 break
             line, force_id = jumped
             continue
+
+        if goal == "first-foundation" and line.remaining[:1] == (("deal",),):
+            stats.events.append("foundation: a bundled deal is reconsidered against the campaign")
+            _clear_commitment(line)
 
         if line.hold and line.remaining:
             reason_abandon = abandonment_reason(line.state, line.remaining)
@@ -652,7 +667,61 @@ def solve(
             force_id=force_id,
         )
         force_id = None
-        if not line.hold and choice.kind in {"DEAL_NOW", "STRETCH"} and line.state.can_deal():
+        foundation_locked = False
+        if goal == "first-foundation" and not line.hold:
+            proposal = propose_foundation_step(
+                line.state,
+                deal_cards,
+                profile,
+                deadline - time.perf_counter(),
+                line.g,
+                cache=foundation_cache,
+                lock=foundation_lock,
+                blocked=tuple(failed.get(ident, ())),
+            )
+            for event in proposal.events:
+                stats.events.append(event)
+            if proposal.public:
+                foundation_trace.append(
+                    {"reason": proposal.reason, "timeout": proposal.timeout, **proposal.public}
+                )
+            if proposal.candidate is not None:
+                choice = proposal.candidate
+                reason = proposal.reason
+                foundation_locked = True
+                if all(item.candidate_id != choice.candidate_id for item in considered):
+                    considered.append(choice)
+            elif proposal.block_deal and _choice_deals(choice):
+                useful = _moves_that_meet_their_purpose(line.state, line.g, ctx, ranked)
+                if useful:
+                    choice = useful[0]
+                    reason = "selected: foundation prerequisites are still open, so the deal waits"
+                    foundation_locked = True
+                    if all(item.candidate_id != choice.candidate_id for item in considered):
+                        considered.append(choice)
+                else:
+                    # No purpose-met tableau move. Dealing would cover the
+                    # open prerequisite, so keep the row and try another line.
+                    stats.events.append(
+                        "foundation: deal refused while a prerequisite remains open"
+                    )
+                    failed.setdefault(ident, set()).add(choice.candidate_id)
+                    jumped = _backtrack(line, dormant, failed, stats)
+                    if jumped is None:
+                        status = "EXHAUSTED"
+                        stop_reason = (
+                            "foundation prerequisites remain open and no useful "
+                            "tableau move is legal"
+                        )
+                        break
+                    line, force_id = jumped
+                    continue
+        if (
+            not foundation_locked
+            and not line.hold
+            and choice.kind in {"DEAL_NOW", "STRETCH"}
+            and line.state.can_deal()
+        ):
             if ident not in comparisons:
                 comparisons[ident] = compare_before_deal(
                     line.state,
@@ -734,6 +803,38 @@ def solve(
                 stats.events.append("replan: stock dealt")
             elif execution[0] == "achieved":
                 stats.events.append("replan: objective completed")
+            if line.state.is_solved():
+                status, stop_reason = "SOLVED_VALID", "terminal state reached"
+                break
+            if goal == "first-foundation" and len(line.state.foundations) > start_foundations:
+                try:
+                    follow_views = rank_foundations(line.state, deal_cards, cache=foundation_cache)
+                except (ValueError, KeyError):
+                    follow_views = ()
+                if follow_views:
+                    nxt = follow_views[0]
+                    stats.events.append(
+                        f"replan: foundation campaign after removal; next {nxt.label} "
+                        f"epoch {nxt.target_epoch} cost {nxt.estimated_cost:.1f}"
+                    )
+                    foundation_trace.append(
+                        {
+                            "reason": "after removal",
+                            "label": nxt.label,
+                            "target_epoch": nxt.target_epoch,
+                            "estimated_cost": nxt.estimated_cost,
+                            "theoretically_available": nxt.theoretically_available,
+                            "reasons": list(nxt.reasons[:4]),
+                        }
+                    )
+                else:
+                    stats.events.append("replan: foundation campaign after removal")
+                status = "FOUNDATION_REACHED"
+                stop_reason = (
+                    "first foundation completed; this is a partial research trajectory, "
+                    "not a finished game"
+                )
+                break
             if (
                 deal_snapshot is not None
                 and execution[5] == (("deal",),)
@@ -772,7 +873,8 @@ def solve(
         "principal objective failed and no dormant alternative remained",
     } or stop_reason.startswith("planning failure:")
     if (
-        status == "EXHAUSTED"
+        goal != "first-foundation"
+        and status == "EXHAUSTED"
         and portfolio_stopped
         and not line.state.is_solved()
         and all_legal_actions(line.state)
@@ -803,6 +905,7 @@ def solve(
     discovery = status == "SOLVED_VALID" and mode in {"cold", "optimise"} and not same_as_incumbent
     provenance = {
         "mode": mode,
+        "goal": goal,
         "note": provenance_note,
         "incumbent_mw": incumbent_mw,
         "prefix_injected": False,
@@ -810,6 +913,8 @@ def solve(
         "new_discovery": discovery,
         "reproduced_incumbent": bool(status == "SOLVED_VALID" and same_as_incumbent),
         "kernel_fallback": kernel_info,
+        "partial_trajectory": status == "FOUNDATION_REACHED",
+        "foundation": foundation_trace[-12:],
     }
     _remember(stats)
     return SolveResult(
@@ -840,6 +945,41 @@ def solve(
         profile=_profile_dict(profile),
         stop_reason=stop_reason,
     )
+
+
+def _choice_deals(choice) -> bool:
+    return choice.kind == "DEAL_NOW" or choice.actions[:1] == (("deal",),)
+
+
+def _moves_that_meet_their_purpose(state, g, ctx, ranked):
+    """Tableau moves whose declared purpose holds on the resulting state.
+
+    A blocked deal must not be replaced by a move the executor will reject.
+    That rejection loop spends the step budget without changing the position.
+    """
+
+    useful = []
+    seen = set()
+    pool = [item for item in ranked if item.actions[:1] not in ((), (("deal",),))]
+    scored = {item.actions[0] for item in pool if item.actions}
+    for action in all_legal_actions(state):
+        if action == ("deal",) or action in scored:
+            continue
+        pool.append(_score_action(state, g, action, ctx))
+    for item in pool:
+        action = item.actions[0]
+        if action in seen or action == ("deal",):
+            continue
+        seen.add(action)
+        trial = state.clone()
+        try:
+            apply_action(trial, action)
+        except ValueError:
+            continue
+        if item.hold or _purpose_met(item.kind, state, trial):
+            useful.append(item)
+    useful.sort(key=lambda item: item.rank_key())
+    return useful
 
 
 def _constructive_lane(state: SpiderState, g: int) -> tuple:
