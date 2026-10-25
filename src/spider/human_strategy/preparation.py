@@ -509,6 +509,66 @@ def classify_incoming_receiver(
     )
 
 
+def resolve_termination(
+    status: str,
+    stop_reason: str,
+    *,
+    deadline_elapsed: bool,
+    legal_count: int = 0,
+) -> Tuple[str, str, dict]:
+    """Name the cause that stopped the search, and keep a second condition apart.
+
+    A reached global deadline is TIME_LIMIT even when legal moves remain.
+    PLANNING_STALL then stays as the secondary condition. NODE_LIMIT is one
+    probe's node allowance. BOUNDED_EXHAUSTED means the permitted graph
+    finished inside its documented restrictions. Neither is a proof about a
+    larger search.
+    """
+
+    secondary = None
+    cause = status
+    if deadline_elapsed and status == "PLANNING_STALL":
+        secondary = "PLANNING_STALL"
+        cause = "TIME_LIMIT"
+        status = "TIME_LIMIT"
+        stop_reason = (
+            "time budget ended before a solved terminal; "
+            f"secondary PLANNING_STALL: {stop_reason}"
+        )
+    elif deadline_elapsed and status not in {
+        "SOLVED_VALID",
+        "TIME_LIMIT",
+        "MEMORY_LIMIT",
+        "STEP_LIMIT",
+        "INVALID",
+        "FOUNDATION_REACHED",
+        "FOUNDATION_TARGET_REACHED",
+    }:
+        secondary = status
+        cause = "TIME_LIMIT"
+        status = "TIME_LIMIT"
+        stop_reason = f"time budget ended before a solved terminal; secondary {secondary}: {stop_reason}"
+    elif status == "GRAPH_EXHAUSTED_WITHIN_BOUND":
+        cause = "BOUNDED_EXHAUSTED"
+    elif status == "NODE_LIMIT":
+        cause = "NODE_LIMIT"
+    return status, stop_reason, {
+        "cause": cause,
+        "secondary": secondary,
+        "deadline_elapsed": bool(deadline_elapsed),
+        "legal_tableau_moves": int(legal_count),
+        "note": (
+            "TIME_LIMIT is the cause when the global deadline has elapsed. "
+            "PLANNING_STALL is a secondary condition when legal tableau moves "
+            "remain and the policy has also stopped. "
+            "NODE_LIMIT is one probe's node allowance. "
+            "BOUNDED_EXHAUSTED means the permitted graph finished inside its restrictions. "
+            "Legal moves alone do not show that the strategic frontier can advance. "
+            "A resource limit is not a proof."
+        ),
+    }
+
+
 def strategic_stop_status(
     *,
     goal: str,

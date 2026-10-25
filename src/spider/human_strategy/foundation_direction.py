@@ -163,6 +163,7 @@ def load_portfolio(
 
     from spider.planner.backward_strategy import (
         workspace_probe_cache,
+        workspace_probe_deadline,
         workspace_probe_seconds,
         workspace_probe_timing,
     )
@@ -178,12 +179,15 @@ def load_portfolio(
     probe_s = cache.get("_workspace_probe_s")
     probe_cache = cache.get("_workspace_probe_cache")
     probe_timing = cache.get("_workspace_timing")
+    probe_deadline = cache.get("_workspace_deadline")
     if probe_s is not None:
         tokens.append((workspace_probe_seconds, workspace_probe_seconds.set(float(probe_s))))
     if isinstance(probe_cache, dict):
         tokens.append((workspace_probe_cache, workspace_probe_cache.set(probe_cache)))
     if isinstance(probe_timing, dict):
         tokens.append((workspace_probe_timing, workspace_probe_timing.set(probe_timing)))
+    if probe_deadline is not None:
+        tokens.append((workspace_probe_deadline, workspace_probe_deadline.set(float(probe_deadline))))
     try:
         feasibility = analyze_foundation_feasibility(tuple(cards), state)
         portfolio = analyze_foundation_campaigns(
@@ -1555,6 +1559,7 @@ def _workspace_snapshot(cache: dict) -> dict:
     return {
         "workspace_planning": float(timing.get("workspace_planning", 0.0) or 0.0),
         "workspace_cache_lookup": float(timing.get("workspace_cache_lookup", 0.0) or 0.0),
+        "workspace_screen": float(timing.get("workspace_screen", 0.0) or 0.0),
     }
 
 
@@ -1566,7 +1571,7 @@ def _release_workspace_time(lock: dict, cache: dict, before: dict) -> None:
     """
 
     after = _workspace_snapshot(cache)
-    for name in ("workspace_planning", "workspace_cache_lookup"):
+    for name in ("workspace_planning", "workspace_cache_lookup", "workspace_screen"):
         delta = after[name] - float(before.get(name, 0.0))
         if delta <= 0:
             continue

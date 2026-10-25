@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integrated human-strategy controller for Spider Solitaire. v0.120.
+"""Integrated human-strategy controller for Spider Solitaire. v0.121.
 
 The controller does not start a historical campaign, write the production
 incumbent, or change MobilityWare rules. ``--profile extended`` runs only
@@ -42,7 +42,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.120")
+    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.121")
     parser.add_argument("--deal", required=True)
     parser.add_argument(
         "--mode",

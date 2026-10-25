@@ -64,6 +64,8 @@ workspace_probe_cache = contextvars.ContextVar("spider_workspace_probe_cache", d
 # Optional dict the controller reads after load_portfolio. Direct planner
 # calls leave it unset. The seconds are the realize_workspace call only.
 workspace_probe_timing = contextvars.ContextVar("spider_workspace_probe_timing", default=None)
+# Absolute perf_counter deadline. A probe must not run past the global clock.
+workspace_probe_deadline = contextvars.ContextVar("spider_workspace_probe_deadline", default=None)
 
 
 def _note_workspace_time(name: str, started: float) -> None:
@@ -524,15 +526,9 @@ class SpaceLiquidity:
     notes: Tuple[str, ...]
 
 
-def _cheap_workspace_cost(state: SpiderState) -> Tuple[Optional[int], str]:
-    n_open, n_nk, _min_fd = open_column_facts(state)
-    profs = profile_state(state)
-    if any(p.one_move_creates for p in profs):
-        return 1, "fact: one-move create exists"
-    if empty_count(state) > 0:
-        return 0, "fact: space already exists"
-    # Tight probe — diagnostic, not a search layer. A resource limit is not
-    # proof that no workspace exists. The same state and budget are not run twice.
+def _workspace_budget(max_cost: int) -> Tuple[float, int, bool]:
+    """Return the probe limit, node cap, and whether the global clock has expired."""
+
     override = workspace_probe_seconds.get()
     if override is None:
         limit = 0.35
@@ -540,36 +536,171 @@ def _cheap_workspace_cost(state: SpiderState) -> Tuple[Optional[int], str]:
     else:
         limit = max(0.02, min(0.35, float(override)))
         nodes = max(40, int(round(400 * limit / 0.35)))
+    deadline = workspace_probe_deadline.get()
+    expired = False
+    if deadline is not None:
+        left = float(deadline) - time.perf_counter()
+        if left <= 0.0:
+            expired = True
+        else:
+            limit = min(limit, left)
+    return limit, nodes, expired
+
+
+def _workspace_key(state: SpiderState, max_cost: int, nodes: int, limit: float):
+    """Identity of one workspace answer.
+
+    The packed tableau is the physical state. Cost, nodes, and the time limit
+    stay in the key so a miss at one budget is not an answer for another.
+    This probe never deals. ``deals`` is false so a dealing search cannot
+    reuse it.
+    """
+
+    return (pack_state(state), int(max_cost), int(nodes), round(float(limit), 5), False)
+
+
+def _bump(cache: dict, name: str) -> None:
+    cache[name] = int(cache.get(name, 0)) + 1
+
+
+def _remember_workspace(cache, key, result) -> None:
+    if isinstance(cache, dict) and key is not None and len(cache) < 800:
+        cache[key] = result
+        if cache.get("detail") and len(cache.setdefault("traces", [])) < 80:
+            cache["traces"].append(
+                {
+                    "key_cost": key[1],
+                    "key_nodes": key[2],
+                    "deals": key[4],
+                    "cost": result[0],
+                    "note": result[1],
+                }
+            )
+
+
+def _min_face_down(state: SpiderState) -> int:
+    counts = [len(column.face_down) for column in state.columns if not column.is_empty()]
+    return min(counts) if counts else 0
+
+
+def _screen_workspace(state: SpiderState, max_cost: int) -> Optional[Tuple[Optional[int], str, str]]:
+    """Resolve a workspace question from legal moves before the heavy search.
+
+    A returned triple is a completed screen: cost, note, and a short reason.
+    None means the screen stopped early and the bounded search may still run.
+    A negative screen is not a proof that no later arrangement creates a column.
+    """
+
+    started = time.perf_counter()
+    base_empty = empty_count(state)
+    moves = list(state.enumerate_moves())
+    if base_empty == 0 and not moves:
+        return None, "fact: no legal tableau move can create a column", "no_legal_move"
+    if base_empty == 0 and _min_face_down(state) + 1 > int(max_cost):
+        buried = _min_face_down(state)
+        return (
+            None,
+            f"fact: inaccessible within cost {int(max_cost)}; minimum face-down is {buried} and no column is empty",
+            "structural",
+        )
+    # One legal move. enumerate_moves and move() are the rules engine.
+    for src, dst, width in moves:
+        if time.perf_counter() - started > 0.025:
+            return None
+        child = state.clone()
+        try:
+            step = child.move(src, dst, width, rules=MW_RULES)
+        except Exception:
+            continue
+        if empty_count(child) > base_empty:
+            return int(step), "fact: one legal move creates a column", "legal_one_move"
+    # Two legal moves. A child that already has a one-move create is enough.
+    # Stopping at the time slice leaves the question to the bounded search.
+    for src, dst, width in moves:
+        if time.perf_counter() - started > 0.025:
+            return None
+        child = state.clone()
+        try:
+            step = child.move(src, dst, width, rules=MW_RULES)
+        except Exception:
+            continue
+        if empty_count(child) > base_empty:
+            return int(step), "fact: one legal move creates a column", "legal_one_move"
+        if any(profile.one_move_creates for profile in profile_state(child)):
+            return int(step) + 1, "fact: one legal move leaves a one-move create", "legal_two_move"
+    return (
+        None,
+        "fact: two-move legal screen found no create; this is not a proof that a longer arrangement is impossible",
+        "two_move_negative",
+    )
+
+
+def _cheap_workspace_cost(state: SpiderState, *, max_cost: int = 6) -> Tuple[Optional[int], str]:
+    limit, nodes, expired = _workspace_budget(max_cost)
     cache = workspace_probe_cache.get()
     key = None
     if isinstance(cache, dict):
-        key = (pack_state(state), int(nodes), round(float(limit), 5))
+        key = _workspace_key(state, max_cost, nodes, limit)
         lookup_started = time.perf_counter()
         stored = cache.get(key)
         _note_workspace_time("workspace_cache_lookup", lookup_started)
         if stored is not None:
-            cache["hits"] = int(cache.get("hits", 0)) + 1
+            _bump(cache, "hits")
             if stored[0] is None:
-                cache["negative_hits"] = int(cache.get("negative_hits", 0)) + 1
+                _bump(cache, "negative_hits")
             return stored
-        cache["misses"] = int(cache.get("misses", 0)) + 1
+        _bump(cache, "misses")
+    if expired:
+        # A clock stop is not a node-cap answer and is not cached.
+        return None, "probe TIME_LIMIT"
+    profs = profile_state(state)
+    if any(profile.one_move_creates for profile in profs):
+        result = (1, "fact: one-move create exists")
+        _remember_workspace(cache, key, result)
+        if isinstance(cache, dict):
+            _bump(cache, "screened")
+        return result
+    if empty_count(state) > 0:
+        result = (0, "fact: space already exists")
+        _remember_workspace(cache, key, result)
+        if isinstance(cache, dict):
+            _bump(cache, "screened")
+        return result
+    screen_started = time.perf_counter()
+    screened = _screen_workspace(state, max_cost)
+    _note_workspace_time("workspace_screen", screen_started)
+    if screened is not None:
+        cost, note, reason = screened
+        # A two-move miss is not a proof. It answers the short probe, whose
+        # heavier search was not finding these creates. A larger node budget
+        # still runs that search. A sound rejection is cached for its own key.
+        short_probe = int(nodes) <= 120
+        if cost is not None or reason in {"no_legal_move", "structural"} or (reason == "two_move_negative" and short_probe):
+            result = (cost, note)
+            _remember_workspace(cache, key, result)
+            if isinstance(cache, dict):
+                _bump(cache, "screened")
+                _bump(cache, reason)
+            return result
+    # The screen did not finish. The bounded search remains the authority.
     probe_started = time.perf_counter()
     res = realize_workspace(
         state,
         backend=WorkspaceBackend.IMPROVED,
-        max_cost=6,
+        max_cost=int(max_cost),
         max_nodes=nodes,
         time_limit_s=limit,
     )
     _note_workspace_time("workspace_planning", probe_started)
+    if isinstance(cache, dict):
+        _bump(cache, "searched")
     if res.status == RealizationStatus.FOUND:
         result = (int(res.corrected_mw_cost or 0), f"improved probe nodes={res.nodes_expanded}")
     elif res.status == RealizationStatus.ALREADY_SATISFIED:
         result = (0, "already satisfied")
     else:
         result = (None, f"probe {res.status.value}")
-    if isinstance(cache, dict) and key is not None and len(cache) < 800:
-        cache[key] = result
+    _remember_workspace(cache, key, result)
     return result
 
 

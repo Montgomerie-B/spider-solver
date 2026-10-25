@@ -52,6 +52,35 @@ from spider.state_identity import canonical_state_key
 from .evaluation import admissible_remaining, same_suit_bonds
 
 
+def strategic_progress(state: SpiderState) -> dict:
+    """Heuristic position measures. They order and report. They are not a proof bound."""
+
+    runs = 0
+    longest = 0
+    for column in state.columns:
+        face_up = column.face_up
+        if len(face_up) < 2:
+            continue
+        length = 1
+        for index in range(len(face_up) - 2, -1, -1):
+            if face_up[index].suit == face_up[index + 1].suit and face_up[index].rank == face_up[index + 1].rank + 1:
+                length += 1
+            else:
+                break
+        if length >= 2:
+            runs += 1
+            longest = max(longest, length)
+    return {
+        "foundations": len(state.foundations),
+        "face_down": face_down_count(state),
+        "same_suit_runs": runs,
+        "longest_same_suit_run": longest,
+        "empty_columns": sum(1 for column in state.columns if column.is_empty()),
+        "stock_cards": len(state.stock),
+        "heuristic_only": True,
+    }
+
+
 def foundation_aware_bonds(state: SpiderState) -> int:
     """Same-suit bonds plus the bonds carried away by each removed foundation."""
 

@@ -59,11 +59,12 @@ from .preparation import (
     abandonment_reason,
     classify_stall,
     compare_before_deal,
+    resolve_termination,
     soft_failure_id,
     strategic_stop_status,
 )
 from .profiles import Profile
-from .strategic_frontier import StrategicFrontier, outcome_rank
+from .strategic_frontier import StrategicFrontier, outcome_rank, strategic_progress
 
 
 @dataclass
@@ -901,6 +902,7 @@ def solve(
     foundation_cache["_workspace_probe_s"] = 0.08
     foundation_cache["_workspace_probe_cache"] = {"hits": 0, "misses": 0, "negative_hits": 0}
     foundation_cache["_workspace_timing"] = {}
+    foundation_cache["_workspace_deadline"] = deadline
     limits = schedule if isinstance(schedule, TacticalLimits) else TacticalLimits()
     coordinator = BudgetCoordinator(deadline, limits, stats.events)
     budget_key = register_budget(coordinator)
@@ -1922,6 +1924,14 @@ def solve(
             f"still queued {len(frontier.queue)}"
         )
 
+    legal_left = [action for action in all_legal_actions(line.state) if action != ("deal",)]
+    deadline_elapsed = time.perf_counter() >= deadline
+    status, stop_reason, termination = resolve_termination(
+        status,
+        stop_reason,
+        deadline_elapsed=deadline_elapsed,
+        legal_count=len(legal_left),
+    )
     kernel_info = None
     portfolio_stopped = stop_reason in {
         "no legal continuation under the current restrictions",
@@ -1952,6 +1962,11 @@ def solve(
                     "strategic portfolio stopped; constructive fallback then stopped: "
                     + str(kernel_info["stop_reason"])
                 )
+            if status != termination["cause"]:
+                termination = dict(termination)
+                termination["cause"] = status
+                if status == "TIME_LIMIT":
+                    termination["deadline_elapsed"] = True
 
     budget_stop = status if status in {"TIME_LIMIT", "MEMORY_LIMIT", "STEP_LIMIT"} else None
     if budget_stop is not None:
@@ -2081,7 +2096,9 @@ def solve(
         "nested_budget": (
             "Excavation max_cost is capped by ceiling - g - 1 when a ceiling is set. "
             "The controller gives each foundation proposal a slice of the remaining global deadline. "
-            "A progressive schedule starts with a small tactical allowance and escalates only after cover falls. "
+            "A progressive schedule starts with a small tactical allowance and escalates after cover falls. "
+            "A limited reserve may also deepen one blocked objective when an empty column, a buried receiver, "
+            "or an intermediate sequence justifies the extra search. "
             "A timeout, a node cap, or that cost cap is not infeasibility. "
             "A time limit is cached for that deadline only, not as a node-cap result. "
             "The constructive kernel runs only after a play-goal portfolio stop and "
@@ -2091,7 +2108,9 @@ def solve(
         "anchored_used": False,
         "cold_injection": False,
         "unique_states_are_strategic": True,
-        "deadline_elapsed": bool(time.perf_counter() >= deadline),
+        "deadline_elapsed": bool(termination["deadline_elapsed"]),
+        "termination": termination,
+        "reported_progress": strategic_progress(line.state),
         "component_s": {name: round(value, 3) for name, value in stats.component_s.items()},
         "component_inclusive": {
             name: round(value, 3) for name, value in stats.component_inclusive.items()
@@ -2138,6 +2157,18 @@ def solve(
             "hits": int((foundation_cache.get("_workspace_probe_cache") or {}).get("hits", 0)),
             "misses": int((foundation_cache.get("_workspace_probe_cache") or {}).get("misses", 0)),
             "negative_hits": int((foundation_cache.get("_workspace_probe_cache") or {}).get("negative_hits", 0)),
+            "screened": int((foundation_cache.get("_workspace_probe_cache") or {}).get("screened", 0)),
+            "searched": int((foundation_cache.get("_workspace_probe_cache") or {}).get("searched", 0)),
+            "screen_seconds": round(
+                float((foundation_cache.get("_workspace_timing") or {}).get("workspace_screen", 0.0)),
+                3,
+            ),
+            "two_move_negative": int((foundation_cache.get("_workspace_probe_cache") or {}).get("two_move_negative", 0)),
+            "structural": int((foundation_cache.get("_workspace_probe_cache") or {}).get("structural", 0)),
+            "no_legal_move": int((foundation_cache.get("_workspace_probe_cache") or {}).get("no_legal_move", 0)),
+            "legal_one_move": int((foundation_cache.get("_workspace_probe_cache") or {}).get("legal_one_move", 0)),
+            "legal_two_move": int((foundation_cache.get("_workspace_probe_cache") or {}).get("legal_two_move", 0)),
+            "screen_is_not_a_proof": True,
             "resource_limit_is_not_infeasibility": True,
         },
         "exclusion_log": list(stats.exclusion_log),
@@ -2146,9 +2177,11 @@ def solve(
         "target_mode": "global",
         "planning_stall_is_not_time_limit": (
             "PLANNING_STALL means the strategic policy stopped while legal tableau "
-            "moves remained. TIME_LIMIT is recorded when the loop header, or the "
-            "play-goal kernel, observes the deadline. A probe that uses the last "
-            "of the budget inside an iteration can leave PLANNING_STALL."
+            "moves remained and the global deadline had not elapsed. TIME_LIMIT is "
+            "the cause when the deadline has elapsed. If both happen, TIME_LIMIT is "
+            "the cause and PLANNING_STALL is the secondary condition. NODE_LIMIT is "
+            "one probe's node allowance. BOUNDED_EXHAUSTED means the permitted graph "
+            "finished inside its restrictions."
         ),
     }
     _remember(stats)

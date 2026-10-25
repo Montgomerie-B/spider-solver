@@ -643,9 +643,10 @@ def test_workspace_planning_is_timed_apart_from_its_cache(monkeypatch):
         workspace_probe_cache.reset(token_c)
         workspace_probe_timing.reset(token_t)
     assert first[0] is None and second == first
-    assert calls == [1]
-    assert "workspace_planning" in timing
-    assert timing["workspace_planning"] >= 0
+    assert "no legal tableau move" in first[1]
+    assert calls == []
+    assert "workspace_screen" in timing
+    assert timing["workspace_screen"] >= 0
     assert cache["misses"] == 1
     assert cache["hits"] == 1
 

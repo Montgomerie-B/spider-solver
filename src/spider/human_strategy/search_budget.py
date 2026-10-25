@@ -29,7 +29,10 @@ DERIVATION = (
     "that were still reducing cover below 1,151 nodes. Deep cap 4,500 nodes, "
     "the existing excavation capability, with a 1.25s deadline and a 0.15 share "
     "of the remaining global time. The proposal slice is 1.25s so one objective "
-    "cannot spend the historical 12s monopoly."
+    "cannot spend the historical 12s monopoly. A cover drop is not the only "
+    "reason to try the next allowance: a limited reserve may deepen one "
+    "blocked objective when an empty column, a buried receiver, or an "
+    "intermediate sequence makes the extra search worth attempting."
 )
 
 _RESOURCE = frozenset({"NODE_LIMIT", "TIME_LIMIT", "PROBE_LIMIT"})
@@ -115,6 +118,7 @@ class _Record:
     useful: bool
     plan: object
     level_index: int
+    justification: str = ""
 
 
 @dataclass
@@ -151,6 +155,11 @@ class BudgetCoordinator:
     pending_deepen: bool = False
     viable_alternative: bool = False
     proposal_g: Dict[tuple, int] = field(default_factory=dict)
+    strategic_holds: List[_Record] = field(default_factory=list)
+    decision_log: List[dict] = field(default_factory=list)
+    nonmonotone_deepened: int = 0
+    nonmonotone_limit: int = 3
+    detail: bool = False
     _deepen_taken: bool = False
 
     def remaining(self) -> float:
@@ -191,6 +200,17 @@ class BudgetCoordinator:
     def _count(self, name: str) -> None:
         self.classifications[name] = int(self.classifications.get(name, 0)) + 1
 
+    def _note(self, kind: str, objective: str, reason: str) -> None:
+        """One scheduling decision. This is not a per-node trace."""
+
+        if len(self.decision_log) >= 400 and not self.detail:
+            return
+        if len(self.decision_log) >= 800:
+            return
+        self.decision_log.append(
+            {"kind": kind, "objective": str(objective), "reason": reason}
+        )
+
     def _bucket(self, store: dict, key) -> dict:
         found = store.get(key)
         if found is None:
@@ -203,6 +223,7 @@ class BudgetCoordinator:
         record = self.records.get((state_key, str(objective)))
         first = self.limits.first()
         if record is None:
+            self._note("select", objective, "first allowance on this state and objective")
             return _Grant("search", first)
         if record.useful and self.limits.next_after(record.allowance_nodes) is not None:
             self._count("temporarily_deferred")
@@ -218,6 +239,7 @@ class BudgetCoordinator:
         if record.classification == "resource_limited":
             stopped_by_clock = getattr(record.plan, "status", "") == "TIME_LIMIT" or getattr(record.plan, "stop", "") == "TIME_LIMIT"
             if stopped_by_clock and float(time_left) > float(record.time_allowance) + 0.05:
+                self._note("select", objective, "the same node cap has more time left")
                 return _Grant(
                     "search",
                     Allowance(
@@ -228,16 +250,23 @@ class BudgetCoordinator:
                     ),
                 )
             if (not stopped_by_clock) and first.max_nodes > record.allowance_nodes:
+                self._note("select", objective, "the allowance is larger than the stored probe")
                 return _Grant("search", first)
             self.identical_skips += 1
             self.deferred += 1
             self.pending_deepen = False
             self._count("temporarily_deferred")
+            self._note(
+                "defer",
+                objective,
+                f"unchanged board at {record.allowance_nodes} nodes; eligible when the board or the allowance changes",
+            )
             self.events.append(
                 f"budget: deferred {objective} on an unchanged board at {record.allowance_nodes} nodes; "
                 "still eligible when the board or the allowance changes"
             )
             return _Grant("defer")
+        self._note("select", objective, "no stored probe covers this request")
         return _Grant("search", first)
 
     def finish(self, state, objective, column, card, plan, allowance: Allowance, elapsed: float) -> None:
@@ -253,6 +282,7 @@ class BudgetCoordinator:
             bucket["visits"] = int(bucket["visits"]) + 1
         classification = _classify(plan)
         useful = classification == "progress"
+        justification = "" if useful else _nonmonotone_reason(state, card, plan)
         self._count(classification)
         if classification == "completed":
             self.viable_alternative = True
@@ -267,28 +297,42 @@ class BudgetCoordinator:
             useful=useful,
             plan=plan,
             level_index=max(0, int(allowance.level) - 2),
+            justification=justification,
         )
         self.records[(state_key, str(objective))] = record
-        self.open_partials = [
-            item for item in self.open_partials if not (item.objective == record.objective and item.card is card)
-        ]
+        self.open_partials = [item for item in self.open_partials if item.objective != record.objective]
+        self.strategic_holds = [item for item in self.strategic_holds if item.objective != record.objective]
         if useful and self.limits.next_after(allowance.max_nodes) is not None:
             self.open_partials.append(record)
+            self._note("progress", record.objective, "cover fell inside the node allowance")
+        elif (
+            justification
+            and classification == "resource_limited"
+            and self.limits.next_after(allowance.max_nodes) is not None
+        ):
+            self.strategic_holds.append(record)
+            self._note("justify", record.objective, justification)
 
     def take_deepen(self, time_left: float) -> Optional[_DeepGrant]:
         """One larger probe after every target in this proposal had its cheap turn."""
 
-        if self._deepen_taken or self.viable_alternative or not self.open_partials:
+        pool = self.open_partials if self.open_partials else self.strategic_holds
+        nonmonotone = not self.open_partials
+        if self._deepen_taken or self.viable_alternative or not pool:
+            return None
+        if nonmonotone and self.nonmonotone_deepened >= int(self.nonmonotone_limit):
+            self._note("stop", pool[0].objective, "the nonmonotone reserve is spent")
             return None
         if not self._deepen_allowed(time_left):
             self.deferred += 1
             self.pending_deepen = True
             self._count("temporarily_deferred")
+            self._note("defer", pool[0].objective, "another strategic line still needs a cheap probe")
             self.events.append(
                 "budget: deferred a promising partial so another strategic line can run"
             )
             return None
-        record = self.open_partials.pop(0)
+        record = pool.pop(0)
         nxt = self.limits.next_after(record.allowance_nodes)
         if nxt is None:
             return None
@@ -296,11 +340,15 @@ class BudgetCoordinator:
         self.pending_deepen = False
         self.deepened += 1
         self.revisited += 1
+        if nonmonotone:
+            self.nonmonotone_deepened += 1
         clipped = self.clip(nxt.deadline_s, time_left, deep=True)
         granted = Allowance(nxt.level, nxt.max_cost, nxt.max_nodes, clipped)
+        why = record.justification or "cover fell inside the previous allowance"
+        self._note("deepen", record.objective, why)
         self.events.append(
             f"budget: deepen {record.objective} to {granted.max_nodes} nodes "
-            f"with {granted.deadline_s:.2f}s inside the global deadline"
+            f"with {granted.deadline_s:.2f}s inside the global deadline; {why}"
         )
         return _DeepGrant(record.card, record.objective, record.column, granted)
 
@@ -321,7 +369,7 @@ class BudgetCoordinator:
         larger allowance is not skipped either.
         """
 
-        if self.pending_deepen or self.open_partials:
+        if self.pending_deepen or self.open_partials or self.strategic_holds:
             return False
         token = (ident, str(label or ""), tuple(blocked))
         seen = self.proposal_g.get(token)
@@ -378,8 +426,65 @@ class BudgetCoordinator:
             "hits_by_status": dict(self.hits_by_status),
             "classifications": dict(self.classifications),
             "objective_work": objectives[:12],
+            "nonmonotone_deepened": int(self.nonmonotone_deepened),
+            "strategic_holds": len(self.strategic_holds),
+            "decisions": list(self.decision_log[-24:]),
             "limits": self.limits.as_dict(),
         }
+
+
+def _nonmonotone_reason(state, card, plan) -> str:
+    """Why a probe that did not reduce cover may still receive one larger allowance.
+
+    The reason allocates a bounded reserve. It is not a proof the card can be reached.
+    A node cap with no actions and no supporting position does not qualify.
+    """
+
+    if plan is None or card is None or state is None:
+        return ""
+    status = getattr(plan, "status", "") or ""
+    stop = getattr(plan, "stop", "") or ""
+    if status == "TIME_LIMIT" or stop == "TIME_LIMIT":
+        return ""
+    if status in _EXHAUSTED or stop in _EXHAUSTED:
+        return ""
+    if status in {"unlocked", "exposed"}:
+        return ""
+    depth_before = int(getattr(plan, "depth_before", 0) or 0)
+    depth_after = int(getattr(plan, "depth_after", 0) or 0)
+    if depth_before <= 0 or depth_after < depth_before:
+        return ""
+    if status not in _RESOURCE | {"progress"} and stop not in _RESOURCE:
+        return ""
+    actions = tuple(getattr(plan, "actions", ()) or ())
+    empties = any(column.is_empty() for column in state.columns)
+    need = int(getattr(card, "rank", 0) or 0) - 1
+    buried_receiver = False
+    if need >= 1:
+        for column in state.columns:
+            face_up = column.face_up
+            for index, item in enumerate(face_up):
+                if item.rank == need and index != len(face_up) - 1:
+                    buried_receiver = True
+                    break
+            if buried_receiver:
+                break
+    same_suit = False
+    suit = getattr(card, "suit", "")
+    for column in state.columns:
+        face_up = column.face_up
+        for index in range(len(face_up) - 1):
+            left, right = face_up[index], face_up[index + 1]
+            if left.suit == suit and right.suit == suit and left.rank == right.rank + 1:
+                same_suit = True
+                break
+        if same_suit:
+            break
+    if actions:
+        return "an intermediate sequence left the target cover unchanged"
+    if empties and (buried_receiver or same_suit):
+        return "an empty column can support a receiver or a same-suit run before the cover falls"
+    return ""
 
 
 def _classify(plan) -> str:

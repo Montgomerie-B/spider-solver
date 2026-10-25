@@ -468,7 +468,8 @@ def test_workspace_and_excavation_probes_reuse_only_a_matching_budget(monkeypatc
     assert workspace_probe_seconds.get() is None
     direct = _cheap_workspace_cost(state)
     assert direct[0] is None
-    assert calls == [(0.35, 400)]
+    assert "no legal tableau move" in direct[1]
+    assert calls == []
     cache = {"hits": 0, "misses": 0, "negative_hits": 0}
     token_s = workspace_probe_seconds.set(0.08)
     token_c = workspace_probe_cache.set(cache)
@@ -476,17 +477,16 @@ def test_workspace_and_excavation_probes_reuse_only_a_matching_budget(monkeypatc
         first = _cheap_workspace_cost(state)
         second = _cheap_workspace_cost(state)
         assert first[0] is None and second == first
-        assert "resource_limit" in first[1]
+        assert "not a proof" not in first[1] or "no legal" in first[1]
         assert cache["misses"] == 1
         assert cache["hits"] == 1
         assert cache["negative_hits"] == 1
-        assert len(calls) == 2
-        workspace_probe_seconds.set(0.20)
-        third = _cheap_workspace_cost(state)
+        assert calls == []
+        third = _cheap_workspace_cost(state, max_cost=3)
         assert third[0] is None
         assert cache["misses"] == 2
-        assert len(calls) == 3
-        assert calls[2][0] != calls[1][0]
+        assert cache["hits"] == 1
+        assert calls == []
     finally:
         workspace_probe_seconds.reset(token_s)
         workspace_probe_cache.reset(token_c)
