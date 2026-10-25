@@ -254,13 +254,15 @@ def propose_foundation_step(
         return FoundationProposal(None, "", ("foundation: no remaining suit",), False, False, None)
 
     events: List[str] = []
-    campaign = _locked_campaign(portfolio, lock, events)
+    lock["yield_to_alternative"] = False
+    campaign = _locked_campaign(portfolio, lock, events, state)
     if campaign is None:
         return FoundationProposal(None, "", tuple(events), False, False, None)
     view = _view_for(views_from_portfolio(feasibility, portfolio), campaign.label)
     if view is None:
         view = views_from_portfolio(feasibility, portfolio)[0]
     previous_stock = lock.get("stock_len")
+    fd_before = lock.get("fd")
     fd_now = face_down_count(state)
     state_key = canonical_state_key(state)
     if previous_stock is not None and len(state.stock) < previous_stock:
@@ -298,6 +300,19 @@ def propose_foundation_step(
         events.append(f"foundation: selected {campaign.label}")
         lock["announced"] = campaign.label
     _sync_operational_epoch(lock, campaign, state, events)
+    if (
+        fd_before is not None
+        and fd_now < fd_before
+        and lock.get("operational_epoch") is not None
+        and campaign.current_epoch >= lock["operational_epoch"]
+        and (lock.get("failures") or lock.get("suspended_notes") or lock.get("buried_tried"))
+    ):
+        # An elapsed campaign can look again after a reveal. An earlier
+        # campaign keeps its miss counts so the opening line does not restart.
+        events.append("foundation: a reveal reopens suspended prerequisites")
+        lock["failures"] = {}
+        lock["suspended_notes"] = set()
+        lock.pop("buried_tried", None)
     _record_agenda(lock, agenda, campaign)
     if not lock.get("portfolio_noted"):
         band = [
@@ -498,6 +513,24 @@ def propose_foundation_step(
         )
         if accessed is not None:
             return accessed
+        suspended_all = bool(open_mandatory) and all(
+            failures.get(item.prerequisite_id, 0) >= 3
+            or item.prerequisite_id in lock.get("suspended_notes", ())
+            for item in open_mandatory
+        )
+        if suspended_all:
+            # Every mandatory reveal has already missed. Waiting here replays
+            # the same refusal. The suit stays suspended and another campaign
+            # may move. This is not a proof that the suit is impossible.
+            events.append(
+                f"foundation: suspended prerequisites do not freeze {campaign.label}"
+            )
+            events.append(
+                "foundation: a failed direct reveal does not move the operational epoch"
+            )
+            lock["feasibility_status"] = "SUSPENDED"
+            lock["yield_to_alternative"] = True
+            return _proposal(None, "", events, False, agenda, block_deal=True)
         events.append(f"foundation: deal waits on {waiting}")
         events.append(
             "foundation: a failed direct reveal does not move the operational epoch"
@@ -552,6 +585,41 @@ def propose_foundation_step(
     )
     if accessed is not None:
         return accessed
+    elapsed = operational is not None and campaign.current_epoch >= operational
+    if elapsed:
+        # The target row has already been dealt. Aligning a parent under that
+        # historical landing is not a current obligation, and the next row is
+        # a later stock event. Work that remains is on the tableau now.
+        events.append(
+            f"foundation: epoch {operational} is already dealt; "
+            "receiver alignment is not generated for that historical row"
+        )
+        events.append(
+            "foundation: remaining work is current accessibility, not a past landing column"
+        )
+        buried = _elapsed_access_proposal(
+            state, g, campaign, agenda, lock, events, refused, time_left
+        )
+        if buried is not None:
+            return buried
+        for item in agenda.alternatives:
+            events.append(
+                f"foundation: {item.label} stays eligible; "
+                f"readiness {item.readiness}, epoch {item.target_epoch}"
+            )
+        if any(card.suit == campaign.suit for card in state.stock):
+            events.append(
+                f"foundation: {campaign.label} still depends on a future stock row; "
+                "the elapsed epoch does not deal it"
+            )
+            lock["feasibility_status"] = "DEFERRED_BY_STOCK"
+        else:
+            lock["feasibility_status"] = lock.get("feasibility_status") or "PROBE_LIMIT"
+        lock["yield_to_alternative"] = True
+        events.append(
+            f"foundation: {campaign.label} yields; a probe limit is not infeasibility"
+        )
+        return _proposal(None, "", events, False, agenda, block_deal=True)
     aligned = _alignment_proposal(state, g, campaign, agenda, lock, events, time_left)
     if aligned is not None:
         return aligned
@@ -687,7 +755,7 @@ def _view_reasons(campaign, candidate, other_copy, other_epoch, theoretical, ope
     return tuple(reasons)
 
 
-def _locked_campaign(portfolio, lock, events: List[str]) -> Optional[FoundationCampaign]:
+def _locked_campaign(portfolio, lock, events: List[str], state: Optional[SpiderState] = None) -> Optional[FoundationCampaign]:
     forced = lock.get("hold_label")
     if forced:
         lock["hold_label"] = None
@@ -703,6 +771,19 @@ def _locked_campaign(portfolio, lock, events: List[str]) -> Optional[FoundationC
         if campaign.label == label:
             primary = portfolio.primary
             if primary is not None and primary.label != label and _clearly_better(primary, campaign):
+                if state is not None and not campaign_may_displace(state, primary, campaign):
+                    token = (label, primary.label, len(state.stock))
+                    if lock.get("refused_switch") != token:
+                        lock["refused_switch"] = token
+                        events.append(
+                            f"foundation: keep {label}; {primary.label} looks earlier "
+                            "on the heuristic schedule but has no demonstrated next step"
+                        )
+                        lock.setdefault("campaign_changes", []).append(
+                            f"refused switch {label} to {primary.label}; "
+                            "feasibility outweighs the epoch"
+                        )
+                    return campaign
                 reason = (
                     f"switch {label} to {primary.label} "
                     f"because its schedule is materially better"
@@ -783,6 +864,11 @@ def close_foundation_campaign(
     _drop_horizon(lock)
     lock.pop("alternatives", None)
     lock.pop("tried_labels", None)
+    lock.pop("resume_counts", None)
+    lock.pop("yield_to_alternative", None)
+    lock.pop("recovery_key", None)
+    lock.pop("buried_tried", None)
+    lock.pop("feasibility_status", None)
     lock["alternative_switches"] = 0
     lock["barren_deals"] = 0
     lock["moves_since_deal"] = 0
@@ -862,6 +948,64 @@ def structural_assessment(state: SpiderState) -> dict:
         "heuristic_remaining": estimate_remaining(state),
         "heuristic_remaining_is_not_a_bound": True,
     }
+
+
+def campaign_near_term_status(state: SpiderState, campaign: FoundationCampaign) -> str:
+    """What the controller can do next. A heuristic epoch is not a status.
+
+    READY means a legal same-suit join exists. REQUIRES_PREPARATION means a
+    buried or obstructed card is a concrete tableau task. DEFERRED_BY_STOCK
+    means the next need is still in a future row. PROBE_LIMIT and
+    PROVEN_INFEASIBLE are not assigned here: a bounded search has to say so.
+    """
+
+    if _target_join(state, campaign.suit, ()) is not None:
+        return "READY"
+    buried = any(
+        card.suit == campaign.suit
+        for column in state.columns
+        for card in column.face_down
+    )
+    obstructed = bool(obstructed_tableau_sources(state, campaign))
+    readiness = campaign.readiness.value
+    elapsed = (
+        campaign.target_removal_epoch is not None
+        and campaign.current_epoch >= campaign.target_removal_epoch
+    )
+    if readiness == "blocked" and not buried and not obstructed:
+        return "SUSPENDED"
+    if readiness in {"ready_now", "assembly_led", "excavation_led"} or obstructed or buried:
+        return "REQUIRES_PREPARATION"
+    if elapsed or readiness in {"deferred", "stock_gated"}:
+        return "DEFERRED_BY_STOCK"
+    return "REQUIRES_PREPARATION"
+
+
+def campaign_may_displace(
+    state: SpiderState,
+    challenger: FoundationCampaign,
+    incumbent: FoundationCampaign,
+) -> bool:
+    """An earlier heuristic schedule must not evict a campaign that can move.
+
+    A challenger whose target epoch has already been dealt, and which has no
+    legal join, does not displace an incumbent that still has tableau work.
+    """
+
+    new_status = campaign_near_term_status(state, challenger)
+    old_status = campaign_near_term_status(state, incumbent)
+    if new_status in {"DEFERRED_BY_STOCK", "PROBE_LIMIT", "SUSPENDED"} and old_status in {
+        "READY",
+        "REQUIRES_PREPARATION",
+    }:
+        return False
+    elapsed = (
+        challenger.target_removal_epoch is not None
+        and challenger.current_epoch >= challenger.target_removal_epoch
+    )
+    if elapsed and new_status != "READY" and old_status in {"READY", "REQUIRES_PREPARATION"}:
+        return False
+    return True
 
 
 def _clearly_better(new: FoundationCampaign, old: FoundationCampaign) -> bool:
@@ -1506,6 +1650,7 @@ def campaign_record_public(lock: dict) -> dict:
         "rejected_revisions": _plain(lock.get("rejected_revisions") or []),
         "completed": _plain(lock.get("completed") or []),
         "campaign_changes": list(lock.get("campaign_changes") or []),
+        "feasibility_status": lock.get("feasibility_status"),
     }
 
 
@@ -1762,6 +1907,203 @@ def _access_proposal(state, g, campaign, agenda, lock, events, refused, time_lef
         events,
         False,
         agenda,
+    )
+
+
+def _buried_cards(state: SpiderState, suit: str) -> List[tuple]:
+    """Face-down cards of ``suit``, shallowest cover first."""
+
+    found = []
+    for column_index, column in enumerate(state.columns):
+        for index, card in enumerate(column.face_down):
+            if card.suit != suit:
+                continue
+            depth = len(column.face_up) + (len(column.face_down) - 1 - index)
+            found.append((depth, column_index, index, card))
+    found.sort(key=lambda item: (item[0], item[1], item[2]))
+    return found
+
+
+def _elapsed_access_proposal(state, g, campaign, agenda, lock, events, refused, time_left):
+    """Turn a buried card into an access step after the target epoch has passed.
+
+    A miss inside the node bound is ``PROBE_LIMIT``. It does not retire the suit.
+    """
+
+    if time_left < 0.15:
+        events.append("foundation: elapsed-epoch access probe hit the time guard; inconclusive")
+        lock["feasibility_status"] = "PROBE_LIMIT"
+        return None
+    started = time.perf_counter()
+    tried = lock.setdefault("buried_tried", set())
+    examined = 0
+    for depth, column, index, card in _buried_cards(state, campaign.suit):
+        if examined >= 2:
+            break
+        source_key = f"tableau:{column}:down:{index}"
+        ident = f"access:{source_key}"
+        if ident in refused or source_key in tried:
+            continue
+        examined += 1
+        tried.add(source_key)
+        plan = plan_obstructed_access(
+            state,
+            card,
+            agenda.protected_fragments,
+            source_key=source_key,
+            column=column,
+            max_cost=4,
+            max_nodes=800,
+        )
+        if plan is None:
+            events.append(
+                f"foundation: PROBE_LIMIT buried {card} on column {column + 1} "
+                f"cover {depth}; the access bound is not infeasibility"
+            )
+            lock["feasibility_status"] = "PROBE_LIMIT"
+            continue
+        _add_time(lock, "dependency_planning", time.perf_counter() - started)
+        events.append(
+            f"foundation: buried {card} becomes an accessibility prerequisite; "
+            f"cover {plan.depth_before} -> {plan.depth_after}"
+        )
+        lock["feasibility_status"] = "REQUIRES_PREPARATION"
+        blockers = " ".join(plan.obstruction) if plan.obstruction else "none"
+        rendered = " ".join(format_action(action) for action in plan.actions)
+        return _proposal(
+            _make_candidate(
+                g,
+                ident,
+                "ACCESS",
+                (plan.actions[0],),
+                hold=False,
+                benefit=2.5,
+                evidence=_evidence(
+                    campaign,
+                    agenda,
+                    f"fact: buried {card} is covered by {blockers}",
+                    f"fact: legal sequence {rendered}",
+                    f"fact: corrected cost of the sequence is {plan.cost}",
+                    "fact: a cost-bounded miss would be inconclusive, not infeasibility",
+                    "fact: the historical landing column is not the obligation",
+                ),
+                purpose="excavate a buried foundation card after its stock epoch",
+            ),
+            "selected: buried card is an accessibility prerequisite",
+            events,
+            False,
+            agenda,
+        )
+    _add_time(lock, "dependency_planning", time.perf_counter() - started)
+    return None
+
+
+def recover_foundation_step(state, cards, g, cache, lock, blocked, time_left):
+    """One bounded access step when no campaign proposal is executable.
+
+    The search reuses ``plan_obstructed_access``. It does not start another
+    kernel and it does not order moves by best-g. A miss is a probe limit.
+    """
+
+    events: List[str] = []
+    if time_left < 0.15:
+        events.append("foundation: recovery search stopped at the time guard")
+        return None, tuple(events)
+    state_key = canonical_state_key(state)
+    if lock.get("recovery_key") == state_key:
+        events.append("foundation: recovery already attempted on this state")
+        return None, tuple(events)
+    lock["recovery_key"] = state_key
+    try:
+        _feasibility, portfolio = load_portfolio(state, cards, cache)
+    except (ValueError, KeyError) as exc:
+        events.append(f"foundation: recovery analysis unavailable ({exc})")
+        return None, tuple(events)
+    refused = set(blocked)
+    active = lock.get("label")
+    order = [item for item in portfolio.campaigns if item.label != active]
+    order.extend(item for item in portfolio.campaigns if item.label == active)
+    started = time.perf_counter()
+    examined = 0
+    for campaign in order:
+        if examined >= 3:
+            break
+        examined += 1
+        status = campaign_near_term_status(state, campaign)
+        events.append(
+            f"foundation: recovery considers {campaign.label} status {status} "
+            f"epoch {campaign.target_removal_epoch}"
+        )
+        buried = _buried_cards(state, campaign.suit)
+        if not buried:
+            continue
+        depth, column, index, card = buried[0]
+        source_key = f"tableau:{column}:down:{index}"
+        ident = f"recover:{source_key}"
+        if ident in refused:
+            continue
+        plan = plan_obstructed_access(
+            state,
+            card,
+            (),
+            source_key=source_key,
+            column=column,
+            max_cost=3,
+            max_nodes=400,
+        )
+        if plan is None:
+            events.append(
+                f"foundation: PROBE_LIMIT recovery did not uncover {card} "
+                f"at cover {depth}; this is not infeasibility"
+            )
+            continue
+        _add_time(lock, "dependency_planning", time.perf_counter() - started)
+        events.append(
+            f"foundation: recovery plays {format_action(plan.actions[0])} to reach buried {card}"
+        )
+        lock["feasibility_status"] = "REQUIRES_PREPARATION"
+        candidate = _make_candidate(
+            g,
+            ident,
+            "ACCESS",
+            (plan.actions[0],),
+            hold=False,
+            benefit=2.0,
+            evidence=(
+                f"fact: recovery uncovers {card} for {campaign.label}",
+                f"fact: cover {plan.depth_before} -> {plan.depth_after}",
+                "fact: the sequence is a bounded access search, not a proof bound",
+            ),
+            purpose="recover access toward a foundation card",
+        )
+        return candidate, tuple(events)
+    _add_time(lock, "dependency_planning", time.perf_counter() - started)
+    legal = [action for action in all_legal_actions(state) if action != ("deal",)]
+    events.append(
+        "foundation: remaining legal tableau moves "
+        + ", ".join(format_action(action) for action in legal)
+    )
+    events.append("foundation: recovery found no bounded access step")
+    return None, tuple(events)
+
+
+def planning_stall_detail(state: SpiderState, lock: dict) -> str:
+    """Name the moves and campaigns a stall did not pretend to exhaust."""
+
+    legal = [action for action in all_legal_actions(state) if action != ("deal",)]
+    rendered = ", ".join(format_action(action) for action in legal) or "none"
+    entered = ", ".join(lock.get("tried_labels") or []) or (lock.get("label") or "none")
+    pending = [
+        label
+        for label in (lock.get("alternatives") or [])
+        if label not in (lock.get("tried_labels") or [])
+    ]
+    return (
+        f"legal actions: {rendered}. "
+        f"campaigns entered: {entered}. "
+        f"not entered: {', '.join(pending) or 'none'}. "
+        f"feasibility: {lock.get('feasibility_status') or 'unclassified'}. "
+        "a probe limit is not infeasibility"
     )
 
 
@@ -2180,6 +2522,9 @@ def _evidenced_deal(state, g, campaign, agenda, lock, events, refused, operation
     )
     if evidence is None:
         return None
+    evidence = tuple(evidence) + (
+        "fact: the next row is a future stock event, not a row already dealt",
+    )
     events.append(
         f"foundation: deal one row for a measured {campaign.suit} connection; "
         f"operational epoch stays {operational}"
@@ -2270,6 +2615,7 @@ def _necessary_deal(state, g, campaign, agenda, lock, events, refused, operation
         "fact: the landing need not be same-suit for a card the campaign still needs",
         "fact: the operational epoch was not revised to authorise this row",
         "fact: an analysed-epoch increase is not the reason for this deal",
+        "fact: the next row is a future stock event, not a row already dealt",
     )
     if covered:
         evidence = evidence + tuple(f"fact: {item}" for item in covered[:3])

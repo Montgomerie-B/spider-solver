@@ -35,8 +35,10 @@ from .portfolio import Candidate, _score_action, build_candidates, select_candid
 from .foundation_direction import (
     adopt_alternative_foundation,
     close_foundation_campaign,
+    planning_stall_detail,
     propose_foundation_step,
     rank_foundations,
+    recover_foundation_step,
     structural_assessment,
 )
 from .preparation import (
@@ -495,6 +497,99 @@ def _foundation_goal(goal: str) -> bool:
     return goal in {"first-foundation", "foundations"}
 
 
+def _annotate_stall(goal: str, state: SpiderState, lock: dict, stop_reason: str) -> str:
+    if goal != "foundations":
+        return stop_reason
+    return f"{stop_reason}; {planning_stall_detail(state, lock)}"
+
+
+def _record_foundation_proposal(proposal, stats, foundation_trace) -> None:
+    for event in proposal.events:
+        stats.events.append(event)
+    if proposal.public:
+        foundation_trace.append(
+            {"reason": proposal.reason, "timeout": proposal.timeout, **proposal.public}
+        )
+
+
+def _recovery_candidate(line, deal_cards, deadline, foundation_cache, foundation_lock, failed, ident, stats):
+    candidate, events = recover_foundation_step(
+        line.state,
+        deal_cards,
+        line.g,
+        foundation_cache,
+        foundation_lock,
+        tuple(failed.get(ident, ())),
+        deadline - time.perf_counter(),
+    )
+    for event in events:
+        stats.events.append(event)
+    if candidate is None:
+        return None
+    return candidate, "selected: bounded recovery toward a buried foundation card"
+
+
+def _resume_foundation_campaign(
+    line,
+    goal,
+    deal_cards,
+    profile,
+    deadline,
+    foundation_cache,
+    foundation_lock,
+    failed,
+    ident,
+    stats,
+    foundation_trace,
+):
+    """Propose a foundation step after the one-ply list has nothing to play.
+
+    An announced alternative is proposed here even when every portfolio
+    candidate is already blocked. Two resumes per state, then one recovery.
+    """
+
+    if goal != "foundations" or line.hold:
+        return None
+    if deadline - time.perf_counter() < 0.05:
+        return None
+    counts = foundation_lock.setdefault("resume_counts", {})
+    state_key = canonical_state_key(line.state)
+    if counts.get(state_key, 0) >= 2:
+        return _recovery_candidate(
+            line, deal_cards, deadline, foundation_cache, foundation_lock, failed, ident, stats
+        )
+    counts[state_key] = counts.get(state_key, 0) + 1
+
+    def _propose():
+        proposal = propose_foundation_step(
+            line.state,
+            deal_cards,
+            profile,
+            deadline - time.perf_counter(),
+            line.g,
+            cache=foundation_cache,
+            lock=foundation_lock,
+            blocked=tuple(failed.get(ident, ())),
+        )
+        _record_foundation_proposal(proposal, stats, foundation_trace)
+        return proposal
+
+    proposal = _propose()
+    if proposal.candidate is not None:
+        return proposal.candidate, proposal.reason
+    if foundation_lock.get("yield_to_alternative"):
+        foundation_lock["yield_to_alternative"] = False
+        switched = adopt_alternative_foundation(foundation_lock)
+        if switched:
+            stats.events.append(f"foundation: {switched}")
+            follow = _propose()
+            if follow.candidate is not None:
+                return follow.candidate, follow.reason
+    return _recovery_candidate(
+        line, deal_cards, deadline, foundation_cache, foundation_lock, failed, ident, stats
+    )
+
+
 def solve(
     state: SpiderState,
     profile: Profile,
@@ -645,31 +740,52 @@ def solve(
                     )
                     continue
             if legal_now:
-                stall_kind = classify_stall(
-                    legal_count=len(legal_now),
-                    generated_count=len(blocked_ids) + len(ranked),
-                    visible_count=0,
-                    suppressed=len(blocked_ids),
-                )
-                stats.events.append(
-                    f"planning failure: {len(legal_now)} legal moves remain after objectives were blocked"
-                )
-                if _foundation_goal(goal):
-                    if goal == "foundations" and adopt_alternative_foundation(foundation_lock):
-                        stats.events.append(
-                            "foundation: " + foundation_lock["campaign_changes"][-1]
-                        )
-                        continue
-                    status, stop_reason = strategic_stop_status(
-                        goal=goal,
-                        legal_count=len(legal_now),
-                        proved_no_legal_continuation=False,
+                resumed = None
+                if goal == "foundations":
+                    resumed = _resume_foundation_campaign(
+                        line,
+                        goal,
+                        deal_cards,
+                        profile,
+                        deadline,
+                        foundation_cache,
+                        foundation_lock,
+                        failed,
+                        ident,
+                        stats,
+                        foundation_trace,
                     )
-                    stop_reason = f"{stop_reason}; {stall_kind}"
+                if resumed is not None:
+                    candidate, resume_reason = resumed
+                    ranked = [candidate]
+                    foundation_lock["forced_foundation_id"] = candidate.candidate_id
+                    foundation_lock["forced_foundation_reason"] = resume_reason
                 else:
-                    status = "EXHAUSTED"
-                    stop_reason = f"planning failure: {len(legal_now)} legal moves remain; {stall_kind}"
-                break
+                    stall_kind = classify_stall(
+                        legal_count=len(legal_now),
+                        generated_count=len(blocked_ids) + len(ranked),
+                        visible_count=0,
+                        suppressed=len(blocked_ids),
+                    )
+                    stats.events.append(
+                        f"planning failure: {len(legal_now)} legal moves remain after objectives were blocked"
+                    )
+                    if _foundation_goal(goal):
+                        status, stop_reason = strategic_stop_status(
+                            goal=goal,
+                            legal_count=len(legal_now),
+                            proved_no_legal_continuation=False,
+                        )
+                        stop_reason = _annotate_stall(
+                            goal,
+                            line.state,
+                            foundation_lock,
+                            f"{stop_reason}; {stall_kind}",
+                        )
+                    else:
+                        status = "EXHAUSTED"
+                        stop_reason = f"planning failure: {len(legal_now)} legal moves remain; {stall_kind}"
+                    break
             stats.events.append("no legal objective remained")
             jumped = _backtrack(line, dormant, failed, stats)
             if jumped is None:
@@ -704,7 +820,17 @@ def solve(
         )
         force_id = None
         foundation_locked = False
-        if _foundation_goal(goal) and not line.hold:
+        forced_foundation = foundation_lock.pop("forced_foundation_id", None)
+        if forced_foundation:
+            match = next(
+                (item for item in considered if item.candidate_id == forced_foundation),
+                None,
+            )
+            if match is not None:
+                choice = match
+                reason = foundation_lock.pop("forced_foundation_reason", reason)
+                foundation_locked = True
+        if not foundation_locked and _foundation_goal(goal) and not line.hold:
             proposal = propose_foundation_step(
                 line.state,
                 deal_cards,
@@ -727,6 +853,50 @@ def solve(
                 foundation_locked = True
                 if all(item.candidate_id != choice.candidate_id for item in considered):
                     considered.append(choice)
+            elif (
+                proposal.candidate is None
+                and proposal.block_deal
+                and goal == "foundations"
+                and foundation_lock.get("yield_to_alternative")
+            ):
+                # The locked campaign has named why it cannot move. Play the
+                # announced alternative instead of an unrelated portfolio action.
+                foundation_lock["yield_to_alternative"] = False
+                switched = adopt_alternative_foundation(foundation_lock)
+                if switched:
+                    stats.events.append(f"foundation: {switched}")
+                    continue
+                recovered = _recovery_candidate(
+                    line,
+                    deal_cards,
+                    deadline,
+                    foundation_cache,
+                    foundation_lock,
+                    failed,
+                    ident,
+                    stats,
+                )
+                if recovered is not None:
+                    choice, reason = recovered
+                    foundation_locked = True
+                    if all(item.candidate_id != choice.candidate_id for item in considered):
+                        considered.append(choice)
+                else:
+                    legal_left = [
+                        action for action in all_legal_actions(line.state) if action != ("deal",)
+                    ]
+                    status, stop_reason = strategic_stop_status(
+                        goal=goal,
+                        legal_count=len(legal_left),
+                        proved_no_legal_continuation=not legal_left,
+                    )
+                    stop_reason = _annotate_stall(
+                        goal,
+                        line.state,
+                        foundation_lock,
+                        f"{stop_reason}; no campaign offered an executable step",
+                    )
+                    break
             elif proposal.block_deal and _choice_deals(choice):
                 useful = _moves_that_meet_their_purpose(line.state, line.g, ctx, ranked)
                 if useful:
@@ -762,6 +932,9 @@ def solve(
                                 f"{stop_reason}; foundation prerequisites remain open "
                                 "and no purpose-met substitute was legal"
                             )
+                        stop_reason = _annotate_stall(
+                            goal, line.state, foundation_lock, stop_reason
+                        )
                         break
                     line, force_id = jumped
                     continue
@@ -970,6 +1143,7 @@ def solve(
                 legal_count=len(legal_left),
                 proved_no_legal_continuation=not legal_left,
             )
+            stop_reason = _annotate_stall(goal, line.state, foundation_lock, stop_reason)
         else:
             status, stop_reason = "EXHAUSTED", "principal objective failed and no dormant alternative remained"
         break
