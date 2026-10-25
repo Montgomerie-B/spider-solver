@@ -199,14 +199,24 @@ def test_receiver_predicate_is_machine_testable(benchmark):
         copy_index=campaign.copy_index,
         target_epoch=campaign.target_removal_epoch,
     )
-    assert all(
-        isinstance(obligation_is_satisfied(predeal, updated, obligation), bool)
-        for obligation in receiver_obligations
-    )
-    assert all(
-        obligation.obligation_id in result.receiver_conditions_satisfied
-        for obligation in receiver_obligations
-    )
+    recorded = set(result.receiver_conditions_satisfied)
+    for obligation in receiver_obligations:
+        satisfied = obligation_is_satisfied(predeal, updated, obligation)
+        assert isinstance(satisfied, bool)
+        card = obligation.incoming_card
+        column = obligation.receiver_column
+        if card is None or column is None or obligation.receiver_rank is None:
+            assert satisfied is False
+            continue
+        top = predeal.columns[column].top()
+        exact = (
+            top is not None
+            and top.suit == card.suit
+            and top.rank == obligation.receiver_rank
+        )
+        assert satisfied is exact
+        if obligation.obligation_id in recorded:
+            assert exact
 
 
 def test_suit_permuted_campaign_reaches_stock_epoch(benchmark):

@@ -32,7 +32,13 @@ from .evaluation import (
     same_suit_bonds,
 )
 from .portfolio import Candidate, _score_action, build_candidates, select_candidate
-from .foundation_direction import propose_foundation_step, rank_foundations
+from .foundation_direction import (
+    adopt_alternative_foundation,
+    close_foundation_campaign,
+    propose_foundation_step,
+    rank_foundations,
+    structural_assessment,
+)
 from .preparation import (
     DealComparison,
     PreparationOption,
@@ -485,6 +491,10 @@ def _finish_held(
     return False, 0
 
 
+def _foundation_goal(goal: str) -> bool:
+    return goal in {"first-foundation", "foundations"}
+
+
 def solve(
     state: SpiderState,
     profile: Profile,
@@ -496,15 +506,26 @@ def solve(
     provenance_note: str = "",
     goal: str = "play",
     deal_cards: Optional[Sequence] = None,
+    target_foundations: Optional[int] = None,
 ) -> SolveResult:
     """Search from ``state``. The caller's state is not mutated."""
 
     if mode not in {"cold", "optimise", "diagnose"}:
         raise ValueError(f"unknown mode {mode!r}")
-    if goal not in {"play", "first-foundation"}:
+    if goal not in {"play", "first-foundation", "foundations"}:
         raise ValueError(f"unknown goal {goal!r}")
     if goal == "first-foundation" and not deal_cards:
         raise ValueError("first-foundation goal requires the full deal")
+    if goal == "foundations" and not deal_cards:
+        raise ValueError("foundations goal requires the full deal")
+    if goal == "first-foundation":
+        foundation_target = 1
+    elif goal == "foundations":
+        foundation_target = 8 if target_foundations is None else int(target_foundations)
+        if not 1 <= foundation_target <= 8:
+            raise ValueError("target-foundations must be from 1 to 8")
+    else:
+        foundation_target = None
     if mode == "cold" and incumbent_actions:
         raise ValueError("cold mode does not accept an incumbent sequence")
     if mode == "optimise" and incumbent_mw is None:
@@ -534,6 +555,7 @@ def solve(
     foundation_lock: dict = {}
     foundation_trace: List[dict] = []
     start_foundations = len(root.foundations)
+    last_foundation_g = int(opening_g)
 
     while True:
         _remember(stats)
@@ -571,7 +593,7 @@ def solve(
             line, force_id = jumped
             continue
 
-        if goal == "first-foundation" and line.remaining[:1] == (("deal",),):
+        if _foundation_goal(goal) and line.remaining[:1] == (("deal",),):
             stats.events.append("foundation: a bundled deal is reconsidered against the campaign")
             _clear_commitment(line)
 
@@ -632,7 +654,12 @@ def solve(
                 stats.events.append(
                     f"planning failure: {len(legal_now)} legal moves remain after objectives were blocked"
                 )
-                if goal == "first-foundation":
+                if _foundation_goal(goal):
+                    if goal == "foundations" and adopt_alternative_foundation(foundation_lock):
+                        stats.events.append(
+                            "foundation: " + foundation_lock["campaign_changes"][-1]
+                        )
+                        continue
                     status, stop_reason = strategic_stop_status(
                         goal=goal,
                         legal_count=len(legal_now),
@@ -677,7 +704,7 @@ def solve(
         )
         force_id = None
         foundation_locked = False
-        if goal == "first-foundation" and not line.hold:
+        if _foundation_goal(goal) and not line.hold:
             proposal = propose_foundation_step(
                 line.state,
                 deal_cards,
@@ -717,6 +744,11 @@ def solve(
                     failed.setdefault(ident, set()).add(choice.candidate_id)
                     jumped = _backtrack(line, dormant, failed, stats)
                     if jumped is None:
+                        if goal == "foundations":
+                            switched = adopt_alternative_foundation(foundation_lock)
+                            if switched:
+                                stats.events.append(f"foundation: {switched}")
+                                continue
                         legal_left = [
                             action for action in all_legal_actions(line.state) if action != ("deal",)
                         ]
@@ -820,12 +852,38 @@ def solve(
                 stats.events.append("replan: stock dealt")
             elif execution[0] == "achieved":
                 stats.events.append("replan: objective completed")
-            if goal == "first-foundation" and foundation_locked and execution[0] in {"achieved", "partial"}:
+            if _foundation_goal(goal) and foundation_locked and execution[0] in {"achieved", "partial"}:
                 foundation_lock["cost_invested"] = foundation_lock.get("cost_invested", 0) + int(execution[1])
-            if line.state.is_solved():
-                status, stop_reason = "SOLVED_VALID", "terminal state reached"
-                break
-            if goal == "first-foundation" and len(line.state.foundations) > start_foundations:
+            removed_now = _foundation_goal(goal) and len(line.state.foundations) > ctx.foundations
+            if removed_now:
+                sequence = line.state.foundations[-1]
+                removed_label = foundation_lock.get("label") or foundation_lock.get("epoch_label")
+                campaign_cost = int(line.g) - int(last_foundation_g)
+                assessment = structural_assessment(line.state)
+                foundation_trace.append(
+                    {
+                        "reason": "foundation completed",
+                        "label": removed_label,
+                        "removed_suit": sequence[0].suit if sequence else "",
+                        "cards": [str(card) for card in sequence],
+                        "exact_cost": campaign_cost,
+                        "step_cost": int(execution[1]),
+                        "cumulative_g": line.g,
+                        "foundations": len(line.state.foundations),
+                        "face_down": assessment["face_down"],
+                        "stock_cards": assessment["stock_cards"],
+                        "bonds": assessment["bonds"],
+                        "assessment": assessment,
+                    }
+                )
+                close_foundation_campaign(
+                    foundation_lock,
+                    reason=f"{removed_label} removed at corrected cost {campaign_cost}",
+                    exact_cost=campaign_cost,
+                    cumulative_g=line.g,
+                    label=removed_label,
+                )
+                last_foundation_g = int(line.g)
                 try:
                     follow_views = rank_foundations(line.state, deal_cards, cache=foundation_cache)
                 except (ValueError, KeyError):
@@ -848,12 +906,29 @@ def solve(
                     )
                 else:
                     stats.events.append("replan: foundation campaign after removal")
-                status = "FOUNDATION_REACHED"
-                stop_reason = (
-                    "first foundation completed; this is a partial research trajectory, "
-                    "not a finished game"
-                )
+            if line.state.is_solved():
+                status, stop_reason = "SOLVED_VALID", "terminal state reached"
                 break
+            if removed_now:
+                gained = len(line.state.foundations) - start_foundations
+                if goal == "first-foundation" or gained >= int(foundation_target or 1):
+                    if goal == "first-foundation":
+                        status = "FOUNDATION_REACHED"
+                        stop_reason = (
+                            "first foundation completed; this is a partial research trajectory, "
+                            "not a finished game"
+                        )
+                    else:
+                        status = "FOUNDATION_TARGET_REACHED"
+                        stop_reason = (
+                            f"foundation target {foundation_target} reached at corrected g {line.g}; "
+                            "this is a partial research trajectory, not a finished game"
+                        )
+                    break
+                stats.events.append(
+                    "replan: closed completed campaign; the next foundation gets a new horizon"
+                )
+                continue
             if (
                 deal_snapshot is not None
                 and execution[5] == (("deal",),)
@@ -883,7 +958,12 @@ def solve(
             stats.widens += 1
             stats.events.append(f"widen: strategic width is now {width}")
             continue
-        if goal == "first-foundation":
+        if _foundation_goal(goal):
+            if goal == "foundations":
+                switched = adopt_alternative_foundation(foundation_lock)
+                if switched:
+                    stats.events.append(f"foundation: {switched}")
+                    continue
             legal_left = [action for action in all_legal_actions(line.state) if action != ("deal",)]
             status, stop_reason = strategic_stop_status(
                 goal=goal,
@@ -900,7 +980,7 @@ def solve(
         "principal objective failed and no dormant alternative remained",
     } or stop_reason.startswith("planning failure:")
     if (
-        goal != "first-foundation"
+        goal == "play"
         and status == "EXHAUSTED"
         and portfolio_stopped
         and not line.state.is_solved()
@@ -940,7 +1020,9 @@ def solve(
         "new_discovery": discovery,
         "reproduced_incumbent": bool(status == "SOLVED_VALID" and same_as_incumbent),
         "kernel_fallback": kernel_info,
-        "partial_trajectory": status == "FOUNDATION_REACHED",
+        "partial_trajectory": status in {"FOUNDATION_REACHED", "FOUNDATION_TARGET_REACHED"},
+        "target_foundations": foundation_target,
+        "completed_campaigns": list(foundation_lock.get("completed") or []),
         "foundation": foundation_trace[-12:],
     }
     _remember(stats)

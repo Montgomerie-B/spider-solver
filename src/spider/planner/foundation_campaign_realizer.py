@@ -176,6 +176,26 @@ def _must_keys(campaign: Optional[FoundationCampaign]) -> Tuple[str, ...]:
     return tuple(source.source_key for source in campaign.tableau_critical_cards)
 
 
+def direct_column_reception(state: SpiderState, obligation: CampaignObligation) -> bool:
+    """True only when column ``receiver_column`` exposes rank+1 of the same suit.
+
+    The incoming card's physical destination is the obligation column. Card
+    presence on another column does not satisfy the landing. A king returns
+    false here because it has no ordinary parent; callers assess a queen-led
+    anchor separately.
+    """
+
+    card = obligation.incoming_card
+    receiver_rank = obligation.receiver_rank
+    column = obligation.receiver_column
+    if card is None or receiver_rank is None or column is None:
+        return False
+    if not 0 <= column < len(state.columns):
+        return False
+    top = state.columns[column].top()
+    return bool(top is not None and top.suit == card.suit and top.rank == receiver_rank)
+
+
 def _usable_rank(state: SpiderState, suit: str, rank: int) -> bool:
     """Whether a rank is in a movable same-suit suffix of a tableau column."""
     for column in state.columns:
@@ -462,27 +482,11 @@ def obligation_is_satisfied(
     if obligation.kind == CampaignObligationKind.PRESERVE_FRAGMENT:
         return _fragment_present(state, obligation.fragment)
     if obligation.kind == CampaignObligationKind.SHAPE_RECEIVER:
-        card = obligation.incoming_card
-        receiver_rank = obligation.receiver_rank
-        if card is None or receiver_rank is None:
-            return True
-        column = obligation.receiver_column
-        if column is not None:
-            top = state.columns[column].top()
-            if top is not None and top.suit == card.suit and top.rank == receiver_rank:
-                return True
-        # A known same-suit walk-off receiver elsewhere is also useful.
-        if _usable_rank(state, card.suit, receiver_rank):
-            return True
-        # Or the parent arrives earlier/in the same exact row.
-        row = next_stock_row(state)
-        return bool(
-            row
-            and any(
-                incoming.suit == card.suit and incoming.rank == receiver_rank
-                for incoming in row
-            )
-        )
+        # Direct reception is the exposed parent on the physical landing
+        # column. A parent elsewhere, or a parent that only appears somewhere
+        # in the next row, is not this landing. An incoming king has no
+        # rank+1 parent: that is not success and not a removed foundation.
+        return direct_column_reception(state, obligation)
     if obligation.kind == CampaignObligationKind.PREPARE_WORKSPACE:
         if empty_columns(state):
             return True

@@ -19,13 +19,17 @@ from spider.metrics import Action
 from spider.planner.lower_bounds import compute_objective_lower_bound
 from spider.planner.objective_realizer import RealizationMode, RealizationStatus, realize_objective
 from spider.planner.space_lifecycle import empty_count
-from spider.planner.stock_reception import next_stock_row
+from spider.planner.stock_reception import (
+    PreDealShapingObjective,
+    next_stock_row,
+    run_bounded_shaping_probe,
+)
 from spider.planner.strategic_objectives import (
     ObjectiveKind,
     PriorityComponents,
     StrategicObjective,
 )
-from spider.research_actions import apply_action, face_down_count
+from spider.research_actions import all_legal_actions, apply_action, face_down_count
 
 from .evaluation import same_suit_bonds
 from .profiles import Profile
@@ -271,6 +275,240 @@ def compare_exact_reception(
     )
 
 
+@dataclass(frozen=True)
+class ReceiverLanding:
+    """Where the parent of one known incoming card actually is.
+
+    ``already_positioned`` is the only direct reception. The other statuses
+    say what would still have to be done. None of them is inferred from the
+    parent merely existing somewhere in the tableau.
+    """
+
+    status: str
+    column: int
+    direct: bool
+    actions: Tuple[Action, ...]
+    cost: int
+    evidence: Tuple[str, ...]
+
+
+def _parent_sites(state: SpiderState, suit: str, rank: int) -> Tuple[Tuple[int, str], ...]:
+    found = []
+    for index, column in enumerate(state.columns):
+        if any(card.suit == suit and card.rank == rank for card in column.face_up):
+            found.append((index, "face-up"))
+        elif any(card.suit == suit and card.rank == rank for card in column.face_down):
+            found.append((index, "face-down"))
+    return tuple(found)
+
+
+def _post_deal_transfer(state: SpiderState, card, column: int):
+    """A legal one-card move of the incoming card onto a receiver elsewhere.
+
+    The move is applied on a clone. Returning it means the transfer was
+    validated, not that a matching card merely exists.
+    """
+
+    row = next_stock_row(state)
+    if row is None or not (0 <= column < len(row)):
+        return None
+    incoming = row[column]
+    if incoming.suit != card.suit or incoming.rank != card.rank:
+        return None
+    dealt = state.clone()
+    try:
+        apply_action(dealt, ("deal",))
+    except ValueError:
+        return None
+    if dealt.columns[column].top() is not incoming:
+        return None
+    for action in all_legal_actions(dealt):
+        if action == ("deal",) or action[0] != column or action[2] != 1:
+            continue
+        dest = dealt.columns[action[1]].top()
+        if dest is None or dest.suit != incoming.suit or dest.rank != incoming.rank + 1:
+            continue
+        trial = dealt.clone()
+        try:
+            cost = apply_action(trial, action)
+        except ValueError:
+            continue
+        return action, int(cost)
+    return None
+
+
+def assess_receiver_move(state: SpiderState, card, column: int, actions: Sequence[Action]) -> ReceiverLanding:
+    """Judge one explicit relocation. A move that loses the landing is not worthwhile."""
+
+    compared = compare_exact_reception(state, actions, column, card.suit)
+    status = "not_worthwhile" if compared.choice != "prepare" else (
+        "needs_preparation" if len(tuple(actions)) > 1 else "relocatable"
+    )
+    if not actions and compared.immediate_connects:
+        status = "already_positioned"
+    return ReceiverLanding(
+        status,
+        column,
+        status == "already_positioned",
+        tuple(actions),
+        int(compared.preparation_cost),
+        compared.evidence + ("fact: this relocation was replayed before it was accepted",),
+    )
+
+
+def classify_incoming_receiver(
+    state: SpiderState,
+    card,
+    column: int,
+    *,
+    max_cost: int = 3,
+    max_expand: int = 200,
+) -> ReceiverLanding:
+    """Classify the receiver for ``card`` landing on ``column``.
+
+    Direct success is only the exposed rank+1 parent on that column. A king
+    is an anchor check, not a failed ordinary reception and not a foundation.
+    """
+
+    if not 0 <= column < len(state.columns):
+        return ReceiverLanding(
+            "unavailable",
+            column,
+            False,
+            (),
+            0,
+            ("fact: that column is not on the tableau",),
+        )
+    if card.rank >= 13:
+        dealt = state.clone()
+        queen = False
+        try:
+            apply_action(dealt, ("deal",))
+            queen = queen_run_lands_on(dealt, column, card.suit)
+        except ValueError:
+            queen = False
+        return ReceiverLanding(
+            "king_anchor",
+            column,
+            False,
+            (),
+            0,
+            (
+                f"fact: incoming king on column {column + 1} is not a completed foundation",
+                f"fact: queen-led follow-up is {queen}",
+                "fact: a king has no rank+1 receiver",
+            ),
+        )
+    parent_rank = card.rank + 1
+    top = state.columns[column].top()
+    if top is not None and top.suit == card.suit and top.rank == parent_rank:
+        return ReceiverLanding(
+            "already_positioned",
+            column,
+            True,
+            (),
+            0,
+            (
+                f"fact: {top} is already the exposed receiver on column {column + 1}",
+                "fact: no relocation is required",
+            ),
+        )
+    sites = _parent_sites(state, card.suit, parent_rank)
+    post = _post_deal_transfer(state, card, column)
+    objective = PreDealShapingObjective(
+        code="same_suit_receiver",
+        description=f"top of column {column + 1} receives {card}",
+        target_column=column,
+        incoming=card,
+        predicate_key="same_suit_receiver",
+        max_cost=max_cost,
+    )
+    found = run_bounded_shaping_probe(state, objective, max_cost=max_cost, max_expand=max_expand)
+    if found.found and found.path:
+        judged = assess_receiver_move(state, card, column, found.path)
+        if judged.status in {"relocatable", "needs_preparation"}:
+            extra = judged.evidence
+            if post is not None:
+                extra = extra + (
+                    f"fact: after the deal {post[0]} also moves the new card onto a receiver",
+                )
+            return ReceiverLanding(judged.status, column, False, judged.actions, judged.cost, extra)
+        if post is not None:
+            return ReceiverLanding(
+                "post_deal_transfer",
+                column,
+                False,
+                (post[0],),
+                post[1],
+                judged.evidence + (
+                    "fact: moving the parent first is not worthwhile",
+                    f"fact: validated post-deal transfer {post[0]} costs {post[1]}",
+                ),
+            )
+        return ReceiverLanding(
+            "not_worthwhile",
+            column,
+            False,
+            tuple(found.path),
+            judged.cost,
+            judged.evidence + ("fact: the relocation does not beat dealing now",),
+        )
+    if post is not None:
+        return ReceiverLanding(
+            "post_deal_transfer",
+            column,
+            False,
+            (post[0],),
+            post[1],
+            (
+                f"fact: {card} can move after the deal by {post[0]}",
+                f"fact: corrected cost of that transfer is {post[1]}",
+                "fact: the parent was not treated as a reception merely because it exists",
+            ),
+        )
+    if any(zone == "face-down" for _index, zone in sites) or any(
+        index == column and zone == "face-up" for index, zone in sites
+    ):
+        return ReceiverLanding(
+            "blocked",
+            column,
+            False,
+            (),
+            0,
+            (
+                f"fact: the {parent_rank}{card.suit} receiver is not a legal landing on column {column + 1}",
+                "fact: no bounded relocation exposes it",
+            ),
+        )
+    if sites:
+        return ReceiverLanding(
+            "blocked",
+            column,
+            False,
+            (),
+            0,
+            (
+                "fact: the receiver is on "
+                + ", ".join(f"column {index + 1} ({zone})" for index, zone in sites)
+                + f", not on landing column {column + 1}",
+                "fact: it cannot be relocated within the corrected-cost bound",
+            ),
+        )
+    row = next_stock_row(state) or ()
+    later = any(item.suit == card.suit and item.rank == parent_rank and index != column for index, item in enumerate(row))
+    return ReceiverLanding(
+        "unavailable",
+        column,
+        False,
+        (),
+        0,
+        (
+            "fact: the receiver is not on the landing column",
+            "fact: it arrives in this row on another column" if later else "fact: it is not available until a later event",
+        ),
+    )
+
+
 def strategic_stop_status(
     *,
     goal: str,
@@ -279,7 +517,7 @@ def strategic_stop_status(
 ) -> Tuple[str, str]:
     """Separate an unfinished plan from a proof that nothing legal remains."""
 
-    if goal == "first-foundation" and legal_count > 0 and not proved_no_legal_continuation:
+    if goal in {"first-foundation", "foundations"} and legal_count > 0 and not proved_no_legal_continuation:
         return (
             "PLANNING_STALL",
             f"planning stall: {legal_count} legal tableau moves remain; "

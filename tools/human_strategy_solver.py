@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Integrated human-strategy controller for Spider Solitaire. v0.110.
+"""Integrated human-strategy controller for Spider Solitaire. v0.111.
 
 The controller does not start a historical campaign, write the production
 incumbent, or change MobilityWare rules. ``--profile extended`` runs only
-when named. ``--goal first-foundation`` keeps a foundation campaign. The
-default goal ``play`` is the v0.108 controller.
+when named. ``--goal first-foundation`` keeps one foundation campaign.
+``--goal foundations --target-foundations N`` continues after each removal.
+The default goal ``play`` is the v0.108 controller.
 
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode cold --profile smoke
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode cold --profile pilot --goal first-foundation --time-limit 150
+    py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode cold --profile pilot --goal foundations --target-foundations 2 --time-limit 150
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode optimise --incumbent solutions/4925153_autonomous_185.moves --profile pilot
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode diagnose --root post-sd3 --profile smoke --time-limit 60
 """
@@ -34,14 +36,23 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.110")
+    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.111")
     parser.add_argument("--deal", required=True)
     parser.add_argument("--mode", choices=("cold", "optimise", "diagnose"), default="cold")
     parser.add_argument(
         "--goal",
-        choices=("play", "first-foundation"),
+        choices=("play", "first-foundation", "foundations"),
         default="play",
-        help="play keeps the v0.108 controller. first-foundation pursues one foundation campaign.",
+        help=(
+            "play keeps the v0.108 controller. first-foundation pursues one foundation. "
+            "foundations pursues --target-foundations and then stops, unless all eight are removed."
+        ),
+    )
+    parser.add_argument(
+        "--target-foundations",
+        type=int,
+        default=None,
+        help="How many foundations --goal foundations pursues, from 1 to 8. Default 8.",
     )
     parser.add_argument("--profile", choices=("smoke", "pilot", "extended"), default="smoke")
     parser.add_argument("--incumbent", help="Verified .moves file used only as an optimise ceiling")
@@ -88,7 +99,7 @@ def main(argv=None) -> int:
         consult_portfolio=False if args.no_portfolio else None,
     )
     opening = opening_from_deal(deal_path)
-    deal_cards = load_deal(deal_path) if args.goal == "first-foundation" else None
+    deal_cards = load_deal(deal_path) if args.goal in {"first-foundation", "foundations"} else None
     incumbent_actions = None
     incumbent_mw = None
     opening_g = 0
@@ -123,9 +134,10 @@ def main(argv=None) -> int:
         provenance_note=note,
         goal=args.goal,
         deal_cards=deal_cards,
+        target_foundations=args.target_foundations,
     )
     document = _document(args, deal_path, result, opening)
-    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_110" / f"{args.mode}_{args.profile}.json"
+    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_111" / f"{args.mode}_{args.profile}.json"
     if not out.is_absolute():
         out = REPO / out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -137,7 +149,7 @@ def main(argv=None) -> int:
             list(result.actions),
             moves_path,
             header=(
-                f"v0.110 {args.mode} {args.profile} goal={args.goal} "
+                f"v0.111 {args.mode} {args.profile} goal={args.goal} "
                 f"mw={result.cumulative_g} replay_ok={result.replay and result.replay.get('ok')}"
             ),
         )
@@ -187,6 +199,7 @@ def _document(args, deal_path: Path, result, opening) -> dict:
         "deal": str(deal_path),
         "mode": args.mode,
         "goal": args.goal,
+        "target_foundations": args.target_foundations,
         "profile": args.profile,
         "estimates_are_estimates": True,
         "comparison": {
