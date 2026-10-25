@@ -40,6 +40,7 @@ which is the number of same-suit bonds a king-to-ace run removes with it.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
@@ -166,6 +167,24 @@ class StrategicFrontier:
     same_moves: int = 0
     exclusion_log: List[dict] = field(default_factory=list)
     exclusion_overflow: int = 0
+    timing: Optional[dict] = None
+    inclusive: Optional[dict] = None
+
+    def _add_elapsed(self, name: str, start: float, end: float) -> None:
+        if self.timing is None:
+            return
+        spent = end - start
+        if spent <= 0:
+            return
+        self.timing[name] = self.timing.get(name, 0.0) + spent
+
+    def _add_inclusive(self, name: str, start: float, end: float) -> None:
+        if self.inclusive is None:
+            return
+        spent = end - start
+        if spent <= 0:
+            return
+        self.inclusive[name] = self.inclusive.get(name, 0.0) + spent
 
     def __post_init__(self) -> None:
         self.limit = max(1, min(16, int(self.limit)))
@@ -204,56 +223,76 @@ class StrategicFrontier:
         was merged, skipped, or left unexpanded because the queue was full.
         """
 
-        if self.limit <= 1:
-            return False, ""
-        ident = canonical_state_key(state)
-        label = label or ""
-        token = (ident, label, force_id or "")
-        if token in self.expanded or any(item.token == token for item in self.queue):
-            return False, ""
-        known = self.best_g.get(ident)
-        if known is not None and int(g) > known:
-            self.transpositions += 1
-            self._note_exclusion(
-                "transposition_dominance",
-                state=state,
-                g=int(g),
-                reason=reason,
-                label=label,
-                force_id=force_id,
-                priority=line_priority(state, int(g), label),
-                equivalent=True,
-                proof=True,
-            )
-            event = self._union_on_cheaper(ident, label, force_id, reason)
-            return False, event
-        if known is None or int(g) < known:
-            if known is not None and int(g) < known:
-                self._drop_worse(ident, int(g))
-            self.best_g[ident] = int(g)
-            self.best_snap[ident] = self._pack(state, int(g), actions, lock)
-        self.labels_at.setdefault(ident, set()).add(label)
-        node = self._node(state, int(g), actions, lock, force_id, reason, label, payload, token)
-        if len(self.queue) >= self.limit and not self._make_room(node):
-            self.dropped_full += 1
-            self._note_exclusion(
-                "heuristic_admission",
-                state=state,
-                g=int(g),
-                reason=reason,
-                label=label,
-                force_id=force_id,
-                priority=node.priority,
-                equivalent=self._state_retained(ident),
-                proof=False,
-            )
-            return False, (
-                f"frontier: capacity held {reason} unexpanded at g={g}; "
-                "a full frontier is not exhaustion"
-            )
-        self.queue.append(node)
-        self.generated += 1
-        return True, f"frontier: retain {reason} at g={g} label={label or 'none'}"
+        started = time.perf_counter()
+        try:
+            if self.limit <= 1:
+                self._add_elapsed("frontier_evaluation", started, time.perf_counter())
+                return False, ""
+            ident = canonical_state_key(state)
+            label = label or ""
+            token = (ident, label, force_id or "")
+            duplicate = token in self.expanded or any(item.token == token for item in self.queue)
+            dedup_done = time.perf_counter()
+            if duplicate:
+                self._add_elapsed("frontier_dedup", started, dedup_done)
+                return False, ""
+            known = self.best_g.get(ident)
+            if known is not None and int(g) > known:
+                self.transpositions += 1
+                self._note_exclusion(
+                    "transposition_dominance",
+                    state=state,
+                    g=int(g),
+                    reason=reason,
+                    label=label,
+                    force_id=force_id,
+                    priority=line_priority(state, int(g), label),
+                    equivalent=True,
+                    proof=True,
+                )
+                event = self._union_on_cheaper(ident, label, force_id, reason)
+                evaluated = time.perf_counter()
+                self._add_elapsed("frontier_dedup", started, dedup_done)
+                self._add_elapsed("frontier_evaluation", dedup_done, evaluated)
+                return False, event
+            if known is None or int(g) < known:
+                if known is not None and int(g) < known:
+                    self._drop_worse(ident, int(g))
+                self.best_g[ident] = int(g)
+                self.best_snap[ident] = self._pack(state, int(g), actions, lock)
+            self.labels_at.setdefault(ident, set()).add(label)
+            node = self._node(state, int(g), actions, lock, force_id, reason, label, payload, token)
+            evaluated = time.perf_counter()
+            if len(self.queue) >= self.limit and not self._make_room(node):
+                self.dropped_full += 1
+                self._note_exclusion(
+                    "heuristic_admission",
+                    state=state,
+                    g=int(g),
+                    reason=reason,
+                    label=label,
+                    force_id=force_id,
+                    priority=node.priority,
+                    equivalent=self._state_retained(ident),
+                    proof=False,
+                )
+                admitted = time.perf_counter()
+                self._add_elapsed("frontier_dedup", started, dedup_done)
+                self._add_elapsed("frontier_evaluation", dedup_done, evaluated)
+                self._add_elapsed("frontier_admission", evaluated, admitted)
+                return False, (
+                    f"frontier: capacity held {reason} unexpanded at g={g}; "
+                    "a full frontier is not exhaustion"
+                )
+            self.queue.append(node)
+            self.generated += 1
+            admitted = time.perf_counter()
+            self._add_elapsed("frontier_dedup", started, dedup_done)
+            self._add_elapsed("frontier_evaluation", dedup_done, evaluated)
+            self._add_elapsed("frontier_admission", evaluated, admitted)
+            return True, f"frontier: retain {reason} at g={g} label={label or 'none'}"
+        finally:
+            self._add_inclusive("frontier", started, time.perf_counter())
 
     def mark_expanded(self, state: SpiderState, label: str, force_id: Optional[str] = None) -> None:
         if self.limit <= 1:
@@ -278,6 +317,15 @@ class StrategicFrontier:
         is not, by itself, a different signature worth a turn.
         """
 
+        started = time.perf_counter()
+        try:
+            return self._pop_next_ranked()
+        finally:
+            # Choosing the next admitted line is frontier evaluation, not a new admission.
+            self._add_elapsed("frontier_evaluation", started, time.perf_counter())
+            self._add_inclusive("frontier", started, time.perf_counter())
+
+    def _pop_next_ranked(self) -> Optional[StrategicNode]:
         if not self.queue:
             return None
         ranked = sorted(self.queue, key=lambda item: item.priority)

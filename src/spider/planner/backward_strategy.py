@@ -17,6 +17,7 @@ No deal-id, column-id, or canonical-route constants belong here.
 from __future__ import annotations
 
 import contextvars
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -60,6 +61,16 @@ from spider.rules import MW_RULES
 # A stored resource limit answers only the same state and the same budget.
 workspace_probe_seconds = contextvars.ContextVar("spider_workspace_probe_seconds", default=None)
 workspace_probe_cache = contextvars.ContextVar("spider_workspace_probe_cache", default=None)
+# Optional dict the controller reads after load_portfolio. Direct planner
+# calls leave it unset. The seconds are the realize_workspace call only.
+workspace_probe_timing = contextvars.ContextVar("spider_workspace_probe_timing", default=None)
+
+
+def _note_workspace_time(name: str, started: float) -> None:
+    timing = workspace_probe_timing.get()
+    if not isinstance(timing, dict):
+        return
+    timing[name] = float(timing.get(name, 0.0)) + (time.perf_counter() - started)
 
 
 class LocationKind(str, Enum):
@@ -533,13 +544,16 @@ def _cheap_workspace_cost(state: SpiderState) -> Tuple[Optional[int], str]:
     key = None
     if isinstance(cache, dict):
         key = (pack_state(state), int(nodes), round(float(limit), 5))
+        lookup_started = time.perf_counter()
         stored = cache.get(key)
+        _note_workspace_time("workspace_cache_lookup", lookup_started)
         if stored is not None:
             cache["hits"] = int(cache.get("hits", 0)) + 1
             if stored[0] is None:
                 cache["negative_hits"] = int(cache.get("negative_hits", 0)) + 1
             return stored
         cache["misses"] = int(cache.get("misses", 0)) + 1
+    probe_started = time.perf_counter()
     res = realize_workspace(
         state,
         backend=WorkspaceBackend.IMPROVED,
@@ -547,6 +561,7 @@ def _cheap_workspace_cost(state: SpiderState) -> Tuple[Optional[int], str]:
         max_nodes=nodes,
         time_limit_s=limit,
     )
+    _note_workspace_time("workspace_planning", probe_started)
     if res.status == RealizationStatus.FOUND:
         result = (int(res.corrected_mw_cost or 0), f"improved probe nodes={res.nodes_expanded}")
     elif res.status == RealizationStatus.ALREADY_SATISFIED:

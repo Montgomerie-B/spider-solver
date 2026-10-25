@@ -40,10 +40,18 @@ from .foundation_direction import (
     close_foundation_campaign,
     covers_productive_run,
     planning_stall_detail,
+    PROPOSAL_SLICE_S,
     propose_foundation_step,
     rank_foundations,
     recover_foundation_step,
     structural_assessment,
+)
+from .search_budget import (
+    BudgetCoordinator,
+    TacticalLimits,
+    register_budget,
+    resolve_budget,
+    unregister_budget,
 )
 from .preparation import (
     DealComparison,
@@ -218,9 +226,11 @@ class _Stats:
     resource_stops: int = 0
     ceiling: Optional[int] = None
     component_s: Dict[str, float] = field(default_factory=dict)
+    component_inclusive: Dict[str, float] = field(default_factory=dict)
     exclusion_log: List[dict] = field(default_factory=list)
     resource_noted: bool = False
     foundation_timing: Dict[str, float] = field(default_factory=dict)
+    foundation_timing_inclusive: Dict[str, float] = field(default_factory=dict)
 
 
 def _identity(state: SpiderState):
@@ -229,6 +239,57 @@ def _identity(state: SpiderState):
 
 def _charge(stats: _Stats, bucket: str, started: float) -> None:
     stats.component_s[bucket] = stats.component_s.get(bucket, 0.0) + (time.perf_counter() - started)
+
+
+def _proposal_time_left(deadline: float, lock: dict) -> float:
+    """Remaining global time, or one proposal slice when the schedule is progressive."""
+
+    remaining = deadline - time.perf_counter()
+    if not isinstance(lock, dict) or lock.get("tactical_schedule") != "progressive":
+        return remaining
+    slice_s = lock.get("proposal_slice_s")
+    if slice_s is None:
+        return remaining
+    return min(remaining, max(0.0, float(slice_s)))
+
+
+def _absorb_foundation_timing(stats: _Stats, lock: dict, before: dict, before_inclusive: dict) -> None:
+    after = lock.get("timing") or {}
+    for bucket, value in after.items():
+        delta = float(value) - float((before or {}).get(bucket, 0.0))
+        if delta:
+            stats.foundation_timing[bucket] = stats.foundation_timing.get(bucket, 0.0) + delta
+    after_inclusive = lock.get("timing_inclusive") or {}
+    for bucket, value in after_inclusive.items():
+        delta = float(value) - float((before_inclusive or {}).get(bucket, 0.0))
+        if delta:
+            stats.foundation_timing_inclusive[bucket] = (
+                stats.foundation_timing_inclusive.get(bucket, 0.0) + delta
+            )
+
+
+def _mark_meter(meter: Optional[dict], name: str, started: float) -> None:
+    if meter is None:
+        return
+    meter[name] = meter.get(name, 0.0) + (time.perf_counter() - started)
+
+
+def _run_execution(stats: _Stats, state, candidate, profile, time_left: float):
+    """Apply one candidate. ``execute`` is the whole call. ``tactical`` is the remainder."""
+
+    meter: Dict[str, float] = {}
+    started = time.perf_counter()
+    execution = _execute(state, candidate, profile, time_left, meter=meter)
+    elapsed = time.perf_counter() - started
+    stats.component_inclusive["execute"] = stats.component_inclusive.get("execute", 0.0) + elapsed
+    accounted = 0.0
+    for name in ("apply", "realise"):
+        spent = float(meter.get(name, 0.0))
+        if spent:
+            stats.component_s[name] = stats.component_s.get(name, 0.0) + spent
+            accounted += spent
+    stats.component_s["tactical"] = stats.component_s.get("tactical", 0.0) + max(0.0, elapsed - accounted)
+    return execution
 
 
 def _state_id(state: SpiderState) -> str:
@@ -278,11 +339,12 @@ def _purpose_met(kind: str, before: SpiderState, after: SpiderState) -> bool:
     return False
 
 
-def _execute(state: SpiderState, candidate: Candidate, profile: Profile, time_left: float):
+def _execute(state: SpiderState, candidate: Candidate, profile: Profile, time_left: float, meter: Optional[dict] = None):
     """Return status, cost, resulting state, note, remaining actions, applied actions."""
 
     if candidate.objective is not None and not candidate.actions:
         limit = min(profile.tactical_time_s, max(0.05, time_left))
+        realise_started = time.perf_counter()
         found = realize_objective(
             state,
             candidate.objective,
@@ -292,11 +354,14 @@ def _execute(state: SpiderState, candidate: Candidate, profile: Profile, time_le
             time_limit_s=limit,
             beam=32,
         )
+        _mark_meter(meter, "realise", realise_started)
         if found.status == RealizationStatus.FOUND and found.target_verified and found.actions:
             trial = state.clone()
             cost = 0
+            apply_started = time.perf_counter()
             for action in found.actions:
                 cost += apply_action(trial, action)
+            _mark_meter(meter, "apply", apply_started)
             if candidate.objective.is_satisfied(trial):
                 return ("achieved", cost, trial, "objective predicate holds after replay", (), tuple(found.actions))
         return (
@@ -318,7 +383,9 @@ def _execute(state: SpiderState, candidate: Candidate, profile: Profile, time_le
     if not legal:
         return ("blocked", 0, state, "action is not legal in this state", (), ())
     trial = state.clone()
+    apply_started = time.perf_counter()
     cost = apply_action(trial, action)
+    _mark_meter(meter, "apply", apply_started)
     remaining = tuple(candidate.actions[1:])
     if candidate.hold:
         # A blocker relocation is not itself a reveal. The plan already
@@ -489,9 +556,7 @@ def _finish_held(
     The second value is the change in the committed-step count.
     """
 
-    started_exec = time.perf_counter()
-    execution = _execute(line.state, choice, profile, deadline - time.perf_counter())
-    _charge(stats, "tactical", started_exec)
+    execution = _run_execution(stats, line.state, choice, profile, deadline - time.perf_counter())
     if execution[0] in {"achieved", "partial"} and _cycle(line, execution[2], execution[1]):
         execution = ("failed", 0, line.state, "repeat state at no better corrected cost", (), ())
     stats.attempted += 1
@@ -538,6 +603,8 @@ def _record_foundation_proposal(proposal, stats, foundation_trace) -> None:
 
 
 def _recovery_candidate(line, deal_cards, deadline, foundation_cache, foundation_lock, failed, ident, stats):
+    timing_before = dict(foundation_lock.get("timing") or {})
+    inclusive_before = dict(foundation_lock.get("timing_inclusive") or {})
     candidate, events = recover_foundation_step(
         line.state,
         deal_cards,
@@ -545,8 +612,9 @@ def _recovery_candidate(line, deal_cards, deadline, foundation_cache, foundation
         foundation_cache,
         foundation_lock,
         tuple(failed.get(ident, ())),
-        deadline - time.perf_counter(),
+        _proposal_time_left(deadline, foundation_lock),
     )
+    _absorb_foundation_timing(stats, foundation_lock, timing_before, inclusive_before)
     for event in events:
         stats.events.append(event)
     if candidate is None:
@@ -567,6 +635,34 @@ def _proposal_blocked(failed, ident, lock) -> tuple:
         return blocked
     present = set(blocked)
     return blocked + tuple(item for item in extra if item not in present)
+
+
+def _schedule_levels(limits: TacticalLimits) -> list:
+    """Level 1 is the screen. Later rows are the configured search ladder."""
+
+    rows = [
+        {
+            "level": 1,
+            "search": False,
+            "checks": (
+                "absent card, legally movable head, already exposed top, "
+                "no legal tableau move, cached probe"
+            ),
+        }
+    ]
+    previous = None
+    for level, cost, nodes, deadline_s in limits.ladder:
+        row = {
+            "level": int(level),
+            "max_cost": int(cost),
+            "max_nodes": int(nodes),
+            "deadline_s": float(deadline_s),
+        }
+        if previous is not None:
+            row["requires"] = f"level {previous} reduced cover inside its node budget"
+        rows.append(row)
+        previous = int(level)
+    return rows
 
 
 def _frontier_on(profile: Profile, goal: str) -> bool:
@@ -683,16 +779,19 @@ def _resume_foundation_campaign(
     counts[state_key] = counts.get(state_key, 0) + 1
 
     def _propose():
+        timing_before = dict(foundation_lock.get("timing") or {})
+        inclusive_before = dict(foundation_lock.get("timing_inclusive") or {})
         proposal = propose_foundation_step(
             line.state,
             deal_cards,
             profile,
-            deadline - time.perf_counter(),
+            _proposal_time_left(deadline, foundation_lock),
             line.g,
             cache=foundation_cache,
             lock=foundation_lock,
             blocked=_proposal_blocked(failed, ident, foundation_lock),
         )
+        _absorb_foundation_timing(stats, foundation_lock, timing_before, inclusive_before)
         _record_foundation_proposal(proposal, stats, foundation_trace)
         return proposal
 
@@ -725,6 +824,7 @@ def solve(
     deal_cards: Optional[Sequence] = None,
     target_foundations: Optional[int] = None,
     incumbent_origin: Optional[str] = None,
+    schedule: Optional[TacticalLimits] = None,
 ) -> SolveResult:
     """Search from ``state``. The caller's state is not mutated.
 
@@ -745,6 +845,7 @@ def solve(
             incumbent_mw=incumbent_mw,
             opening_g=opening_g,
             provenance_note=provenance_note,
+            schedule=schedule,
             goal=goal,
             deal_cards=deal_cards,
             target_foundations=target_foundations,
@@ -799,7 +900,16 @@ def solve(
     # budget applies only to this solve. A larger budget is a different cache key.
     foundation_cache["_workspace_probe_s"] = 0.08
     foundation_cache["_workspace_probe_cache"] = {"hits": 0, "misses": 0, "negative_hits": 0}
-    foundation_lock: dict = {}
+    foundation_cache["_workspace_timing"] = {}
+    limits = schedule if isinstance(schedule, TacticalLimits) else TacticalLimits()
+    coordinator = BudgetCoordinator(deadline, limits, stats.events)
+    budget_key = register_budget(coordinator)
+    foundation_lock: dict = {
+        "tactical_schedule": "progressive",
+        "proposal_slice_s": limits.proposal_slice_s,
+        "tactical_ladder": limits.ladder,
+        "budget_key": budget_key,
+    }
     foundation_trace: List[dict] = []
     start_foundations = len(root.foundations)
     last_foundation_g = int(opening_g)
@@ -808,6 +918,8 @@ def solve(
         limit=profile.frontier_limit if multiline else 1,
         proposals=profile.proposals_per_decision,
     )
+    frontier.timing = stats.component_s
+    frontier.inclusive = stats.component_inclusive
     branch_log: List[dict] = []
     best_branch: Optional[dict] = None
     success_status = {"SOLVED_VALID", "FOUNDATION_REACHED", "FOUNDATION_TARGET_REACHED"}
@@ -848,6 +960,9 @@ def solve(
             line = _Line(node.state.clone(), int(node.g), list(node.actions), {ident_now: int(node.g)})
         foundation_lock.clear()
         foundation_lock.update(deepcopy(node.lock))
+        foundation_lock.setdefault("tactical_schedule", "progressive")
+        foundation_lock.setdefault("proposal_slice_s", PROPOSAL_SLICE_S)
+        foundation_lock.setdefault("budget_key", budget_key)
         force_id = node.force_id
         if force_id:
             failed.get(_identity(line.state), set()).discard(force_id)
@@ -1058,13 +1173,20 @@ def solve(
                 stop_reason += f"; still queued {len(frontier.queue)}"
             break
         stats.states_evaluated += 1
+        if multiline:
+            foundation_lock["alternatives_waiting"] = len(frontier.queue)
+        else:
+            foundation_lock["alternatives_waiting"] = 0
         if line.state.is_solved():
             trial = root.clone()
+            replay_started = time.perf_counter()
             try:
                 suffix_cost = int(replay_actions(trial, list(line.actions)))
             except ValueError:
+                _charge(stats, "replay", replay_started)
                 status, stop_reason = "INVALID", "claimed terminal failed independent replay"
                 break
+            _charge(stats, "replay", replay_started)
             solved_route = trial.is_solved() and len(trial.foundations) == 8 and not trial.stock
             if not solved_route:
                 status, stop_reason = "INVALID", "claimed terminal failed independent replay"
@@ -1306,22 +1428,42 @@ def solve(
         if not foundation_locked and _foundation_goal(goal) and not line.hold:
             proposal_started = time.perf_counter()
             timing_before = dict(foundation_lock.get("timing") or {})
-            proposal = propose_foundation_step(
-                line.state,
-                deal_cards,
-                profile,
-                deadline - time.perf_counter(),
-                line.g,
-                cache=foundation_cache,
-                lock=foundation_lock,
-                blocked=_proposal_blocked(failed, ident, foundation_lock),
+            inclusive_before = dict(foundation_lock.get("timing_inclusive") or {})
+            blocked_now = _proposal_blocked(failed, ident, foundation_lock)
+            label_now = foundation_lock.get("label") or ""
+            budget = resolve_budget(foundation_lock)
+            skip_proposal = (
+                budget is not None
+                and budget.should_skip_proposal(ident, label_now, line.g, blocked_now)
             )
+            if skip_proposal:
+                proposal = type(
+                    "SkippedProposal",
+                    (),
+                    {
+                        "events": (),
+                        "public": None,
+                        "candidate": None,
+                        "block_deal": False,
+                        "reason": "",
+                        "timeout": False,
+                    },
+                )()
+            else:
+                proposal = propose_foundation_step(
+                    line.state,
+                    deal_cards,
+                    profile,
+                    _proposal_time_left(deadline, foundation_lock),
+                    line.g,
+                    cache=foundation_cache,
+                    lock=foundation_lock,
+                    blocked=blocked_now,
+                )
+                if budget is not None:
+                    budget.mark_evaluated(ident, label_now, line.g, blocked_now)
             _charge(stats, "foundation", proposal_started)
-            timing_after = foundation_lock.get("timing") or {}
-            for bucket, value in timing_after.items():
-                delta = float(value) - float(timing_before.get(bucket, 0.0))
-                if delta:
-                    stats.foundation_timing[bucket] = stats.foundation_timing.get(bucket, 0.0) + delta
+            _absorb_foundation_timing(stats, foundation_lock, timing_before, inclusive_before)
             for event in proposal.events:
                 stats.events.append(event)
             if proposal.public:
@@ -1554,9 +1696,7 @@ def solve(
                 )
                 kept += 1
         deal_snapshot = line.snapshot() if choice.actions[:1] == (("deal",),) else None
-        tactical_started = time.perf_counter()
-        execution = _execute(line.state, choice, exec_profile, deadline - time.perf_counter())
-        _charge(stats, "tactical", tactical_started)
+        execution = _run_execution(stats, line.state, choice, exec_profile, deadline - time.perf_counter())
         if execution[0] in {"achieved", "partial"} and _cycle(line, execution[2], execution[1]):
             execution = ("failed", 0, line.state, "repeat state at no better corrected cost", (), ())
         stats.attempted += 1
@@ -1761,6 +1901,9 @@ def solve(
             line = chosen["payload"]
             foundation_lock.clear()
             foundation_lock.update(deepcopy(chosen["lock"]))
+            foundation_lock.setdefault("tactical_schedule", "progressive")
+            foundation_lock.setdefault("proposal_slice_s", PROPOSAL_SLICE_S)
+            foundation_lock.setdefault("budget_key", budget_key)
             status = chosen["status"]
             stop_reason = chosen["stop_reason"]
             stats.events.append(
@@ -1813,7 +1956,9 @@ def solve(
     budget_stop = status if status in {"TIME_LIMIT", "MEMORY_LIMIT", "STEP_LIMIT"} else None
     if budget_stop is not None:
         stats.resource_stops += 1
+    replay_started = time.perf_counter()
     replay = _validate(root, line.actions, line.state, status == "SOLVED_VALID")
+    _charge(stats, "replay", replay_started)
     if status == "SOLVED_VALID" and replay and replay.get("ok") and line.state.is_solved():
         _adopt(tuple(line.actions), line.g)
     elif status == "SOLVED_VALID" and not (replay and replay.get("ok")):
@@ -1825,11 +1970,13 @@ def solve(
         or line.g > int(best_complete["g"])
     ):
         restored = root.clone()
+        replay_started = time.perf_counter()
         try:
             suffix_cost = int(replay_actions(restored, list(best_complete["actions"])))
         except ValueError:
             restored = None
             suffix_cost = None
+        _charge(stats, "replay", replay_started)
         if (
             restored is not None
             and restored.is_solved()
@@ -1845,7 +1992,9 @@ def solve(
                     f"best verified complete route at corrected MW {line.g}; "
                     f"search stopped: {budget_stop}"
                 )
+            replay_started = time.perf_counter()
             replay = _validate(root, line.actions, line.state, True)
+            _charge(stats, "replay", replay_started)
             if not (replay and replay.get("ok")):
                 status = "INVALID"
                 stop_reason = "claimed terminal failed independent replay"
@@ -1931,8 +2080,10 @@ def solve(
         "stock_empty_assembly_only_when_stock_is_empty": True,
         "nested_budget": (
             "Excavation max_cost is capped by ceiling - g - 1 when a ceiling is set. "
-            "Tactical probes use the remaining global deadline. "
+            "The controller gives each foundation proposal a slice of the remaining global deadline. "
+            "A progressive schedule starts with a small tactical allowance and escalates only after cover falls. "
             "A timeout, a node cap, or that cost cap is not infeasibility. "
+            "A time limit is cached for that deadline only, not as a node-cap result. "
             "The constructive kernel runs only after a play-goal portfolio stop and "
             "uses admissible_remaining with cost_ceiling = incumbent - 1."
         ),
@@ -1942,7 +2093,44 @@ def solve(
         "unique_states_are_strategic": True,
         "deadline_elapsed": bool(time.perf_counter() >= deadline),
         "component_s": {name: round(value, 3) for name, value in stats.component_s.items()},
+        "component_inclusive": {
+            name: round(value, 3) for name, value in stats.component_inclusive.items()
+        },
         "foundation_timing": {name: round(value, 3) for name, value in stats.foundation_timing.items()},
+        "foundation_timing_inclusive": {
+            name: round(value, 3) for name, value in stats.foundation_timing_inclusive.items()
+        },
+        "timing_exclusive": {name: round(value, 3) for name, value in stats.foundation_timing.items()},
+        "timing_inclusive": {
+            name: round(value, 3) for name, value in stats.foundation_timing_inclusive.items()
+        },
+        "timing_note": (
+            "foundation_timing and timing_exclusive omit nested children. "
+            "timing_inclusive contains those children. "
+            "component_s.tactical is the part of _execute that is not apply or realise. "
+            "component_inclusive.execute is the whole _execute call, which v0.119 stored in component_s.tactical. "
+            "Do not add an inclusive bucket to the exclusive bucket of the same work."
+        ),
+        "budget": coordinator.snapshot(),
+        "tactical_schedule": {
+            "name": foundation_lock.get("tactical_schedule") or "unrestricted",
+            "proposal_slice_s": foundation_lock.get("proposal_slice_s"),
+            "time_limit_is_not_a_node_cap": True,
+            "configured": True,
+            "levels": _schedule_levels(limits),
+        },
+        "state_counts": {
+            "unique_strategic_states": len(best_g),
+            "states_evaluated": stats.states_evaluated,
+            "excavation_nodes": int((foundation_lock.get("probe_stats") or {}).get("nodes", 0)),
+            "unique_states_are_strategic": True,
+            "note": (
+                "Strategic identities and tactical excavation nodes are different sets. "
+                "A strategic state is one canonical tableau the controller or the frontier evaluated. "
+                "An excavation node is one position expanded inside a buried-card probe. "
+                "Do not add the two counts."
+            ),
+        },
         "portfolio_cache": dict(foundation_cache.get("_meta") or {}),
         "workspace_probe": {
             "seconds": foundation_cache.get("_workspace_probe_s"),
@@ -1964,6 +2152,7 @@ def solve(
         ),
     }
     _remember(stats)
+    unregister_budget(budget_key)
     return SolveResult(
         status=status,
         mode=mode,
@@ -2005,6 +2194,7 @@ def _solve_then_optimise(
     goal: str,
     deal_cards: Optional[Sequence],
     target_foundations: Optional[int],
+    schedule: Optional[TacticalLimits] = None,
 ) -> SolveResult:
     """Independent solve, then incumbent search with whatever time remains.
 
@@ -2035,6 +2225,7 @@ def _solve_then_optimise(
         goal=goal,
         deal_cards=deal_cards,
         target_foundations=target_foundations,
+        schedule=schedule,
     )
     elapsed = time.perf_counter() - started
     remaining = total - elapsed
@@ -2064,6 +2255,7 @@ def _solve_then_optimise(
             deal_cards=deal_cards,
             target_foundations=target_foundations,
             incumbent_origin="discovered",
+            schedule=schedule,
         )
         peaks = [item for item in (first.peak_rss_mb, second.peak_rss_mb) if item is not None]
         if (

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integrated human-strategy controller for Spider Solitaire. v0.119.
+"""Integrated human-strategy controller for Spider Solitaire. v0.120.
 
 The controller does not start a historical campaign, write the production
 incumbent, or change MobilityWare rules. ``--profile extended`` runs only
@@ -30,6 +30,7 @@ if not getattr(sys, "frozen", False):
 from spider.counterfactual.experiment import reconstruct_roots
 from spider.deal import load_deal
 from spider.human_strategy import SCHEMA_VERSION, coverage_matrix, resolve_profile, solve
+from spider.human_strategy.search_budget import TacticalLimits
 from spider.human_strategy.anchored import optimise_anchored
 from spider.human_strategy.evaluation import cost_led_action
 from spider.human_strategy.incumbent import IncumbentRejected, verify_complete_solution
@@ -41,7 +42,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.119")
+    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.120")
     parser.add_argument("--deal", required=True)
     parser.add_argument(
         "--mode",
@@ -86,6 +87,11 @@ def main(argv=None) -> int:
     parser.add_argument("--proposals", type=int, help="Alternatives saved at one decision, from 1 to 4.")
     parser.add_argument("--slice", type=int, help="New commits on one line before a queued line may run.")
     parser.add_argument("--line-attempts", type=int, help="New objective attempts on one line before yielding.")
+    parser.add_argument("--proposal-slice", type=float, help="Seconds one foundation proposal may spend.")
+    parser.add_argument("--first-nodes", type=int, help="Node cap of the first tactical probe.")
+    parser.add_argument("--first-seconds", type=float, help="Deadline of the first tactical probe.")
+    parser.add_argument("--deep-nodes", type=int, help="Node cap of the deepest tactical probe.")
+    parser.add_argument("--deep-seconds", type=float, help="Deadline of the deepest tactical probe.")
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument(
         "--adaptive",
@@ -197,9 +203,10 @@ def main(argv=None) -> int:
             deal_cards=deal_cards,
             target_foundations=args.target_foundations,
             incumbent_origin=incumbent_origin,
+            schedule=_tactical_schedule(args),
         )
     document = _document(args, deal_path, result, opening)
-    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_119" / f"{args.mode}_{args.profile}.json"
+    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_120" / f"{args.mode}_{args.profile}.json"
     if not out.is_absolute():
         out = REPO / out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -211,7 +218,7 @@ def main(argv=None) -> int:
             list(result.actions),
             moves_path,
             header=(
-                f"v0.119 {args.mode} {args.profile} goal={args.goal} "
+                f"v0.120 {args.mode} {args.profile} goal={args.goal} "
                 f"source={result.provenance.get('incumbent_source')} "
                 f"improved={result.provenance.get('improved')} "
                 f"mw={result.cumulative_g} replay_ok={result.replay and result.replay.get('ok')}"
@@ -234,6 +241,16 @@ def main(argv=None) -> int:
         f"elapsed_s={result.elapsed_s:.3f} peak_rss_mb={result.peak_rss_mb} "
         f"unique_states={getattr(result, 'unique_states', None)}"
     )
+    budget = (result.provenance or {}).get("budget") or {}
+    if budget:
+        print(
+            f"budget_nodes_used={budget.get('nodes_used')} "
+            f"granted={budget.get('nodes_granted')} "
+            f"deferred={budget.get('deferred')} "
+            f"deepened={budget.get('deepened')} "
+            f"cache_hits={budget.get('cache_hits')} "
+            f"awaiting={budget.get('awaiting')}"
+        )
     if result.decisions:
         first = result.decisions[0]
         print(f"first={first.chosen_kind} {first.chosen_id} cost_led={first.cost_led}")
@@ -257,6 +274,42 @@ def main(argv=None) -> int:
     if moves_path is not None:
         print(f"wrote {moves_path}")
     return 0 if result.status != "INVALID" else 1
+
+
+def _tactical_schedule(args):
+    """Build a ladder only when the caller named a limit. Omitted flags keep the derived defaults."""
+
+    named = (
+        args.proposal_slice,
+        args.first_nodes,
+        args.first_seconds,
+        args.deep_nodes,
+        args.deep_seconds,
+    )
+    if all(item is None for item in named):
+        return None
+    base = TacticalLimits()
+    first_level, first_cost, first_nodes, first_seconds = base.ladder[0]
+    deep_level, deep_cost, deep_nodes, deep_seconds = base.ladder[-1]
+    middle = tuple(base.ladder[1:-1])
+    first = (
+        int(first_level),
+        int(first_cost),
+        int(first_nodes if args.first_nodes is None else args.first_nodes),
+        float(first_seconds if args.first_seconds is None else args.first_seconds),
+    )
+    deep = (
+        int(deep_level),
+        int(deep_cost),
+        int(deep_nodes if args.deep_nodes is None else args.deep_nodes),
+        float(deep_seconds if args.deep_seconds is None else args.deep_seconds),
+    )
+    return TacticalLimits(
+        proposal_slice_s=float(base.proposal_slice_s if args.proposal_slice is None else args.proposal_slice),
+        reserve_s=base.reserve_s,
+        deep_share=base.deep_share,
+        ladder=(first, *middle, deep),
+    )
 
 
 def _document(args, deal_path: Path, result, opening) -> dict:

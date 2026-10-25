@@ -38,6 +38,8 @@ from spider.planner.foundation_feasibility import (
 )
 from spider.planner.objective_realizer import RealizationMode, RealizationStatus, realize_objective
 from spider.planner.stock_reception import PreDealShapingObjective, next_stock_row, run_bounded_shaping_probe
+
+from .search_budget import Allowance, resolve_budget
 from spider.research_actions import all_legal_actions, apply_action, face_down_count, step_cost
 from spider.state_identity import canonical_state_key
 
@@ -159,7 +161,11 @@ def load_portfolio(
     only while this call runs. It does not change direct planner calls.
     """
 
-    from spider.planner.backward_strategy import workspace_probe_cache, workspace_probe_seconds
+    from spider.planner.backward_strategy import (
+        workspace_probe_cache,
+        workspace_probe_seconds,
+        workspace_probe_timing,
+    )
 
     meta = cache.setdefault("_meta", {"hits": 0, "misses": 0})
     key = canonical_state_key(state)
@@ -171,10 +177,13 @@ def load_portfolio(
     tokens = []
     probe_s = cache.get("_workspace_probe_s")
     probe_cache = cache.get("_workspace_probe_cache")
+    probe_timing = cache.get("_workspace_timing")
     if probe_s is not None:
         tokens.append((workspace_probe_seconds, workspace_probe_seconds.set(float(probe_s))))
     if isinstance(probe_cache, dict):
         tokens.append((workspace_probe_cache, workspace_probe_cache.set(probe_cache)))
+    if isinstance(probe_timing, dict):
+        tokens.append((workspace_probe_timing, workspace_probe_timing.set(probe_timing)))
     try:
         feasibility = analyze_foundation_feasibility(tuple(cards), state)
         portfolio = analyze_foundation_campaigns(
@@ -260,10 +269,22 @@ def propose_foundation_step(
 
     refused = set(blocked)
     _proposal.active_lock = lock
-    started = time.perf_counter()
+    _bind_budget(lock)
+    call_started = time.perf_counter()
+    allowance = float(time_left)
+
+    def _time_left() -> float:
+        # A progressive proposal spends one slice on analysis and probes together.
+        # Direct callers keep the snapshot they passed in.
+        if lock.get("tactical_schedule") == "progressive":
+            return allowance - (time.perf_counter() - call_started)
+        return allowance
+
     try:
-        feasibility, portfolio = load_portfolio(state, cards, cache)
-        _add_time(lock, "foundation_analysis", time.perf_counter() - started)
+        before_workspace = _workspace_snapshot(cache)
+        with _span(lock, "foundation_analysis"):
+            feasibility, portfolio = load_portfolio(state, cards, cache)
+        _release_workspace_time(lock, cache, before_workspace)
     except (ValueError, KeyError) as exc:
         return FoundationProposal(
             None,
@@ -432,9 +453,8 @@ def propose_foundation_step(
                     agenda,
                 )
             continue
-        realise_started = time.perf_counter()
-        realized, status = _realize(state, item, profile, time_left)
-        _add_time(lock, "tactical_realisation", time.perf_counter() - realise_started)
+        with _span(lock, "tactical_realisation"):
+            realized, status = _realize(state, item, profile, time_left)
         if status == RealizationStatus.RESOURCE_LIMIT:
             timeouts[item.prerequisite_id] = timeouts.get(item.prerequisite_id, 0) + 1
             events.append(f"foundation: tactical timeout does not retire {campaign.label}")
@@ -536,7 +556,7 @@ def propose_foundation_step(
     if open_mandatory or missed_open:
         waiting = open_mandatory[0].prerequisite_id if open_mandatory else "an open prerequisite"
         accessed = _access_proposal(
-            state, g, campaign, agenda, lock, events, refused, time_left, waiting
+            state, g, campaign, agenda, lock, events, refused, _time_left(), waiting
         )
         if accessed is not None:
             return accessed
@@ -608,7 +628,7 @@ def propose_foundation_step(
             f"while the operational epoch stays {operational}"
         )
     accessed = _access_proposal(
-        state, g, campaign, agenda, lock, events, refused, time_left, "the locked suit"
+        state, g, campaign, agenda, lock, events, refused, _time_left(), "the locked suit"
     )
     if accessed is not None:
         return accessed
@@ -625,7 +645,7 @@ def propose_foundation_step(
             "foundation: remaining work is current accessibility, not a past landing column"
         )
         buried = _elapsed_access_proposal(
-            state, g, campaign, agenda, lock, events, refused, time_left
+            state, g, campaign, agenda, lock, events, refused, _time_left()
         )
         if buried is not None:
             return buried
@@ -1491,6 +1511,72 @@ def _add_time(lock: dict, name: str, seconds: float) -> None:
     bucket[name] = float(bucket.get(name, 0.0)) + float(seconds)
 
 
+class _span:
+    """Exclusive time in ``lock['timing']``, inclusive time in ``timing_inclusive``.
+
+    A nested span's full elapsed is a child of the open parent, so adding the
+    exclusive buckets does not count that nested work twice.
+    """
+
+    def __init__(self, lock: dict, name: str):
+        self.lock = lock
+        self.name = name
+        self.started = 0.0
+        self.child = 0.0
+
+    def __enter__(self):
+        stack = self.lock.setdefault("_time_stack", [])
+        stack.append(self)
+        self.started = time.perf_counter()
+        return self
+
+    def __exit__(self, *_exc):
+        elapsed = time.perf_counter() - self.started
+        stack = self.lock.get("_time_stack") or []
+        if stack and stack[-1] is self:
+            stack.pop()
+        if not stack:
+            self.lock.pop("_time_stack", None)
+        exclusive = elapsed - self.child
+        if exclusive < 0:
+            exclusive = 0.0
+        _add_time(self.lock, self.name, exclusive)
+        inclusive = self.lock.setdefault("timing_inclusive", {})
+        inclusive[self.name] = float(inclusive.get(self.name, 0.0)) + elapsed
+        if stack:
+            stack[-1].child += elapsed
+        return False
+
+
+def _workspace_snapshot(cache: dict) -> dict:
+    timing = {}
+    if isinstance(cache, dict):
+        timing = cache.get("_workspace_timing") or {}
+    return {
+        "workspace_planning": float(timing.get("workspace_planning", 0.0) or 0.0),
+        "workspace_cache_lookup": float(timing.get("workspace_cache_lookup", 0.0) or 0.0),
+    }
+
+
+def _release_workspace_time(lock: dict, cache: dict, before: dict) -> None:
+    """Move workspace seconds out of the foundation-analysis exclusive bucket.
+
+    The analyser calls the workspace probe inside ``load_portfolio``. Inclusive
+    foundation analysis still contains that call. Exclusive analysis does not.
+    """
+
+    after = _workspace_snapshot(cache)
+    for name in ("workspace_planning", "workspace_cache_lookup"):
+        delta = after[name] - float(before.get(name, 0.0))
+        if delta <= 0:
+            continue
+        bucket = lock.setdefault("timing", {})
+        bucket["foundation_analysis"] = max(0.0, float(bucket.get("foundation_analysis", 0.0)) - delta)
+        _add_time(lock, name, delta)
+        inclusive = lock.setdefault("timing_inclusive", {})
+        inclusive[name] = float(inclusive.get(name, 0.0)) + delta
+
+
 def _rank_tableau_counts(state: SpiderState, suit: str) -> Dict[int, int]:
     counts = {rank: 0 for rank in range(1, 14)}
     for column in state.columns:
@@ -2289,14 +2375,13 @@ def _bottleneck_proposal(state, g, campaign, agenda, lock, events, time_left, re
     if time_left < 0.05:
         events.append("foundation bottleneck: time guard skipped the probe; this is not infeasibility")
         return None
-    started = time.perf_counter()
-    plan = plan_foundation_bottleneck(
-        state,
-        max_cost=8,
-        max_nodes=2500,
-        time_left=min(1.2, float(time_left)),
-    )
-    _add_time(lock, "bottleneck", time.perf_counter() - started)
+    with _span(lock, "bottleneck"):
+        plan = plan_foundation_bottleneck(
+            state,
+            max_cost=8,
+            max_nodes=2500,
+            time_left=min(1.2, float(time_left)),
+        )
     if plan.status != "RESOURCE_LIMIT":
         cache[probe_key] = plan.status
     events.extend(plan.events)
@@ -2385,9 +2470,23 @@ def excavation_cache_key(fingerprint, source_key, allow_deals, max_cost, max_nod
     )
 
 
+_SCREEN_STATUS = frozenset(
+    {
+        "absent",
+        "already_movable",
+        "already_exposed",
+        "no_legal_tableau_move",
+    }
+)
+
+
 def excavation_probe_category(plan: AccessPlan) -> str:
     """Classify a finished probe without treating a node cap as infeasibility."""
 
+    if plan.status in {"temporarily_deferred", "deferred"}:
+        return "temporarily_deferred"
+    if plan.status in _SCREEN_STATUS:
+        return plan.status
     if plan.status == "progress":
         return "PARTIAL_PROGRESS"
     if plan.status in {"unlocked", "exposed"}:
@@ -2908,8 +3007,55 @@ def _probe_stats(lock: dict) -> dict:
             "nodes": 0,
             "revisits": 0,
             "negative_hits": 0,
+            "screened": 0,
+            "completed": 0,
+            "useful_partial": 0,
+            "deadline_stops": 0,
+            "level2": 0,
+            "level3": 0,
+            "level4": 0,
+            "deferred": 0,
+            "nodes_saved": 0,
+            "refused_reuse": 0,
+            "larger_reprobes": 0,
         },
     )
+
+
+def _scope_fingerprint(state: SpiderState, allow_deals: bool):
+    """Tableau scope, plus the stock itself when the probe is allowed to deal."""
+
+    base = _fingerprint(state)
+    if not allow_deals:
+        return base
+    stock = tuple((card.suit, card.rank) for card in state.stock)
+    return ("deals", base, stock)
+
+
+def _unreusable_entries(cache: dict, key: tuple) -> tuple:
+    """Stored probes that match the state and policy but do not answer ``key``."""
+
+    fingerprint, source_key, allow_deals, _max_cost, max_nodes, strategy = key
+    refused = 0
+    larger = False
+    for stored_key in cache:
+        if not isinstance(stored_key, tuple) or len(stored_key) < 6:
+            continue
+        if (
+            stored_key[0] != fingerprint
+            or stored_key[1] != source_key
+            or stored_key[2] != allow_deals
+            or stored_key[5] != strategy
+        ):
+            continue
+        if tuple(stored_key[:6]) == tuple(key[:6]):
+            if len(stored_key) > 6:
+                refused += 1
+            continue
+        refused += 1
+        if int(stored_key[4]) < int(max_nodes):
+            larger = True
+    return refused, larger
 
 
 def _cached_excavation(
@@ -2925,6 +3071,7 @@ def _cached_excavation(
     time_left,
     strategy="receiver-then-peel",
     deadline_s=2.0,
+    allow_deals: bool = False,
 ):
     """Run one excavation probe, or reuse one whose assumptions cover this call."""
 
@@ -2935,13 +3082,34 @@ def _cached_excavation(
     capped = lock.get("cost_ceiling") if isinstance(lock, dict) else None
     if capped is not None:
         max_cost = min(int(max_cost), max(0, int(capped)))
-    key = excavation_cache_key(_fingerprint(state), source_key, False, max_cost, max_nodes, strategy)
-    cached = excavation_cache_lookup(cache, key)
+    base = excavation_cache_key(
+        _scope_fingerprint(state, allow_deals),
+        source_key,
+        bool(allow_deals),
+        max_cost,
+        max_nodes,
+        strategy,
+    )
+    # A deadline stop answers this node cap only for this amount of time.
+    # The same nodes with a longer deadline must be allowed to run again.
+    effective = round(min(float(deadline_s), max(0.0, float(time_left))), 2)
+    timed_key = base + (effective,)
+    with _span(lock, "cache_lookup"):
+        cached = excavation_cache_lookup(cache, base)
+        if cached is None:
+            cached = cache.get(timed_key)
     if cached is not None:
         stats["hits"] += 1
-        if key not in cache:
+        category = excavation_probe_category(cached)
+        by_status = stats.setdefault("hits_by_status", {})
+        by_status[category] = int(by_status.get(category, 0)) + 1
+        stats["nodes_saved"] = int(stats.get("nodes_saved", 0)) + int(getattr(cached, "nodes", 0) or 0)
+        budget = resolve_budget(lock)
+        if budget is not None:
+            budget.note_cache(hit=True, category=category, nodes=int(getattr(cached, "nodes", 0) or 0))
+        if base not in cache and timed_key not in cache:
             stats["revisits"] += 1
-        if excavation_probe_category(cached) != "SUCCESS":
+        if category != "SUCCESS":
             stats["inconclusive"] += 1
             stats["negative_hits"] = int(stats.get("negative_hits", 0)) + 1
         return cached
@@ -2963,18 +3131,28 @@ def _cached_excavation(
             stop="TIME_LIMIT",
         )
     deadline = time.perf_counter() + max(0.05, min(float(deadline_s), float(time_left)))
-    plan = plan_obstructed_access(
-        state,
-        card,
-        protected,
-        source_key=source_key,
-        column=column,
-        max_cost=max_cost,
-        max_nodes=max_nodes,
-        strategy=strategy,
-        deadline=deadline,
-    )
+    with _span(lock, "excavation_probe"):
+        plan = plan_obstructed_access(
+            state,
+            card,
+            protected,
+            source_key=source_key,
+            column=column,
+            max_cost=max_cost,
+            max_nodes=max_nodes,
+            allow_deals=bool(allow_deals),
+            strategy=strategy,
+            deadline=deadline,
+        )
     stats["misses"] += 1
+    refused, larger = _unreusable_entries(cache, base)
+    if refused:
+        stats["refused_reuse"] = int(stats.get("refused_reuse", 0)) + refused
+    if larger:
+        stats["larger_reprobes"] = int(stats.get("larger_reprobes", 0)) + 1
+    budget = resolve_budget(lock)
+    if budget is not None:
+        budget.note_cache(hit=False, refused=refused, larger=larger)
     if plan is None:
         depth = _cover_depth(state, card) or 0
         plan = _make_access_plan(
@@ -2995,7 +3173,11 @@ def _cached_excavation(
         stats["nodes"] += int(plan.nodes)
         if excavation_probe_category(plan) != "SUCCESS":
             stats["inconclusive"] += 1
-    cache[key] = plan
+    if plan.status == "TIME_LIMIT" or plan.stop == "TIME_LIMIT":
+        cache[timed_key] = plan
+        stats["deadline_stops"] = int(stats.get("deadline_stops", 0)) + 1
+    else:
+        cache[base] = plan
     return plan
 
 
@@ -3018,7 +3200,7 @@ def _excavation_is_executable(plan: Optional[AccessPlan]) -> bool:
 def _justified_expansion(plan: Optional[AccessPlan]) -> bool:
     """One larger probe is allowed when the last one was inconclusive for its own ceiling."""
 
-    if plan is None or plan.status in {"unlocked", "exposed"}:
+    if plan is None or plan.status in {"unlocked", "exposed", "temporarily_deferred", "deferred"} or plan.status in _SCREEN_STATUS:
         return False
     if plan.movable and not plan.actions:
         return False
@@ -3158,42 +3340,406 @@ def _empty_spent_without_receiver(state: SpiderState, card: Card, plan: AccessPl
     return True
 
 
+# Level 2 is the first search. Level 3 and level 4 run only after a probe
+# reduced cover inside its own node budget. A time cut is not that evidence.
+# Direct callers that do not set tactical_schedule keep the historical budgets.
+PROPOSAL_SLICE_S = 1.25
+_PROGRESSIVE_LADDER = (
+    (2, 4, 160, 0.28),
+    (3, 6, 800, 0.55),
+    (4, 8, 4500, 1.25),
+)
+
+
+def _progressive(lock) -> bool:
+    return isinstance(lock, dict) and lock.get("tactical_schedule") == "progressive"
+
+
+def _screen_card(state: SpiderState, card: Card) -> Optional[str]:
+    """Classify a card without searching. None means a probe is still required."""
+
+    depth = _cover_depth(state, card)
+    if depth is None:
+        return "absent"
+    if _legally_movable_head(state, card):
+        return "already_movable"
+    if depth == 0:
+        return "already_exposed"
+    if not any(True for _move in state.enumerate_moves()):
+        return "no_legal_tableau_move"
+    return None
+
+
+def _useful_partial(plan: Optional[AccessPlan]) -> bool:
+    """A legal sequence reduced cover and the node budget, not the clock, stopped it."""
+
+    if plan is None or not plan.actions:
+        return False
+    if plan.status == "TIME_LIMIT" or plan.stop == "TIME_LIMIT":
+        return False
+    if plan.status in {"unlocked", "exposed"} or plan.status in _SCREEN_STATUS:
+        return False
+    if excavation_probe_category(plan) in _EXHAUSTIVE_MISS:
+        return False
+    return int(plan.depth_after) < int(plan.depth_before)
+
+
+def _objective_completed(plan: Optional[AccessPlan]) -> bool:
+    return bool(
+        plan is not None
+        and _excavation_is_executable(plan)
+        and plan.status in {"unlocked", "exposed"}
+    )
+
+
+def _ladder(lock) -> tuple:
+    """Configured steps, or the allowances measured on the v0.119 pilot."""
+
+    if isinstance(lock, dict) and lock.get("tactical_ladder"):
+        return tuple(lock["tactical_ladder"])
+    return _PROGRESSIVE_LADDER
+
+
+def _next_allowance(plan: Optional[AccessPlan], time_left: float, ladder=None):
+    """Return the next configured step, or None when more search is not justified."""
+
+    if float(time_left) < 0.2 or not _useful_partial(plan):
+        return None
+    steps = tuple(ladder) if ladder is not None else _PROGRESSIVE_LADDER
+    requested = int(plan.max_nodes_limit or 0)
+    for step in steps:
+        if int(step[2]) > requested:
+            return step
+    return None
+
+
+def _prefer_plan(current: Optional[AccessPlan], candidate: Optional[AccessPlan]) -> Optional[AccessPlan]:
+    if candidate is None:
+        return current
+    if current is None:
+        return candidate
+    current_ok = _excavation_is_executable(current)
+    candidate_ok = _excavation_is_executable(candidate)
+    if candidate_ok and not current_ok:
+        return candidate
+    if current_ok and not candidate_ok:
+        return current
+    if candidate_ok and current_ok:
+        return min(
+            (current, candidate),
+            key=lambda item: _outcome_rank(item.status, item.depth_after, item.cost, len(item.actions)),
+        )
+    if candidate.actions and candidate.depth_after < current.depth_after:
+        return candidate
+    return current
+
+
+def _bind_budget(lock) -> None:
+    budget = resolve_budget(lock)
+    if budget is None:
+        return
+    budget.note_alternatives(int(lock.get("alternatives_waiting") or 0))
+    budget.begin_proposal()
+
+
+def _run_allowance(
+    state,
+    card,
+    protected,
+    lock,
+    *,
+    source_key,
+    column,
+    time_left,
+    level,
+    max_cost,
+    max_nodes,
+    deadline_s,
+    announce,
+    escalated,
+):
+    stats = _probe_stats(lock)
+    budget = resolve_budget(lock)
+    remaining = max(0.0, float(time_left))
+    if budget is not None:
+        deadline_s = budget.clip(float(deadline_s), remaining, deep=bool(escalated))
+        remaining = min(remaining, max(0.0, budget.remaining()))
+    if remaining < 0.05:
+        depth = _cover_depth(state, card) or 0
+        return _make_access_plan(
+            (),
+            0,
+            "TIME_LIMIT",
+            0,
+            source_key,
+            column,
+            depth,
+            depth,
+            _obstruction_labels(state, card),
+            stop="TIME_LIMIT",
+            max_cost_limit=max_cost,
+            max_nodes_limit=max_nodes,
+        )
+    stats[f"level{int(level)}"] = int(stats.get(f"level{int(level)}", 0)) + 1
+    started = time.perf_counter()
+    found = _cached_excavation(
+        state,
+        card,
+        protected,
+        lock,
+        source_key=source_key,
+        column=column,
+        max_cost=max_cost,
+        max_nodes=max_nodes,
+        time_left=remaining,
+        deadline_s=min(float(deadline_s), remaining),
+    )
+    if budget is not None and found is not None:
+        budget.finish(
+            state,
+            source_key,
+            column,
+            card,
+            found,
+            Allowance(int(level), int(max_cost), int(max_nodes), float(deadline_s)),
+            time.perf_counter() - started,
+        )
+    if announce is not None and found is not None:
+        announce(max_cost, max_nodes, found, escalated)
+    return found
+
+
+def _progressive_excavation(
+    state,
+    card,
+    protected,
+    lock,
+    *,
+    source_key,
+    column,
+    time_left,
+    announce=None,
+    forced=None,
+):
+    """Screen, then one configured allowance.
+
+    With no budget coordinator the historical ladder still climbs inside this
+    call, so direct tests keep that behaviour. The controller's coordinator
+    grants one allowance and returns, then may deepen once after the other
+    targets in the same proposal have had a cheap look.
+    """
+
+    stats = _probe_stats(lock)
+    budget = resolve_budget(lock)
+    if forced is None:
+        with _span(lock, "feasibility_screen"):
+            reason = _screen_card(state, card)
+        if reason is not None:
+            stats["screened"] = int(stats.get("screened", 0)) + 1
+            counts = stats.setdefault("screen_counts", {})
+            counts[reason] = int(counts.get(reason, 0)) + 1
+            depth = _cover_depth(state, card) or 0
+            plan = _make_access_plan(
+                (),
+                0,
+                reason,
+                0,
+                source_key,
+                column,
+                depth,
+                depth,
+                _obstruction_labels(state, card),
+                stop=reason,
+                max_cost_limit=0,
+                max_nodes_limit=0,
+            )
+            if announce is not None:
+                announce(0, 0, plan, False)
+            return plan
+    if budget is not None:
+        if forced is None:
+            decision = budget.begin_probe(state, source_key, column, card, time_left)
+            if decision.kind == "defer":
+                stats["deferred"] = int(stats.get("deferred", 0)) + 1
+                depth = _cover_depth(state, card) or 0
+                plan = _make_access_plan(
+                    (),
+                    0,
+                    "temporarily_deferred",
+                    0,
+                    source_key,
+                    column,
+                    depth,
+                    depth,
+                    _obstruction_labels(state, card),
+                    stop="temporarily_deferred",
+                    max_cost_limit=0,
+                    max_nodes_limit=0,
+                )
+                if announce is not None:
+                    announce(0, 0, plan, False)
+                return plan
+            if decision.kind == "replay" and decision.plan is not None:
+                if announce is not None:
+                    announce(decision.plan.max_nodes_limit, decision.plan.max_nodes_limit, decision.plan, False)
+                return decision.plan
+            allowance = decision.allowance
+        else:
+            allowance = forced
+        found = _run_allowance(
+            state,
+            card,
+            protected,
+            lock,
+            source_key=source_key,
+            column=column,
+            time_left=time_left,
+            level=allowance.level,
+            max_cost=allowance.max_cost,
+            max_nodes=allowance.max_nodes,
+            deadline_s=allowance.deadline_s,
+            announce=announce,
+            escalated=int(allowance.level) > 2,
+        )
+        if _objective_completed(found):
+            stats["completed"] = int(stats.get("completed", 0)) + 1
+        elif _useful_partial(found):
+            stats["useful_partial"] = int(stats.get("useful_partial", 0)) + 1
+        return found
+    started = time.perf_counter()
+    allowance_s = max(0.0, float(time_left))
+    steps = _ladder(lock)
+    plan = None
+    level, max_cost, max_nodes, deadline_s = steps[0]
+    while True:
+        remaining = allowance_s - (time.perf_counter() - started)
+        if remaining < 0.05:
+            break
+        found = _run_allowance(
+            state,
+            card,
+            protected,
+            lock,
+            source_key=source_key,
+            column=column,
+            time_left=remaining,
+            level=level,
+            max_cost=max_cost,
+            max_nodes=max_nodes,
+            deadline_s=min(float(deadline_s), remaining),
+            announce=announce,
+            escalated=int(level) > 2,
+        )
+        plan = _prefer_plan(plan, found)
+        if _objective_completed(found):
+            stats["completed"] = int(stats.get("completed", 0)) + 1
+            plan = found
+            break
+        remaining = allowance_s - (time.perf_counter() - started)
+        nxt = _next_allowance(found, remaining, steps)
+        if nxt is None:
+            if _useful_partial(found):
+                stats["useful_partial"] = int(stats.get("useful_partial", 0)) + 1
+            break
+        stats["useful_partial"] = int(stats.get("useful_partial", 0)) + 1
+        stats["expanded"] = int(stats.get("expanded", 0)) + 1
+        level, max_cost, max_nodes, deadline_s = nxt
+    if plan is None:
+        depth = _cover_depth(state, card) or 0
+        plan = _make_access_plan(
+            (),
+            0,
+            "TIME_LIMIT",
+            0,
+            source_key,
+            column,
+            depth,
+            depth,
+            _obstruction_labels(state, card),
+            stop="TIME_LIMIT",
+            max_cost_limit=max_cost,
+            max_nodes_limit=max_nodes,
+        )
+    return plan
+
+
+def _deepen_if_scheduled(state, protected, lock, time_left, announce=None):
+    """At most one larger probe after this proposal's cheap passes."""
+
+    budget = resolve_budget(lock)
+    if budget is None:
+        return None
+    grant = budget.take_deepen(time_left)
+    if grant is None:
+        return None
+    return _progressive_excavation(
+        state,
+        grant.card,
+        protected,
+        lock,
+        source_key=grant.objective,
+        column=grant.column,
+        time_left=time_left,
+        announce=announce,
+        forced=grant.allowance,
+    )
+
+
 def _access_proposal(state, g, campaign, agenda, lock, events, refused, time_left, waiting):
     if time_left < 0.15:
         return None
     started = time.perf_counter()
     targets = obstructed_tableau_sources(state, campaign)
     plan = None
-    for depth, _rank, source_key, card, column, _zone in targets[:2]:
-        ident = f"access:{source_key}"
-        if ident in refused:
-            continue
-        found = _cached_excavation(
-            state,
-            card,
-            agenda.protected_fragments,
-            lock,
-            source_key=source_key,
-            column=column,
-            max_cost=4,
-            max_nodes=800,
-            time_left=time_left,
-        )
-        if not _excavation_is_executable(found):
-            note = f"{source_key} depth {depth} {excavation_probe_category(found) if found else 'missing'}"
-            unresolved = lock.setdefault("unresolved_access", [])
-            if note not in unresolved:
-                unresolved.append(note)
-            continue
-        if _empty_spent_without_receiver(state, card, found, campaign.suit):
-            events.append(
-                f"foundation: {source_key} spends the only empty column and {card} "
-                "is not a receiver for its suit; not played"
-            )
-            continue
-        plan = found
-        break
-    _add_time(lock, "dependency_planning", time.perf_counter() - started)
+    with _span(lock, "dependency_planning"):
+        for depth, _rank, source_key, card, column, _zone in targets[:2]:
+            ident = f"access:{source_key}"
+            if ident in refused:
+                continue
+            if _progressive(lock):
+                found = _progressive_excavation(
+                    state,
+                    card,
+                    agenda.protected_fragments,
+                    lock,
+                    source_key=source_key,
+                    column=column,
+                    time_left=time_left - (time.perf_counter() - started),
+                )
+            else:
+                found = _cached_excavation(
+                    state,
+                    card,
+                    agenda.protected_fragments,
+                    lock,
+                    source_key=source_key,
+                    column=column,
+                    max_cost=4,
+                    max_nodes=800,
+                    time_left=time_left,
+                )
+            if not _excavation_is_executable(found):
+                note = f"{source_key} depth {depth} {excavation_probe_category(found) if found else 'missing'}"
+                unresolved = lock.setdefault("unresolved_access", [])
+                if note not in unresolved:
+                    unresolved.append(note)
+                continue
+            if _empty_spent_without_receiver(state, card, found, campaign.suit):
+                events.append(
+                    f"foundation: {source_key} spends the only empty column and {card} "
+                    "is not a receiver for its suit; not played"
+                )
+                continue
+            plan = found
+            break
+    extra = _deepen_if_scheduled(
+        state,
+        agenda.protected_fragments,
+        lock,
+        time_left - (time.perf_counter() - started),
+    )
+    if extra is not None and _excavation_is_executable(extra):
+        plan = extra
     if plan is None:
         return None
     blockers = " ".join(plan.obstruction) if plan.obstruction else "none"
@@ -3253,70 +3799,107 @@ def _elapsed_access_proposal(state, g, campaign, agenda, lock, events, refused, 
     started = time.perf_counter()
     found_plans = []
     examined = 0
-    for _role_rank, depth, source_key, card, column, role in _excavation_targets(state, campaign):
-        if examined >= 2:
-            break
-        ident = f"access:{source_key}"
-        if ident in refused:
-            continue
-        examined += 1
-        relevant = role in {"connector", "chosen"}
-        plan = _cached_excavation(
-            state,
-            card,
-            agenda.protected_fragments,
-            lock,
-            source_key=source_key,
-            column=column,
-            max_cost=6,
-            max_nodes=2000,
-            time_left=time_left,
-            deadline_s=3.0,
-        )
-        events.append(
-            f"foundation: excavation {card} column {column + 1} role {role} "
-            f"cover {depth} budget cost 6 nodes 2000 -> {excavation_probe_category(plan)} "
-            f"status {plan.status} nodes {plan.nodes}"
-        )
-        if (
-            relevant
-            and not _excavation_is_executable(plan)
-            and _justified_expansion(plan)
-            and time_left > 1.0
-        ):
-            _probe_stats(lock)["expanded"] += 1
-            plan = _cached_excavation(
-                state,
-                card,
-                agenda.protected_fragments,
-                lock,
-                source_key=source_key,
-                column=column,
-                max_cost=8,
-                max_nodes=4500,
-                time_left=time_left - (time.perf_counter() - started),
-                deadline_s=12.0,
-            )
-            events.append(
-                f"foundation: expanded excavation {card} budget cost 8 nodes 4500 -> "
-                f"{excavation_probe_category(plan)} status {plan.status} nodes {plan.nodes}"
-            )
-        if not _excavation_is_executable(plan):
-            events.append(
-                f"foundation: {excavation_probe_category(plan)} buried {card} on column {column + 1} "
-                f"cover {depth}; this bound is not infeasibility"
-            )
-            lock["feasibility_status"] = excavation_probe_category(plan)
-            continue
-        found_plans.append(plan)
-        # A partial peel is not operational access. Keep the second target
-        # eligible. Stop early only for a reveal or an unlocked card that
-        # leaves a long same-suit run intact.
-        if plan.status in {"unlocked", "exposed"} and not _shortens_long_fragment(
-            state, plan.actions, campaign.suit
-        ):
-            break
-    _add_time(lock, "dependency_planning", time.perf_counter() - started)
+    announcer = None
+    with _span(lock, "dependency_planning"):
+        for _role_rank, depth, source_key, card, column, role in _excavation_targets(state, campaign):
+            if examined >= 2:
+                break
+            ident = f"access:{source_key}"
+            if ident in refused:
+                continue
+            examined += 1
+            relevant = role in {"connector", "chosen"}
+            if _progressive(lock):
+                def _announce(max_cost, max_nodes, found, escalated, card=card, column=column, role=role, depth=depth):
+                    if escalated:
+                        events.append(
+                            f"foundation: expanded excavation {card} budget cost {max_cost} "
+                            f"nodes {max_nodes} -> {excavation_probe_category(found)} "
+                            f"status {found.status} nodes {found.nodes}"
+                        )
+                    else:
+                        events.append(
+                            f"foundation: excavation {card} column {column + 1} role {role} "
+                            f"cover {depth} budget cost {max_cost} nodes {max_nodes} -> "
+                            f"{excavation_probe_category(found)} status {found.status} nodes {found.nodes}"
+                        )
+
+                announcer = _announce
+                plan = _progressive_excavation(
+                    state,
+                    card,
+                    agenda.protected_fragments,
+                    lock,
+                    source_key=source_key,
+                    column=column,
+                    time_left=time_left - (time.perf_counter() - started),
+                    announce=_announce,
+                )
+            else:
+                plan = _cached_excavation(
+                    state,
+                    card,
+                    agenda.protected_fragments,
+                    lock,
+                    source_key=source_key,
+                    column=column,
+                    max_cost=6,
+                    max_nodes=2000,
+                    time_left=time_left,
+                    deadline_s=3.0,
+                )
+                events.append(
+                    f"foundation: excavation {card} column {column + 1} role {role} "
+                    f"cover {depth} budget cost 6 nodes 2000 -> {excavation_probe_category(plan)} "
+                    f"status {plan.status} nodes {plan.nodes}"
+                )
+                if (
+                    relevant
+                    and not _excavation_is_executable(plan)
+                    and _justified_expansion(plan)
+                    and time_left > 1.0
+                ):
+                    _probe_stats(lock)["expanded"] += 1
+                    plan = _cached_excavation(
+                        state,
+                        card,
+                        agenda.protected_fragments,
+                        lock,
+                        source_key=source_key,
+                        column=column,
+                        max_cost=8,
+                        max_nodes=4500,
+                        time_left=time_left - (time.perf_counter() - started),
+                        deadline_s=12.0,
+                    )
+                    events.append(
+                        f"foundation: expanded excavation {card} budget cost 8 nodes 4500 -> "
+                        f"{excavation_probe_category(plan)} status {plan.status} nodes {plan.nodes}"
+                    )
+            if not _excavation_is_executable(plan):
+                events.append(
+                    f"foundation: {excavation_probe_category(plan)} buried {card} on column {column + 1} "
+                    f"cover {depth}; this bound is not infeasibility"
+                )
+                lock["feasibility_status"] = excavation_probe_category(plan)
+                continue
+            found_plans.append(plan)
+            # A partial peel is not operational access. Keep the second target
+            # eligible. Stop early only for a reveal or an unlocked card that
+            # leaves a long same-suit run intact.
+            if plan.status in {"unlocked", "exposed"} and not _shortens_long_fragment(
+                state, plan.actions, campaign.suit
+            ):
+                break
+    extra = _deepen_if_scheduled(
+        state,
+        agenda.protected_fragments,
+        lock,
+        time_left - (time.perf_counter() - started),
+        announcer,
+    )
+    if extra is not None and _excavation_is_executable(extra):
+        found_plans.append(extra)
     if not found_plans:
         return None
     def _rank(item: AccessPlan):
@@ -3366,13 +3949,19 @@ def recover_foundation_step(state, cards, g, cache, lock, blocked, time_left):
     if time_left < 0.15:
         events.append("foundation: recovery search stopped at the time guard")
         return None, tuple(events)
+    _bind_budget(lock)
     state_key = canonical_state_key(state)
     if lock.get("recovery_key") == state_key:
         events.append("foundation: recovery already attempted on this state")
         return None, tuple(events)
     lock["recovery_key"] = state_key
+    call_started = time.perf_counter()
+    allowance = float(time_left)
     try:
-        _feasibility, portfolio = load_portfolio(state, cards, cache)
+        before_workspace = _workspace_snapshot(cache)
+        with _span(lock, "foundation_analysis"):
+            _feasibility, portfolio = load_portfolio(state, cards, cache)
+        _release_workspace_time(lock, cache, before_workspace)
     except (ValueError, KeyError) as exc:
         events.append(f"foundation: recovery analysis unavailable ({exc})")
         return None, tuple(events)
@@ -3380,64 +3969,99 @@ def recover_foundation_step(state, cards, g, cache, lock, blocked, time_left):
     active = lock.get("label")
     order = [item for item in portfolio.campaigns if item.label != active]
     order.extend(item for item in portfolio.campaigns if item.label == active)
-    started = time.perf_counter()
     examined = 0
-    for campaign in order:
-        if examined >= 3:
-            break
-        examined += 1
-        status = campaign_near_term_status(state, campaign)
-        events.append(
-            f"foundation: recovery considers {campaign.label} status {status} "
-            f"epoch {campaign.target_removal_epoch}"
-        )
-        buried = _buried_cards(state, campaign.suit)
-        if not buried:
-            continue
-        depth, column, index, card = buried[0]
-        source_key = f"tableau:{column}:down:{index}"
-        ident = f"recover:{source_key}"
-        if ident in refused:
-            continue
-        plan = _cached_excavation(
-            state,
-            card,
-            (),
-            lock,
-            source_key=source_key,
-            column=column,
-            max_cost=4,
-            max_nodes=600,
-            time_left=time_left,
-        )
-        if not _excavation_is_executable(plan):
+    with _span(lock, "dependency_planning"):
+        for campaign in order:
+            if examined >= 3:
+                break
+            examined += 1
+            status = campaign_near_term_status(state, campaign)
             events.append(
-                f"foundation: {excavation_probe_category(plan)} recovery did not uncover {card} "
-                f"at cover {depth}; this is not infeasibility"
+                f"foundation: recovery considers {campaign.label} status {status} "
+                f"epoch {campaign.target_removal_epoch}"
             )
-            continue
-        _add_time(lock, "dependency_planning", time.perf_counter() - started)
+            buried = _buried_cards(state, campaign.suit)
+            if not buried:
+                continue
+            depth, column, index, card = buried[0]
+            source_key = f"tableau:{column}:down:{index}"
+            ident = f"recover:{source_key}"
+            if ident in refused:
+                continue
+            if _progressive(lock):
+                plan = _progressive_excavation(
+                    state,
+                    card,
+                    (),
+                    lock,
+                    source_key=source_key,
+                    column=column,
+                    time_left=allowance - (time.perf_counter() - call_started),
+                )
+            else:
+                plan = _cached_excavation(
+                    state,
+                    card,
+                    (),
+                    lock,
+                    source_key=source_key,
+                    column=column,
+                    max_cost=4,
+                    max_nodes=600,
+                    time_left=time_left,
+                )
+            if not _excavation_is_executable(plan):
+                events.append(
+                    f"foundation: {excavation_probe_category(plan)} recovery did not uncover {card} "
+                    f"at cover {depth}; this is not infeasibility"
+                )
+                continue
+            events.append(
+                f"foundation: recovery plays {len(plan.actions)} moves to reach buried {card}"
+            )
+            lock["feasibility_status"] = "REQUIRES_PREPARATION"
+            candidate = _make_candidate(
+                g,
+                ident,
+                "ACCESS",
+                tuple(plan.actions),
+                hold=True,
+                benefit=2.0,
+                evidence=(
+                    f"fact: recovery uncovers {card} for {campaign.label}",
+                    f"fact: cover {plan.depth_before} -> {plan.depth_after}",
+                    f"fact: outcome {plan.status}",
+                    "fact: the sequence is a bounded access search, not a proof bound",
+                ),
+                purpose="recover access toward a foundation card",
+            )
+            return candidate, tuple(events)
+    extra = _deepen_if_scheduled(
+        state,
+        (),
+        lock,
+        allowance - (time.perf_counter() - call_started),
+    )
+    if extra is not None and _excavation_is_executable(extra):
         events.append(
-            f"foundation: recovery plays {len(plan.actions)} moves to reach buried {card}"
+            f"foundation: recovery plays {len(extra.actions)} moves to reach buried {extra.source_key}"
         )
-        lock["feasibility_status"] = "REQUIRES_PREPARATION"
         candidate = _make_candidate(
             g,
-            ident,
+            f"recover:{extra.source_key}",
             "ACCESS",
-            tuple(plan.actions),
+            tuple(extra.actions),
             hold=True,
             benefit=2.0,
             evidence=(
-                f"fact: recovery uncovers {card} for {campaign.label}",
-                f"fact: cover {plan.depth_before} -> {plan.depth_after}",
-                f"fact: outcome {plan.status}",
+                f"fact: recovery uncovers {extra.source_key}",
+                f"fact: cover {extra.depth_before} -> {extra.depth_after}",
+                f"fact: outcome {extra.status}",
                 "fact: the sequence is a bounded access search, not a proof bound",
             ),
             purpose="recover access toward a foundation card",
         )
         return candidate, tuple(events)
-    _add_time(lock, "dependency_planning", time.perf_counter() - started)
     legal = [action for action in all_legal_actions(state) if action != ("deal",)]
     events.append(
         "foundation: remaining legal tableau moves "
@@ -3567,14 +4191,13 @@ def plan_receiver_alignment(
 def _alignment_proposal(state, g, campaign, agenda, lock, events, time_left):
     if time_left < 0.2 or not state.can_deal():
         return None
-    started = time.perf_counter()
-    found = plan_receiver_alignment(state, campaign)
-    _add_time(lock, "receiver_alignment", time.perf_counter() - started)
+    with _span(lock, "receiver_alignment"):
+        found = plan_receiver_alignment(state, campaign)
     if found is None:
         return None
     comparison, notes = found
-    compare_started = time.perf_counter()
-    _add_time(lock, "consequence_comparison", time.perf_counter() - compare_started)
+    with _span(lock, "consequence_comparison"):
+        pass
     for note in notes:
         if note not in events:
             events.append(f"foundation: {note}")
@@ -3760,10 +4383,11 @@ def _burial_facts(state, dealt, suit: str, protected, lock=None) -> Optional[Lis
                 "and one legal move lifts that cover"
             )
             continue
-        started = time.perf_counter()
-        recovery = search_post_deal_recovery(dealt, old_top, protected)
-        if lock is not None:
-            _add_time(lock, "consequence_probing", time.perf_counter() - started)
+        if lock is None:
+            recovery = search_post_deal_recovery(dealt, old_top, protected)
+        else:
+            with _span(lock, "consequence_probing"):
+                recovery = search_post_deal_recovery(dealt, old_top, protected)
         if recovery is None:
             return None
         covered.append(
@@ -3954,9 +4578,8 @@ def _necessary_deal(state, g, campaign, agenda, lock, events, refused, operation
         apply_action(dealt, ("deal",))
     except ValueError:
         return None
-    started = time.perf_counter()
-    covered = _burial_facts(state, dealt, campaign.suit, agenda.protected_fragments, lock)
-    _add_time(lock, "dependency_planning", time.perf_counter() - started)
+    with _span(lock, "dependency_planning"):
+        covered = _burial_facts(state, dealt, campaign.suit, agenda.protected_fragments, lock)
     if covered is None:
         return None
     descriptions = []
