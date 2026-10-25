@@ -29,6 +29,9 @@ cheapest corrected g, and the snapshot that reached it.
   prune remains the incumbent bound inside the controller. A line the
   controller refuses before ``consider`` is an incumbent prune, not
   ``dropped_full``. ``dropped_full`` is a heuristic exclusion.
+* Each refusal is also recorded in ``exclusion_log``. A full frontier does
+  not prove the omitted line cannot improve a complete game. The successor
+  of a queued objective is absent until that objective is played.
 
 Bond counts are not compared raw across different foundation counts. The
 ordering and the reported-outcome rank add twelve per removed foundation,
@@ -41,6 +44,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from spider.engine import SpiderState
+from spider.packed_state import pack_state
 from spider.research_actions import face_down_count
 from spider.state_identity import canonical_state_key
 
@@ -160,6 +164,8 @@ class StrategicFrontier:
     dropped_full: int = 0
     replaced: int = 0
     same_moves: int = 0
+    exclusion_log: List[dict] = field(default_factory=list)
+    exclusion_overflow: int = 0
 
     def __post_init__(self) -> None:
         self.limit = max(1, min(16, int(self.limit)))
@@ -208,6 +214,17 @@ class StrategicFrontier:
         known = self.best_g.get(ident)
         if known is not None and int(g) > known:
             self.transpositions += 1
+            self._note_exclusion(
+                "transposition_dominance",
+                state=state,
+                g=int(g),
+                reason=reason,
+                label=label,
+                force_id=force_id,
+                priority=line_priority(state, int(g), label),
+                equivalent=True,
+                proof=True,
+            )
             event = self._union_on_cheaper(ident, label, force_id, reason)
             return False, event
         if known is None or int(g) < known:
@@ -219,6 +236,17 @@ class StrategicFrontier:
         node = self._node(state, int(g), actions, lock, force_id, reason, label, payload, token)
         if len(self.queue) >= self.limit and not self._make_room(node):
             self.dropped_full += 1
+            self._note_exclusion(
+                "heuristic_admission",
+                state=state,
+                g=int(g),
+                reason=reason,
+                label=label,
+                force_id=force_id,
+                priority=node.priority,
+                equivalent=self._state_retained(ident),
+                proof=False,
+            )
             return False, (
                 f"frontier: capacity held {reason} unexpanded at g={g}; "
                 "a full frontier is not exhaustion"
@@ -341,6 +369,17 @@ class StrategicFrontier:
         )
         if len(self.queue) >= self.limit and not self._make_room(node):
             self.dropped_full += 1
+            self._note_exclusion(
+                "heuristic_admission",
+                state=snap["state"],
+                g=int(snap["g"]),
+                reason=f"{label} stayed unexpanded because the frontier is full",
+                label=label,
+                force_id=None,
+                priority=node.priority,
+                equivalent=True,
+                proof=False,
+            )
             return (
                 f"frontier: transposition keeps g={snap['g']}; "
                 f"{label} stayed unexpanded because the frontier is full"
@@ -382,6 +421,19 @@ class StrategicFrontier:
             if not others:
                 return False
             victim = max(others, key=lambda node: node.priority)
+        self._note_exclusion(
+            "heuristic_admission",
+            state=victim.state,
+            g=victim.g,
+            reason=f"evicted to admit another line: {victim.reason}",
+            label=victim.label,
+            force_id=victim.force_id,
+            priority=victim.priority,
+            equivalent=any(
+                item is not victim and item.token[0] == victim.token[0] for item in self.queue
+            ),
+            proof=False,
+        )
         self.queue.remove(victim)
         self.dropped_full += 1
         return True
@@ -402,6 +454,45 @@ class StrategicFrontier:
             priority=line_priority(state, int(g), label),
             signature=signature,
             token=token,
+        )
+
+    def _state_retained(self, ident) -> bool:
+        if any(item.token[0] == ident for item in self.queue):
+            return True
+        return any(token[0] == ident for token in self.expanded)
+
+    def _note_exclusion(
+        self,
+        kind: str,
+        *,
+        state: SpiderState,
+        g: int,
+        reason: str,
+        label: str,
+        force_id: Optional[str],
+        priority,
+        equivalent: bool,
+        proof: bool,
+    ) -> None:
+        """Record why a line was not kept. This is not a second prune."""
+
+        if len(self.exclusion_log) >= 128:
+            self.exclusion_overflow += 1
+            return
+        value = None if priority is None else [item for item in priority]
+        self.exclusion_log.append(
+            {
+                "kind": kind,
+                "objective": force_id or reason,
+                "reason": reason,
+                "label": label or "",
+                "g": int(g),
+                "strategic_value": value,
+                "parent_state": pack_state(state).hex()[:16],
+                "successor_state": None,
+                "equivalent_retained": bool(equivalent),
+                "proof": bool(proof),
+            }
         )
 
     @staticmethod

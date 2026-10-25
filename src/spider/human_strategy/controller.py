@@ -217,10 +217,17 @@ class _Stats:
     dominance_discards: int = 0
     resource_stops: int = 0
     ceiling: Optional[int] = None
+    component_s: Dict[str, float] = field(default_factory=dict)
+    exclusion_log: List[dict] = field(default_factory=list)
+    resource_noted: bool = False
 
 
 def _identity(state: SpiderState):
     return canonical_state_key(state)
+
+
+def _charge(stats: _Stats, bucket: str, started: float) -> None:
+    stats.component_s[bucket] = stats.component_s.get(bucket, 0.0) + (time.perf_counter() - started)
 
 
 def _state_id(state: SpiderState) -> str:
@@ -481,7 +488,9 @@ def _finish_held(
     The second value is the change in the committed-step count.
     """
 
+    started_exec = time.perf_counter()
     execution = _execute(line.state, choice, profile, deadline - time.perf_counter())
+    _charge(stats, "tactical", started_exec)
     if execution[0] in {"achieved", "partial"} and _cycle(line, execution[2], execution[1]):
         execution = ("failed", 0, line.state, "repeat state at no better corrected cost", (), ())
     stats.attempted += 1
@@ -569,12 +578,29 @@ def _retain_line(frontier, stats, line, lock, *, force_id, reason, label) -> Non
     snapshot = line.snapshot()
     ceiling = getattr(stats, "ceiling", None)
     if ceiling is not None:
+        bound_started = time.perf_counter()
         bound = admissible_remaining(snapshot.state)
+        _charge(stats, "bounds", bound_started)
         stats.bounds_evaluated += 1
         if proof_prune(snapshot.g, bound, ceiling):
             stats.incumbent_prunes += 1
             stats.events.append(
                 f"incumbent bound: g {snapshot.g} plus admissible {bound} cannot beat {ceiling}"
+            )
+            stats.exclusion_log.append(
+                {
+                    "kind": "incumbent_prune",
+                    "objective": force_id or reason,
+                    "reason": f"g {snapshot.g} plus admissible {bound} >= {ceiling}",
+                    "label": label or "",
+                    "g": int(snapshot.g),
+                    "admissible": int(bound),
+                    "strategic_value": None,
+                    "parent_state": pack_state(snapshot.state).hex()[:16],
+                    "successor_state": None,
+                    "equivalent_retained": False,
+                    "proof": True,
+                }
             )
             return
     _accepted, event = frontier.consider(
@@ -914,6 +940,27 @@ def solve(
         if status_now in success_status or status_now in {"TIME_LIMIT", "MEMORY_LIMIT", "STEP_LIMIT"}:
             return False
         if time.perf_counter() >= deadline - 0.05:
+            if (
+                not stats.resource_noted
+                and frontier.queue
+                and status_now == "PLANNING_STALL"
+            ):
+                stats.resource_noted = True
+                stats.exclusion_log.append(
+                    {
+                        "kind": "resource_limitation",
+                        "objective": "",
+                        "reason": "deadline left under 0.05s; queued lines were not started",
+                        "label": "",
+                        "g": int(line.g),
+                        "strategic_value": None,
+                        "parent_state": pack_state(line.state).hex()[:16],
+                        "successor_state": None,
+                        "equivalent_retained": False,
+                        "proof": False,
+                        "queued": len(frontier.queue),
+                    }
+                )
             return False
         if status_now == "PLANNING_STALL":
             _seed_divergences()
@@ -1055,7 +1102,9 @@ def solve(
                 break
             line, force_id = jumped
             continue
+        bound_started = time.perf_counter()
         bound = admissible_remaining(line.state)
+        _charge(stats, "bounds", bound_started)
         stats.bounds_evaluated += 1
         if proof_prune(line.g, bound, stats.ceiling):
             stats.incumbent_prunes += 1
@@ -1127,7 +1176,9 @@ def solve(
             ranked = list(cache[cache_key])
         else:
             stats.cache_misses += 1
+            candidate_started = time.perf_counter()
             ranked = build_candidates(ctx, profile, blocked_ids=blocked)
+            _charge(stats, "candidates", candidate_started)
             cache[cache_key] = list(ranked)
         if line.remaining and line.active_id:
             continuation = _retarget(line, ctx)
@@ -1149,6 +1200,7 @@ def solve(
             if legal_now:
                 resumed = None
                 if goal == "foundations":
+                    resume_started = time.perf_counter()
                     resumed = _resume_foundation_campaign(
                         line,
                         goal,
@@ -1163,6 +1215,7 @@ def solve(
                         foundation_trace,
                         frontier,
                     )
+                    _charge(stats, "foundation", resume_started)
                 if resumed is not None:
                     candidate, resume_reason = resumed
                     ranked = [candidate]
@@ -1245,6 +1298,7 @@ def solve(
                 reason = foundation_lock.pop("forced_foundation_reason", reason)
                 foundation_locked = True
         if not foundation_locked and _foundation_goal(goal) and not line.hold:
+            proposal_started = time.perf_counter()
             proposal = propose_foundation_step(
                 line.state,
                 deal_cards,
@@ -1255,6 +1309,7 @@ def solve(
                 lock=foundation_lock,
                 blocked=_proposal_blocked(failed, ident, foundation_lock),
             )
+            _charge(stats, "foundation", proposal_started)
             for event in proposal.events:
                 stats.events.append(event)
             if proposal.public:
@@ -1378,12 +1433,14 @@ def solve(
             and line.state.can_deal()
         ):
             if ident not in comparisons:
+                compare_started = time.perf_counter()
                 comparisons[ident] = compare_before_deal(
                     line.state,
                     ranked,
                     profile,
                     deadline - time.perf_counter(),
                 )
+                _charge(stats, "compare", compare_started)
                 compared = comparisons[ident]
                 if compared is not None:
                     prep_text = "none" if compared.prep_net is None else f"{compared.prep_net:.2f}"
@@ -1485,7 +1542,9 @@ def solve(
                 )
                 kept += 1
         deal_snapshot = line.snapshot() if choice.actions[:1] == (("deal",),) else None
+        tactical_started = time.perf_counter()
         execution = _execute(line.state, choice, exec_profile, deadline - time.perf_counter())
+        _charge(stats, "tactical", tactical_started)
         if execution[0] in {"achieved", "partial"} and _cycle(line, execution[2], execution[1]):
             execution = ("failed", 0, line.state, "repeat state at no better corrected cost", (), ())
         stats.attempted += 1
@@ -1865,6 +1924,20 @@ def solve(
             "The constructive kernel runs only after a play-goal portfolio stop and "
             "uses admissible_remaining with cost_ceiling = incumbent - 1."
         ),
+        "approach": "global",
+        "anchored_used": False,
+        "cold_injection": False,
+        "unique_states_are_strategic": True,
+        "deadline_elapsed": bool(time.perf_counter() >= deadline),
+        "component_s": {name: round(value, 3) for name, value in stats.component_s.items()},
+        "exclusion_log": list(stats.exclusion_log),
+        "excavation_probe_stats": dict(foundation_lock.get("probe_stats") or {}),
+        "planning_stall_is_not_time_limit": (
+            "PLANNING_STALL means the strategic policy stopped while legal tableau "
+            "moves remained. TIME_LIMIT is recorded when the loop header, or the "
+            "play-goal kernel, observes the deadline. A probe that uses the last "
+            "of the budget inside an iteration can leave PLANNING_STALL."
+        ),
     }
     _remember(stats)
     return SolveResult(
@@ -2075,6 +2148,8 @@ def _frontier_provenance(root, frontier, branch_log, multiline, profile, started
         "merges": frontier.merges,
         "dropped_full": frontier.dropped_full,
         "replaced": frontier.replaced,
+        "exclusions": list(getattr(frontier, "exclusion_log", ()) or ()),
+        "exclusion_overflow": int(getattr(frontier, "exclusion_overflow", 0) or 0),
         "same_moves": frontier.same_moves,
         "unique_histories": len({tuple(item["actions"]) for item in reported}),
         "still_queued": len(frontier.queue),

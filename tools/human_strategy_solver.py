@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Integrated human-strategy controller for Spider Solitaire. v0.117.
+"""Integrated human-strategy controller for Spider Solitaire. v0.118.
 
 The controller does not start a historical campaign, write the production
 incumbent, or change MobilityWare rules. ``--profile extended`` runs only
 when named. ``--mode solve`` seeks a complete game from the opening.
 ``--mode optimise`` requires a replay-verified complete incumbent and
 searches for a strictly cheaper finished game. ``--mode solve-optimise``
-tries an independent solve first. Cold mode and solve mode never load a
-known solution. ``--root post-sd3`` remains diagnose-only.
+tries an independent solve first. ``--mode anchored`` rewrites segments of
+a verified route and keeps the suffix only after an exact column-ordered
+rejoin. Cold mode and solve mode never load a known solution.
+``--root post-sd3`` remains diagnose-only.
 
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode solve --profile pilot --time-limit 150
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode optimise --incumbent solutions/4925153_autonomous_185.moves --goal foundations --target-foundations 8 --profile pilot --time-limit 150
@@ -27,6 +29,7 @@ if not getattr(sys, "frozen", False):
 from spider.counterfactual.experiment import reconstruct_roots
 from spider.deal import load_deal
 from spider.human_strategy import SCHEMA_VERSION, coverage_matrix, resolve_profile, solve
+from spider.human_strategy.anchored import optimise_anchored
 from spider.human_strategy.evaluation import cost_led_action
 from spider.human_strategy.incumbent import IncumbentRejected, verify_complete_solution
 from spider.metrics import export_actions_to_moves_file, format_action, parse_moves_file
@@ -37,11 +40,11 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.117")
+    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.118")
     parser.add_argument("--deal", required=True)
     parser.add_argument(
         "--mode",
-        choices=("cold", "solve", "optimise", "solve-optimise", "diagnose"),
+        choices=("cold", "solve", "optimise", "solve-optimise", "anchored", "diagnose"),
         default="cold",
     )
     parser.add_argument(
@@ -62,7 +65,7 @@ def main(argv=None) -> int:
     parser.add_argument("--profile", choices=("smoke", "pilot", "extended"), default="smoke")
     parser.add_argument(
         "--incumbent",
-        help="Complete .moves file. Optimise requires it. Solve-optimise may use it after an unfinished solve. Cold and solve reject it.",
+        help="Complete .moves file. Optimise and anchored require it. Solve-optimise may use it after an unfinished solve. Cold and solve reject it.",
     )
     parser.add_argument(
         "--root",
@@ -93,8 +96,8 @@ def main(argv=None) -> int:
     if args.mode in {"cold", "solve"} and args.incumbent:
         print(f"{args.mode} mode does not accept an incumbent sequence.", file=sys.stderr)
         return 2
-    if args.mode == "optimise" and not args.incumbent:
-        print("optimise mode requires --incumbent.", file=sys.stderr)
+    if args.mode in {"optimise", "anchored"} and not args.incumbent:
+        print(f"{args.mode} mode requires --incumbent.", file=sys.stderr)
         return 2
     if args.mode in {"solve", "solve-optimise"} and args.goal == "play":
         args.goal = "foundations"
@@ -125,7 +128,7 @@ def main(argv=None) -> int:
     opening_g = 0
     note = ""
     incumbent_origin = None
-    if args.mode in {"optimise", "solve-optimise"} and args.incumbent:
+    if args.mode in {"optimise", "solve-optimise", "anchored"} and args.incumbent:
         incumbent_path = _resolve(args.incumbent)
         incumbent_actions = parse_moves_file(incumbent_path)
         try:
@@ -156,21 +159,33 @@ def main(argv=None) -> int:
             "This is not a cold start and not a new discovery. The suffix is not injected."
         )
 
-    result = solve(
-        opening,
-        profile,
-        mode=args.mode,
-        incumbent_actions=incumbent_actions,
-        incumbent_mw=incumbent_mw,
-        opening_g=opening_g,
-        provenance_note=note,
-        goal=args.goal,
-        deal_cards=deal_cards,
-        target_foundations=args.target_foundations,
-        incumbent_origin=incumbent_origin,
-    )
+    if args.mode == "anchored":
+        result = optimise_anchored(
+            opening,
+            incumbent_actions,
+            mode="anchored",
+            source="imported",
+            source_id=str(incumbent_path),
+            time_limit_s=profile.time_limit_s,
+            rss_abort_mb=profile.rss_abort_mb,
+            expected_cost=incumbent_mw,
+        )
+    else:
+        result = solve(
+            opening,
+            profile,
+            mode=args.mode,
+            incumbent_actions=incumbent_actions,
+            incumbent_mw=incumbent_mw,
+            opening_g=opening_g,
+            provenance_note=note,
+            goal=args.goal,
+            deal_cards=deal_cards,
+            target_foundations=args.target_foundations,
+            incumbent_origin=incumbent_origin,
+        )
     document = _document(args, deal_path, result, opening)
-    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_117" / f"{args.mode}_{args.profile}.json"
+    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_118" / f"{args.mode}_{args.profile}.json"
     if not out.is_absolute():
         out = REPO / out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -182,7 +197,7 @@ def main(argv=None) -> int:
             list(result.actions),
             moves_path,
             header=(
-                f"v0.117 {args.mode} {args.profile} goal={args.goal} "
+                f"v0.118 {args.mode} {args.profile} goal={args.goal} "
                 f"source={result.provenance.get('incumbent_source')} "
                 f"improved={result.provenance.get('improved')} "
                 f"mw={result.cumulative_g} replay_ok={result.replay and result.replay.get('ok')}"
@@ -201,7 +216,10 @@ def main(argv=None) -> int:
         f"states={result.provenance.get('states_evaluated')} "
         f"bounds={result.provenance.get('bounds_evaluated')}"
     )
-    print(f"elapsed_s={result.elapsed_s:.3f} peak_rss_mb={result.peak_rss_mb} unique_states={result.unique_states}")
+    print(
+        f"elapsed_s={result.elapsed_s:.3f} peak_rss_mb={result.peak_rss_mb} "
+        f"unique_states={getattr(result, 'unique_states', None)}"
+    )
     if result.decisions:
         first = result.decisions[0]
         print(f"first={first.chosen_kind} {first.chosen_id} cost_led={first.cost_led}")
