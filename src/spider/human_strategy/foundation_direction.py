@@ -38,7 +38,7 @@ from spider.planner.foundation_feasibility import (
 )
 from spider.planner.objective_realizer import RealizationMode, RealizationStatus, realize_objective
 from spider.planner.stock_reception import PreDealShapingObjective, next_stock_row, run_bounded_shaping_probe
-from spider.research_actions import all_legal_actions, apply_action, face_down_count
+from spider.research_actions import all_legal_actions, apply_action, face_down_count, step_cost
 from spider.state_identity import canonical_state_key
 
 from .evaluation import admissible_remaining, estimate_remaining, same_suit_bonds
@@ -341,6 +341,10 @@ def propose_foundation_step(
             purpose="remove the selected foundation",
         )
         return _proposal(candidate, "selected: legal foundation removal", events, False, agenda)
+
+    bottleneck = _bottleneck_proposal(state, g, campaign, agenda, lock, events, time_left, refused)
+    if bottleneck is not None:
+        return bottleneck
 
     failures: Dict[str, int] = lock.setdefault("failures", {})
     timeouts: Dict[str, int] = lock.setdefault("timeouts", {})
@@ -1719,6 +1723,552 @@ def _fingerprint(state: SpiderState) -> tuple:
             )
         )
     return (tuple(parts), len(state.stock), len(state.foundations))
+
+
+def _exposed_descending_run(column) -> Tuple[Card, ...]:
+    """Same-suit descending run sitting on the top of one column."""
+
+    up = column.face_up
+    if not up:
+        return ()
+    start = len(up) - 1
+    suit = up[start].suit
+    while start > 0 and up[start - 1].suit == suit and up[start - 1].rank == up[start].rank + 1:
+        start -= 1
+    return tuple(up[start:])
+
+
+def covers_productive_run(state: SpiderState, action: Action) -> bool:
+    """True when a move hides or splits an exposed same-suit run of length at least 7.
+
+    A same-suit join, and a move of the whole run onto an empty column, keep
+    the run available. Those are not covers.
+    """
+
+    if not action or action == ("deal",):
+        return False
+    src, dst, k = action
+    if k <= 0 or src == dst:
+        return False
+    source = state.columns[src]
+    if k > len(source.face_up):
+        return False
+    moving = source.face_up[-k:]
+    if not moving:
+        return False
+    dest_run = _exposed_descending_run(state.columns[dst])
+    if len(dest_run) >= 7 and moving[0].suit != dest_run[0].suit:
+        return True
+    src_run = _exposed_descending_run(source)
+    if len(src_run) < 7 or k > len(src_run):
+        return False
+    if moving[0].suit != src_run[0].suit:
+        return False
+    dest_top = state.columns[dst].top()
+    if k == len(src_run) and dest_top is None:
+        return False
+    if dest_top is not None and dest_top.suit == moving[0].suit and dest_top.rank == moving[0].rank + 1:
+        return False
+    return True
+
+
+def choose_without_unjustified_cover(state: SpiderState, choice: Candidate, considered: Sequence[Candidate]):
+    """Prefer a considered move that leaves a productive run exposed.
+
+    A plan that names a recoverable temporary park is left alone. Returns
+    the choice and a log line. An empty log line means the choice did not change.
+    """
+
+    if choice is None or not choice.actions:
+        return choice, ""
+    action = choice.actions[0]
+    if not covers_productive_run(state, action):
+        return choice, ""
+    if any("fact: temporary park is recoverable" in item for item in choice.evidence):
+        return choice, ""
+    if choice.kind in {"FOUNDATION", "BOTTLENECK"}:
+        return choice, ""
+    for item in considered:
+        if item.candidate_id == choice.candidate_id or not item.actions:
+            continue
+        if item.actions[0] == ("deal",):
+            continue
+        if covers_productive_run(state, item.actions[0]):
+            continue
+        return item, (
+            f"run guard: {format_action(action)} would cover a productive run; "
+            f"play {format_action(item.actions[0])}"
+        )
+    return choice, ""
+
+
+@dataclass(frozen=True)
+class KingAccess:
+    """One physical copy of the rank a nearly complete run still needs."""
+
+    suit: str
+    rank: int
+    column: int
+    zone: str
+    depth: int
+    face_up: bool
+    accessible: bool
+    blockers: Tuple[str, ...]
+    movable_runs: Tuple[int, ...]
+    investment: int
+    notes: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BottleneckPlan:
+    """Bounded search for one missing connection on a nearly complete foundation."""
+
+    status: str
+    suit: str
+    run_column: int
+    run_length: int
+    actions: Tuple[Action, ...]
+    alternate_actions: Tuple[Action, ...]
+    cost: int
+    nodes: int
+    kings: Tuple[KingAccess, ...]
+    foundations_after: int
+    zero_cost_expansions: int
+    cheapest_zero_edge: Optional[int]
+    covers_run: bool
+    note: str
+    events: Tuple[str, ...]
+
+
+def _nearly_complete_runs(state: SpiderState) -> List[Tuple[int, Tuple[Card, ...]]]:
+    """Exposed same-suit runs that are one rank short of a foundation, ace on top."""
+
+    found = []
+    for index, column in enumerate(state.columns):
+        run = _exposed_descending_run(column)
+        if len(run) < 12 or run[-1].rank != 1 or run[0].rank != len(run):
+            continue
+        found.append((index, run))
+    found.sort(key=lambda item: -len(item[1]))
+    return found
+
+
+def _locate_rank(state: SpiderState, suit: str, rank: int) -> List[tuple]:
+    found = []
+    for column_index, column in enumerate(state.columns):
+        for index, card in enumerate(column.face_up):
+            if card.suit == suit and card.rank == rank:
+                depth = len(column.face_up) - 1 - index
+                found.append((depth, column_index, "up", index, card))
+        for index, card in enumerate(column.face_down):
+            if card.suit == suit and card.rank == rank:
+                depth = len(column.face_up) + (len(column.face_down) - 1 - index)
+                found.append((depth, column_index, "down", index, card))
+    found.sort(key=lambda item: (item[0], item[1]))
+    return found
+
+
+def _movable_cover(state: SpiderState, column: int, zone: str, index: int) -> Tuple[Tuple[str, ...], Tuple[int, ...], int]:
+    """Cards above one card, which suffixes can move, and a move-count estimate."""
+
+    col = state.columns[column]
+    if zone == "down":
+        labels = [str(card) for card in col.face_down[index + 1 :]]
+        labels.extend(str(card) for card in col.face_up)
+        return tuple(labels), (), len(labels)
+    cover = col.face_up[index + 1 :]
+    labels = tuple(str(card) for card in cover)
+    movable: List[int] = []
+    remaining = len(cover)
+    guard = 0
+    while remaining > 0 and guard < 13:
+        guard += 1
+        found_k = 0
+        for k in range(remaining, 0, -1):
+            if any(state.can_move(column, dst, k) for dst in range(len(state.columns)) if dst != column):
+                found_k = k
+                break
+        if found_k == 0:
+            break
+        movable.append(found_k)
+        remaining -= found_k
+    investment = len(movable) + remaining
+    return labels, tuple(movable), investment
+
+
+def _analyse_kings(state: SpiderState, suit: str, rank: int, run_column: int) -> Tuple[KingAccess, ...]:
+    analyses = []
+    for depth, column, zone, index, _card in _locate_rank(state, suit, rank):
+        labels, movable, investment = _movable_cover(state, column, zone, index)
+        face_up = zone == "up"
+        accessible = bool(face_up and depth == 0)
+        notes = []
+        if not face_up:
+            notes.append("this copy is face-down, so it is not an exposed receiver")
+        elif depth > 0:
+            notes.append("face-up is not a legal receiver while cards cover this king")
+        else:
+            notes.append("this king is the head of its column")
+        if accessible and state.can_move(run_column, column, 12):
+            notes.append("the 12-card run can move onto this king now")
+        elif column == run_column:
+            notes.append("this king shares the run's column")
+        analyses.append(
+            KingAccess(
+                suit=suit,
+                rank=rank,
+                column=column,
+                zone=zone,
+                depth=int(depth),
+                face_up=face_up,
+                accessible=accessible,
+                blockers=labels,
+                movable_runs=movable,
+                investment=int(investment),
+                notes=tuple(notes),
+            )
+        )
+    return tuple(analyses)
+
+
+def _disruption(state: SpiderState, action: Action, suit: str) -> int:
+    """Ordering penalty only. It is not added to the corrected MobilityWare cost."""
+
+    penalty = 8 if covers_productive_run(state, action) else 0
+    src, _dst, k = action
+    column = state.columns[src]
+    if k < len(column.face_up):
+        for index, card in enumerate(column.face_up):
+            if card.suit == suit and card.rank == 13 and index < len(column.face_up) - k:
+                penalty -= 1
+                break
+    return penalty
+
+
+def _search_completion(
+    state: SpiderState,
+    *,
+    max_cost: int,
+    max_nodes: int,
+    deadline: float,
+    avoid_dst: Optional[int] = None,
+) -> dict:
+    """Dijkstra on corrected cost. Zero-cost edges pop before one-cost edges."""
+
+    start_foundations = len(state.foundations)
+    seen = {_fingerprint(state): 0}
+    heap = [(0, 0, 0, state, ())]
+    sequence = 0
+    nodes = 0
+    beyond = False
+    zero_cost_expansions = 0
+    cheapest_zero_edge: Optional[int] = None
+    while heap and nodes < max_nodes:
+        if time.perf_counter() >= deadline:
+            return {
+                "status": "RESOURCE_LIMIT",
+                "actions": (),
+                "cost": 0,
+                "nodes": nodes,
+                "beyond": True,
+                "zero_cost_expansions": zero_cost_expansions,
+                "cheapest_zero_edge": cheapest_zero_edge,
+            }
+        cost, _penalty, _order, current, path = heapq.heappop(heap)
+        nodes += 1
+        if len(current.foundations) > start_foundations:
+            return {
+                "status": "FOUND",
+                "actions": tuple(path),
+                "cost": int(cost),
+                "nodes": nodes,
+                "beyond": beyond,
+                "zero_cost_expansions": zero_cost_expansions,
+                "cheapest_zero_edge": cheapest_zero_edge,
+            }
+        if cost >= max_cost:
+            for action in current.enumerate_moves():
+                trial = current.clone()
+                try:
+                    step = apply_action(trial, action)
+                except ValueError:
+                    continue
+                if cost + step > max_cost and _fingerprint(trial) not in seen:
+                    beyond = True
+                    break
+            continue
+        for action in current.enumerate_moves():
+            if avoid_dst is not None and action[1] == avoid_dst and action[2] >= 12:
+                continue
+            trial = current.clone()
+            try:
+                step = apply_action(trial, action)
+            except ValueError:
+                continue
+            next_cost = cost + int(step)
+            if int(step) == 0:
+                zero_cost_expansions += 1
+                if cheapest_zero_edge is None or next_cost < cheapest_zero_edge:
+                    cheapest_zero_edge = next_cost
+            if next_cost > max_cost:
+                if _fingerprint(trial) not in seen:
+                    beyond = True
+                continue
+            key = _fingerprint(trial)
+            previous = seen.get(key)
+            if previous is not None and previous <= next_cost:
+                continue
+            seen[key] = next_cost
+            sequence += 1
+            suit = ""
+            run = _exposed_descending_run(current.columns[action[0]]) if action != ("deal",) else ()
+            if run:
+                suit = run[0].suit
+            penalty = _disruption(current, action, suit) if suit else (8 if covers_productive_run(current, action) else 0)
+            heapq.heappush(heap, (next_cost, penalty, sequence, trial, path + (action,)))
+    if nodes >= max_nodes or time.perf_counter() >= deadline:
+        return {
+            "status": "RESOURCE_LIMIT",
+            "actions": (),
+            "cost": 0,
+            "nodes": nodes,
+            "beyond": True,
+            "zero_cost_expansions": zero_cost_expansions,
+            "cheapest_zero_edge": cheapest_zero_edge,
+        }
+    status = "NOT_FOUND_WITHIN_BOUND" if beyond else "GRAPH_EXHAUSTED"
+    return {
+        "status": status,
+        "actions": (),
+        "cost": 0,
+        "nodes": nodes,
+        "beyond": beyond,
+        "zero_cost_expansions": zero_cost_expansions,
+        "cheapest_zero_edge": cheapest_zero_edge,
+    }
+
+
+def _verified_cost(state: SpiderState, actions: Sequence[Action]) -> Optional[int]:
+    trial = state.clone()
+    spent = 0
+    try:
+        for action in actions:
+            spent += step_cost(trial, action)
+            apply_action(trial, action)
+    except ValueError:
+        return None
+    if len(trial.foundations) <= len(state.foundations):
+        return None
+    return spent
+
+
+def plan_foundation_bottleneck(
+    state: SpiderState,
+    *,
+    max_cost: int = 8,
+    max_nodes: int = 2500,
+    time_left: float = 1.0,
+) -> BottleneckPlan:
+    """Search for a legal way to finish an exposed run that is one rank short.
+
+    Both physical copies of the missing rank are analysed. Face-up and covered
+    is not accessible. Corrected MobilityWare cost orders the search, so a
+    zero-cost transfer is cheaper than a one-cost move. A node cap or a
+    timeout is inconclusive. Exhausting the tableau component is a fact about
+    this position with the stock left untouched, not a retired suit.
+    """
+
+    runs = _nearly_complete_runs(state)
+    if not runs:
+        return BottleneckPlan(
+            "NO_BOTTLENECK",
+            "",
+            -1,
+            0,
+            (),
+            (),
+            0,
+            0,
+            (),
+            len(state.foundations),
+            0,
+            None,
+            False,
+            "no exposed same-suit run of length 12 or more is waiting on one rank",
+            (),
+        )
+    run_column, run = runs[0]
+    suit = run[0].suit
+    needed = run[0].rank + 1
+    kings = _analyse_kings(state, suit, needed, run_column)
+    king_text = ", ".join(
+        f"column {item.column + 1} depth {item.depth} zone {item.zone} blockers {' '.join(item.blockers) or 'none'}"
+        for item in kings
+    ) or "no copy of the required rank is on the tableau"
+    common = (
+        f"foundation bottleneck: {suit} run length {len(run)} on column {run_column + 1} "
+        f"needs rank {needed}; copies: {king_text}"
+    )
+    if time_left <= 0:
+        note = "the time guard stopped the bottleneck probe before it expanded; this is not infeasibility"
+        return BottleneckPlan(
+            "RESOURCE_LIMIT",
+            suit,
+            run_column,
+            len(run),
+            (),
+            (),
+            0,
+            0,
+            kings,
+            len(state.foundations),
+            0,
+            None,
+            False,
+            note,
+            (common, f"foundation bottleneck: {note}"),
+        )
+    deadline = time.perf_counter() + float(time_left)
+    primary = _search_completion(
+        state,
+        max_cost=max_cost,
+        max_nodes=max_nodes,
+        deadline=deadline,
+    )
+    actions = tuple(primary["actions"])
+    cost = int(primary["cost"])
+    covers = False
+    if primary["status"] == "FOUND":
+        verified = _verified_cost(state, actions)
+        if verified is None:
+            primary = {**primary, "status": "RESOURCE_LIMIT", "actions": (), "cost": 0}
+            actions = ()
+            cost = 0
+        else:
+            cost = verified
+            probe = state.clone()
+            for action in actions:
+                if covers_productive_run(probe, action):
+                    covers = True
+                apply_action(probe, action)
+    alternate: Tuple[Action, ...] = ()
+    avoid = actions[-1][1] if actions and actions[-1] != ("deal",) else None
+    remaining = deadline - time.perf_counter()
+    if primary["status"] == "FOUND" and avoid is not None and remaining > 0.05 and len(kings) > 1:
+        second = _search_completion(
+            state,
+            max_cost=max_cost,
+            max_nodes=min(800, max_nodes),
+            deadline=time.perf_counter() + min(0.35, remaining),
+            avoid_dst=avoid,
+        )
+        if second["status"] == "FOUND" and tuple(second["actions"]) != actions:
+            if _verified_cost(state, second["actions"]) is not None:
+                alternate = tuple(second["actions"])
+    status = primary["status"]
+    if status == "FOUND":
+        note = f"replayed sequence removes a foundation at corrected cost {cost}"
+    elif status == "GRAPH_EXHAUSTED":
+        note = (
+            "every legal tableau successor inside the cost bound was expanded; "
+            "the stock was not dealt; this is stronger than a node cap and is not a proof "
+            "the suit can never finish after a later deal"
+        )
+    elif status == "NOT_FOUND_WITHIN_BOUND":
+        note = (
+            f"no completion was found at corrected cost {max_cost} or less; "
+            "states past that bound were not expanded; this is not infeasibility"
+        )
+    else:
+        note = (
+            f"bottleneck search stopped at {primary['nodes']} nodes or the time guard; "
+            "a timeout or a node cap is not infeasibility"
+        )
+    events = [common, "fact: face-up does not make a covered card a legal receiver", f"foundation bottleneck: {note}"]
+    if kings:
+        events.append(f"foundation bottleneck: examined {len(kings)} physical copies")
+    return BottleneckPlan(
+        status,
+        suit,
+        run_column,
+        len(run),
+        actions,
+        alternate,
+        cost,
+        int(primary["nodes"]),
+        kings,
+        len(state.foundations) + (1 if status == "FOUND" else 0),
+        int(primary["zero_cost_expansions"]),
+        primary["cheapest_zero_edge"],
+        covers,
+        note,
+        tuple(events),
+    )
+
+
+def _bottleneck_proposal(state, g, campaign, agenda, lock, events, time_left, refused):
+    """One live objective when a 12-card run is blocked on its last connection."""
+
+    runs = _nearly_complete_runs(state)
+    if not runs:
+        return None
+    fingerprint = _fingerprint(state)
+    cache = lock.setdefault("bottleneck_cache", {})
+    if fingerprint in cache:
+        return None
+    if time_left < 0.05:
+        events.append("foundation bottleneck: time guard skipped the probe; this is not infeasibility")
+        return None
+    started = time.perf_counter()
+    plan = plan_foundation_bottleneck(
+        state,
+        max_cost=8,
+        max_nodes=2500,
+        time_left=min(1.2, float(time_left)),
+    )
+    _add_time(lock, "bottleneck", time.perf_counter() - started)
+    cache[fingerprint] = plan.status
+    events.extend(plan.events)
+    if plan.status != "FOUND" or not plan.actions:
+        return None
+    ident = f"bottleneck:{plan.suit}:{plan.run_column}"
+    if ident in refused:
+        return None
+    if plan.alternate_actions:
+        lock["pending_alternate_bottleneck"] = list(plan.alternate_actions)
+    rendered = " ".join(format_action(action) for action in plan.actions)
+    blockers = "; ".join(
+        f"column {item.column + 1}: {' '.join(item.blockers) or 'none'}" for item in plan.kings
+    )
+    evidence = [
+        "fact: face-up does not make a covered king a legal receiver",
+        f"fact: examined {len(plan.kings)} physical copies",
+        f"fact: blockers {blockers or 'none'}",
+        f"fact: legal sequence {rendered}",
+        f"fact: corrected cost of the sequence is {plan.cost}",
+        "fact: a bounded miss would be inconclusive, not infeasibility",
+    ]
+    if plan.covers_run:
+        evidence.append("fact: temporary park is recoverable")
+    else:
+        evidence.append("fact: the required run stays available until it is moved onto the king")
+    candidate = _make_candidate(
+        g,
+        ident,
+        "BOTTLENECK",
+        plan.actions,
+        hold=True,
+        benefit=12.0,
+        evidence=_evidence(campaign, agenda, *evidence),
+        purpose="expose the receiver and complete the nearly finished foundation",
+    )
+    return _proposal(
+        candidate,
+        "selected: foundation bottleneck has a replayed completion",
+        events,
+        False,
+        agenda,
+    )
 
 
 def obstructed_tableau_sources(state: SpiderState, campaign: FoundationCampaign) -> Tuple[tuple, ...]:

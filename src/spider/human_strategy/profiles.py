@@ -26,6 +26,8 @@ class Profile:
     consult_portfolio: bool = True
     frontier_limit: int = 1
     proposals_per_decision: int = 2
+    slice_steps: int = 0
+    line_attempt_cap: int = 0
 
     def with_overrides(self, **kwargs) -> "Profile":
         data = {key: value for key, value in kwargs.items() if value is not None}
@@ -44,6 +46,10 @@ class Profile:
             updated = replace(updated, proposals_per_decision=1)
         if updated.proposals_per_decision > 4:
             updated = replace(updated, proposals_per_decision=4)
+        if updated.slice_steps < 0:
+            updated = replace(updated, slice_steps=0)
+        if updated.line_attempt_cap < 0:
+            updated = replace(updated, line_attempt_cap=0)
         return updated
 
 
@@ -75,6 +81,8 @@ PROFILES = {
         consult_portfolio=True,
         frontier_limit=8,
         proposals_per_decision=3,
+        slice_steps=24,
+        line_attempt_cap=48,
     ),
     "extended": Profile(
         name="extended",
@@ -89,6 +97,8 @@ PROFILES = {
         consult_portfolio=True,
         frontier_limit=12,
         proposals_per_decision=4,
+        slice_steps=40,
+        line_attempt_cap=80,
     ),
 }
 

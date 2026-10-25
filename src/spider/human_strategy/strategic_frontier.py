@@ -17,6 +17,9 @@ cheapest corrected g, and the snapshot that reached it.
   with that label held. The more expensive ancestry is not played.
 * A later visit with an equal g and a different label or a different forced
   candidate is a second strategic context. Both stay, up to the frontier cap.
+  The controller, not this queue, refuses to replay an action that another
+  line already played from the same physical state. The labels stay. A
+  different legal action is a different history.
 * A later visit with a lower g replaces the stored snapshot. Queued nodes at
   the old g are dropped and their labels are re-queued on the new snapshot.
 * Heuristic rank never discards a line by itself. When the queue is full, a
@@ -48,12 +51,29 @@ def foundation_aware_bonds(state: SpiderState) -> int:
     return same_suit_bonds(state) + 12 * len(state.foundations)
 
 
+def _long_run_bias(state: SpiderState) -> int:
+    """Tie-break only. A length-12 run does not outrank foundations or face-down."""
+
+    for column in state.columns:
+        up = column.face_up
+        if len(up) < 12:
+            continue
+        start = len(up) - 1
+        suit = up[start].suit
+        while start > 0 and up[start - 1].suit == suit and up[start - 1].rank == up[start].rank + 1:
+            start -= 1
+        if len(up) - start >= 12:
+            return -1
+    return 0
+
+
 def line_priority(state: SpiderState, g: int, label: str = "") -> tuple:
     """Exploration order. Lower is tried sooner. Not an admissible bound.
 
     Foundations come first so a cheap buried opening does not crowd out a
     line that has already removed a suit. Face-down and ``g + admissible``
-    break ties. The admissible term only orders; it does not prune.
+    break ties. The admissible term only orders; it does not prune. The last
+    key prefers an exposed 12-card run only when every earlier key ties.
     """
 
     admissible = admissible_remaining(state)
@@ -64,6 +84,7 @@ def line_priority(state: SpiderState, g: int, label: str = "") -> tuple:
         -foundation_aware_bonds(state),
         -len(state.stock),
         label or "",
+        _long_run_bias(state),
     )
 
 
@@ -124,6 +145,7 @@ class StrategicFrontier:
     merges: int = 0
     dropped_full: int = 0
     replaced: int = 0
+    same_moves: int = 0
 
     def __post_init__(self) -> None:
         self.limit = max(1, min(16, int(self.limit)))
@@ -196,15 +218,40 @@ class StrategicFrontier:
             return
         self.expanded.add((canonical_state_key(state), label or "", force_id or ""))
 
+    def release(self, state: SpiderState, label: str, force_id: Optional[str] = None) -> None:
+        """Let a paused line be queued again. The visit itself is kept."""
+
+        if self.limit <= 1:
+            return
+        self.expanded.discard((canonical_state_key(state), label or "", force_id or ""))
+
     def pop_next(self) -> Optional[StrategicNode]:
-        """Pop a line. Diversity breaks ties inside the best few priorities."""
+        """Pop a line. Every other pop may enter one never-tried signature.
+
+        The first pop, and every even pop after it, stays inside the best
+        few priorities. An odd pop may take the best never-explored signature
+        that sits outside that pool, so a delayed opening is tried once.
+        Promise still orders the pool. Novelty does not rotate the queue.
+        """
 
         if not self.queue:
             return None
         ranked = sorted(self.queue, key=lambda item: item.priority)
         pool = ranked[: max(3, self.proposals)]
-        pool.sort(key=lambda item: (self.explored_signatures.get(item.signature, 0), item.priority))
-        chosen = pool[0]
+        chosen = None
+        if self.explored % 2 == 1:
+            pool_signatures = {item.signature for item in pool}
+            outside = [
+                item
+                for item in ranked
+                if item.signature not in pool_signatures
+                and self.explored_signatures.get(item.signature, 0) == 0
+            ]
+            if outside:
+                chosen = outside[0]
+        if chosen is None:
+            pool.sort(key=lambda item: (self.explored_signatures.get(item.signature, 0), item.priority))
+            chosen = pool[0]
         self.queue.remove(chosen)
         self.expanded.add(chosen.token)
         self.explored += 1

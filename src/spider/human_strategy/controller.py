@@ -35,7 +35,9 @@ from .evaluation import (
 from .portfolio import Candidate, _score_action, build_candidates, select_candidate
 from .foundation_direction import (
     adopt_alternative_foundation,
+    choose_without_unjustified_cover,
     close_foundation_campaign,
+    covers_productive_run,
     planning_stall_detail,
     propose_foundation_step,
     rank_foundations,
@@ -234,6 +236,8 @@ def _profile_dict(profile: Profile) -> dict:
         "consult_portfolio": profile.consult_portfolio,
         "frontier_limit": profile.frontier_limit,
         "proposals_per_decision": profile.proposals_per_decision,
+        "slice_steps": profile.slice_steps,
+        "line_attempt_cap": profile.line_attempt_cap,
     }
 
 
@@ -715,6 +719,9 @@ def solve(
     status = "STEP_LIMIT"
     stop_reason = "strategic step budget ended"
     commits = 0
+    slice_origin_commits = 0
+    slice_origin_attempts = 0
+    played_edges = set()
     comparisons: Dict[object, Optional[DealComparison]] = {}
     saved_by_state: Dict[object, Tuple[PreparationOption, ...]] = {}
     revisited: set = set()
@@ -734,7 +741,7 @@ def solve(
     best_branch: Optional[dict] = None
     success_status = {"SOLVED_VALID", "FOUNDATION_REACHED", "FOUNDATION_TARGET_REACHED"}
 
-    def _remember_branch(status_now: str, reason_now: str) -> None:
+    def _remember_branch(status_now: str, reason_now: str, compete: bool = True) -> None:
         nonlocal best_branch
         if not multiline:
             return
@@ -757,11 +764,11 @@ def solve(
             "lock": deepcopy(foundation_lock),
         }
         branch_log.append(record)
-        if best_branch is None or rank < best_branch["rank"]:
+        if compete and (best_branch is None or rank < best_branch["rank"]):
             best_branch = record
 
     def _install_node(node) -> None:
-        nonlocal line, force_id, width
+        nonlocal line, force_id, width, slice_origin_commits, slice_origin_attempts
         payload = node.payload
         if payload is not None and hasattr(payload, "snapshot"):
             line = payload.snapshot()
@@ -779,8 +786,89 @@ def solve(
         stats.events.append(
             f"frontier: restore {node.reason} at g={node.g} label={node.label or 'none'}"
         )
+        pinned = foundation_lock.pop("pinned_actions", None)
+        if pinned and not line.remaining:
+            line.remaining = tuple(pinned)
+            line.hold = True
+            line.active_id = "pinned:" + format_action(pinned[0])
+            line.active_kind = "ACCESS"
+            line.active_principles = (11, 12)
+        slice_origin_commits = commits
+        slice_origin_attempts = stats.attempted
 
-    def _continue_from_frontier(status_now: str, reason_now: str) -> bool:
+    def _seed_divergences() -> None:
+        """Queue unplayed legal moves when labels would otherwise repeat one history."""
+
+        if not multiline or frontier.queue:
+            return
+        ident_now = _identity(line.state)
+        legal = [action for action in all_legal_actions(line.state) if action != ("deal",)]
+        last = line.actions[-1] if line.actions else None
+        queued = 0
+        for action in legal:
+            if queued >= frontier.proposals:
+                break
+            if (ident_now, action) in played_edges:
+                continue
+            if covers_productive_run(line.state, action):
+                continue
+            if (
+                last
+                and last != ("deal",)
+                and action[0] == last[1]
+                and action[1] == last[0]
+                and action[2] == last[2]
+            ):
+                continue
+            copied = deepcopy(foundation_lock)
+            copied["pinned_actions"] = [action]
+            _retain_line(
+                frontier,
+                stats,
+                line,
+                copied,
+                force_id=f"pinned:{format_action(action)}",
+                reason=f"unplayed {format_action(action)}",
+                label=foundation_lock.get("label") or "",
+            )
+            queued += 1
+
+    def _handoff(reason: str, *, requeue: bool, remember: bool) -> bool:
+        """Move to another queued line. A slice requeues the paused line after the pop."""
+
+        if not multiline or time.perf_counter() >= deadline - 0.05:
+            return False
+        held = None
+        label_now = foundation_lock.get("label") or ""
+        if requeue:
+            frontier.release(line.state, label_now, None)
+            before = len(frontier.queue)
+            _retain_line(
+                frontier,
+                stats,
+                line,
+                deepcopy(foundation_lock),
+                force_id=None,
+                reason=reason,
+                label=label_now,
+            )
+            if len(frontier.queue) > before:
+                held = frontier.queue.pop()
+        if not frontier.queue:
+            if held is not None:
+                frontier.queue.append(held)
+            return False
+        if remember:
+            _remember_branch("OPEN", reason, compete=False)
+        node = frontier.pop_next()
+        if held is not None:
+            frontier.queue.append(held)
+        if node is None:
+            return False
+        _install_node(node)
+        return True
+
+    def _continue_from_frontier(status_now: str, reason_now: str, remember: bool = True) -> bool:
         nonlocal status, stop_reason
         if not multiline:
             return False
@@ -788,7 +876,10 @@ def solve(
             return False
         if time.perf_counter() >= deadline - 0.05:
             return False
-        _remember_branch(status_now, reason_now)
+        if status_now == "PLANNING_STALL":
+            _seed_divergences()
+        if remember:
+            _remember_branch(status_now, reason_now)
         node = frontier.pop_next()
         if node is None:
             return False
@@ -805,8 +896,43 @@ def solve(
         if stats.peak_rss is not None and stats.peak_rss > profile.rss_abort_mb:
             status, stop_reason = "MEMORY_LIMIT", "peak RSS exceeded the abort ceiling"
             break
-        if commits >= profile.max_steps or stats.attempted > profile.max_steps * 4:
-            status, stop_reason = "STEP_LIMIT", "strategic step budget ended"
+        if commits >= profile.max_steps:
+            status = "STEP_LIMIT"
+            stop_reason = "strategic step budget ended"
+            if multiline and frontier.queue:
+                stop_reason += f"; still queued {len(frontier.queue)}"
+            break
+        new_attempts = stats.attempted - slice_origin_attempts
+        new_commits = commits - slice_origin_commits
+        if (
+            multiline
+            and profile.line_attempt_cap > 0
+            and new_attempts >= profile.line_attempt_cap
+            and frontier.queue
+            and time.perf_counter() < deadline - 0.05
+        ):
+            stats.events.append("frontier: line attempt budget yielded to a queued line")
+            if _handoff("line attempt budget yielded", requeue=False, remember=True):
+                continue
+        if (
+            multiline
+            and profile.slice_steps > 0
+            and new_commits >= profile.slice_steps
+            and frontier.queue
+            and time.perf_counter() < deadline - 0.05
+        ):
+            stats.events.append("frontier: execution slice yielded to a queued line")
+            if _handoff("execution slice yielded", requeue=True, remember=True):
+                continue
+        if stats.attempted > profile.max_steps * 4:
+            if multiline and frontier.queue and time.perf_counter() < deadline - 0.05:
+                stats.events.append("frontier: attempt ceiling yielded to a queued line")
+                if _handoff("attempt ceiling yielded", requeue=False, remember=True):
+                    continue
+            status = "STEP_LIMIT"
+            stop_reason = "strategic step budget ended"
+            if multiline and frontier.queue:
+                stop_reason += f"; still queued {len(frontier.queue)}"
             break
         if line.state.is_solved():
             status, stop_reason = "SOLVED_VALID", "terminal state reached"
@@ -846,24 +972,35 @@ def solve(
             _clear_commitment(line)
 
         if line.hold and line.remaining:
-            reason_abandon = abandonment_reason(line.state, line.remaining)
-            if reason_abandon is not None:
-                stats.events.append(reason_abandon)
+            pending_action = line.remaining[0]
+            if multiline and (ident, pending_action) in played_edges:
+                frontier.same_moves += 1
+                stats.events.append(
+                    f"frontier: same move {format_action(pending_action)} already played from this state; "
+                    "campaign labels are not a new history"
+                )
                 _clear_commitment(line)
             else:
-                held_ctx = build_context(line.state, line.g)
-                continuation = _retarget(line, held_ctx)
-                if continuation is None:
-                    stats.events.append("abandoned: committed plan is no longer legal")
+                reason_abandon = abandonment_reason(line.state, line.remaining)
+                if reason_abandon is not None:
+                    stats.events.append(reason_abandon)
                     _clear_commitment(line)
                 else:
-                    continuation.hold = True
-                    advanced, delta = _finish_held(
-                        line, held_ctx, continuation, profile, deadline, best_g, stats
-                    )
-                    commits += delta
-                    if advanced:
-                        continue
+                    held_ctx = build_context(line.state, line.g)
+                    continuation = _retarget(line, held_ctx)
+                    if continuation is None:
+                        stats.events.append("abandoned: committed plan is no longer legal")
+                        _clear_commitment(line)
+                    else:
+                        continuation.hold = True
+                        advanced, delta = _finish_held(
+                            line, held_ctx, continuation, profile, deadline, best_g, stats
+                        )
+                        commits += delta
+                        if advanced and multiline:
+                            played_edges.add((ident, pending_action))
+                        if advanced:
+                            continue
 
         ctx = build_context(line.state, line.g)
         blocked = tuple(sorted(failed.get(ident, ())))
@@ -1009,6 +1146,19 @@ def solve(
                 foundation_locked = True
                 if all(item.candidate_id != choice.candidate_id for item in considered):
                     considered.append(choice)
+                alternate = foundation_lock.pop("pending_alternate_bottleneck", None)
+                if multiline and alternate:
+                    copied = deepcopy(foundation_lock)
+                    copied["pinned_actions"] = list(alternate)
+                    _retain_line(
+                        frontier,
+                        stats,
+                        line,
+                        copied,
+                        force_id="bottleneck-alt",
+                        reason="alternate foundation bottleneck",
+                        label=foundation_lock.get("label") or "",
+                    )
             elif (
                 proposal.candidate is None
                 and proposal.block_deal
@@ -1141,6 +1291,12 @@ def solve(
                 reason = "selected: measured preparation beats dealing now"
             elif comparison is not None and choice.kind == "DEAL_NOW" and comparison.evidence:
                 choice.evidence = tuple(choice.evidence) + tuple(comparison.evidence)
+        if _foundation_goal(goal):
+            guarded, guard_note = choose_without_unjustified_cover(line.state, choice, considered)
+            if guard_note:
+                stats.events.append(guard_note)
+                choice = guarded
+                reason = "selected: preserve a productive run; the covering move is not a justified park"
         dormant_ids = [item.candidate_id for item in considered if item.candidate_id != choice.candidate_id]
         # Store the worst sibling first so the next backtrack pops the best one.
         # Popping insertion order would resume the weakest avenue and thrash.
@@ -1158,6 +1314,31 @@ def solve(
                 tactical_time_s=min(2.0, max(profile.tactical_time_s, 1.0)),
             )
             boost_ident = None
+        if multiline and choice.actions and not line.hold and (ident, choice.actions[0]) in played_edges:
+            frontier.same_moves += 1
+            stats.events.append(
+                f"frontier: same move {format_action(choice.actions[0])} already played from this state; "
+                "campaign labels are not a new history"
+            )
+            failed.setdefault(ident, set()).add(choice.candidate_id)
+            jumped = _backtrack(line, dormant, failed, stats)
+            if jumped is not None:
+                line, force_id = jumped
+                continue
+            already_logged = any(tuple(record["actions"]) == tuple(line.actions) for record in branch_log)
+            if _handoff("same move suppressed", requeue=False, remember=not already_logged):
+                continue
+            _seed_divergences()
+            if _continue_from_frontier(
+                "PLANNING_STALL",
+                "same move already played and no different line remained",
+                remember=False,
+            ):
+                continue
+            status = "PLANNING_STALL"
+            stop_reason = "same move already played and no different line remained"
+            stop_reason = _annotate_stall(goal, line.state, foundation_lock, stop_reason)
+            break
         if multiline and choice.actions[:1] == (("deal",),):
             label_now = foundation_lock.get("label") or ""
             deal_id = f"DEAL:{label_now}" if label_now else ""
@@ -1190,6 +1371,9 @@ def solve(
         stats.decisions.append(_decision(ctx, considered, choice, reason, dormant_ids, execution))
 
         if execution[0] in {"achieved", "partial"}:
+            if multiline and execution[5]:
+                for action in execution[5]:
+                    played_edges.add((ident, action))
             _apply(line, best_g, execution)
             # A committed step stays committed. Sibling alternatives from
             # before this step are not allowed to erase it.
@@ -1390,7 +1574,8 @@ def solve(
             )
         stats.events.append(
             f"frontier: generated {frontier.generated} explored {frontier.explored} "
-            f"transpositions {frontier.transpositions} still queued {len(frontier.queue)}"
+            f"transpositions {frontier.transpositions} same-moves {frontier.same_moves} "
+            f"still queued {len(frontier.queue)}"
         )
 
     kernel_info = None
@@ -1515,6 +1700,8 @@ def _frontier_provenance(root, frontier, branch_log, multiline, profile, started
         "merges": frontier.merges,
         "dropped_full": frontier.dropped_full,
         "replaced": frontier.replaced,
+        "same_moves": frontier.same_moves,
+        "unique_histories": len({tuple(item["actions"]) for item in reported}),
         "still_queued": len(frontier.queue),
         "pending": frontier.pending(),
         "branches": reported,
@@ -1528,9 +1715,12 @@ def _frontier_provenance(root, frontier, branch_log, multiline, profile, started
             "Identical physical states keep the cheapest corrected ancestry. "
             "A more expensive visit adds its campaign label to that ancestry "
             "instead of replacing it. Equal cost with a different label or "
-            "forced candidate stays as its own line. Heuristics order the queue. "
-            "A full queue leaves a line unexpanded and does not mark it exhausted. "
-            "Admissible cost does not prune inside the frontier."
+            "forced candidate stays as its own line. Replaying the same action "
+            "from that state under another label is one physical history. "
+            "Heuristics order the queue. A full queue leaves a line unexpanded "
+            "and does not mark it exhausted. Admissible cost does not prune "
+            "inside the frontier. Restoring a line spends new actions only; "
+            "the ancestry length is not a per-line step limit."
         ),
     }
 
