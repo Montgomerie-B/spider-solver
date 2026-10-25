@@ -981,7 +981,13 @@ def solve(
                 )
                 _clear_commitment(line)
             else:
-                reason_abandon = abandonment_reason(line.state, line.remaining)
+                # A buried-card plan spends moves before the reveal. The
+                # preparation net would drop that prefix. Legality is checked
+                # when the step is played.
+                if line.active_kind == "ACCESS":
+                    reason_abandon = None
+                else:
+                    reason_abandon = abandonment_reason(line.state, line.remaining)
                 if reason_abandon is not None:
                     stats.events.append(reason_abandon)
                     _clear_commitment(line)
@@ -1000,6 +1006,9 @@ def solve(
                         if advanced and multiline:
                             played_edges.add((ident, pending_action))
                         if advanced:
+                            label = foundation_lock.get("label")
+                            if _foundation_goal(goal) and label:
+                                stats.events.append(f"foundation: continue {label}")
                             continue
 
         ctx = build_context(line.state, line.g)

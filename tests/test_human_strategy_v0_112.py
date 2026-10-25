@@ -157,7 +157,17 @@ def test_g32_accounts_for_every_legal_action_and_continues():
     assert result.actions[0] in legal
     text = "\n".join(result.events)
     assert "already dealt" in text
-    assert "PROBE_LIMIT" in text
+    # A bounded miss may be an open probe cap or an exhaustive result inside
+    # that cap. Neither one is infeasibility, and the campaign still yields.
+    assert any(
+        token in text
+        for token in (
+            "PROBE_LIMIT",
+            "GRAPH_EXHAUSTED_WITHIN_BOUND",
+            "NODE_LIMIT",
+            "TIME_LIMIT",
+        )
+    )
     assert "not infeasibility" in text
     assert "S#2 stays eligible" in text
     assert "trying D#1" in text
