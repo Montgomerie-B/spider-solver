@@ -24,6 +24,8 @@ class Profile:
     commitment_margin: float = 0.75
     workers: int = 1
     consult_portfolio: bool = True
+    frontier_limit: int = 1
+    proposals_per_decision: int = 2
 
     def with_overrides(self, **kwargs) -> "Profile":
         data = {key: value for key, value in kwargs.items() if value is not None}
@@ -34,6 +36,14 @@ class Profile:
             updated = replace(updated, strategic_width=1)
         if updated.max_width < updated.strategic_width:
             updated = replace(updated, max_width=updated.strategic_width)
+        if updated.frontier_limit < 1:
+            updated = replace(updated, frontier_limit=1)
+        if updated.frontier_limit > 16:
+            updated = replace(updated, frontier_limit=16)
+        if updated.proposals_per_decision < 1:
+            updated = replace(updated, proposals_per_decision=1)
+        if updated.proposals_per_decision > 4:
+            updated = replace(updated, proposals_per_decision=4)
         return updated
 
 
@@ -49,6 +59,8 @@ PROFILES = {
         tactical_max_cost=3,
         max_steps=8,
         consult_portfolio=True,
+        frontier_limit=1,
+        proposals_per_decision=2,
     ),
     "pilot": Profile(
         name="pilot",
@@ -61,6 +73,8 @@ PROFILES = {
         tactical_max_cost=6,
         max_steps=80,
         consult_portfolio=True,
+        frontier_limit=8,
+        proposals_per_decision=3,
     ),
     "extended": Profile(
         name="extended",
@@ -73,6 +87,8 @@ PROFILES = {
         tactical_max_cost=8,
         max_steps=400,
         consult_portfolio=True,
+        frontier_limit=12,
+        proposals_per_decision=4,
     ),
 }
 

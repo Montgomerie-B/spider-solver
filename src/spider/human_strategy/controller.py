@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -51,6 +52,7 @@ from .preparation import (
     strategic_stop_status,
 )
 from .profiles import Profile
+from .strategic_frontier import StrategicFrontier, outcome_rank
 
 
 @dataclass
@@ -230,6 +232,8 @@ def _profile_dict(profile: Profile) -> dict:
         "commitment_margin": profile.commitment_margin,
         "workers": 1,
         "consult_portfolio": profile.consult_portfolio,
+        "frontier_limit": profile.frontier_limit,
+        "proposals_per_decision": profile.proposals_per_decision,
     }
 
 
@@ -529,6 +533,75 @@ def _recovery_candidate(line, deal_cards, deadline, foundation_cache, foundation
     return candidate, "selected: bounded recovery toward a buried foundation card"
 
 
+def _proposal_blocked(failed, ident, lock) -> tuple:
+    """Candidate ids the proposer must skip.
+
+    ``fork_block`` belongs to one saved line. An empty block leaves the
+    failure set unchanged, which is the single-line controller.
+    """
+
+    blocked = tuple(failed.get(ident, ()))
+    extra = tuple((lock or {}).get("fork_block") or ())
+    if not extra:
+        return blocked
+    present = set(blocked)
+    return blocked + tuple(item for item in extra if item not in present)
+
+
+def _frontier_on(profile: Profile, goal: str) -> bool:
+    return goal in {"first-foundation", "foundations"} and int(profile.frontier_limit) > 1
+
+
+def _retain_line(frontier, stats, line, lock, *, force_id, reason, label) -> None:
+    if frontier is None or frontier.limit <= 1:
+        return
+    snapshot = line.snapshot()
+    _accepted, event = frontier.consider(
+        state=snapshot.state,
+        g=snapshot.g,
+        actions=tuple(snapshot.actions),
+        lock=lock,
+        force_id=force_id,
+        reason=reason,
+        label=label or "",
+        payload=snapshot,
+    )
+    if event:
+        stats.events.append(event)
+
+
+def _queue_sibling_campaigns(frontier, stats, line, lock) -> None:
+    """Keep campaigns the in-place switch will not take on this iteration."""
+
+    if frontier is None or frontier.limit <= 1:
+        return
+    tried = set(lock.get("tried_labels") or [])
+    current = lock.get("label")
+    pending = [
+        label
+        for label in list(lock.get("alternatives") or [])
+        if label and label != current and label not in tried
+    ]
+    for label in pending[1:frontier.proposals]:
+        copied = deepcopy(lock)
+        copied["hold_label"] = label
+        copied["yield_to_alternative"] = False
+        _retain_line(
+            frontier,
+            stats,
+            line,
+            copied,
+            force_id=None,
+            reason=f"campaign {label} held beside {current or 'the lock'}",
+            label=label,
+        )
+
+
+def _adopt_keeping_siblings(frontier, stats, line, lock):
+    _queue_sibling_campaigns(frontier, stats, line, lock)
+    return adopt_alternative_foundation(lock)
+
+
 def _resume_foundation_campaign(
     line,
     goal,
@@ -541,6 +614,7 @@ def _resume_foundation_campaign(
     ident,
     stats,
     foundation_trace,
+    frontier=None,
 ):
     """Propose a foundation step after the one-ply list has nothing to play.
 
@@ -569,7 +643,7 @@ def _resume_foundation_campaign(
             line.g,
             cache=foundation_cache,
             lock=foundation_lock,
-            blocked=tuple(failed.get(ident, ())),
+            blocked=_proposal_blocked(failed, ident, foundation_lock),
         )
         _record_foundation_proposal(proposal, stats, foundation_trace)
         return proposal
@@ -579,7 +653,7 @@ def _resume_foundation_campaign(
         return proposal.candidate, proposal.reason
     if foundation_lock.get("yield_to_alternative"):
         foundation_lock["yield_to_alternative"] = False
-        switched = adopt_alternative_foundation(foundation_lock)
+        switched = _adopt_keeping_siblings(frontier, stats, line, foundation_lock)
         if switched:
             stats.events.append(f"foundation: {switched}")
             follow = _propose()
@@ -651,6 +725,77 @@ def solve(
     foundation_trace: List[dict] = []
     start_foundations = len(root.foundations)
     last_foundation_g = int(opening_g)
+    multiline = _frontier_on(profile, goal)
+    frontier = StrategicFrontier(
+        limit=profile.frontier_limit if multiline else 1,
+        proposals=profile.proposals_per_decision,
+    )
+    branch_log: List[dict] = []
+    best_branch: Optional[dict] = None
+    success_status = {"SOLVED_VALID", "FOUNDATION_REACHED", "FOUNDATION_TARGET_REACHED"}
+
+    def _remember_branch(status_now: str, reason_now: str) -> None:
+        nonlocal best_branch
+        if not multiline:
+            return
+        snap = line.snapshot()
+        solved_now = status_now == "SOLVED_VALID" or snap.state.is_solved()
+        rank = outcome_rank(snap.state, snap.g, solved=solved_now)
+        record = {
+            "status": status_now,
+            "stop_reason": reason_now,
+            "g": snap.g,
+            "actions": tuple(snap.actions),
+            "foundations": len(snap.state.foundations),
+            "face_down": face_down_count(snap.state),
+            "bonds": same_suit_bonds(snap.state),
+            "adjusted_bonds": same_suit_bonds(snap.state) + 12 * len(snap.state.foundations),
+            "stock": len(snap.state.stock),
+            "label": foundation_lock.get("label"),
+            "rank": rank,
+            "payload": snap,
+            "lock": deepcopy(foundation_lock),
+        }
+        branch_log.append(record)
+        if best_branch is None or rank < best_branch["rank"]:
+            best_branch = record
+
+    def _install_node(node) -> None:
+        nonlocal line, force_id, width
+        payload = node.payload
+        if payload is not None and hasattr(payload, "snapshot"):
+            line = payload.snapshot()
+        else:
+            ident_now = _identity(node.state)
+            line = _Line(node.state.clone(), int(node.g), list(node.actions), {ident_now: int(node.g)})
+        foundation_lock.clear()
+        foundation_lock.update(deepcopy(node.lock))
+        force_id = node.force_id
+        if force_id:
+            failed.get(_identity(line.state), set()).discard(force_id)
+        dormant.clear()
+        width = int(profile.strategic_width)
+        stats.backtracks += 1
+        stats.events.append(
+            f"frontier: restore {node.reason} at g={node.g} label={node.label or 'none'}"
+        )
+
+    def _continue_from_frontier(status_now: str, reason_now: str) -> bool:
+        nonlocal status, stop_reason
+        if not multiline:
+            return False
+        if status_now in success_status or status_now in {"TIME_LIMIT", "MEMORY_LIMIT", "STEP_LIMIT"}:
+            return False
+        if time.perf_counter() >= deadline - 0.05:
+            return False
+        _remember_branch(status_now, reason_now)
+        node = frontier.pop_next()
+        if node is None:
+            return False
+        _install_node(node)
+        status = "STEP_LIMIT"
+        stop_reason = "strategic step budget ended"
+        return True
 
     while True:
         _remember(stats)
@@ -667,12 +812,18 @@ def solve(
             status, stop_reason = "SOLVED_VALID", "terminal state reached"
             break
 
+        if multiline:
+            frontier.remember_visit(line.state, line.g, line.actions, foundation_lock)
+            frontier.mark_expanded(line.state, foundation_lock.get("label") or "", None)
+
         ident = _identity(line.state)
         if ident in best_g and line.g > best_g[ident]:
             stats.events.append("transposition: discarded a more expensive ancestry")
             jumped = _backtrack(line, dormant, failed, stats)
             if jumped is None:
                 status, stop_reason = "EXHAUSTED", "every retained line was more expensive than a known ancestry"
+                if _continue_from_frontier(status, stop_reason):
+                    continue
                 break
             line, force_id = jumped
             continue
@@ -684,6 +835,8 @@ def solve(
             jumped = _backtrack(line, dormant, failed, stats)
             if jumped is None:
                 status, stop_reason = "EXHAUSTED", "incumbent bound pruned the remaining lines"
+                if _continue_from_frontier(status, stop_reason):
+                    continue
                 break
             line, force_id = jumped
             continue
@@ -754,6 +907,7 @@ def solve(
                         ident,
                         stats,
                         foundation_trace,
+                        frontier,
                     )
                 if resumed is not None:
                     candidate, resume_reason = resumed
@@ -785,6 +939,8 @@ def solve(
                     else:
                         status = "EXHAUSTED"
                         stop_reason = f"planning failure: {len(legal_now)} legal moves remain; {stall_kind}"
+                    if _continue_from_frontier(status, stop_reason):
+                        continue
                     break
             stats.events.append("no legal objective remained")
             jumped = _backtrack(line, dormant, failed, stats)
@@ -839,7 +995,7 @@ def solve(
                 line.g,
                 cache=foundation_cache,
                 lock=foundation_lock,
-                blocked=tuple(failed.get(ident, ())),
+                blocked=_proposal_blocked(failed, ident, foundation_lock),
             )
             for event in proposal.events:
                 stats.events.append(event)
@@ -862,7 +1018,7 @@ def solve(
                 # The locked campaign has named why it cannot move. Play the
                 # announced alternative instead of an unrelated portfolio action.
                 foundation_lock["yield_to_alternative"] = False
-                switched = adopt_alternative_foundation(foundation_lock)
+                switched = _adopt_keeping_siblings(frontier, stats, line, foundation_lock)
                 if switched:
                     stats.events.append(f"foundation: {switched}")
                     continue
@@ -896,6 +1052,8 @@ def solve(
                         foundation_lock,
                         f"{stop_reason}; no campaign offered an executable step",
                     )
+                    if _continue_from_frontier(status, stop_reason):
+                        continue
                     break
             elif proposal.block_deal and _choice_deals(choice):
                 useful = _moves_that_meet_their_purpose(line.state, line.g, ctx, ranked)
@@ -915,7 +1073,9 @@ def solve(
                     jumped = _backtrack(line, dormant, failed, stats)
                     if jumped is None:
                         if goal == "foundations":
-                            switched = adopt_alternative_foundation(foundation_lock)
+                            switched = _adopt_keeping_siblings(
+                                frontier, stats, line, foundation_lock
+                            )
                             if switched:
                                 stats.events.append(f"foundation: {switched}")
                                 continue
@@ -935,6 +1095,8 @@ def solve(
                         stop_reason = _annotate_stall(
                             goal, line.state, foundation_lock, stop_reason
                         )
+                        if _continue_from_frontier(status, stop_reason):
+                            continue
                         break
                     line, force_id = jumped
                     continue
@@ -996,6 +1158,30 @@ def solve(
                 tactical_time_s=min(2.0, max(profile.tactical_time_s, 1.0)),
             )
             boost_ident = None
+        if multiline and choice.actions[:1] == (("deal",),):
+            label_now = foundation_lock.get("label") or ""
+            deal_id = f"DEAL:{label_now}" if label_now else ""
+            kept = 0
+            for item in considered:
+                if kept >= frontier.proposals:
+                    break
+                if item.candidate_id == choice.candidate_id or item.actions[:1] == (("deal",),):
+                    continue
+                copied = deepcopy(foundation_lock)
+                if deal_id:
+                    current_block = tuple(copied.get("fork_block") or ())
+                    if deal_id not in current_block:
+                        copied["fork_block"] = current_block + (deal_id,)
+                _retain_line(
+                    frontier,
+                    stats,
+                    line,
+                    copied,
+                    force_id=item.candidate_id,
+                    reason=f"{item.candidate_id} retained instead of the deal",
+                    label=label_now,
+                )
+                kept += 1
         deal_snapshot = line.snapshot() if choice.actions[:1] == (("deal",),) else None
         execution = _execute(line.state, choice, exec_profile, deadline - time.perf_counter())
         if execution[0] in {"achieved", "partial"} and _cycle(line, execution[2], execution[1]):
@@ -1101,6 +1287,24 @@ def solve(
                 stats.events.append(
                     "replan: closed completed campaign; the next foundation gets a new horizon"
                 )
+                if multiline and follow_views:
+                    primary = follow_views[0].label
+                    names = [item.label for item in follow_views]
+                    for view in list(follow_views)[1:1 + frontier.proposals]:
+                        copied = deepcopy(foundation_lock)
+                        copied["hold_label"] = view.label
+                        copied["label"] = view.label
+                        copied["alternatives"] = list(names)
+                        copied["yield_to_alternative"] = False
+                        _retain_line(
+                            frontier,
+                            stats,
+                            line,
+                            copied,
+                            force_id=None,
+                            reason=f"after removal try {view.label} instead of {primary}",
+                            label=view.label,
+                        )
                 continue
             if (
                 deal_snapshot is not None
@@ -1133,7 +1337,7 @@ def solve(
             continue
         if _foundation_goal(goal):
             if goal == "foundations":
-                switched = adopt_alternative_foundation(foundation_lock)
+                switched = _adopt_keeping_siblings(frontier, stats, line, foundation_lock)
                 if switched:
                     stats.events.append(f"foundation: {switched}")
                     continue
@@ -1146,7 +1350,48 @@ def solve(
             stop_reason = _annotate_stall(goal, line.state, foundation_lock, stop_reason)
         else:
             status, stop_reason = "EXHAUSTED", "principal objective failed and no dormant alternative remained"
+        if _continue_from_frontier(status, stop_reason):
+            continue
         break
+
+    if multiline:
+        already = (
+            branch_log
+            and branch_log[-1]["g"] == line.g
+            and branch_log[-1]["actions"] == tuple(line.actions)
+        )
+        if not already:
+            _remember_branch(status, stop_reason)
+        current_rank = outcome_rank(
+            line.state,
+            line.g,
+            solved=status == "SOLVED_VALID" or line.state.is_solved(),
+        )
+        if (
+            status not in success_status
+            and best_branch is not None
+            and best_branch["rank"] < current_rank
+        ):
+            chosen = best_branch
+            line = chosen["payload"]
+            foundation_lock.clear()
+            foundation_lock.update(deepcopy(chosen["lock"]))
+            status = chosen["status"]
+            stop_reason = chosen["stop_reason"]
+            stats.events.append(
+                f"frontier: report g={chosen['g']} foundations={chosen['foundations']} "
+                f"face-down={chosen['face_down']} over a later line"
+            )
+        if status == "PLANNING_STALL":
+            stop_reason = (
+                f"{stop_reason}; alternative lines explored {frontier.explored}; "
+                f"retained {frontier.generated}; still queued {len(frontier.queue)}; "
+                f"transpositions {frontier.transpositions}"
+            )
+        stats.events.append(
+            f"frontier: generated {frontier.generated} explored {frontier.explored} "
+            f"transpositions {frontier.transpositions} still queued {len(frontier.queue)}"
+        )
 
     kernel_info = None
     portfolio_stopped = stop_reason in {
@@ -1198,6 +1443,7 @@ def solve(
         "target_foundations": foundation_target,
         "completed_campaigns": list(foundation_lock.get("completed") or []),
         "foundation": foundation_trace[-12:],
+        "frontier": _frontier_provenance(root, frontier, branch_log, multiline, profile, started, status),
     }
     _remember(stats)
     return SolveResult(
@@ -1228,6 +1474,65 @@ def solve(
         profile=_profile_dict(profile),
         stop_reason=stop_reason,
     )
+
+
+def _frontier_provenance(root, frontier, branch_log, multiline, profile, started, status) -> dict:
+    """Serializable frontier report. Every stored line is replay-checked."""
+
+    reported = []
+    for record in branch_log:
+        trial = root.clone()
+        replay_ok = True
+        try:
+            for action in record["actions"]:
+                apply_action(trial, action)
+            replay_ok = _identity(trial) == _identity(record["payload"].state)
+        except ValueError:
+            replay_ok = False
+        reported.append(
+            {
+                "status": record["status"],
+                "stop_reason": record["stop_reason"],
+                "g": record["g"],
+                "foundations": record["foundations"],
+                "face_down": record["face_down"],
+                "bonds": record["bonds"],
+                "adjusted_bonds": record["adjusted_bonds"],
+                "stock": record["stock"],
+                "label": record["label"],
+                "actions": [format_action(action) for action in record["actions"]],
+                "replay_ok": replay_ok,
+            }
+        )
+    elapsed = time.perf_counter() - started
+    return {
+        "enabled": bool(multiline),
+        "limit": int(profile.frontier_limit),
+        "proposals_per_decision": int(profile.proposals_per_decision),
+        "generated": frontier.generated,
+        "explored": frontier.explored,
+        "transpositions": frontier.transpositions,
+        "merges": frontier.merges,
+        "dropped_full": frontier.dropped_full,
+        "replaced": frontier.replaced,
+        "still_queued": len(frontier.queue),
+        "pending": frontier.pending(),
+        "branches": reported,
+        "budget": {
+            "time_limit_s": profile.time_limit_s,
+            "elapsed_s": round(elapsed, 3),
+            "remaining_s": round(max(0.0, float(profile.time_limit_s) - elapsed), 3),
+            "stop": status,
+        },
+        "dominance": (
+            "Identical physical states keep the cheapest corrected ancestry. "
+            "A more expensive visit adds its campaign label to that ancestry "
+            "instead of replacing it. Equal cost with a different label or "
+            "forced candidate stays as its own line. Heuristics order the queue. "
+            "A full queue leaves a line unexpanded and does not mark it exhausted. "
+            "Admissible cost does not prune inside the frontier."
+        ),
+    }
 
 
 def _choice_deals(choice) -> bool:
