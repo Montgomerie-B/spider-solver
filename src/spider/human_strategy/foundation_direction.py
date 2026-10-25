@@ -3,12 +3,17 @@
 This module does not plan foundations by itself. It asks the existing
 feasibility and campaign analysers for a ranked next foundation, turns the
 campaign's obligations into a short prerequisite list, and asks the existing
-objective realiser for a legal path. Estimates order work. They do not prune.
-A tactical timeout does not retire the campaign.
+objective realiser for a legal path. When that path misses, a bounded search
+looks for a legal way to uncover the named card. A known incoming card can
+be given its receiver only when the replayed deal is better than dealing
+immediately. Estimates order work. They do not prune. A tactical timeout
+does not retire the campaign, and it does not move the operational epoch.
 """
 
 from __future__ import annotations
 
+import heapq
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -18,6 +23,7 @@ from spider.metrics import Action, format_action, replay_actions
 from spider.planner.foundation_campaign import (
     FoundationCampaign,
     FoundationCampaignPortfolio,
+    RankSourceKind,
     analyze_foundation_campaigns,
 )
 from spider.planner.foundation_campaign_realizer import (
@@ -31,11 +37,12 @@ from spider.planner.foundation_feasibility import (
     analyze_foundation_feasibility,
 )
 from spider.planner.objective_realizer import RealizationMode, RealizationStatus, realize_objective
-from spider.planner.stock_reception import next_stock_row
+from spider.planner.stock_reception import PreDealShapingObjective, next_stock_row, run_bounded_shaping_probe
 from spider.research_actions import all_legal_actions, apply_action, face_down_count
 from spider.state_identity import canonical_state_key
 
 from .portfolio import Candidate
+from .preparation import compare_exact_reception
 from .profiles import Profile
 
 _OPERATIONAL = {"ready_now", "excavation_led", "assembly_led", "stock_gated"}
@@ -228,8 +235,11 @@ def propose_foundation_step(
     """
 
     refused = set(blocked)
+    _proposal.active_lock = lock
+    started = time.perf_counter()
     try:
         feasibility, portfolio = load_portfolio(state, cards, cache)
+        _add_time(lock, "foundation_analysis", time.perf_counter() - started)
     except (ValueError, KeyError) as exc:
         return FoundationProposal(
             None,
@@ -267,6 +277,7 @@ def propose_foundation_step(
             lock["moves_since_deal"] = lock.get("moves_since_deal", 0) + 1
     elif previous_stock is not None and lock.get("seen_key") != state_key:
         lock["moves_since_deal"] = lock.get("moves_since_deal", 0) + 1
+    lock["stock_just_changed"] = previous_stock is not None and len(state.stock) != previous_stock
     lock["seen_key"] = state_key
     lock["fd"] = fd_now
     lock["stock_len"] = len(state.stock)
@@ -285,6 +296,8 @@ def propose_foundation_step(
     else:
         events.append(f"foundation: selected {campaign.label}")
         lock["announced"] = campaign.label
+    _sync_operational_epoch(lock, campaign, state, events)
+    _record_agenda(lock, agenda, campaign)
 
     finishing = _completion_move(state)
     if finishing is not None and f"FOUNDATION:{campaign.label}" not in refused:
@@ -363,7 +376,9 @@ def propose_foundation_step(
                     agenda,
                 )
             continue
+        realise_started = time.perf_counter()
         realized, status = _realize(state, item, profile, time_left)
+        _add_time(lock, "tactical_realisation", time.perf_counter() - realise_started)
         if status == RealizationStatus.RESOURCE_LIMIT:
             timeouts[item.prerequisite_id] = timeouts.get(item.prerequisite_id, 0) + 1
             events.append(f"foundation: tactical timeout does not retire {campaign.label}")
@@ -452,39 +467,40 @@ def propose_foundation_step(
             agenda,
         )
 
-    # Suspension does not satisfy a mandatory excavate. Dealing while the
-    # card is still buried is the v0.108 stock-exhaustion failure.
+    # A missed reveal is evidence about that attempt. It is not evidence that
+    # the suit can only be finished after another stock row.
     open_mandatory = [
         item
         for item in agenda.prerequisites
         if item.kind == "excavate" and item.mandatory_before_deal and not item.achieved
     ]
+    operational = lock.get("operational_epoch")
+    completing = operational is not None and campaign.current_epoch + 1 == operational
+    policy = campaign.space_plan.next_deal_policy
     if open_mandatory or missed_open:
         waiting = open_mandatory[0].prerequisite_id if open_mandatory else "an open prerequisite"
-        unlocked = _unlocking_deal(state, campaign, refused, lock)
-        if unlocked is not None:
-            events.append(
-                f"foundation: no tableau move reveals; one stock row is tried while {waiting} stays open"
-            )
-            return _unlocked_proposal(state, g, campaign, agenda, events)
+        accessed = _access_proposal(
+            state, g, campaign, agenda, lock, events, refused, time_left, waiting
+        )
+        if accessed is not None:
+            return accessed
         events.append(f"foundation: deal waits on {waiting}")
+        events.append(
+            "foundation: a failed direct reveal does not move the operational epoch"
+        )
         return _proposal(None, "", events, False, agenda, block_deal=True)
     if _preserve_broken(state, agenda):
         events.append(f"foundation: protected {campaign.suit} run is broken; not dealing yet")
         return _proposal(None, "", events, False, agenda, block_deal=True)
-    completing = (
-        campaign.target_removal_epoch is not None
-        and campaign.current_epoch + 1 == campaign.target_removal_epoch
-    )
     if (
         state.can_deal()
         and f"DEAL:{campaign.label}" not in refused
         and completing
         and lock.get("barren_deals", 0) < 1
-        and _deal_recommended(campaign.space_plan.next_deal_policy)
+        and _deal_recommended(policy)
     ):
-        # The next row is the campaign's removal epoch. Earlier rows stay
-        # in stock while tableau work can still expose the suit.
+        # The next row is the locked operational epoch. Receiver alignment
+        # runs only when this deal is not already justified.
         return _proposal(
             _make_candidate(
                 g,
@@ -501,47 +517,52 @@ def propose_foundation_step(
             False,
             agenda,
         )
-    if (
-        state.can_deal()
-        and campaign.target_removal_epoch is not None
-        and campaign.target_removal_epoch > campaign.current_epoch
-    ):
-        policy = campaign.space_plan.next_deal_policy
-        if not completing:
-            events.append(
-                f"foundation: target epoch {campaign.target_removal_epoch} "
-                f"is not the next row; {policy} delays the deal"
-            )
-        elif lock.get("barren_deals", 0) >= 1:
-            events.append(
-                "foundation: a stock row that revealed nothing does not earn another deal yet"
-            )
-        else:
-            events.append(f"foundation: {policy} delays the deal")
-        unlocked = _unlocking_deal(state, campaign, refused, lock)
-        if unlocked is not None:
-            events.append(
-                "foundation: no tableau move reveals; one stock row is tried after shaping stalled"
-            )
-            return _unlocked_proposal(state, g, campaign, agenda, events)
-        return _proposal(None, "", events, False, agenda, block_deal=True)
-    if state.can_deal():
-        # The removal epoch is already in hand. Deal again only when the
-        # tableau itself cannot expose another card and a move was tried
-        # since the previous row. Two barren deals in a row are refused.
-        frozen = _frozen_row(state, campaign, refused, lock)
-        if frozen:
-            events.append(
-                f"foundation: target epoch {campaign.target_removal_epoch} is in hand, "
-                "the tableau cannot reveal, and one more stock row is tried"
-            )
-            return _unlocked_proposal(state, g, campaign, agenda, events)
+    if operational is not None and campaign.current_epoch + 1 < operational:
         events.append(
-            f"foundation: target epoch {campaign.target_removal_epoch} is in hand "
+            f"foundation: target epoch {operational} "
+            f"is not the next row; {policy} delays the deal"
+        )
+    elif operational is not None and campaign.current_epoch >= operational and state.can_deal():
+        events.append(
+            f"foundation: target epoch {operational} is in hand "
             f"and {campaign.label} is still on the tableau; the deal waits"
         )
-        return _proposal(None, "", events, False, agenda, block_deal=True)
-    return _proposal(None, "", events, False, agenda)
+    analysed = lock.get("analysed_epoch")
+    if analysed != operational:
+        events.append(
+            f"foundation: analysed epoch {analysed} does not authorise a deal "
+            f"while the operational epoch stays {operational}"
+        )
+    accessed = _access_proposal(
+        state, g, campaign, agenda, lock, events, refused, time_left, "the locked suit"
+    )
+    if accessed is not None:
+        return accessed
+    aligned = _alignment_proposal(state, g, campaign, agenda, lock, events, time_left)
+    if aligned is not None:
+        return aligned
+    # Alignment has already run when time remains. A measured connection on
+    # the next row can then justify the deal. A raised analysed epoch cannot.
+    if time_left >= 0.2:
+        evidenced = _evidenced_deal(
+            state, g, campaign, agenda, lock, events, refused, operational
+        )
+        if evidenced is not None:
+            return evidenced
+    horizon = _horizon_deal(state, g, campaign, agenda, lock, events, refused, operational, policy)
+    if horizon is not None:
+        return horizon
+    if (
+        time_left >= 0.2
+        and state.can_deal()
+        and operational is not None
+        and campaign.current_epoch + 1 <= operational
+    ):
+        events.append(
+            "foundation: the next row has no measured same-suit gain inside the locked horizon, "
+            "so the deal stays deferred"
+        )
+    return _proposal(None, "", events, False, agenda, block_deal=state.can_deal())
 
 
 def agenda_public(agenda: Optional[FoundationAgenda]) -> dict:
@@ -592,6 +613,13 @@ def agenda_public(agenda: Optional[FoundationAgenda]) -> dict:
 
 
 def _proposal(candidate, reason, events, timeout, agenda, block_deal: bool = False) -> FoundationProposal:
+    public = agenda_public(agenda)
+    holder = getattr(_proposal, "active_lock", None)
+    if holder is not None:
+        public = dict(public)
+        public["campaign_record"] = campaign_record_public(holder)
+        timing = holder.get("timing") or {}
+        public["timing"] = {key: round(float(value), 4) for key, value in timing.items()}
     return FoundationProposal(
         candidate,
         reason,
@@ -599,7 +627,7 @@ def _proposal(candidate, reason, events, timeout, agenda, block_deal: bool = Fal
         timeout,
         block_deal,
         agenda,
-        agenda_public(agenda),
+        public,
     )
 
 
@@ -1065,4 +1093,835 @@ def _make_candidate(g, identifier, kind, actions, *, hold, benefit, evidence, pu
         solves=False,
         attractiveness=benefit,
         hold=hold,
+    )
+
+
+@dataclass(frozen=True)
+class AccessPlan:
+    """A short legal sequence that reduces the cover on one named card."""
+
+    actions: Tuple[Action, ...]
+    cost: int
+    status: str
+    nodes: int
+    source_key: str
+    column: int
+    depth_before: int
+    depth_after: int
+    obstruction: Tuple[str, ...]
+
+
+def _add_time(lock: dict, name: str, seconds: float) -> None:
+    bucket = lock.setdefault("timing", {})
+    bucket[name] = float(bucket.get(name, 0.0)) + float(seconds)
+
+
+def _rank_tableau_counts(state: SpiderState, suit: str) -> Dict[int, int]:
+    counts = {rank: 0 for rank in range(1, 14)}
+    for column in state.columns:
+        for card in list(column.face_down) + list(column.face_up):
+            if card.suit == suit:
+                counts[card.rank] += 1
+    return counts
+
+
+def revise_operational_epoch(
+    lock: dict,
+    *,
+    analysed: Optional[int],
+    theoretical: Optional[int],
+    stock_changed: bool,
+    foundation_removed: bool,
+    lost: Sequence[Tuple] = (),
+    arrived: Sequence[Tuple] = (),
+    note: str = "",
+) -> str:
+    """Keep the operational epoch stable unless the evidence is specific.
+
+    A higher analysed epoch is a forecast. It is recorded and rejected unless
+    stock actually changed and a named copy left the tableau, or the analysed
+    horizon moved earlier after new stock information. Returns ``revised``,
+    ``rejected``, or ``unchanged``.
+    """
+
+    lock["theoretical_epoch"] = theoretical
+    lock["analysed_epoch"] = analysed
+    if lock.get("original_epoch") is None:
+        lock["original_epoch"] = analysed
+        lock["operational_epoch"] = analysed
+        lock["original_rationale"] = note
+        lock.setdefault("epoch_changes", [])
+        lock.setdefault("rejected_revisions", [])
+        return "unchanged"
+    operational = lock.get("operational_epoch")
+    if analysed == operational:
+        return "unchanged"
+    lost = tuple(lost)
+    arrived = tuple(arrived)
+    earlier = (
+        stock_changed
+        and analysed is not None
+        and operational is not None
+        and analysed < operational
+    )
+    named_loss = bool(lost) and stock_changed and analysed is not None and operational is not None and analysed > operational
+    if foundation_removed or earlier or named_loss:
+        if foundation_removed:
+            why = "a foundation was removed"
+            affected = "the locked suit"
+        elif earlier:
+            why = "stock changed and the analysed horizon moved earlier"
+            affected = arrived[0][0] if arrived else "the locked suit"
+        else:
+            why = "a named tableau copy left the tableau after the stock changed"
+            affected = lost[0][0]
+        lock["operational_epoch"] = analysed
+        lock.setdefault("epoch_changes", []).append(
+            {
+                "old": operational,
+                "new": analysed,
+                "state_change": note or why,
+                "prerequisite": affected,
+                "evidence": why,
+                "stock_timing": "later deals are judged against the revised operational epoch",
+            }
+        )
+        return "revised"
+    lock.setdefault("rejected_revisions", []).append(
+        {
+            "old": operational,
+            "new": analysed,
+            "state_change": note or "reanalysis without a stock change or a named lost card",
+            "prerequisite": lost[0][0] if lost else None,
+            "evidence": "a changed target epoch is a forecast, not proof that another row is required",
+            "stock_timing": "the operational epoch stays, so the forecast does not authorise a deal",
+        }
+    )
+    return "rejected"
+
+
+def _sync_operational_epoch(lock: dict, campaign: FoundationCampaign, state: SpiderState, events: List[str]) -> None:
+    if lock.get("epoch_label") not in (None, campaign.label):
+        events.append(
+            f"foundation: epoch record resets because the locked suit is now {campaign.label}"
+        )
+        lock["original_epoch"] = None
+        lock["epoch_changes"] = []
+        lock["rejected_revisions"] = []
+        lock["tableau_counts"] = {}
+        lock["chosen_sources"] = {}
+    lock["epoch_label"] = campaign.label
+    counts = _rank_tableau_counts(state, campaign.suit)
+    previous_counts = lock.get("tableau_counts") or {}
+    lost = []
+    for rank, count in counts.items():
+        old = previous_counts.get(rank)
+        if old is not None and count < old:
+            lost.append((rank, f"tableau-count:{old}", f"tableau-count:{count}"))
+    current_sources = {}
+    arrived = []
+    previous_sources = lock.get("chosen_sources") or {}
+    for need in campaign.rank_needs:
+        if need.chosen is None:
+            continue
+        current_sources[str(need.rank)] = need.chosen.source_key
+        previous = previous_sources.get(str(need.rank))
+        if (
+            previous
+            and str(previous).startswith("stock:")
+            and str(need.chosen.source_key).startswith("tableau:")
+        ):
+            arrived.append((need.rank, previous, need.chosen.source_key))
+    status = revise_operational_epoch(
+        lock,
+        analysed=campaign.target_removal_epoch,
+        theoretical=campaign.earliest_theoretical_epoch,
+        stock_changed=bool(lock.get("stock_just_changed")),
+        foundation_removed=False,
+        lost=tuple(lost),
+        arrived=tuple(arrived),
+        note=f"suit {campaign.label} at epoch {campaign.current_epoch}",
+    )
+    lock["tableau_counts"] = counts
+    lock["chosen_sources"] = current_sources
+    if status == "revised" and lock.get("epoch_changes"):
+        last = lock["epoch_changes"][-1]
+        events.append(
+            f"foundation: operational epoch {last['old']} -> {last['new']}; {last['evidence']}"
+        )
+    elif status == "rejected" and lock.get("rejected_revisions"):
+        last = lock["rejected_revisions"][-1]
+        token = (last["old"], last["new"], len(state.stock))
+        if lock.get("last_rejection") != token:
+            lock["last_rejection"] = token
+            events.append(
+                f"foundation: rejected epoch revision {last['old']} -> {last['new']}; "
+                "a forecast does not authorise another stock row"
+            )
+
+
+def _record_agenda(lock: dict, agenda: FoundationAgenda, campaign: FoundationCampaign) -> None:
+    lock["required_cards"] = [
+        {
+            "id": item.prerequisite_id,
+            "kind": item.kind,
+            "rank": item.rank,
+            "achieved": bool(item.achieved),
+            "column": None if item.column is None else item.column + 1,
+        }
+        for item in agenda.prerequisites
+    ]
+    lock["achieved_prerequisites"] = [
+        item.prerequisite_id for item in agenda.prerequisites if item.achieved
+    ]
+    lock["outstanding"] = [
+        item.prerequisite_id for item in agenda.prerequisites if not item.achieved
+    ]
+    lock["campaign_blockers"] = list(campaign.blockers)
+    lock["alternatives"] = [item.label for item in agenda.alternatives]
+    lock["suspensions"] = sorted(str(item) for item in lock.get("suspended_notes", ()))
+    lock["receiving"] = list(campaign.pre_deal_receiver_requirements[:6])
+    if not lock.get("rationale_frozen"):
+        lock["original_rationale"] = list(campaign.rationale[:3])
+        lock["rationale_frozen"] = True
+
+
+def campaign_record_public(lock: dict) -> dict:
+    """JSON-safe view of the persistent foundation campaign record."""
+
+    def _plain(value):
+        if isinstance(value, tuple):
+            return [_plain(item) for item in value]
+        if isinstance(value, list):
+            return [_plain(item) for item in value]
+        if isinstance(value, dict):
+            return {str(key): _plain(item) for key, item in value.items()}
+        return value
+
+    return {
+        "label": lock.get("epoch_label") or lock.get("label"),
+        "original_epoch": lock.get("original_epoch"),
+        "original_rationale": _plain(lock.get("original_rationale") or []),
+        "theoretical_epoch": lock.get("theoretical_epoch"),
+        "operational_epoch": lock.get("operational_epoch"),
+        "analysed_epoch": lock.get("analysed_epoch"),
+        "required_cards": _plain(lock.get("required_cards") or []),
+        "outstanding": list(lock.get("outstanding") or []),
+        "achieved_prerequisites": list(lock.get("achieved_prerequisites") or []),
+        "blockers": list(lock.get("campaign_blockers") or []),
+        "unresolved_access": list(lock.get("unresolved_access") or []),
+        "receiving": list(lock.get("receiving") or []),
+        "cost_invested": lock.get("cost_invested", 0),
+        "alternatives": list(lock.get("alternatives") or []),
+        "suspensions": list(lock.get("suspensions") or []),
+        "epoch_changes": _plain(lock.get("epoch_changes") or []),
+        "rejected_revisions": _plain(lock.get("rejected_revisions") or []),
+    }
+
+
+def locate_source(state: SpiderState, source_key: str):
+    """Return the physical card named by a tableau source key, if it is still there."""
+
+    parts = str(source_key).split(":")
+    if len(parts) != 4 or parts[0] != "tableau":
+        return None
+    column = int(parts[1])
+    zone = parts[2]
+    index = int(parts[3])
+    if not 0 <= column < len(state.columns):
+        return None
+    sequence = state.columns[column].face_up if zone == "up" else state.columns[column].face_down
+    if not 0 <= index < len(sequence):
+        return None
+    return sequence[index], column, zone, index
+
+
+def _cover_depth(state: SpiderState, card: Card) -> Optional[int]:
+    for column in state.columns:
+        for index, item in enumerate(column.face_down):
+            if item is card:
+                return len(column.face_up) + (len(column.face_down) - 1 - index)
+        for index, item in enumerate(column.face_up):
+            if item is card:
+                return len(column.face_up) - 1 - index
+    return None
+
+
+def _legally_movable_head(state: SpiderState, card: Card) -> bool:
+    """True when a legal move starts at this card. Face-up alone is not enough."""
+
+    for src, column in enumerate(state.columns):
+        for index, item in enumerate(column.face_up):
+            if item is not card:
+                continue
+            run_length = len(column.face_up) - index
+            return any(
+                state.can_move(src, dst, run_length) for dst in range(len(state.columns)) if dst != src
+            )
+    return False
+
+
+def _obstruction_labels(state: SpiderState, card: Card) -> Tuple[str, ...]:
+    for column in state.columns:
+        for index, item in enumerate(column.face_up):
+            if item is card:
+                return tuple(str(other) for other in column.face_up[index + 1 :])
+        for index, item in enumerate(column.face_down):
+            if item is card:
+                covered = [str(other) for other in column.face_up]
+                covered.extend(str(other) for other in column.face_down[index + 1 :])
+                return tuple(covered)
+    return ()
+
+
+def _fingerprint(state: SpiderState) -> tuple:
+    parts = []
+    for column in state.columns:
+        parts.append(
+            (
+                tuple((card.suit, card.rank) for card in column.face_down),
+                tuple((card.suit, card.rank) for card in column.face_up),
+            )
+        )
+    return (tuple(parts), len(state.stock), len(state.foundations))
+
+
+def obstructed_tableau_sources(state: SpiderState, campaign: FoundationCampaign) -> Tuple[tuple, ...]:
+    """Chosen tableau cards that are not the head of a legal move."""
+
+    found = []
+    for need in campaign.rank_needs:
+        chosen = need.chosen
+        if chosen is None or not str(chosen.source_key).startswith("tableau:"):
+            continue
+        if chosen.kind == RankSourceKind.ALREADY_USABLE:
+            continue
+        located = locate_source(state, chosen.source_key)
+        if located is None:
+            continue
+        card, column, zone, _index = located
+        if _legally_movable_head(state, card):
+            continue
+        depth = _cover_depth(state, card)
+        if depth is None:
+            continue
+        found.append((depth, -need.rank, chosen.source_key, card, column, zone))
+    found.sort(key=lambda item: (item[0], item[1], item[2]))
+    return tuple(found)
+
+
+def plan_obstructed_access(
+    state: SpiderState,
+    card: Card,
+    protected,
+    *,
+    source_key: str = "",
+    column: int = -1,
+    max_cost: int = 4,
+    max_nodes: int = 2500,
+) -> Optional[AccessPlan]:
+    """Bounded search for a legal sequence that uncovers one physical card.
+
+    The search deals nothing and does not split a protected same-suit run.
+    ``not found`` means the bound was exhausted. It does not mean the card
+    can never move. Zero-cost whole-column transfers stay legal because the
+    engine's corrected cost is the search cost.
+    """
+
+    start = _cover_depth(state, card)
+    if start is None:
+        return None
+    if _legally_movable_head(state, card):
+        return None
+    obstruction = _obstruction_labels(state, card)
+    best = None
+    seen = {_fingerprint(state): 0}
+    sequence = 0
+    heap = [(0, 0, state, ())]
+    nodes = 0
+    while heap and nodes < max_nodes:
+        cost, _order, current, path = heapq.heappop(heap)
+        nodes += 1
+        depth = _cover_depth(current, card)
+        if depth is None:
+            continue
+        movable = bool(path) and _legally_movable_head(current, card)
+        exposed = bool(path) and depth == 0 and start > 0
+        if movable or exposed:
+            status = "unlocked" if movable else "exposed"
+            return AccessPlan(
+                tuple(path),
+                int(cost),
+                status,
+                nodes,
+                source_key,
+                column,
+                int(start),
+                int(depth),
+                obstruction,
+            )
+        if path and depth < start and (best is None or (depth, cost, len(path)) < best[0]):
+            best = ((depth, cost, len(path)), tuple(path), int(cost), int(depth))
+        if cost >= max_cost:
+            continue
+        for action in current.enumerate_moves():
+            if _splits_protected(current, action, protected):
+                continue
+            trial = current.clone()
+            try:
+                step = apply_action(trial, action)
+            except ValueError:
+                continue
+            next_cost = cost + step
+            if next_cost > max_cost:
+                continue
+            key = _fingerprint(trial)
+            if key in seen and seen[key] <= next_cost:
+                continue
+            seen[key] = next_cost
+            sequence += 1
+            heapq.heappush(heap, (next_cost, sequence, trial, path + (action,)))
+    if best is None:
+        return None
+    _key, path, cost, depth = best
+    return AccessPlan(
+        path,
+        cost,
+        "progress",
+        nodes,
+        source_key,
+        column,
+        int(start),
+        int(depth),
+        obstruction,
+    )
+
+
+def _access_proposal(state, g, campaign, agenda, lock, events, refused, time_left, waiting):
+    if time_left < 0.15:
+        return None
+    started = time.perf_counter()
+    targets = obstructed_tableau_sources(state, campaign)
+    plan = None
+    for depth, _rank, source_key, card, column, _zone in targets[:2]:
+        ident = f"access:{source_key}"
+        if ident in refused:
+            continue
+        cache = lock.setdefault("access_cache", {})
+        cache_key = (_fingerprint(state), source_key)
+        cached = cache.get(cache_key)
+        if cached is None and cache_key in cache:
+            continue
+        if cached is None:
+            found = plan_obstructed_access(
+                state,
+                card,
+                agenda.protected_fragments,
+                source_key=source_key,
+                column=column,
+            )
+            cache[cache_key] = found
+        else:
+            found = cached
+        if found is None:
+            note = f"{source_key} depth {depth}"
+            unresolved = lock.setdefault("unresolved_access", [])
+            if note not in unresolved:
+                unresolved.append(note)
+            continue
+        plan = found
+        break
+    _add_time(lock, "dependency_planning", time.perf_counter() - started)
+    if plan is None:
+        return None
+    rendered = " ".join(format_action(action) for action in plan.actions)
+    blockers = " ".join(plan.obstruction) if plan.obstruction else "none"
+    events.append(
+        f"foundation: {plan.source_key} is blocked by {blockers}; "
+        f"a {len(plan.actions)}-move sequence reduces cover {plan.depth_before} -> {plan.depth_after}"
+    )
+    events.append(
+        "foundation: that sequence is one realisation; it does not move the operational epoch"
+    )
+    lock["active_access"] = {
+        "source": plan.source_key,
+        "status": plan.status,
+        "actions": [format_action(action) for action in plan.actions],
+        "waiting": waiting,
+    }
+    return _proposal(
+        _make_candidate(
+            g,
+            f"access:{plan.source_key}",
+            "ACCESS",
+            (plan.actions[0],),
+            hold=False,
+            benefit=2.5,
+            evidence=_evidence(
+                campaign,
+                agenda,
+                f"fact: obstruction above the card is {blockers}",
+                f"fact: legal sequence {rendered}",
+                f"fact: corrected cost of the sequence is {plan.cost}",
+                "fact: face-up does not mean the card is legally movable",
+                "fact: a failed direct reveal is not an epoch revision",
+            ),
+            purpose="unblock a foundation prerequisite without dealing",
+        ),
+        "selected: foundation prerequisite can be unblocked",
+        events,
+        False,
+        agenda,
+    )
+
+
+def plan_receiver_alignment(
+    state: SpiderState,
+    campaign: FoundationCampaign,
+    *,
+    max_cost: int = 3,
+    max_expand: int = 500,
+) -> Optional[object]:
+    """Place a same-suit receiver for a chosen incoming card, when the replay wins."""
+
+    row = next_stock_row(state)
+    if row is None:
+        return None
+    chosen_columns = set()
+    chosen_ranks = set()
+    for need in campaign.rank_needs:
+        chosen = need.chosen
+        if chosen is None:
+            continue
+        chosen_ranks.add(need.rank)
+        if chosen.stock_epoch == campaign.current_epoch + 1 and chosen.stock_column is not None:
+            chosen_columns.add(chosen.stock_column)
+    best = None
+    notes: List[str] = []
+    examined = 0
+    for column, card in enumerate(row):
+        if card.suit != campaign.suit or card.rank not in chosen_ranks:
+            continue
+        if chosen_columns and column not in chosen_columns:
+            continue
+        examined += 1
+        if examined > 3:
+            break
+        if card.rank >= 13:
+            compared = compare_exact_reception(state, (), column, campaign.suit)
+            notes.append(
+                f"incoming king on column {column + 1} is not a completed foundation; "
+                f"queen-led follow-up is {compared.post_deal_queen_onto_king}"
+            )
+            continue
+        objective = PreDealShapingObjective(
+            code="same_suit_receiver",
+            description=f"top of column {column + 1} receives {card}",
+            target_column=column,
+            incoming=card,
+            predicate_key="same_suit_receiver",
+            max_cost=max_cost,
+        )
+        found = run_bounded_shaping_probe(
+            state, objective, max_cost=max_cost, max_expand=max_expand
+        )
+        if found.status == "already_satisfied":
+            notes.append(
+                f"receiver for {card} is already the top of column {column + 1}; "
+                "no relocation is required"
+            )
+            continue
+        if not found.found or not found.path:
+            notes.append(
+                f"receiver for {card} cannot legally reach column {column + 1} "
+                f"within corrected cost {max_cost} ({found.status})"
+            )
+            continue
+        compared = compare_exact_reception(state, found.path, column, campaign.suit)
+        if compared.choice == "prepare" and (
+            best is None or compared.preparation_cost < best.preparation_cost
+        ):
+            best = compared
+        elif compared.choice == "deal_now":
+            notes.append(
+                f"moving a receiver for {card} onto column {column + 1} loses to dealing now"
+            )
+        elif compared.choice == "reject":
+            notes.append(f"receiver plan for {card} on column {column + 1} was rejected")
+    return best, tuple(notes)
+
+
+def _alignment_proposal(state, g, campaign, agenda, lock, events, time_left):
+    if time_left < 0.2 or not state.can_deal():
+        return None
+    started = time.perf_counter()
+    found = plan_receiver_alignment(state, campaign)
+    _add_time(lock, "receiver_alignment", time.perf_counter() - started)
+    if found is None:
+        return None
+    comparison, notes = found
+    compare_started = time.perf_counter()
+    _add_time(lock, "consequence_comparison", time.perf_counter() - compare_started)
+    for note in notes:
+        if note not in events:
+            events.append(f"foundation: {note}")
+    if comparison is None or comparison.choice != "prepare" or not comparison.actions:
+        return None
+    rendered = " ".join(format_action(action) for action in comparison.actions)
+    events.append(
+        f"foundation: prepare column {comparison.column + 1} before the deal; "
+        f"corrected preparation-plus-deal cost {comparison.preparation_cost}"
+    )
+    return _proposal(
+        _make_candidate(
+            g,
+            f"ALIGN:{campaign.label}:{comparison.column + 1}",
+            "ALIGN",
+            (comparison.actions[0],),
+            hold=False,
+            benefit=1.5,
+            evidence=_evidence(
+                campaign,
+                agenda,
+                *comparison.evidence,
+                f"fact: legal preparation {rendered}",
+            ),
+            purpose="place the receiver for a known incoming card",
+        ),
+        "selected: stock reception is worth preparing",
+        events,
+        False,
+        agenda,
+    )
+
+
+def _named_stock_still_ahead(campaign: FoundationCampaign) -> Tuple[str, ...]:
+    missing = []
+    for need in campaign.rank_needs:
+        chosen = need.chosen
+        if chosen is None or not str(chosen.source_key).startswith("stock:"):
+            continue
+        if chosen.stock_epoch is not None and chosen.stock_epoch > campaign.current_epoch:
+            missing.append(f"{chosen.card} at epoch {chosen.stock_epoch}")
+    return tuple(missing)
+
+
+def _exposed_run_length(column) -> int:
+    up = column.face_up
+    if not up:
+        return 0
+    length = 1
+    while length < len(up):
+        parent = up[-1 - length]
+        child = up[-length]
+        if parent.suit != child.suit or parent.rank != child.rank + 1:
+            break
+        length += 1
+    return length
+
+
+def _cover_is_movable(state: SpiderState, column: int, protected) -> bool:
+    """True when the single covering card has a legal move that is not a protected split."""
+
+    for action in all_legal_actions(state):
+        if action == ("deal",) or action[0] != column or action[2] != 1:
+            continue
+        if _splits_protected(state, action, protected):
+            continue
+        return True
+    return False
+
+
+def measured_stock_connection(state, suit: str, protected, *, operational, current):
+    """Exact facts that can justify dealing the next row for one locked suit.
+
+    The analysed target epoch is intentionally not an argument. Returning None
+    means this row is not justified by a measured connection. A covered run of
+    three or more cards blocks the deal unless one legal move lifts that cover.
+    """
+
+    if operational is None or current + 1 > operational or not state.can_deal():
+        return None
+    row = next_stock_row(state)
+    if row is None:
+        return None
+    before_longest = _longest(state, suit)
+    dealt = state.clone()
+    try:
+        deal_cost = apply_action(dealt, ("deal",))
+    except ValueError:
+        return None
+    landings = []
+    arrived = []
+    for index, card in enumerate(row):
+        if card.suit != suit:
+            continue
+        arrived.append(f"column {index + 1} {card}")
+        parent = state.columns[index].top()
+        if parent is not None and parent.suit == suit and parent.rank == card.rank + 1:
+            landings.append(f"{card} onto {parent} in column {index + 1}")
+    follow = None
+    follow_gain = None
+    follow_removes = False
+    follow_key = None
+    for action in all_legal_actions(dealt):
+        if action == ("deal",):
+            continue
+        src, dst, k = action
+        run = dealt.columns[src].face_up[-k:]
+        if not run or run[0].suit != suit:
+            continue
+        if _splits_protected(dealt, action, protected):
+            continue
+        top = dealt.columns[dst].top()
+        if top is None or top.suit != suit or top.rank != run[0].rank + 1:
+            continue
+        uses_new_card = any(run[0] is card or top is card for card in row)
+        if not uses_new_card:
+            continue
+        trial = dealt.clone()
+        apply_action(trial, action)
+        gain = _longest(trial, suit) - before_longest
+        removes = len(trial.foundations) > len(dealt.foundations)
+        # Removing the suit shortens the longest remaining run. That is the
+        # completion, so it outranks a cosmetic extension.
+        key = (1 if removes else 0, gain, k)
+        if follow_key is None or key > follow_key:
+            follow_key = key
+            follow_gain = gain
+            follow_removes = removes
+            follow = action
+    if not landings and follow is None:
+        return None
+    covered = []
+    for index, column in enumerate(state.columns):
+        old_top = column.top()
+        if old_top is None or old_top.suit != suit:
+            continue
+        new_top = dealt.columns[index].top()
+        if new_top is old_top:
+            continue
+        if new_top.suit == old_top.suit and old_top.rank == new_top.rank + 1:
+            # The incoming card extended the run. It is the connection, not a burial.
+            continue
+        length = _exposed_run_length(column)
+        if length < 3:
+            covered.append(f"column {index + 1} {old_top} is covered by {new_top}")
+            continue
+        if not _cover_is_movable(dealt, index, protected):
+            return None
+        covered.append(
+            f"column {index + 1} run of {length} is covered by {new_top} "
+            "and one legal move lifts that cover"
+        )
+    lines = [
+        "fact: preparation inside the cost bound did not relocate a better receiver",
+        f"fact: corrected deal cost is {deal_cost}",
+        "fact: the operational epoch was not revised to authorise this row",
+    ]
+    if arrived:
+        lines.append("fact: incoming " + ", ".join(arrived))
+    if landings:
+        lines.append("fact: same-suit landing " + "; ".join(landings))
+    if follow is not None and follow_removes:
+        lines.append(
+            f"fact: after the deal {format_action(follow)} removes the suit; "
+            "the landing itself is not the foundation"
+        )
+    elif follow is not None:
+        lines.append(
+            f"fact: after the deal {format_action(follow)} extends the suit "
+            f"by {follow_gain}"
+        )
+    lines.extend(f"fact: {item}" for item in covered[:4])
+    return tuple(lines)
+
+
+def _evidenced_deal(state, g, campaign, agenda, lock, events, refused, operational):
+    """Deal when the next row itself creates a measured same-suit gain.
+
+    This is not the old unlocking deal. The row must still be inside the
+    locked operational horizon, and a failed reveal must already have been
+    refused further up the caller.
+    """
+
+    if operational is None or not state.can_deal():
+        return None
+    if f"DEAL:{campaign.label}" in refused or lock.get("barren_deals", 0) >= 1:
+        return None
+    evidence = measured_stock_connection(
+        state,
+        campaign.suit,
+        agenda.protected_fragments,
+        operational=operational,
+        current=campaign.current_epoch,
+    )
+    if evidence is None:
+        return None
+    events.append(
+        f"foundation: deal one row for a measured {campaign.suit} connection; "
+        f"operational epoch stays {operational}"
+    )
+    return _proposal(
+        _make_candidate(
+            g,
+            f"DEAL:{campaign.label}",
+            "DEAL_NOW",
+            (("deal",),),
+            hold=False,
+            benefit=1.4,
+            evidence=_evidence(campaign, agenda, *evidence),
+            purpose="deal because a known incoming card creates a same-suit connection",
+        ),
+        "selected: a known incoming card enables a same-suit connection after preparation was tried",
+        events,
+        False,
+        agenda,
+    )
+
+
+def _horizon_deal(state, g, campaign, agenda, lock, events, refused, operational, policy):
+    """One intermediate row when the locked horizon is still ahead.
+
+    The analysed epoch is not consulted. A row beyond the locked operational
+    epoch is not dealt here.
+    """
+
+    if operational is None or not state.can_deal():
+        return None
+    if f"DEAL:{campaign.label}" in refused or lock.get("barren_deals", 0) >= 1:
+        return None
+    if not _deal_recommended(policy):
+        return None
+    if not (campaign.current_epoch + 1 < operational):
+        return None
+    if _any_reveal(state):
+        return None
+    missing = _named_stock_still_ahead(campaign)
+    if not missing:
+        return None
+    events.append(
+        "foundation: bounded preparation did not open the tableau prerequisite; "
+        "the locked horizon still needs stock"
+    )
+    evidence = _deal_evidence(state, campaign, agenda) + (
+        f"fact: operational epoch {operational} stays locked",
+        f"fact: named stock still ahead: {', '.join(missing[:4])}",
+        "fact: this deal is not authorised by a raised analysed epoch",
+    )
+    return _proposal(
+        _make_candidate(
+            g,
+            f"DEAL:{campaign.label}",
+            "DEAL_NOW",
+            (("deal",),),
+            hold=False,
+            benefit=1.0,
+            evidence=evidence,
+            purpose="deal one row because the locked horizon still needs stock",
+        ),
+        "selected: locked stock horizon still needs a row after preparation was tried",
+        events,
+        False,
+        agenda,
     )

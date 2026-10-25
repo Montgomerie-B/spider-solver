@@ -703,6 +703,7 @@ def run_bounded_shaping_probe(
     objective: PreDealShapingObjective,
     *,
     max_cost: Optional[int] = None,
+    max_expand: int = 4000,
 ) -> BoundedShapingResult:
     """BFS over legal moves with corrected MW cost <= bound.
 
@@ -740,7 +741,6 @@ def run_bounded_shaping_probe(
     q.append((0, state.clone(), ()))
     seen: Dict[tuple, int] = {sk(state): 0}
     expanded = 0
-    max_expand = 4000  # hard cap for diagnostic speed
 
     while q:
         cost, st, path = q.popleft()

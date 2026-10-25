@@ -124,6 +124,172 @@ def abandonment_reason(state: SpiderState, remaining: Sequence[Action]) -> Optio
     return "abandoned: committed plan no longer improves on the alternatives"
 
 
+@dataclass(frozen=True)
+class ReceptionComparison:
+    """Exact corrected-MW comparison of a prepared deal against dealing now."""
+
+    choice: str
+    column: int
+    actions: Tuple[Action, ...]
+    preparation_cost: int
+    deal_only_cost: int
+    prepared_connects: bool
+    immediate_connects: bool
+    post_deal_queen_onto_king: bool
+    evidence: Tuple[str, ...]
+
+
+def _dealt_same_suit(state: SpiderState, column: int, suit: str) -> bool:
+    face_up = state.columns[column].face_up
+    if len(face_up) < 2:
+        return False
+    parent, child = face_up[-2], face_up[-1]
+    return parent.suit == child.suit == suit and parent.rank - 1 == child.rank
+
+
+def queen_run_lands_on(state: SpiderState, column: int, suit: str) -> bool:
+    """True when a queen-led same-suit run can legally move onto ``column``."""
+
+    for src, dst, k in state.enumerate_moves():
+        if dst != column:
+            continue
+        run = state.columns[src].face_up[-k:]
+        if run and run[0].suit == suit and run[0].rank == 12:
+            return True
+    return False
+
+
+def compare_exact_reception(
+    state: SpiderState,
+    prep_actions: Sequence[Action],
+    column: int,
+    suit: str,
+) -> ReceptionComparison:
+    """Clone, apply a legal preparation, deal, and compare with dealing now.
+
+    A preparation that is illegal, or that does not create a connection the
+    immediate deal lacks, loses to dealing now. A king has no rank-14 parent.
+    The comparison then asks whether a queen-led run can move onto it after
+    the deal. That continuation is not itself a removed foundation.
+    """
+
+    row = next_stock_row(state)
+    if row is None or not (0 <= column < len(row)):
+        return ReceptionComparison(
+            "reject",
+            column,
+            tuple(prep_actions),
+            0,
+            0,
+            False,
+            False,
+            False,
+            ("fact: no incoming card can be placed in that column",),
+        )
+    incoming = row[column]
+    immediate = state.clone()
+    try:
+        deal_cost = immediate.deal()
+    except ValueError:
+        return ReceptionComparison(
+            "reject",
+            column,
+            tuple(prep_actions),
+            0,
+            0,
+            False,
+            False,
+            False,
+            ("fact: the stock row cannot be dealt from this state",),
+        )
+    immediate_connects = _dealt_same_suit(immediate, column, suit)
+    immediate_king = bool(
+        incoming.suit == suit and incoming.rank == 13 and queen_run_lands_on(immediate, column, suit)
+    )
+    if not prep_actions:
+        return ReceptionComparison(
+            "deal_now",
+            column,
+            (),
+            0,
+            int(deal_cost),
+            False,
+            immediate_connects,
+            immediate_king,
+            (
+                f"fact: column {column + 1} incoming {incoming} is dealt with no preparation",
+                f"fact: same-suit landing on the deal is {immediate_connects}",
+                f"fact: a queen-led {suit} run can follow a king landing: {immediate_king}",
+                "fact: corrected MW includes the deal and no preparatory moves",
+            ),
+        )
+    prepared = state.clone()
+    prep_cost = 0
+    try:
+        for action in prep_actions:
+            prep_cost += apply_action(prepared, action)
+        prep_cost += prepared.deal()
+    except ValueError:
+        return ReceptionComparison(
+            "reject",
+            column,
+            tuple(prep_actions),
+            0,
+            int(deal_cost),
+            False,
+            immediate_connects,
+            immediate_king,
+            ("fact: the proposed receiver preparation is not legal on this state",),
+        )
+    prepared_connects = _dealt_same_suit(prepared, column, suit)
+    prepared_king = bool(
+        incoming.suit == suit and incoming.rank == 13 and queen_run_lands_on(prepared, column, suit)
+    )
+    created = (prepared_connects and not immediate_connects) or (prepared_king and not immediate_king)
+    lost = (immediate_connects and not prepared_connects) or (immediate_king and not prepared_king)
+    evidence = (
+        f"fact: column {column + 1} receives incoming {incoming}",
+        f"fact: preparation cost {prep_cost} against deal-now cost {deal_cost}",
+        f"fact: prepared same-suit landing {prepared_connects}; immediate landing {immediate_connects}",
+        f"fact: queen-led follow-up prepared {prepared_king}; immediate {immediate_king}",
+        "fact: both figures are corrected MobilityWare costs of the replayed actions",
+    )
+    if created and not lost and prep_cost <= int(deal_cost) + 3:
+        choice = "prepare"
+    else:
+        choice = "deal_now"
+    return ReceptionComparison(
+        choice,
+        column,
+        tuple(prep_actions),
+        int(prep_cost),
+        int(deal_cost),
+        prepared_connects,
+        immediate_connects,
+        prepared_king or immediate_king,
+        evidence,
+    )
+
+
+def strategic_stop_status(
+    *,
+    goal: str,
+    legal_count: int,
+    proved_no_legal_continuation: bool,
+) -> Tuple[str, str]:
+    """Separate an unfinished plan from a proof that nothing legal remains."""
+
+    if goal == "first-foundation" and legal_count > 0 and not proved_no_legal_continuation:
+        return (
+            "PLANNING_STALL",
+            f"planning stall: {legal_count} legal tableau moves remain; "
+            "this is not a proof that every continuation is exhausted",
+        )
+    if legal_count <= 0 or proved_no_legal_continuation:
+        return "EXHAUSTED", "no legal continuation under the current restrictions"
+    return "EXHAUSTED", "principal objective failed and no dormant alternative remained"
+
+
 def classify_stall(
     *,
     legal_count: int,

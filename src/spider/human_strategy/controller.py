@@ -40,6 +40,7 @@ from .preparation import (
     classify_stall,
     compare_before_deal,
     soft_failure_id,
+    strategic_stop_status,
 )
 from .profiles import Profile
 
@@ -306,7 +307,7 @@ def _execute(state: SpiderState, candidate: Candidate, profile: Profile, time_le
             remaining,
             (action,),
         )
-    if candidate.kind == "TACTICAL":
+    if candidate.kind in {"TACTICAL", "ACCESS", "ALIGN"}:
         return ("partial", cost, trial, "legal step; not counted as a completed objective", remaining, (action,))
     return ("failed", 0, state, "action was legal but did not meet the objective", (), ())
 
@@ -631,8 +632,16 @@ def solve(
                 stats.events.append(
                     f"planning failure: {len(legal_now)} legal moves remain after objectives were blocked"
                 )
-                status = "EXHAUSTED"
-                stop_reason = f"planning failure: {len(legal_now)} legal moves remain; {stall_kind}"
+                if goal == "first-foundation":
+                    status, stop_reason = strategic_stop_status(
+                        goal=goal,
+                        legal_count=len(legal_now),
+                        proved_no_legal_continuation=False,
+                    )
+                    stop_reason = f"{stop_reason}; {stall_kind}"
+                else:
+                    status = "EXHAUSTED"
+                    stop_reason = f"planning failure: {len(legal_now)} legal moves remain; {stall_kind}"
                 break
             stats.events.append("no legal objective remained")
             jumped = _backtrack(line, dormant, failed, stats)
@@ -708,11 +717,19 @@ def solve(
                     failed.setdefault(ident, set()).add(choice.candidate_id)
                     jumped = _backtrack(line, dormant, failed, stats)
                     if jumped is None:
-                        status = "EXHAUSTED"
-                        stop_reason = (
-                            "foundation prerequisites remain open and no useful "
-                            "tableau move is legal"
+                        legal_left = [
+                            action for action in all_legal_actions(line.state) if action != ("deal",)
+                        ]
+                        status, stop_reason = strategic_stop_status(
+                            goal=goal,
+                            legal_count=len(legal_left),
+                            proved_no_legal_continuation=not legal_left,
                         )
+                        if legal_left:
+                            stop_reason = (
+                                f"{stop_reason}; foundation prerequisites remain open "
+                                "and no purpose-met substitute was legal"
+                            )
                         break
                     line, force_id = jumped
                     continue
@@ -803,6 +820,8 @@ def solve(
                 stats.events.append("replan: stock dealt")
             elif execution[0] == "achieved":
                 stats.events.append("replan: objective completed")
+            if goal == "first-foundation" and foundation_locked and execution[0] in {"achieved", "partial"}:
+                foundation_lock["cost_invested"] = foundation_lock.get("cost_invested", 0) + int(execution[1])
             if line.state.is_solved():
                 status, stop_reason = "SOLVED_VALID", "terminal state reached"
                 break
@@ -864,7 +883,15 @@ def solve(
             stats.widens += 1
             stats.events.append(f"widen: strategic width is now {width}")
             continue
-        status, stop_reason = "EXHAUSTED", "principal objective failed and no dormant alternative remained"
+        if goal == "first-foundation":
+            legal_left = [action for action in all_legal_actions(line.state) if action != ("deal",)]
+            status, stop_reason = strategic_stop_status(
+                goal=goal,
+                legal_count=len(legal_left),
+                proved_no_legal_continuation=not legal_left,
+            )
+        else:
+            status, stop_reason = "EXHAUSTED", "principal objective failed and no dormant alternative remained"
         break
 
     kernel_info = None
