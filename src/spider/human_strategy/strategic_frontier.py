@@ -26,7 +26,9 @@ cheapest corrected g, and the snapshot that reached it.
   node may be left unexpanded. That is capacity, not exhaustion, and it is
   counted in ``dropped_full``.
 * Admissible cost is part of the exploration order only. The only mathematical
-  prune remains the incumbent bound inside the controller.
+  prune remains the incumbent bound inside the controller. A line the
+  controller refuses before ``consider`` is an incumbent prune, not
+  ``dropped_full``. ``dropped_full`` is a heuristic exclusion.
 
 Bond counts are not compared raw across different foundation counts. The
 ordering and the reported-outcome rank add twelve per removed foundation,

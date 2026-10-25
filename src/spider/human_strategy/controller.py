@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from spider.engine import SpiderState
-from spider.metrics import Action, format_action, replay_actions_detailed
+from spider.metrics import Action, format_action, replay_actions, replay_actions_detailed
 from spider.packed_state import pack_state
 from spider.planner.objective_realizer import RealizationMode, RealizationStatus, realize_objective
 from spider.planner.space_lifecycle import empty_count
@@ -32,6 +32,7 @@ from .evaluation import (
     estimate_remaining,
     same_suit_bonds,
 )
+from .incumbent import IncumbentRejected, proof_prune, verify_complete_solution
 from .portfolio import Candidate, _score_action, build_candidates, select_candidate
 from .foundation_direction import (
     adopt_alternative_foundation,
@@ -210,6 +211,12 @@ class _Stats:
     peak_rss: Optional[float] = None
     events: List[str] = field(default_factory=list)
     decisions: List[Decision] = field(default_factory=list)
+    states_evaluated: int = 0
+    bounds_evaluated: int = 0
+    incumbent_prunes: int = 0
+    dominance_discards: int = 0
+    resource_stops: int = 0
+    ceiling: Optional[int] = None
 
 
 def _identity(state: SpiderState):
@@ -560,6 +567,16 @@ def _retain_line(frontier, stats, line, lock, *, force_id, reason, label) -> Non
     if frontier is None or frontier.limit <= 1:
         return
     snapshot = line.snapshot()
+    ceiling = getattr(stats, "ceiling", None)
+    if ceiling is not None:
+        bound = admissible_remaining(snapshot.state)
+        stats.bounds_evaluated += 1
+        if proof_prune(snapshot.g, bound, ceiling):
+            stats.incumbent_prunes += 1
+            stats.events.append(
+                f"incumbent bound: g {snapshot.g} plus admissible {bound} cannot beat {ceiling}"
+            )
+            return
     _accepted, event = frontier.consider(
         state=snapshot.state,
         g=snapshot.g,
@@ -680,11 +697,31 @@ def solve(
     goal: str = "play",
     deal_cards: Optional[Sequence] = None,
     target_foundations: Optional[int] = None,
+    incumbent_origin: Optional[str] = None,
 ) -> SolveResult:
-    """Search from ``state``. The caller's state is not mutated."""
+    """Search from ``state``. The caller's state is not mutated.
 
-    if mode not in {"cold", "optimise", "diagnose"}:
+    ``cold`` and ``solve`` refuse an incumbent sequence. ``optimise`` prunes
+    with the supplied corrected-MW ceiling and replaces that ceiling only
+    after a strictly cheaper complete route replays. ``solve-optimise`` runs
+    an independent solve and then, when a verified route or a supplied
+    incumbent exists, spends the remaining time on optimisation.
+    """
+
+    if mode not in {"cold", "optimise", "diagnose", "solve", "solve-optimise"}:
         raise ValueError(f"unknown mode {mode!r}")
+    if mode == "solve-optimise":
+        return _solve_then_optimise(
+            state,
+            profile,
+            incumbent_actions=incumbent_actions,
+            incumbent_mw=incumbent_mw,
+            opening_g=opening_g,
+            provenance_note=provenance_note,
+            goal=goal,
+            deal_cards=deal_cards,
+            target_foundations=target_foundations,
+        )
     if goal not in {"play", "first-foundation", "foundations"}:
         raise ValueError(f"unknown goal {goal!r}")
     if goal == "first-foundation" and not deal_cards:
@@ -701,6 +738,8 @@ def solve(
         foundation_target = None
     if mode == "cold" and incumbent_actions:
         raise ValueError("cold mode does not accept an incumbent sequence")
+    if mode == "solve" and incumbent_actions:
+        raise ValueError("solve mode does not accept an incumbent sequence")
     if mode == "optimise" and incumbent_mw is None:
         raise ValueError("optimise mode requires an incumbent corrected-MW ceiling")
 
@@ -888,6 +927,37 @@ def solve(
         stop_reason = "strategic step budget ended"
         return True
 
+    imported_cost = None
+    imported_actions = None
+    if mode == "optimise" and incumbent_actions:
+        try:
+            verified_route = verify_complete_solution(
+                root,
+                incumbent_actions,
+                source=incumbent_origin or "imported",
+                source_id="caller",
+            )
+        except IncumbentRejected:
+            verified_route = None
+        if verified_route is not None:
+            imported_cost = int(opening_g) + int(verified_route.cost)
+            imported_actions = tuple(verified_route.actions)
+    best_complete = None
+    improved = False
+    stats.ceiling = None if incumbent_mw is None else int(incumbent_mw)
+
+    def _adopt(actions, g_now: int) -> bool:
+        nonlocal best_complete, improved
+        actions = tuple(actions)
+        if best_complete is not None and int(g_now) >= int(best_complete["g"]):
+            return False
+        if imported_cost is not None and int(g_now) < int(imported_cost):
+            improved = True
+        best_complete = {"actions": actions, "g": int(g_now)}
+        if stats.ceiling is None or int(g_now) < int(stats.ceiling):
+            stats.ceiling = int(g_now)
+        return True
+
     while True:
         _remember(stats)
         if time.perf_counter() >= deadline:
@@ -934,8 +1004,39 @@ def solve(
             if multiline and frontier.queue:
                 stop_reason += f"; still queued {len(frontier.queue)}"
             break
+        stats.states_evaluated += 1
         if line.state.is_solved():
-            status, stop_reason = "SOLVED_VALID", "terminal state reached"
+            trial = root.clone()
+            try:
+                suffix_cost = int(replay_actions(trial, list(line.actions)))
+            except ValueError:
+                status, stop_reason = "INVALID", "claimed terminal failed independent replay"
+                break
+            solved_route = trial.is_solved() and len(trial.foundations) == 8 and not trial.stock
+            if not solved_route:
+                status, stop_reason = "INVALID", "claimed terminal failed independent replay"
+                break
+            line.g = int(opening_g) + suffix_cost
+            _adopt(tuple(line.actions), line.g)
+            reproduced = bool(incumbent_actions) and list(line.actions) == list(incumbent_actions)
+            if mode in {"cold", "solve", "diagnose"} or reproduced:
+                status, stop_reason = "SOLVED_VALID", "terminal state reached"
+                break
+            stats.events.append(
+                f"incumbent: verified complete route at corrected MW {line.g}; search continues"
+            )
+            if multiline:
+                _remember_branch("SOLVED_VALID", "verified complete route")
+            jumped = _backtrack(line, dormant, failed, stats)
+            if jumped is not None:
+                line, force_id = jumped
+                continue
+            if multiline and frontier.queue and time.perf_counter() < deadline - 0.05:
+                node = frontier.pop_next()
+                if node is not None:
+                    _install_node(node)
+                    continue
+            status, stop_reason = "SOLVED_VALID", "verified complete route retained"
             break
 
         if multiline:
@@ -944,6 +1045,7 @@ def solve(
 
         ident = _identity(line.state)
         if ident in best_g and line.g > best_g[ident]:
+            stats.dominance_discards += 1
             stats.events.append("transposition: discarded a more expensive ancestry")
             jumped = _backtrack(line, dormant, failed, stats)
             if jumped is None:
@@ -954,9 +1056,11 @@ def solve(
             line, force_id = jumped
             continue
         bound = admissible_remaining(line.state)
-        if incumbent_mw is not None and line.g + bound >= int(incumbent_mw):
+        stats.bounds_evaluated += 1
+        if proof_prune(line.g, bound, stats.ceiling):
+            stats.incumbent_prunes += 1
             stats.events.append(
-                f"incumbent bound: g {line.g} plus admissible {bound} cannot beat {incumbent_mw}"
+                f"incumbent bound: g {line.g} plus admissible {bound} cannot beat {stats.ceiling}"
             )
             jumped = _backtrack(line, dormant, failed, stats)
             if jumped is None:
@@ -966,6 +1070,10 @@ def solve(
                 break
             line, force_id = jumped
             continue
+        if stats.ceiling is None:
+            foundation_lock.pop("cost_ceiling", None)
+        else:
+            foundation_lock["cost_ceiling"] = max(0, int(stats.ceiling) - int(line.g) - 1)
 
         if _foundation_goal(goal) and line.remaining[:1] == (("deal",),):
             stats.events.append("foundation: a bundled deal is reconsidered against the campaign")
@@ -1612,7 +1720,8 @@ def solve(
         and not line.state.is_solved()
         and all_legal_actions(line.state)
     ):
-        kernel_info = _kernel_fallback(line, profile, deadline, incumbent_mw)
+        active_ceiling = stats.ceiling if stats.ceiling is not None else incumbent_mw
+        kernel_info = _kernel_fallback(line, profile, deadline, active_ceiling)
         if kernel_info is not None:
             stats.events.append(kernel_info["event"])
             if kernel_info["solved"]:
@@ -1630,27 +1739,132 @@ def solve(
                     + str(kernel_info["stop_reason"])
                 )
 
+    budget_stop = status if status in {"TIME_LIMIT", "MEMORY_LIMIT", "STEP_LIMIT"} else None
+    if budget_stop is not None:
+        stats.resource_stops += 1
     replay = _validate(root, line.actions, line.state, status == "SOLVED_VALID")
-    if status == "SOLVED_VALID" and not (replay and replay.get("ok")):
+    if status == "SOLVED_VALID" and replay and replay.get("ok") and line.state.is_solved():
+        _adopt(tuple(line.actions), line.g)
+    elif status == "SOLVED_VALID" and not (replay and replay.get("ok")):
         status = "INVALID"
         stop_reason = "claimed terminal failed independent replay"
+    if best_complete is not None and (
+        status != "SOLVED_VALID"
+        or tuple(line.actions) != best_complete["actions"]
+        or line.g > int(best_complete["g"])
+    ):
+        restored = root.clone()
+        try:
+            suffix_cost = int(replay_actions(restored, list(best_complete["actions"])))
+        except ValueError:
+            restored = None
+            suffix_cost = None
+        if (
+            restored is not None
+            and restored.is_solved()
+            and len(restored.foundations) == 8
+            and not restored.stock
+        ):
+            line.state = restored
+            line.actions = list(best_complete["actions"])
+            line.g = int(opening_g) + int(suffix_cost)
+            status = "SOLVED_VALID"
+            if budget_stop is not None:
+                stop_reason = (
+                    f"best verified complete route at corrected MW {line.g}; "
+                    f"search stopped: {budget_stop}"
+                )
+            replay = _validate(root, line.actions, line.state, True)
+            if not (replay and replay.get("ok")):
+                status = "INVALID"
+                stop_reason = "claimed terminal failed independent replay"
+    reported_complete = bool(status == "SOLVED_VALID" and replay and replay.get("ok"))
+    if improved and best_complete is not None and reported_complete:
+        retained_actions = tuple(best_complete["actions"])
+        retained_cost = int(best_complete["g"])
+        incumbent_source = "discovered"
+    elif imported_cost is not None:
+        retained_actions = tuple(imported_actions or ())
+        retained_cost = int(imported_cost)
+        incumbent_source = incumbent_origin or "imported"
+    elif best_complete is not None and reported_complete:
+        retained_actions = tuple(best_complete["actions"])
+        retained_cost = int(best_complete["g"])
+        incumbent_source = "discovered"
+    else:
+        retained_actions = None
+        retained_cost = None
+        incumbent_source = "none"
+    if reported_complete and line.actions:
+        trajectory = "complete"
+    elif line.actions:
+        trajectory = "partial"
+    else:
+        trajectory = "empty"
     same_as_incumbent = bool(incumbent_actions) and list(incumbent_actions) == list(line.actions)
-    discovery = status == "SOLVED_VALID" and mode in {"cold", "optimise"} and not same_as_incumbent
+    discovery = (
+        reported_complete
+        and mode in {"cold", "optimise", "solve"}
+        and not same_as_incumbent
+    )
+    heuristic_exclusions = int(frontier.dropped_full)
     provenance = {
         "mode": mode,
         "goal": goal,
         "note": provenance_note,
         "incumbent_mw": incumbent_mw,
+        "ceiling_initial": None if incumbent_mw is None else int(incumbent_mw),
+        "ceiling_final": stats.ceiling,
+        "best_verified_cost": retained_cost,
+        "improved": bool(improved and reported_complete),
+        "incumbent_source": incumbent_source,
+        "search_status": status,
+        "budget_stop": budget_stop,
+        "retained_actions": None
+        if retained_actions is None
+        else [format_action(action) for action in retained_actions],
+        "reported_trajectory": trajectory,
+        "partial_g_is_not_the_best_complete_route": bool(
+            (not reported_complete) and retained_cost is not None
+        ),
         "prefix_injected": False,
         "assisted_suffix": False,
         "new_discovery": discovery,
-        "reproduced_incumbent": bool(status == "SOLVED_VALID" and same_as_incumbent),
+        "reproduced_incumbent": bool(reported_complete and same_as_incumbent and incumbent_origin != "discovered"),
         "kernel_fallback": kernel_info,
-        "partial_trajectory": status in {"FOUNDATION_REACHED", "FOUNDATION_TARGET_REACHED"},
+        "partial_trajectory": status in {"FOUNDATION_REACHED", "FOUNDATION_TARGET_REACHED"}
+        or trajectory == "partial",
         "target_foundations": foundation_target,
         "completed_campaigns": list(foundation_lock.get("completed") or []),
         "foundation": foundation_trace[-12:],
         "frontier": _frontier_provenance(root, frontier, branch_log, multiline, profile, started, status),
+        "states_evaluated": stats.states_evaluated,
+        "bounds_evaluated": stats.bounds_evaluated,
+        "safe_prunes": stats.incumbent_prunes,
+        "pruned_by_incumbent": stats.incumbent_prunes,
+        "pruned_by_admissible_bound": stats.incumbent_prunes,
+        "safe_prune_rule": (
+            "g + admissible_remaining >= incumbent ceiling. "
+            "This is one gate. estimate_remaining is not a proof. "
+            "A full frontier is a heuristic exclusion, not a proof."
+        ),
+        "state_dominance_discards": stats.dominance_discards + int(frontier.transpositions),
+        "dominance_discards": stats.dominance_discards,
+        "frontier_transpositions": int(frontier.transpositions),
+        "heuristic_exclusions": heuristic_exclusions,
+        "heuristic_exclusion_is_not_proof": True,
+        "same_move_eliminations": int(frontier.same_moves),
+        "resource_stops": stats.resource_stops,
+        "proof_bound": "admissible_remaining",
+        "heuristic_remainder_is_not_a_proof": True,
+        "stock_empty_assembly_only_when_stock_is_empty": True,
+        "nested_budget": (
+            "Excavation max_cost is capped by ceiling - g - 1 when a ceiling is set. "
+            "Tactical probes use the remaining global deadline. "
+            "A timeout, a node cap, or that cost cap is not infeasibility. "
+            "The constructive kernel runs only after a play-goal portfolio stop and "
+            "uses admissible_remaining with cost_ceiling = incumbent - 1."
+        ),
     }
     _remember(stats)
     return SolveResult(
@@ -1681,6 +1895,145 @@ def solve(
         profile=_profile_dict(profile),
         stop_reason=stop_reason,
     )
+
+
+def _solve_then_optimise(
+    state: SpiderState,
+    profile: Profile,
+    *,
+    incumbent_actions: Optional[Sequence[Action]],
+    incumbent_mw: Optional[int],
+    opening_g: int,
+    provenance_note: str,
+    goal: str,
+    deal_cards: Optional[Sequence],
+    target_foundations: Optional[int],
+) -> SolveResult:
+    """Independent solve, then incumbent search with whatever time remains.
+
+    A supplied incumbent is not visible to the solve stage. It is used only
+    when that stage does not finish and the caller already verified it.
+    """
+
+    started = time.perf_counter()
+    total = max(0.0, float(profile.time_limit_s))
+    supplied = None
+    if incumbent_actions and incumbent_mw is not None:
+        try:
+            supplied = verify_complete_solution(
+                state,
+                incumbent_actions,
+                source="imported",
+                source_id="caller",
+            )
+        except IncumbentRejected:
+            supplied = None
+    solve_budget = total * 0.5 if supplied is not None else total
+    first = solve(
+        state,
+        profile.with_overrides(time_limit_s=solve_budget),
+        mode="solve",
+        opening_g=opening_g,
+        provenance_note=provenance_note,
+        goal=goal,
+        deal_cards=deal_cards,
+        target_foundations=target_foundations,
+    )
+    elapsed = time.perf_counter() - started
+    remaining = total - elapsed
+    discovered = bool(first.solved and first.replay and first.replay.get("ok"))
+
+    def _finish(result: SolveResult, optimise_stage: str) -> SolveResult:
+        result.mode = "solve-optimise"
+        result.elapsed_s = time.perf_counter() - started
+        result.provenance["mode"] = "solve-optimise"
+        result.provenance["optimise_stage"] = optimise_stage
+        result.provenance["solve_stage_completed"] = discovered
+        result.provenance["solve_stage_status"] = first.status
+        result.provenance["prefix_injected"] = False
+        result.provenance["assisted_suffix"] = False
+        return result
+
+    if discovered and remaining >= 0.05:
+        second = solve(
+            state,
+            profile.with_overrides(time_limit_s=remaining),
+            mode="optimise",
+            incumbent_actions=first.actions,
+            incumbent_mw=first.cumulative_g,
+            opening_g=opening_g,
+            provenance_note=provenance_note,
+            goal=goal,
+            deal_cards=deal_cards,
+            target_foundations=target_foundations,
+            incumbent_origin="discovered",
+        )
+        peaks = [item for item in (first.peak_rss_mb, second.peak_rss_mb) if item is not None]
+        if (
+            second.solved
+            and second.replay
+            and second.replay.get("ok")
+            and second.cumulative_g < first.cumulative_g
+        ):
+            second.provenance["improved"] = True
+            second.provenance["incumbent_source"] = "discovered"
+            second.provenance["new_discovery"] = True
+            second.provenance["reproduced_incumbent"] = False
+            second.provenance["best_verified_cost"] = second.cumulative_g
+            second.provenance["solve_stage"] = {
+                "status": first.status,
+                "g": first.cumulative_g,
+                "unique_states": first.unique_states,
+                "elapsed_s": round(first.elapsed_s, 3),
+            }
+            if peaks:
+                second.peak_rss_mb = max(peaks)
+            return _finish(second, "improved on the solve-stage route")
+        first.provenance["improved"] = False
+        first.provenance["best_verified_cost"] = first.cumulative_g
+        first.provenance["incumbent_source"] = "discovered"
+        first.provenance["search_status"] = "SOLVED_VALID"
+        first.provenance["new_discovery"] = True
+        first.provenance["reproduced_incumbent"] = False
+        first.provenance["optimise_stage_status"] = second.status
+        first.provenance["safe_prunes"] = int(first.provenance.get("safe_prunes") or 0) + int(
+            second.provenance.get("safe_prunes") or 0
+        )
+        if peaks:
+            first.peak_rss_mb = max(peaks)
+        return _finish(first, "no cheaper complete route than the solve-stage incumbent")
+
+    if supplied is not None and remaining >= 0.05:
+        second = solve(
+            state,
+            profile.with_overrides(time_limit_s=remaining),
+            mode="optimise",
+            incumbent_actions=supplied.actions,
+            incumbent_mw=int(opening_g) + int(supplied.cost),
+            opening_g=opening_g,
+            provenance_note=provenance_note,
+            goal=goal,
+            deal_cards=deal_cards,
+            target_foundations=target_foundations,
+            incumbent_origin="imported",
+        )
+        peaks = [item for item in (first.peak_rss_mb, second.peak_rss_mb) if item is not None]
+        if peaks:
+            second.peak_rss_mb = max(peaks)
+        second.provenance["solve_stage_completed"] = False
+        if not second.provenance.get("improved"):
+            second.provenance["incumbent_source"] = "imported"
+            second.provenance["best_verified_cost"] = int(opening_g) + int(supplied.cost)
+        return _finish(second, "imported incumbent after an unfinished solve stage")
+
+    if supplied is not None and not discovered:
+        first.provenance["best_verified_cost"] = int(opening_g) + int(supplied.cost)
+        first.provenance["improved"] = False
+        first.provenance["incumbent_source"] = "imported"
+        first.provenance["search_status"] = first.status
+        first.provenance["retained_actions"] = [format_action(action) for action in supplied.actions]
+        first.provenance["partial_g_is_not_the_best_complete_route"] = True
+    return _finish(first, "not run")
 
 
 def _frontier_provenance(root, frontier, branch_log, multiline, profile, started, status) -> dict:

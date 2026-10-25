@@ -2899,6 +2899,11 @@ def _cached_excavation(
 
     cache = lock.setdefault("excavation_cache", {})
     stats = _probe_stats(lock)
+    # A global slack ceiling is additional corrected cost still allowed.
+    # It narrows this probe. It does not turn a miss into infeasibility.
+    capped = lock.get("cost_ceiling") if isinstance(lock, dict) else None
+    if capped is not None:
+        max_cost = min(int(max_cost), max(0, int(capped)))
     key = excavation_cache_key(_fingerprint(state), source_key, False, max_cost, max_nodes, strategy)
     cached = excavation_cache_lookup(cache, key)
     if cached is not None:
