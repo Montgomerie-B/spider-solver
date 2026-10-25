@@ -67,21 +67,33 @@ def _long_run_bias(state: SpiderState) -> int:
     return 0
 
 
+# One removed foundation is worth this many still-buried cards when two
+# lines are ordered. It is large enough that the g=19 spade board stays
+# ahead of the opening, and small enough that a second foundation buried
+# under a full tableau does not automatically beat a prepared one-foundation
+# line. It is not a prune and it is not added to the MobilityWare cost.
+FOUNDATION_FACE_DOWN_WEIGHT = 20
+
+
 def line_priority(state: SpiderState, g: int, label: str = "") -> tuple:
     """Exploration order. Lower is tried sooner. Not an admissible bound.
 
-    Foundations come first so a cheap buried opening does not crowd out a
-    line that has already removed a suit. Face-down and ``g + admissible``
-    break ties. The admissible term only orders; it does not prune. The last
-    key prefers an exposed 12-card run only when every earlier key ties.
+    The first key is face-down cards still on the tableau, minus a bounded
+    credit for each foundation already removed. A finished suit stays ahead
+    of the untouched opening. A second suit does not outrank a line that has
+    buried far fewer cards. ``g + admissible`` is the next key: it is the
+    whole-game lower bound and it only orders. The admissible term never
+    prunes. The last key prefers an exposed 12-card run only on a full tie.
     """
 
     admissible = admissible_remaining(state)
+    foundations = len(state.foundations)
+    progress = face_down_count(state) - FOUNDATION_FACE_DOWN_WEIGHT * foundations
     return (
-        -len(state.foundations),
-        face_down_count(state),
+        progress,
         int(g) + int(admissible),
         -foundation_aware_bonds(state),
+        -foundations,
         -len(state.stock),
         label or "",
         _long_run_bias(state),
@@ -226,12 +238,14 @@ class StrategicFrontier:
         self.expanded.discard((canonical_state_key(state), label or "", force_id or ""))
 
     def pop_next(self) -> Optional[StrategicNode]:
-        """Pop a line. Every other pop may enter one never-tried signature.
+        """Pop a line. Odd pops can leave the priority pool.
 
         The first pop, and every even pop after it, stays inside the best
-        few priorities. An odd pop may take the best never-explored signature
-        that sits outside that pool, so a delayed opening is tried once.
-        Promise still orders the pool. Novelty does not rotate the queue.
+        few priorities. An odd pop takes a never-explored signature outside
+        that pool when one exists. Every fourth pop, if every outside
+        signature has already been tried, gives the least-served outside
+        line another slice. Promise still orders the pool. A campaign label
+        is not, by itself, a different signature worth a turn.
         """
 
         if not self.queue:
@@ -241,14 +255,24 @@ class StrategicFrontier:
         chosen = None
         if self.explored % 2 == 1:
             pool_signatures = {item.signature for item in pool}
-            outside = [
+            unseen = [
                 item
                 for item in ranked
                 if item.signature not in pool_signatures
                 and self.explored_signatures.get(item.signature, 0) == 0
             ]
-            if outside:
-                chosen = outside[0]
+            if unseen:
+                chosen = unseen[0]
+            elif self.explored % 4 == 3:
+                outside = [item for item in ranked if item.signature not in pool_signatures]
+                if outside:
+                    outside.sort(
+                        key=lambda item: (
+                            self.explored_signatures.get(item.signature, 0),
+                            item.priority,
+                        )
+                    )
+                    chosen = outside[0]
         if chosen is None:
             pool.sort(key=lambda item: (self.explored_signatures.get(item.signature, 0), item.priority))
             chosen = pool[0]

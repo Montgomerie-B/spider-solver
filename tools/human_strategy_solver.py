@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integrated human-strategy controller for Spider Solitaire. v0.114.
+"""Integrated human-strategy controller for Spider Solitaire. v0.115.
 
 The controller does not start a historical campaign, write the production
 incumbent, or change MobilityWare rules. ``--profile extended`` runs only
@@ -36,7 +36,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.114")
+    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.115")
     parser.add_argument("--deal", required=True)
     parser.add_argument("--mode", choices=("cold", "optimise", "diagnose"), default="cold")
     parser.add_argument(
@@ -145,7 +145,7 @@ def main(argv=None) -> int:
         target_foundations=args.target_foundations,
     )
     document = _document(args, deal_path, result, opening)
-    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_114" / f"{args.mode}_{args.profile}.json"
+    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_115" / f"{args.mode}_{args.profile}.json"
     if not out.is_absolute():
         out = REPO / out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -157,7 +157,7 @@ def main(argv=None) -> int:
             list(result.actions),
             moves_path,
             header=(
-                f"v0.114 {args.mode} {args.profile} goal={args.goal} "
+                f"v0.115 {args.mode} {args.profile} goal={args.goal} "
                 f"mw={result.cumulative_g} replay_ok={result.replay and result.replay.get('ok')}"
             ),
         )

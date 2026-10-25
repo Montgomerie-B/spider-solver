@@ -873,6 +873,13 @@ def close_foundation_campaign(
     lock.pop("recovery_key", None)
     lock.pop("buried_tried", None)
     lock.pop("feasibility_status", None)
+    # Deal forks, refused switches, and a finished probe belong to the suit
+    # that just left the tableau. The next campaign ranks its own copies.
+    lock.pop("fork_block", None)
+    lock.pop("refused_switch", None)
+    lock.pop("bottleneck_cache", None)
+    lock.pop("pinned_actions", None)
+    lock.pop("pending_alternate_bottleneck", None)
     lock["alternative_switches"] = 0
     lock["barren_deals"] = 0
     lock["moves_since_deal"] = 0
@@ -2215,6 +2222,12 @@ def _bottleneck_proposal(state, g, campaign, agenda, lock, events, time_left, re
     fingerprint = _fingerprint(state)
     cache = lock.setdefault("bottleneck_cache", {})
     if fingerprint in cache:
+        cached = cache[fingerprint]
+        if cached in {"GRAPH_EXHAUSTED", "NOT_FOUND_WITHIN_BOUND", "RESOURCE_LIMIT"}:
+            events.append(
+                f"foundation bottleneck: cached {cached}; the same probe is not repeated; "
+                "this is not infeasibility"
+            )
         return None
     if time_left < 0.05:
         events.append("foundation bottleneck: time guard skipped the probe; this is not infeasibility")

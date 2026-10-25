@@ -1083,6 +1083,10 @@ def solve(
             jumped = _backtrack(line, dormant, failed, stats)
             if jumped is None:
                 status, stop_reason = "EXHAUSTED", "no legal continuation under the current restrictions"
+                if multiline and frontier.queue:
+                    stop_reason += f"; still queued {len(frontier.queue)}"
+                    if _continue_from_frontier(status, stop_reason):
+                        continue
                 break
             line, force_id = jumped
             continue
@@ -1403,6 +1407,9 @@ def solve(
                 removed_label = foundation_lock.get("label") or foundation_lock.get("epoch_label")
                 campaign_cost = int(line.g) - int(last_foundation_g)
                 assessment = structural_assessment(line.state)
+                assessment["foundation_aware_bonds"] = assessment["bonds"] + 12 * assessment["foundations"]
+                assessment["legal_moves"] = len(all_legal_actions(line.state))
+                assessment["foundation_suits"] = [item[0].suit for item in line.state.foundations if item]
                 foundation_trace.append(
                     {
                         "reason": "foundation completed",
@@ -1416,6 +1423,12 @@ def solve(
                         "face_down": assessment["face_down"],
                         "stock_cards": assessment["stock_cards"],
                         "bonds": assessment["bonds"],
+                        "foundation_aware_bonds": assessment["foundation_aware_bonds"],
+                        "admissible_remaining": assessment["admissible_remaining"],
+                        "heuristic_remaining": assessment["heuristic_remaining"],
+                        "legal_moves": assessment["legal_moves"],
+                        "empty_columns": assessment["empty_columns"],
+                        "foundation_suits": list(assessment["foundation_suits"]),
                         "assessment": assessment,
                     }
                 )
