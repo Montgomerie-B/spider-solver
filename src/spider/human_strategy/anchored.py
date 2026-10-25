@@ -1,9 +1,10 @@
-"""Checkpoint-to-checkpoint optimisation of a verified complete route.
+"""Checkpoint optimisation of a verified complete route.
 
-The search replaces one segment of a replayed incumbent with a strictly
-cheaper legal path that ends on the same column-ordered state, then keeps
-the incumbent suffix. A full-game replay has to succeed before the stored
-route changes. Cold and solve modes do not call this module.
+Fixed mode replaces one segment with a cheaper path to that same later
+checkpoint. Adaptive mode searches from one checkpoint toward several later
+checkpoints at once and keeps the incumbent suffix after the exact rejoin.
+A full-game replay has to succeed before the stored route changes. Cold and
+solve modes do not call this module.
 """
 
 from __future__ import annotations
@@ -92,6 +93,26 @@ class SegmentResult:
     elapsed_s: float = 0.0
     stop_reason: str = ""
     proof: bool = False
+    target_index: Optional[int] = None
+    targets_considered: int = 0
+    targets_touched: int = 0
+    reused: bool = False
+
+
+@dataclass(frozen=True)
+class AdaptiveRegion:
+    """One source checkpoint and the later checkpoints a single search may rejoin."""
+
+    start: int
+    targets: Tuple[int, ...]
+    kind: str
+    budget_class: str
+    reason: str
+
+
+# v0.118 left these fixed windows unfinished at the 2,500-state cap.
+# Adaptive search tries to cover them as targets. It does not raise that cap.
+_KNOWN_INCONCLUSIVE = (65, 168, 177, 183)
 
 
 @dataclass
@@ -362,6 +383,314 @@ def search_segment(
     return SegmentResult(status, (), None, proof=not inconclusive, **common)
 
 
+def search_targets(
+    source: SpiderState,
+    targets: Sequence[Tuple[SpiderState, int, int]],
+    *,
+    time_limit_s: float = 2.0,
+    max_unique: int = 2500,
+    rss_abort_mb: float = 3072.0,
+    memo: Optional[dict] = None,
+) -> SegmentResult:
+    """Best-first search from ``source`` toward several later checkpoints.
+
+    Each target is ``(state, original_cost, index)``. The kernel ceiling is
+    one below the largest original cost, so a branch that can no longer
+    improve an early checkpoint can still improve a later one. A node is
+    pruned only when every remaining target is unreachable or already at
+    least as expensive as its own original cost. Zero-cost transfers stay
+    in the graph. An equal-cost return to a state already reached is not
+    expanded again.
+
+    An exhausted graph is negative only for this target set and this
+    ceiling. It is not a proof that the incumbent segment is optimal.
+    """
+
+    specs = [(state, int(cost), int(index)) for state, cost, index in targets if int(cost) > 0]
+    ceiling = max((cost for _state, cost, _index in specs), default=0)
+    common_base = dict(ceiling=ceiling, targets_considered=len(specs))
+    if not specs:
+        return SegmentResult(
+            "NOT_CHEAPER", (), None, stop_reason="no eligible target", proof=True, **common_base
+        )
+    immediate = [
+        (state, cost, index)
+        for state, cost, index in specs
+        if states_rejoin(source, state)
+    ]
+    if immediate:
+        _state, cost, index = max(immediate, key=lambda item: (item[1], -item[2]))
+        return SegmentResult(
+            "FOUND",
+            (),
+            0,
+            stop_reason="empty rejoin",
+            proof=True,
+            target_index=index,
+            **common_base,
+        )
+    eligible = []
+    impossible = 0
+    dominated = 0
+    for state, cost, index in specs:
+        bound = segment_lower_bound(source, state)
+        if bound is None:
+            impossible += 1
+            continue
+        if bound >= cost:
+            dominated += 1
+            continue
+        eligible.append((state, cost, index))
+    if not eligible:
+        status = "IMPOSSIBLE" if impossible and not dominated else "NOT_CHEAPER"
+        return SegmentResult(
+            status,
+            (),
+            None,
+            lower_bound_prunes=impossible + dominated,
+            stop_reason="segment bound",
+            proof=True,
+            **common_base,
+        )
+    if time_limit_s <= 0 or max_unique <= 0:
+        return SegmentResult(
+            "INCONCLUSIVE",
+            (),
+            None,
+            stop_reason="resource limit",
+            proof=False,
+            **common_base,
+        )
+    ceiling = max(cost for _state, cost, _index in eligible)
+    packed = []
+    by_pack: dict = {}
+    for state, cost, index in eligible:
+        token = pack_state(state)
+        key = canonical_state_key(state)
+        packed.append((state, cost, index, token, key))
+        by_pack.setdefault(token, []).append((index, cost, key, state))
+    memo_key = (
+        pack_state(source),
+        tuple((token, cost, index) for _state, cost, index, token, _key in packed),
+        ceiling,
+    )
+    if memo is not None:
+        stored = memo.setdefault("results", {})
+        if memo_key in stored:
+            memo["hits"] = int(memo.get("hits", 0)) + 1
+            previous = stored[memo_key]
+            return SegmentResult(
+                previous.status,
+                previous.actions,
+                previous.cost,
+                ceiling=ceiling,
+                expanded=0,
+                unique=previous.unique,
+                generated=0,
+                duplicate_skips=previous.duplicate_skips,
+                lower_bound_prunes=previous.lower_bound_prunes,
+                elapsed_s=0.0,
+                stop_reason="reused",
+                proof=previous.proof,
+                target_index=previous.target_index,
+                targets_considered=len(specs),
+                targets_touched=previous.targets_touched,
+                reused=True,
+            )
+        memo["misses"] = int(memo.get("misses", 0)) + 1
+
+    def _bound(state: SpiderState, g: int) -> int:
+        best = None
+        for target, original, _index, _token, _key in packed:
+            deal_bound = segment_lower_bound(state, target)
+            if deal_bound is None or g + int(deal_bound) >= original:
+                continue
+            if best is None or deal_bound < best:
+                best = int(deal_bound)
+        if best is None:
+            return _UNREACHABLE
+        return best
+
+    def _matches(state: SpiderState):
+        group = by_pack.get(pack_state(state))
+        if not group:
+            return None
+        key = canonical_state_key(state)
+        return [item for item in group if item[2] == key]
+
+    limits = SearchLimits(
+        max_unique=int(max_unique),
+        time_limit_s=float(time_limit_s),
+        rss_abort_mb=float(rss_abort_mb),
+        cost_ceiling=ceiling - 1,
+    )
+
+    def _on_child(state: SpiderState, g: int, _node: int) -> None:
+        group = _matches(state)
+        if group and any(int(g) < original for _index, original, _key, _target in group):
+            # The improving state is already stored. Stop before the next new one.
+            limits.max_unique = 0
+
+    def _terminal(state: SpiderState) -> bool:
+        return _matches(state) is not None
+
+    def _order(state: SpiderState, actions: List[Action]) -> List[Action]:
+        return sorted(actions, key=lambda action: (step_cost(state, action), str(action)))
+
+    started = time.perf_counter()
+    kernel = run_search(
+        [{"ordered_digest": pack_state(source).hex(), "g": 0}],
+        limits=limits,
+        identity_fn=pack_state,
+        store_fn=pack_state,
+        unpack_fn=unpack_state,
+        lane_names=("cost",),
+        lane_key_fns=(lambda _state, g: (int(g),),),
+        is_terminal=_terminal,
+        actions_fn=all_legal_actions,
+        action_order=_order,
+        lower_bound_fn=_bound,
+        on_child=_on_child,
+        stop_on_first_terminal=False,
+    )
+    elapsed = time.perf_counter() - started
+    touched = 0
+    best = None
+    for terminal in kernel.terminals:
+        token = bytes.fromhex(terminal["ident"])
+        group = by_pack.get(token)
+        if not group:
+            continue
+        arrival = int(terminal["g"])
+        actions = tuple(kernel.reconstruct(int(terminal["node"])))
+        for index, original, key, target in group:
+            if arrival >= original:
+                touched += 1
+                continue
+            if canonical_state_key(target) != key:
+                continue
+            if not _replays_to(source, actions, target, arrival):
+                continue
+            saving = original - arrival
+            touched += 1
+            if best is None or saving > best[0] or (saving == best[0] and index < best[1]):
+                best = (saving, index, arrival, actions, original)
+    common = dict(
+        ceiling=ceiling,
+        expanded=int(kernel.expanded),
+        unique=int(kernel.unique),
+        generated=int(kernel.generated),
+        duplicate_skips=int(kernel.duplicate_skips),
+        lower_bound_prunes=int(kernel.lower_bound_prunes) + impossible + dominated,
+        elapsed_s=elapsed,
+        stop_reason=kernel.stop_reason,
+        targets_considered=len(specs),
+        targets_touched=touched,
+    )
+    if best is not None:
+        _saving, index, arrival, actions, _original = best
+        found = SegmentResult(
+            "FOUND",
+            actions,
+            arrival,
+            proof=True,
+            target_index=index,
+            **common,
+        )
+    else:
+        # max_unique = 0 means an improving state was seen and the search
+        # stopped on purpose. If that state then failed replay, the graph
+        # was not exhausted.
+        early = kernel.stop_reason == "unique limit" and int(limits.max_unique) == 0
+        inconclusive = early or kernel.stop_reason in {
+            "time limit",
+            "unique limit",
+            "rss abort",
+            "abort",
+        }
+        status = "INCONCLUSIVE" if inconclusive else "EXHAUSTED"
+        found = SegmentResult(status, (), None, proof=status == "EXHAUSTED", **common)
+    if memo is not None and found.status in {"FOUND", "EXHAUSTED", "NOT_CHEAPER", "IMPOSSIBLE"}:
+        memo.setdefault("results", {})[memo_key] = found
+    return found
+
+
+def select_adaptive_regions(
+    checkpoints: Sequence[Checkpoint],
+    actions: Sequence[Action],
+    *,
+    horizon: int = 16,
+    max_regions: int = 6,
+) -> Tuple[AdaptiveRegion, ...]:
+    """Pick a few source checkpoints and the later targets one search may hit.
+
+    Exact cycles come first and need no search. Other regions do not overlap,
+    so the same span is not expanded twice. Signals such as reversals and
+    stock-empty gaps only order the regions. A skipped span is not a proof.
+    """
+
+    if len(checkpoints) < 2:
+        return ()
+    cycles: List[AdaptiveRegion] = []
+    earliest = {}
+    for checkpoint in checkpoints:
+        previous = earliest.get(checkpoint.key)
+        if previous is not None and checkpoint.g > checkpoints[previous].g:
+            cycles.append(
+                AdaptiveRegion(
+                    start=previous,
+                    targets=(checkpoint.index,),
+                    kind="exact_cycle",
+                    budget_class="short",
+                    reason="the same column-ordered state returns at a higher cost",
+                )
+            )
+        else:
+            earliest.setdefault(checkpoint.key, checkpoint.index)
+    cycles.sort(key=lambda item: (item.targets[0] - item.start, -checkpoints[item.targets[0]].g, item.start))
+
+    span = max(2, int(horizon))
+    last = checkpoints[-1].index
+    ranked = []
+    for start in range(0, last):
+        end = min(last, start + span)
+        targets = []
+        for index in range(start + 1, end + 1):
+            if checkpoints[index].g <= checkpoints[start].g:
+                continue
+            if checkpoints[index].key == checkpoints[start].key:
+                continue
+            targets.append(index)
+        if not targets:
+            continue
+        kind, reason, score = _region_score(checkpoints, actions, start, targets)
+        ranked.append((score, start, tuple(targets), kind, reason))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+
+    chosen: List[AdaptiveRegion] = []
+    spans: List[Tuple[int, int]] = []
+    for region in cycles:
+        if len(chosen) >= int(max_regions):
+            break
+        chosen.append(region)
+        spans.append((region.start, region.targets[-1]))
+    for _score, start, targets, kind, reason in ranked:
+        if len(chosen) >= int(max_regions):
+            break
+        end = targets[-1]
+        if any(start < prev_end and prev_start < end for prev_start, prev_end in spans):
+            continue
+        cost = checkpoints[end].g - checkpoints[start].g
+        budget = (
+            "medium"
+            if kind in {"known_inconclusive", "stock_empty", "between_foundations"} or cost >= 4
+            else "short"
+        )
+        chosen.append(AdaptiveRegion(start, targets, kind, budget, reason))
+        spans.append((start, end))
+    return tuple(chosen)
+
+
 def optimise_anchored(
     opening: SpiderState,
     actions: Sequence[Action],
@@ -378,9 +707,14 @@ def optimise_anchored(
     rss_abort_mb: float = 3072.0,
     max_improvements: int = 6,
     expected_cost: Optional[int] = None,
+    adaptive: bool = False,
+    horizon: int = 16,
+    max_regions: int = 6,
 ) -> AnchorReport:
     """Search cheaper rejoining segments of one verified complete route.
 
+    ``adaptive`` searches each selected source toward every later checkpoint
+    in its horizon. The default keeps the fixed one-endpoint windows.
     ``mode`` cold, solve, and diagnose raise. The production registry is not
     written. A failed or partial candidate leaves the verified route in place.
     """
@@ -414,6 +748,10 @@ def optimise_anchored(
     search_expansions = 0
     stop = "NO_IMPROVEMENT"
     round_index = 0
+    memo_hits = 0
+    targets_considered = 0
+    exact_matches = 0
+    covered_known: List[int] = []
 
     while len(improvements) < int(max_improvements):
         checkpoints = build_checkpoints(opening, current_actions)
@@ -425,38 +763,70 @@ def optimise_anchored(
             stop = "TIME_LIMIT"
             break
         # Each improvement refreshes checkpoints and may use another window budget.
-        batch = select_windows(
-            checkpoints,
-            current_actions,
-            max_span=max_span,
-            max_windows=int(max_windows),
-        )
+        # The memo is per route. A refreshed route must not reuse the old graph.
+        memo = {"hits": 0, "misses": 0, "results": {}}
+        if adaptive:
+            batch = select_adaptive_regions(
+                checkpoints,
+                current_actions,
+                horizon=int(horizon),
+                max_regions=int(max_regions),
+            )
+        else:
+            batch = select_windows(
+                checkpoints,
+                current_actions,
+                max_span=max_span,
+                max_windows=int(max_windows),
+            )
         if not batch:
             stop = "EXHAUSTED"
             break
         improved_now = False
-        for window in batch:
+        for item in batch:
             if time.perf_counter() >= deadline:
                 stop = "TIME_LIMIT"
                 break
-            record = _examine_window(
-                opening,
-                current_actions,
-                checkpoints,
-                window,
-                current_cost=current_cost,
-                time_left=deadline - time.perf_counter(),
-                window_time_s=window_time_s,
-                medium_time_s=medium_time_s,
-                max_unique=max_unique,
-                rss_abort_mb=rss_abort_mb,
-            )
+            if adaptive:
+                record = _examine_region(
+                    opening,
+                    current_actions,
+                    checkpoints,
+                    item,
+                    current_cost=current_cost,
+                    time_left=deadline - time.perf_counter(),
+                    window_time_s=window_time_s,
+                    medium_time_s=medium_time_s,
+                    max_unique=max_unique,
+                    rss_abort_mb=rss_abort_mb,
+                    memo=memo,
+                )
+                matched_end = record.get("matched_end", item.targets[-1])
+                segment_cost = record.get("matched_original_cost", record.get("ceiling"))
+            else:
+                record = _examine_window(
+                    opening,
+                    current_actions,
+                    checkpoints,
+                    item,
+                    current_cost=current_cost,
+                    time_left=deadline - time.perf_counter(),
+                    window_time_s=window_time_s,
+                    medium_time_s=medium_time_s,
+                    max_unique=max_unique,
+                    rss_abort_mb=rss_abort_mb,
+                )
+                matched_end = item.end
+                segment_cost = item.cost
             rss = rss_mb()
             if rss is not None and (peak is None or rss > peak):
                 peak = rss
             examined += 1
-            search_expansions += int(record.get("expanded") or 0)
+            if not record.get("reused"):
+                search_expansions += int(record.get("expanded") or 0)
             segment_prunes += int(record.get("lower_bound_prunes") or 0)
+            targets_considered += int(record.get("targets_considered") or 0)
+            exact_matches += int(record.get("targets_touched") or 0)
             if record["status"] == "INCONCLUSIVE":
                 inconclusive += 1
             elif record["status"] == "EXHAUSTED":
@@ -472,12 +842,13 @@ def optimise_anchored(
                 {
                     "before": current_cost,
                     "after": record["verified_cost"],
-                    "start": window.start,
-                    "end": window.end,
-                    "segment_cost": window.cost,
+                    "start": item.start,
+                    "end": matched_end,
+                    "segment_cost": segment_cost,
                     "replacement_cost": record["replacement_cost"],
-                    "kind": window.kind,
+                    "kind": item.kind,
                     "source": "discovered",
+                    "adaptive": bool(adaptive),
                 }
             )
             current_actions = tuple(new_actions)
@@ -485,6 +856,9 @@ def optimise_anchored(
             improved_now = True
             round_index += 1
             break
+        memo_hits += int(memo.get("hits", 0))
+        if adaptive:
+            covered_known = sorted(set(covered_known) | set(_covered_known(batch)))
         if stop == "TIME_LIMIT":
             break
         if not improved_now:
@@ -570,6 +944,14 @@ def optimise_anchored(
         "symmetry_quotient_used": False,
         "source_id": source_id,
         "rounds": round_index,
+        "adaptive": bool(adaptive),
+        "target_mode": "multi-checkpoint" if adaptive else "fixed-endpoint",
+        "memo_hits": memo_hits,
+        "targets_considered": targets_considered,
+        "exact_matches": exact_matches,
+        "known_inconclusive_covered": covered_known,
+        "segment_proof_is_not_global_optimality": True,
+        "anchored_search_s": round(elapsed, 3),
     }
     return AnchorReport(
         status=report_status,
@@ -661,6 +1043,201 @@ def _examine_window(
     record["verified_cost"] = committed.cost
     record["actions"] = committed.actions
     return record
+
+
+def _examine_region(
+    opening: SpiderState,
+    actions: Sequence[Action],
+    checkpoints: Sequence[Checkpoint],
+    region: AdaptiveRegion,
+    *,
+    current_cost: int,
+    time_left: float,
+    window_time_s: float,
+    medium_time_s: float,
+    max_unique: int,
+    rss_abort_mb: float,
+    memo: dict,
+) -> dict:
+    """Search one source against its later checkpoints and splice a strict improvement."""
+
+    source = checkpoints[region.start]
+    specs = []
+    for index in region.targets:
+        target = checkpoints[index]
+        original = int(target.g) - int(source.g)
+        if original < 1:
+            continue
+        specs.append((target.state, original, index))
+    ceiling = max((cost for _state, cost, _index in specs), default=0)
+    record = {
+        "start": region.start,
+        "end": region.targets[-1] if region.targets else region.start,
+        "targets": list(region.targets),
+        "segment_cost": ceiling,
+        "kind": region.kind,
+        "reason": region.reason,
+        "budget_class": region.budget_class,
+        "ceiling": ceiling,
+        "source_id": source.state_id,
+        "target_id": checkpoints[region.targets[-1]].state_id if region.targets else source.state_id,
+        "status": "INCONCLUSIVE",
+        "expanded": 0,
+        "unique": 0,
+        "duplicate_skips": 0,
+        "lower_bound_prunes": 0,
+        "proof": False,
+        "proof_scope": "selected-targets",
+        "replacement_cost": None,
+        "verified_cost": None,
+        "matched_end": None,
+        "matched_original_cost": None,
+        "targets_considered": len(specs),
+        "targets_touched": 0,
+        "reused": False,
+        "global_optimal": False,
+    }
+    if not states_rejoin(source.state, _replay_prefix(opening, actions, region.start)):
+        record["status"] = "INVALID"
+        record["stop_reason"] = "source checkpoint drifted"
+        return record
+    if not specs:
+        record["status"] = "NOT_CHEAPER"
+        record["proof"] = True
+        record["stop_reason"] = "no eligible target"
+        return record
+    allowance = medium_time_s if region.budget_class == "medium" else window_time_s
+    allowance = max(0.0, min(float(allowance), float(time_left)))
+    if region.kind == "exact_cycle":
+        found = SegmentResult(
+            "FOUND",
+            (),
+            0,
+            ceiling,
+            stop_reason="exact cycle",
+            proof=True,
+            target_index=region.targets[0],
+            targets_considered=1,
+        )
+    else:
+        found = search_targets(
+            source.state,
+            specs,
+            time_limit_s=allowance,
+            max_unique=max_unique,
+            rss_abort_mb=rss_abort_mb,
+            memo=memo,
+        )
+    record["expanded"] = found.expanded
+    record["unique"] = found.unique
+    record["duplicate_skips"] = found.duplicate_skips
+    record["lower_bound_prunes"] = found.lower_bound_prunes
+    record["stop_reason"] = found.stop_reason
+    record["targets_touched"] = found.targets_touched
+    record["targets_considered"] = found.targets_considered
+    record["reused"] = found.reused
+    record["search_status"] = found.status
+    record["proof"] = bool(found.proof and found.status in {"EXHAUSTED", "IMPOSSIBLE", "NOT_CHEAPER"})
+    if found.status != "FOUND" or found.cost is None or found.target_index is None:
+        record["status"] = found.status
+        return record
+    matched = checkpoints[found.target_index]
+    original = int(matched.g) - int(source.g)
+    record["matched_end"] = found.target_index
+    record["matched_original_cost"] = original
+    record["end"] = found.target_index
+    record["target_id"] = matched.state_id
+    if found.cost >= original:
+        record["status"] = "NOT_CHEAPER"
+        record["proof"] = True
+        return record
+    spliced = tuple(actions[: region.start]) + tuple(found.actions) + tuple(actions[found.target_index :])
+    committed = _commit(
+        opening,
+        spliced,
+        current_cost,
+        source.state,
+        found.actions,
+        matched.state,
+    )
+    if committed is None:
+        record["status"] = "REJECTED"
+        record["proof"] = False
+        return record
+    record["status"] = "IMPROVED"
+    record["proof"] = True
+    record["replacement_cost"] = found.cost
+    record["verified_cost"] = committed.cost
+    record["actions"] = committed.actions
+    return record
+
+
+def _region_score(
+    checkpoints: Sequence[Checkpoint],
+    actions: Sequence[Action],
+    start: int,
+    targets: Sequence[int],
+) -> Tuple[str, str, int]:
+    """Order regions. The score is not evidence that the span is wasteful."""
+
+    end = targets[-1]
+    left = checkpoints[start]
+    right = checkpoints[end]
+    cost = int(right.g) - int(left.g)
+    span = end - start
+    segment = list(actions[start:end])
+    stock_empty = left.stock_cards == 0
+    foundation_change = right.foundations != left.foundations
+    reversal = _contains_reversal(segment)
+    covers_known = any(start <= item <= end for item in _KNOWN_INCONCLUSIVE if item <= checkpoints[-1].index)
+    parking = (
+        left.face_down == right.face_down
+        and left.empty_columns != right.empty_columns
+        and cost >= 2
+    )
+    score = min(cost, 12)
+    kind = "horizon"
+    reason = "later checkpoints inside a bounded horizon"
+    if start in _KNOWN_INCONCLUSIVE:
+        score += 1000
+        kind = "known_inconclusive"
+        reason = "source of a v0.118 window that stopped at the unique cap"
+    elif covers_known and stock_empty:
+        score += 800
+        kind = "stock_empty"
+        reason = "stock-empty span covering a previously capped window"
+    if stock_empty and foundation_change:
+        score += 400
+        if kind == "horizon":
+            kind = "stock_empty"
+            reason = "stock-empty interval between foundations"
+    if reversal:
+        score += 300
+        if kind == "horizon":
+            kind = "reversal"
+            reason = "a move is undone later in the horizon"
+    if foundation_change and kind == "horizon":
+        score += 150
+        kind = "between_foundations"
+        reason = "the foundation count changes inside the horizon"
+    if parking and kind == "horizon":
+        score += 80
+        kind = "workspace"
+        reason = "empty columns change while the face-down count does not"
+    if span <= 2 and cost <= 2 and kind == "horizon":
+        score -= 40
+    return kind, reason, score
+
+
+def _covered_known(regions: Sequence[AdaptiveRegion]) -> List[int]:
+    covered = []
+    for item in _KNOWN_INCONCLUSIVE:
+        for region in regions:
+            end = region.targets[-1] if region.targets else region.start
+            if region.start <= item <= end:
+                covered.append(item)
+                break
+    return covered
 
 
 def _commit(

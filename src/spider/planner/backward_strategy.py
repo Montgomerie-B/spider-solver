@@ -16,6 +16,7 @@ No deal-id, column-id, or canonical-route constants belong here.
 
 from __future__ import annotations
 
+import contextvars
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -50,8 +51,15 @@ from spider.planner.workspace_obstruction import (
     profile_state,
     workspace_potential,
 )
+from spider.packed_state import pack_state
 from spider.planner.workspace_tactics import WorkspaceBackend, realize_workspace
 from spider.rules import MW_RULES
+
+# The controller may set a shorter probe while a solve is running.
+# Direct planner calls leave these unset and keep the historical 0.35s probe.
+# A stored resource limit answers only the same state and the same budget.
+workspace_probe_seconds = contextvars.ContextVar("spider_workspace_probe_seconds", default=None)
+workspace_probe_cache = contextvars.ContextVar("spider_workspace_probe_cache", default=None)
 
 
 class LocationKind(str, Enum):
@@ -512,19 +520,42 @@ def _cheap_workspace_cost(state: SpiderState) -> Tuple[Optional[int], str]:
         return 1, "fact: one-move create exists"
     if empty_count(state) > 0:
         return 0, "fact: space already exists"
-    # Tight probe — diagnostic, not a search layer.
+    # Tight probe — diagnostic, not a search layer. A resource limit is not
+    # proof that no workspace exists. The same state and budget are not run twice.
+    override = workspace_probe_seconds.get()
+    if override is None:
+        limit = 0.35
+        nodes = 400
+    else:
+        limit = max(0.02, min(0.35, float(override)))
+        nodes = max(40, int(round(400 * limit / 0.35)))
+    cache = workspace_probe_cache.get()
+    key = None
+    if isinstance(cache, dict):
+        key = (pack_state(state), int(nodes), round(float(limit), 5))
+        stored = cache.get(key)
+        if stored is not None:
+            cache["hits"] = int(cache.get("hits", 0)) + 1
+            if stored[0] is None:
+                cache["negative_hits"] = int(cache.get("negative_hits", 0)) + 1
+            return stored
+        cache["misses"] = int(cache.get("misses", 0)) + 1
     res = realize_workspace(
         state,
         backend=WorkspaceBackend.IMPROVED,
         max_cost=6,
-        max_nodes=400,
-        time_limit_s=0.35,
+        max_nodes=nodes,
+        time_limit_s=limit,
     )
     if res.status == RealizationStatus.FOUND:
-        return int(res.corrected_mw_cost or 0), f"improved probe nodes={res.nodes_expanded}"
-    if res.status == RealizationStatus.ALREADY_SATISFIED:
-        return 0, "already satisfied"
-    return None, f"probe {res.status.value}"
+        result = (int(res.corrected_mw_cost or 0), f"improved probe nodes={res.nodes_expanded}")
+    elif res.status == RealizationStatus.ALREADY_SATISFIED:
+        result = (0, "already satisfied")
+    else:
+        result = (None, f"probe {res.status.value}")
+    if isinstance(cache, dict) and key is not None and len(cache) < 800:
+        cache[key] = result
+    return result
 
 
 def _option_uses(

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integrated human-strategy controller for Spider Solitaire. v0.118.
+"""Integrated human-strategy controller for Spider Solitaire. v0.119.
 
 The controller does not start a historical campaign, write the production
 incumbent, or change MobilityWare rules. ``--profile extended`` runs only
@@ -8,7 +8,8 @@ when named. ``--mode solve`` seeks a complete game from the opening.
 searches for a strictly cheaper finished game. ``--mode solve-optimise``
 tries an independent solve first. ``--mode anchored`` rewrites segments of
 a verified route and keeps the suffix only after an exact column-ordered
-rejoin. Cold mode and solve mode never load a known solution.
+rejoin. ``--adaptive`` searches each source toward several later checkpoints.
+Cold mode and solve mode never load a known solution.
 ``--root post-sd3`` remains diagnose-only.
 
     py -3 tools/human_strategy_solver.py --deal deals/4925153.txt --mode solve --profile pilot --time-limit 150
@@ -40,7 +41,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.118")
+    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.119")
     parser.add_argument("--deal", required=True)
     parser.add_argument(
         "--mode",
@@ -86,6 +87,13 @@ def main(argv=None) -> int:
     parser.add_argument("--slice", type=int, help="New commits on one line before a queued line may run.")
     parser.add_argument("--line-attempts", type=int, help="New objective attempts on one line before yielding.")
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument(
+        "--adaptive",
+        action="store_true",
+        help="Anchored mode only. Search from each source checkpoint toward several later checkpoints.",
+    )
+    parser.add_argument("--horizon", type=int, default=16, help="Later checkpoints one adaptive search may rejoin.")
+    parser.add_argument("--regions", type=int, default=6, help="Adaptive source regions examined per route.")
     parser.add_argument("--out")
     parser.add_argument("--no-portfolio", action="store_true")
     args = parser.parse_args(argv)
@@ -98,6 +106,9 @@ def main(argv=None) -> int:
         return 2
     if args.mode in {"optimise", "anchored"} and not args.incumbent:
         print(f"{args.mode} mode requires --incumbent.", file=sys.stderr)
+        return 2
+    if args.adaptive and args.mode != "anchored":
+        print("--adaptive is an anchored-mode search. Cold and solve do not use it.", file=sys.stderr)
         return 2
     if args.mode in {"solve", "solve-optimise"} and args.goal == "play":
         args.goal = "foundations"
@@ -169,6 +180,9 @@ def main(argv=None) -> int:
             time_limit_s=profile.time_limit_s,
             rss_abort_mb=profile.rss_abort_mb,
             expected_cost=incumbent_mw,
+            adaptive=bool(args.adaptive),
+            horizon=int(args.horizon),
+            max_regions=int(args.regions),
         )
     else:
         result = solve(
@@ -185,7 +199,7 @@ def main(argv=None) -> int:
             incumbent_origin=incumbent_origin,
         )
     document = _document(args, deal_path, result, opening)
-    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_118" / f"{args.mode}_{args.profile}.json"
+    out = Path(args.out) if args.out else REPO / "artifacts" / "human_strategy" / "v0_119" / f"{args.mode}_{args.profile}.json"
     if not out.is_absolute():
         out = REPO / out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -197,7 +211,7 @@ def main(argv=None) -> int:
             list(result.actions),
             moves_path,
             header=(
-                f"v0.118 {args.mode} {args.profile} goal={args.goal} "
+                f"v0.119 {args.mode} {args.profile} goal={args.goal} "
                 f"source={result.provenance.get('incumbent_source')} "
                 f"improved={result.provenance.get('improved')} "
                 f"mw={result.cumulative_g} replay_ok={result.replay and result.replay.get('ok')}"

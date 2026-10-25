@@ -220,6 +220,7 @@ class _Stats:
     component_s: Dict[str, float] = field(default_factory=dict)
     exclusion_log: List[dict] = field(default_factory=list)
     resource_noted: bool = False
+    foundation_timing: Dict[str, float] = field(default_factory=dict)
 
 
 def _identity(state: SpiderState):
@@ -793,6 +794,11 @@ def solve(
     released_soft: set = set()
     boost_ident = None
     foundation_cache: dict = {}
+    # Two no-empty workspace probes otherwise spend about 0.35s each and
+    # return a resource limit. That limit is not infeasibility. The shorter
+    # budget applies only to this solve. A larger budget is a different cache key.
+    foundation_cache["_workspace_probe_s"] = 0.08
+    foundation_cache["_workspace_probe_cache"] = {"hits": 0, "misses": 0, "negative_hits": 0}
     foundation_lock: dict = {}
     foundation_trace: List[dict] = []
     start_foundations = len(root.foundations)
@@ -1299,6 +1305,7 @@ def solve(
                 foundation_locked = True
         if not foundation_locked and _foundation_goal(goal) and not line.hold:
             proposal_started = time.perf_counter()
+            timing_before = dict(foundation_lock.get("timing") or {})
             proposal = propose_foundation_step(
                 line.state,
                 deal_cards,
@@ -1310,6 +1317,11 @@ def solve(
                 blocked=_proposal_blocked(failed, ident, foundation_lock),
             )
             _charge(stats, "foundation", proposal_started)
+            timing_after = foundation_lock.get("timing") or {}
+            for bucket, value in timing_after.items():
+                delta = float(value) - float(timing_before.get(bucket, 0.0))
+                if delta:
+                    stats.foundation_timing[bucket] = stats.foundation_timing.get(bucket, 0.0) + delta
             for event in proposal.events:
                 stats.events.append(event)
             if proposal.public:
@@ -1930,8 +1942,20 @@ def solve(
         "unique_states_are_strategic": True,
         "deadline_elapsed": bool(time.perf_counter() >= deadline),
         "component_s": {name: round(value, 3) for name, value in stats.component_s.items()},
+        "foundation_timing": {name: round(value, 3) for name, value in stats.foundation_timing.items()},
+        "portfolio_cache": dict(foundation_cache.get("_meta") or {}),
+        "workspace_probe": {
+            "seconds": foundation_cache.get("_workspace_probe_s"),
+            "default_seconds": 0.35,
+            "hits": int((foundation_cache.get("_workspace_probe_cache") or {}).get("hits", 0)),
+            "misses": int((foundation_cache.get("_workspace_probe_cache") or {}).get("misses", 0)),
+            "negative_hits": int((foundation_cache.get("_workspace_probe_cache") or {}).get("negative_hits", 0)),
+            "resource_limit_is_not_infeasibility": True,
+        },
         "exclusion_log": list(stats.exclusion_log),
         "excavation_probe_stats": dict(foundation_lock.get("probe_stats") or {}),
+        "adaptive": False,
+        "target_mode": "global",
         "planning_stall_is_not_time_limit": (
             "PLANNING_STALL means the strategic policy stopped while legal tableau "
             "moves remained. TIME_LIMIT is recorded when the loop header, or the "

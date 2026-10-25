@@ -8,7 +8,7 @@ from .controller import solve
 from .profiles import PROFILES, resolve_profile
 from .registry import PRINCIPLES, coverage_matrix
 
-SCHEMA_VERSION = "spider-human-strategy-0.118"
+SCHEMA_VERSION = "spider-human-strategy-0.119"
 
 __all__ = [
     "SCHEMA_VERSION",

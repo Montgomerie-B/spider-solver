@@ -152,17 +152,40 @@ def load_portfolio(
     cache: dict,
     max_source_combinations: int = 4,
 ) -> Tuple[FoundationFeasibilityAnalysis, FoundationCampaignPortfolio]:
+    """Return the campaign portfolio for this state.
+
+    The same authoritative state reuses the stored portfolio. A workspace
+    probe limit stored on the cache, when the controller set one, applies
+    only while this call runs. It does not change direct planner calls.
+    """
+
+    from spider.planner.backward_strategy import workspace_probe_cache, workspace_probe_seconds
+
+    meta = cache.setdefault("_meta", {"hits": 0, "misses": 0})
     key = canonical_state_key(state)
     cached = cache.get(key)
     if cached is not None:
+        meta["hits"] = int(meta.get("hits", 0)) + 1
         return cached
-    feasibility = analyze_foundation_feasibility(tuple(cards), state)
-    portfolio = analyze_foundation_campaigns(
-        state,
-        cards=tuple(cards),
-        foundation_analysis=feasibility,
-        max_source_combinations=max_source_combinations,
-    )
+    meta["misses"] = int(meta.get("misses", 0)) + 1
+    tokens = []
+    probe_s = cache.get("_workspace_probe_s")
+    probe_cache = cache.get("_workspace_probe_cache")
+    if probe_s is not None:
+        tokens.append((workspace_probe_seconds, workspace_probe_seconds.set(float(probe_s))))
+    if isinstance(probe_cache, dict):
+        tokens.append((workspace_probe_cache, workspace_probe_cache.set(probe_cache)))
+    try:
+        feasibility = analyze_foundation_feasibility(tuple(cards), state)
+        portfolio = analyze_foundation_campaigns(
+            state,
+            cards=tuple(cards),
+            foundation_analysis=feasibility,
+            max_source_combinations=max_source_combinations,
+        )
+    finally:
+        for variable, token in reversed(tokens):
+            variable.reset(token)
     cache[key] = (feasibility, portfolio)
     return feasibility, portfolio
 
@@ -2877,7 +2900,15 @@ def plan_obstructed_access(
 def _probe_stats(lock: dict) -> dict:
     return lock.setdefault(
         "probe_stats",
-        {"hits": 0, "misses": 0, "expanded": 0, "inconclusive": 0, "nodes": 0, "revisits": 0},
+        {
+            "hits": 0,
+            "misses": 0,
+            "expanded": 0,
+            "inconclusive": 0,
+            "nodes": 0,
+            "revisits": 0,
+            "negative_hits": 0,
+        },
     )
 
 
@@ -2912,6 +2943,7 @@ def _cached_excavation(
             stats["revisits"] += 1
         if excavation_probe_category(cached) != "SUCCESS":
             stats["inconclusive"] += 1
+            stats["negative_hits"] = int(stats.get("negative_hits", 0)) + 1
         return cached
     if time_left < 0.05:
         depth = _cover_depth(state, card) or 0
