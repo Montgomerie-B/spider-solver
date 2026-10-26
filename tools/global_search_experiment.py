@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the isolated legal-state experiment. Does not call the production controller.
 
-    py -3 tools/global_search_experiment.py --variant strategy --time-limit 40 --max-unique 80000 --memory-mb 3072 --out artifacts/global_search/v0_124/experiment_c_40.json
+    py -3 tools/global_search_experiment.py --variant suit --time-limit 40 --max-unique 80000 --memory-mb 3072 --out artifacts/global_search/v0_125/suit_40.json
     py -3 tools/global_search_experiment.py --variant kernel --time-limit 40 --max-unique 80000 --memory-mb 3072 --out artifacts/global_search/v0_124/control_b_40.json
 """
 
@@ -23,9 +23,14 @@ from spider.global_search_experiment import (
     replay_cost,
     search_original_kernel,
     search_strategy_guided,
+    search_suit_ordered,
+    solve_then_optimise,
 )
+from spider.human_strategy.incumbent import verify_complete_solution
 from spider.human_strategy.profiles import resolve_profile
+from spider.metrics import parse_moves_file
 from spider.research_actions import apply_action, face_down_count, opening_from_deal
+from spider.suit_completion import opening_from_seed
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -171,15 +176,21 @@ def _coverage(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Isolated legal-state search v0.124")
+    parser = argparse.ArgumentParser(description="Isolated legal-state search v0.125")
     parser.add_argument("--deal", default="deals/4925153.txt")
-    parser.add_argument("--variant", choices=("strategy", "kernel"), default="strategy")
+    parser.add_argument(
+        "--variant",
+        choices=("strategy", "kernel", "suit", "solve-then-optimise"),
+        default="suit",
+    )
     parser.add_argument("--mode", choices=("cold", "optimise"), default="cold")
     parser.add_argument("--time-limit", type=float, default=40.0)
     parser.add_argument("--max-unique", type=int, default=80000)
     parser.add_argument("--memory-mb", type=float, default=3072.0)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--deal-seed", type=int, default=None)
     parser.add_argument("--incumbent-cost", type=int, default=None)
+    parser.add_argument("--incumbent-moves", default=None)
     parser.add_argument("--cost-ceiling", type=int, default=300)
     parser.add_argument("--out", required=True)
     parser.add_argument("--coverage", action="store_true")
@@ -197,7 +208,29 @@ def main(argv: list[str] | None = None) -> int:
     deal = Path(args.deal)
     if not deal.is_file():
         deal = REPO / args.deal
-    opening = opening_from_deal(deal)
+    if args.deal_seed is not None:
+        opening = opening_from_seed(args.deal_seed)
+        deal_label = f"seed:{int(args.deal_seed)}"
+    else:
+        opening = opening_from_deal(deal)
+        deal_label = str(deal)
+    if args.mode == "cold" and (args.incumbent_cost is not None or args.incumbent_moves):
+        raise SystemExit("cold mode refuses an incumbent route")
+    incumbent_cost = args.incumbent_cost
+    if args.variant in {"suit", "solve-then-optimise"} and args.mode == "optimise":
+        if not args.incumbent_moves:
+            raise SystemExit("optimise mode requires --incumbent-moves")
+        route = Path(args.incumbent_moves)
+        if not route.is_file():
+            route = REPO / args.incumbent_moves
+        verified = verify_complete_solution(
+            opening,
+            parse_moves_file(route),
+            expected_cost=args.incumbent_cost,
+            source="imported",
+            source_id=route.name,
+        )
+        incumbent_cost = verified.cost
     if args.variant == "kernel":
         if args.mode != "cold":
             raise SystemExit("the original kernel entry in this tool is cold only")
@@ -208,6 +241,30 @@ def main(argv: list[str] | None = None) -> int:
             rss_abort_mb=args.memory_mb,
             cost_ceiling=args.cost_ceiling,
         )
+    elif args.variant == "solve-then-optimise":
+        if args.mode != "cold":
+            raise SystemExit("solve-then-optimise starts from a cold search")
+        payload = solve_then_optimise(
+            opening,
+            time_limit_s=args.time_limit,
+            max_unique=args.max_unique,
+            rss_abort_mb=args.memory_mb,
+            cost_ceiling=args.cost_ceiling,
+        )
+    elif args.variant == "suit":
+        result = search_suit_ordered(
+            opening,
+            time_limit_s=args.time_limit,
+            max_unique=args.max_unique,
+            rss_abort_mb=args.memory_mb,
+            seed=args.seed,
+            mode=args.mode,
+            incumbent_cost=incumbent_cost,
+            cost_ceiling=args.cost_ceiling,
+        )
+        payload = result.to_dict()
+        if args.mode == "optimise":
+            payload["provenance"] = "imported_verified_complete"
     else:
         result = search_strategy_guided(
             opening,
@@ -221,8 +278,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         payload = result.to_dict()
     document = {
-        "schema": SCHEMA,
-        "deal": str(deal),
+        "schema": payload.get("schema", SCHEMA),
+        "deal": deal_label,
         "result": payload,
     }
     out = Path(args.out)
@@ -230,11 +287,12 @@ def main(argv: list[str] | None = None) -> int:
         out = REPO / out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(document, indent=2), encoding="utf-8")
+    summary = payload.get("stage1") if isinstance(payload.get("stage1"), dict) else payload
     print(
-        f"variant={payload.get('variant')} stop={payload.get('stop_reason')} "
-        f"foundations={payload.get('max_foundations')} solved={payload.get('solved')} "
-        f"unique={payload.get('unique')} elapsed={payload.get('elapsed_s')} "
-        f"rss={payload.get('peak_rss_mb')}"
+        f"variant={summary.get('variant', args.variant)} stop={summary.get('stop_reason')} "
+        f"foundations={summary.get('max_foundations')} solved={summary.get('solved')} "
+        f"unique={summary.get('unique')} elapsed={summary.get('elapsed_s')} "
+        f"rss={summary.get('peak_rss_mb')} provenance={payload.get('provenance', summary.get('provenance'))}"
     )
     print(f"wrote {out}")
     return 0

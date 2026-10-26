@@ -296,9 +296,20 @@ def test_fixed_seed_is_deterministic():
     )
     first = search_strategy_guided(opening, **kwargs).to_dict()
     second = search_strategy_guided(opening.clone(), **kwargs).to_dict()
-    for key in ("elapsed_s", "cpu_s", "peak_rss_mb"):
-        first.pop(key)
-        second.pop(key)
+
+    def strip_elapsed(value):
+        if isinstance(value, dict):
+            value.pop("elapsed_s", None)
+            for item in value.values():
+                strip_elapsed(item)
+        elif isinstance(value, list):
+            for item in value:
+                strip_elapsed(item)
+
+    for payload in (first, second):
+        for key in ("elapsed_s", "cpu_s", "peak_rss_mb"):
+            payload.pop(key, None)
+        strip_elapsed(payload)
     assert first == second
     assert first["seed"] == 0
     assert first["stop_reason"] == "unique limit"
