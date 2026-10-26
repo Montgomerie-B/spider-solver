@@ -64,7 +64,13 @@ from .preparation import (
     strategic_stop_status,
 )
 from .profiles import Profile
-from .strategic_frontier import StrategicFrontier, outcome_rank, strategic_progress
+from .strategic_frontier import (
+    StrategicFrontier,
+    build_stall_audit,
+    outcome_rank,
+    pin_named_successor,
+    strategic_progress,
+)
 
 
 @dataclass
@@ -670,6 +676,24 @@ def _frontier_on(profile: Profile, goal: str) -> bool:
     return goal in {"first-foundation", "foundations"} and int(profile.frontier_limit) > 1
 
 
+def reported_search_stop(
+    loop_status: str,
+    loop_reason: str,
+    branch_status: str,
+    branch_reason: str,
+) -> tuple:
+    """Keep a step or memory stop when a better partial is reported.
+
+    The reported actions may come from an earlier line. That line's planning
+    status is not the reason the search ended. A time stop is left unchanged
+    here so the deadline resolver can record a stall as its secondary cause.
+    """
+
+    if loop_status in {"STEP_LIMIT", "MEMORY_LIMIT"}:
+        return loop_status, loop_reason
+    return branch_status, branch_reason
+
+
 def _retain_line(frontier, stats, line, lock, *, force_id, reason, label) -> None:
     if frontier is None or frontier.limit <= 1:
         return
@@ -1091,6 +1115,33 @@ def solve(
             _remember_branch(status_now, reason_now)
         node = frontier.pop_next()
         if node is None:
+            # EXHAUSTED here is often one dominated line and an empty queue.
+            # Deferred heuristic drops are not covered by that dominance check.
+            if frontier.empty_snapshot is None:
+                budget_now = resolve_budget(foundation_lock)
+                classes = budget_now.classifications if budget_now is not None else {}
+                frontier.empty_snapshot = build_stall_audit(
+                    frontier,
+                    line.state,
+                    remaining_s=deadline - time.perf_counter(),
+                    elapsed_s=time.perf_counter() - started,
+                    resource_limited=int(classes.get("resource_limited", 0)),
+                    exhausted_within_bound=int(classes.get("exhausted_within_bound", 0)),
+                    strategic_holds=len(budget_now.strategic_holds) if budget_now is not None else 0,
+                    deep_ready=len(budget_now.deep_ready) if budget_now is not None else 0,
+                )
+                stats.events.append("frontier empty: " + frontier.empty_snapshot["policy_decision"])
+            recovered = frontier.recover_one()
+            if recovered is not None:
+                pinned = pin_named_successor(recovered)
+                stats.events.append(
+                    f"frontier: recover {recovered.reason} at g={recovered.g} "
+                    f"label={recovered.label or 'none'}; "
+                    "reconsideration of a heuristic drop, not a new proof"
+                    + ("; pinned the named legal successor" if pinned else "")
+                )
+                node = frontier.pop_next()
+        if node is None:
             return False
         _install_node(node)
         status = "STEP_LIMIT"
@@ -1385,8 +1436,10 @@ def solve(
                 status, stop_reason = "EXHAUSTED", "no legal continuation under the current restrictions"
                 if multiline and frontier.queue:
                     stop_reason += f"; still queued {len(frontier.queue)}"
-                    if _continue_from_frontier(status, stop_reason):
-                        continue
+                # An empty queue is the recovery case. Deferred heuristic
+                # drops are not covered by the dormant list.
+                if _continue_from_frontier(status, stop_reason):
+                    continue
                 break
             line, force_id = jumped
             continue
@@ -1906,8 +1959,12 @@ def solve(
             foundation_lock.setdefault("tactical_schedule", "progressive")
             foundation_lock.setdefault("proposal_slice_s", PROPOSAL_SLICE_S)
             foundation_lock.setdefault("budget_key", budget_key)
-            status = chosen["status"]
-            stop_reason = chosen["stop_reason"]
+            status, stop_reason = reported_search_stop(
+                status,
+                stop_reason,
+                chosen["status"],
+                chosen["stop_reason"],
+            )
             stats.events.append(
                 f"frontier: report g={chosen['g']} foundations={chosen['foundations']} "
                 f"face-down={chosen['face_down']} over a later line"
@@ -1916,7 +1973,8 @@ def solve(
             stop_reason = (
                 f"{stop_reason}; alternative lines explored {frontier.explored}; "
                 f"retained {frontier.generated}; still queued {len(frontier.queue)}; "
-                f"transpositions {frontier.transpositions}"
+                f"transpositions {frontier.transpositions}; "
+                f"deferred {len(frontier.deferred)}; recoveries {frontier.recoveries}"
             )
         stats.events.append(
             f"frontier: generated {frontier.generated} explored {frontier.explored} "
@@ -2099,6 +2157,10 @@ def solve(
             "A progressive schedule starts with a small tactical allowance and escalates after cover falls. "
             "A limited reserve may also deepen one blocked objective when an empty column, a buried receiver, "
             "or an intermediate sequence justifies the extra search. "
+            "A separate reserve may give one justified 4,500-node investigation a longer wall clock "
+            "when the remaining global deadline allows it. "
+            "A heuristic drop can be reconsidered after the active frontier empties. "
+            "That reconsideration is not a proof, and it does not raise the frontier cap. "
             "A timeout, a node cap, or that cost cap is not infeasibility. "
             "A time limit is cached for that deadline only, not as a node-cap result. "
             "The constructive kernel runs only after a play-goal portfolio stop and "
@@ -2402,6 +2464,13 @@ def _frontier_provenance(root, frontier, branch_log, multiline, profile, started
         "same_moves": frontier.same_moves,
         "unique_histories": len({tuple(item["actions"]) for item in reported}),
         "still_queued": len(frontier.queue),
+        "deferred_held": int(frontier.deferred_held),
+        "deferred_remaining": len(frontier.deferred),
+        "recoveries": int(frontier.recoveries),
+        "recovery_attempts": int(frontier.recovery_attempts),
+        "recovered_states": int(frontier.recovered_states),
+        "recovery_limit": int(frontier.recovery_limit),
+        "frontier_empty": frontier.empty_snapshot,
         "pending": frontier.pending(),
         "branches": reported,
         "budget": {

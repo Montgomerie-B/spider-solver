@@ -3591,6 +3591,11 @@ def _progressive_excavation(
             allowance = decision.allowance
         else:
             allowance = forced
+        probe_left = float(time_left)
+        if getattr(allowance, "reserved_deep", False):
+            # The reserved rung already clipped itself to the global remainder.
+            # The proposal slice must not shorten that wall clock.
+            probe_left = max(probe_left, float(allowance.deadline_s))
         found = _run_allowance(
             state,
             card,
@@ -3598,7 +3603,7 @@ def _progressive_excavation(
             lock,
             source_key=source_key,
             column=column,
-            time_left=time_left,
+            time_left=probe_left,
             level=allowance.level,
             max_cost=allowance.max_cost,
             max_nodes=allowance.max_nodes,

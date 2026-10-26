@@ -25,6 +25,11 @@ cheapest corrected g, and the snapshot that reached it.
 * Heuristic rank never discards a line by itself. When the queue is full, a
   node may be left unexpanded. That is capacity, not exhaustion, and it is
   counted in ``dropped_full``.
+* A heuristic drop is kept in a bounded deferred pool when it is a distinct
+  physical state or a specific untried successor. A campaign-label copy of a
+  state that is already retained is not kept. Dominance still refuses a
+  worse corrected ancestry. Recovery re-admits one eligible deferred line
+  only while the active queue is empty. It does not raise the queue cap.
 * Admissible cost is part of the exploration order only. The only mathematical
   prune remains the incumbent bound inside the controller. A line the
   controller refuses before ``consider`` is an incumbent prune, not
@@ -40,13 +45,16 @@ which is the number of same-suit bonds a king-to-ace run removes with it.
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
+_NAMED_MOVE = re.compile(r"move (\d+) (\d+) (\d+)")
+
 from spider.engine import SpiderState
 from spider.packed_state import pack_state
-from spider.research_actions import face_down_count
+from spider.research_actions import all_legal_actions, face_down_count
 from spider.state_identity import canonical_state_key
 
 from .evaluation import admissible_remaining, same_suit_bonds
@@ -196,6 +204,16 @@ class StrategicFrontier:
     same_moves: int = 0
     exclusion_log: List[dict] = field(default_factory=list)
     exclusion_overflow: int = 0
+    deferred: List[StrategicNode] = field(default_factory=list)
+    deferred_seen: Set[tuple] = field(default_factory=set)
+    deferred_held: int = 0
+    deferred_cap: int = 24
+    recoveries: int = 0
+    recovery_attempts: int = 0
+    recovery_limit: int = 24
+    recovered_states: int = 0
+    recovered_idents: Set[object] = field(default_factory=set)
+    empty_snapshot: Optional[dict] = None
     timing: Optional[dict] = None
     inclusive: Optional[dict] = None
 
@@ -218,6 +236,8 @@ class StrategicFrontier:
     def __post_init__(self) -> None:
         self.limit = max(1, min(16, int(self.limit)))
         self.proposals = max(1, min(4, int(self.proposals)))
+        self.deferred_cap = max(1, min(64, int(self.deferred_cap)))
+        self.recovery_limit = max(0, min(32, int(self.recovery_limit)))
 
     def remember_visit(self, state: SpiderState, g: int, actions: Sequence, lock: dict) -> None:
         """Record the cheapest ancestry at this physical state. Does not queue it."""
@@ -294,6 +314,7 @@ class StrategicFrontier:
             evaluated = time.perf_counter()
             if len(self.queue) >= self.limit and not self._make_room(node):
                 self.dropped_full += 1
+                equivalent = self._state_retained(ident)
                 self._note_exclusion(
                     "heuristic_admission",
                     state=state,
@@ -302,9 +323,10 @@ class StrategicFrontier:
                     label=label,
                     force_id=force_id,
                     priority=node.priority,
-                    equivalent=self._state_retained(ident),
+                    equivalent=equivalent,
                     proof=False,
                 )
+                self._hold_deferred(node, equivalent=equivalent)
                 admitted = time.perf_counter()
                 self._add_elapsed("frontier_dedup", started, dedup_done)
                 self._add_elapsed("frontier_evaluation", dedup_done, evaluated)
@@ -315,6 +337,7 @@ class StrategicFrontier:
                 )
             self.queue.append(node)
             self.generated += 1
+            self.deferred = [item for item in self.deferred if item.token != token]
             admitted = time.perf_counter()
             self._add_elapsed("frontier_dedup", started, dedup_done)
             self._add_elapsed("frontier_evaluation", dedup_done, evaluated)
@@ -464,6 +487,7 @@ class StrategicFrontier:
         self.queue.append(node)
         self.generated += 1
         self.merges += 1
+        self.deferred = [item for item in self.deferred if item.token != node.token]
         return (
             f"frontier: transposition keeps g={snap['g']} "
             f"and queues {label} on that ancestry"
@@ -478,6 +502,12 @@ class StrategicFrontier:
             else:
                 kept.append(item)
         self.queue = kept
+        removed = [item for item in self.deferred if item.token[0] == ident and item.g > g]
+        if removed:
+            removed_tokens = {item.token for item in removed}
+            self.deferred = [item for item in self.deferred if item.token not in removed_tokens]
+            for item in removed:
+                self.deferred_seen.discard(item.token)
 
     def _make_room(self, incoming: StrategicNode) -> bool:
         """Drop a duplicate signature first. Never treat the drop as a proof."""
@@ -498,6 +528,9 @@ class StrategicFrontier:
             if not others:
                 return False
             victim = max(others, key=lambda node: node.priority)
+        equivalent = any(
+            item is not victim and item.token[0] == victim.token[0] for item in self.queue
+        )
         self._note_exclusion(
             "heuristic_admission",
             state=victim.state,
@@ -506,12 +539,11 @@ class StrategicFrontier:
             label=victim.label,
             force_id=victim.force_id,
             priority=victim.priority,
-            equivalent=any(
-                item is not victim and item.token[0] == victim.token[0] for item in self.queue
-            ),
+            equivalent=equivalent,
             proof=False,
         )
         self.queue.remove(victim)
+        self._hold_deferred(victim, equivalent=equivalent)
         self.dropped_full += 1
         return True
 
@@ -537,6 +569,94 @@ class StrategicFrontier:
         if any(item.token[0] == ident for item in self.queue):
             return True
         return any(token[0] == ident for token in self.expanded)
+
+    def _hold_deferred(self, node: StrategicNode, *, equivalent: bool) -> None:
+        """Keep a heuristic drop until the active queue has room again.
+
+        A label copy of a physical state that is already retained is not a
+        new line. A worse corrected ancestry is not eligible. The same token
+        is stored at most once, so recovery cannot cycle on it.
+        """
+
+        if node.token in self.deferred_seen or node.token in self.expanded:
+            return
+        if any(item.token == node.token for item in self.queue):
+            return
+        if any(item.token == node.token for item in self.deferred):
+            return
+        if not node.force_id and equivalent:
+            return
+        known = self.best_g.get(node.token[0])
+        if known is not None and int(node.g) > int(known):
+            return
+        if len(self.deferred) >= int(self.deferred_cap):
+            worst = max(self.deferred, key=_recovery_key)
+            if _recovery_key(node) >= _recovery_key(worst):
+                return
+            self.deferred.remove(worst)
+        self.deferred.append(node)
+        self.deferred_seen.add(node.token)
+        self.deferred_held += 1
+
+    def _pinned_legal(self, node: StrategicNode) -> bool:
+        state = node.state
+        columns = getattr(state, "columns", None)
+        if not isinstance(state, SpiderState) or columns is None or len(columns) != 10:
+            return False
+        pinned = []
+        if isinstance(node.lock, dict):
+            pinned = list(node.lock.get("pinned_actions") or [])
+        if not pinned:
+            return True
+        try:
+            legal = set(all_legal_actions(state))
+        except (TypeError, ValueError):
+            return False
+        return all(action in legal for action in pinned)
+
+    def eligible_deferred(self) -> List[StrategicNode]:
+        """Deferred lines that are still legal and not dominated."""
+
+        found: List[StrategicNode] = []
+        for node in self.deferred:
+            if node.token in self.expanded:
+                continue
+            if any(item.token == node.token for item in self.queue):
+                continue
+            known = self.best_g.get(node.token[0])
+            if known is not None and int(node.g) > int(known):
+                continue
+            if not self._pinned_legal(node):
+                continue
+            found.append(node)
+        found.sort(key=_recovery_key)
+        return found
+
+    def recover_one(self) -> Optional[StrategicNode]:
+        """Re-admit one deferred line. The queue cap stays where it is.
+
+        Returns None when the queue is not empty, the reconsideration limit
+        is spent, or no eligible candidate remains. A returned node is queued
+        and is not counted again in ``generated``.
+        """
+
+        if self.queue:
+            return None
+        self.recovery_attempts += 1
+        if self.recoveries >= int(self.recovery_limit):
+            return None
+        eligible = self.eligible_deferred()
+        if not eligible:
+            return None
+        chosen = eligible[0]
+        self.deferred = [item for item in self.deferred if item.token != chosen.token]
+        self.queue.append(chosen)
+        self.recoveries += 1
+        ident = chosen.token[0]
+        if ident not in self.recovered_idents:
+            self.recovered_idents.add(ident)
+            self.recovered_states += 1
+        return chosen
 
     def _note_exclusion(
         self,
@@ -599,3 +719,142 @@ def _copy_lock(lock: Optional[dict]) -> dict:
         else:
             copied[key] = value
     return copied
+
+
+def _names_move(node: StrategicNode) -> bool:
+    return _NAMED_MOVE.search(f"{node.force_id or ''} {node.reason or ''}") is not None
+
+
+def _recovery_key(node: StrategicNode) -> tuple:
+    """Lower is recovered sooner. A named legal successor outranks a bare label."""
+
+    return (
+        0 if node.force_id else 1,
+        0 if _names_move(node) else 1,
+        node.priority,
+        int(node.g),
+        node.label or "",
+    )
+
+
+def pin_named_successor(node: StrategicNode) -> bool:
+    """Pin the move named by a recovered line when that move is legal now.
+
+    Deal-alternative labels such as ``PARK:move 1 4 1`` are not played unless
+    the controller still emits that candidate. A legal pin makes the untried
+    successor the next action. An existing pin is left alone. A move that is
+    not legal is not invented.
+    """
+
+    if not isinstance(node.lock, dict) or node.lock.get("pinned_actions"):
+        return False
+    match = _NAMED_MOVE.search(f"{node.force_id or ''} {node.reason or ''}")
+    if match is None:
+        return False
+    # Columns are 1-based in the label. The third number is the card count.
+    action = (int(match.group(1)) - 1, int(match.group(2)) - 1, int(match.group(3)))
+    if action[0] < 0 or action[1] < 0 or action[2] < 1:
+        return False
+    try:
+        legal = all_legal_actions(node.state)
+    except (TypeError, ValueError):
+        return False
+    if action not in legal:
+        return False
+    node.lock["pinned_actions"] = [action]
+    return True
+
+
+def build_stall_audit(
+    frontier: StrategicFrontier,
+    current: Optional[SpiderState],
+    *,
+    remaining_s: float,
+    elapsed_s: float,
+    resource_limited: int = 0,
+    exhausted_within_bound: int = 0,
+    strategic_holds: int = 0,
+    deep_ready: int = 0,
+) -> dict:
+    """Why the active queue is empty. Heuristic drops are not proofs."""
+
+    eligible = frontier.eligible_deferred()
+    states: List[SpiderState] = []
+    seen = set()
+    candidates = []
+    if current is not None:
+        candidates.append(current)
+    candidates.extend(node.state for node in frontier.deferred)
+    for state in candidates:
+        try:
+            ident = canonical_state_key(state)
+        except (TypeError, ValueError):
+            continue
+        if ident in seen:
+            continue
+        seen.add(ident)
+        states.append(state)
+    tableau = 0
+    deals = 0
+    for state in states:
+        try:
+            actions = all_legal_actions(state)
+        except (TypeError, ValueError):
+            continue
+        tableau += sum(1 for action in actions if action != ("deal",))
+        if ("deal",) in actions:
+            deals += 1
+    unexplored = len(eligible)
+    forced = sum(1 for node in eligible if node.force_id)
+    can_explore = bool(eligible) and float(remaining_s) > 0.05 and frontier.recoveries < int(frontier.recovery_limit)
+    if can_explore:
+        decision = (
+            "The active frontier is empty and no unplayed seed was queued. "
+            f"{len(eligible)} heuristically deferred candidates remain eligible. "
+            "Recovery will reconsider one of them. "
+            "This is not graph exhaustion and it is not a proof."
+        )
+    elif frontier.deferred and frontier.recoveries >= int(frontier.recovery_limit):
+        decision = (
+            "The configured recovery limit has been reached while deferred candidates remain. "
+            "PLANNING_STALL here is a reconsideration limit, not proof that every legal continuation was searched."
+        )
+    else:
+        decision = (
+            "The active frontier is empty and no eligible deferred candidate remains "
+            "under the configured restrictions. PLANNING_STALL is the policy stop. "
+            "Heuristic rejection was not treated as impossibility."
+        )
+    first = None
+    if eligible:
+        best = eligible[0]
+        first = {
+            "reason": best.reason,
+            "g": int(best.g),
+            "label": best.label or "",
+            "force_id": best.force_id or "",
+        }
+    return {
+        "elapsed_s": round(float(elapsed_s), 3),
+        "retained_strategic_states": len(frontier.best_g),
+        "explored_lines": int(frontier.explored),
+        "explored_physical_states": len({token[0] for token in frontier.expanded}),
+        "eligible_deferred": len(eligible),
+        "deferred_held": int(frontier.deferred_held),
+        "deferred_remaining": len(frontier.deferred),
+        "legal_tableau_actions": int(tableau),
+        "legal_stock_deals": int(deals),
+        "dominance_discards": int(frontier.transpositions),
+        "heuristic_discards": int(frontier.dropped_full),
+        "resource_limited_objectives": int(resource_limited),
+        "strategic_holds": int(strategic_holds),
+        "deep_ready": int(deep_ready),
+        "exhausted_within_bound": int(exhausted_within_bound),
+        "unexplored_successors": int(unexplored),
+        "unexplored_forced_successors": int(forced),
+        "remaining_s": round(float(remaining_s), 3),
+        "could_explore_with_remaining_time": bool(can_explore),
+        "policy_decision": decision,
+        "first_candidate": first,
+        "recovery_limit": int(frontier.recovery_limit),
+    }

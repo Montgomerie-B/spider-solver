@@ -20,19 +20,25 @@ from spider.state_identity import canonical_state_key
 # Partials that still reduced cover after the first cap, and before the
 # 4,500-node tier, used up to 1,151 nodes. 800 is the configured bridge.
 # 0.55 seconds keeps two such probes inside the 1.25 second proposal slice.
-# 4,500 nodes remains available. Its deadline is the proposal slice, not the
-# historical 12 seconds. deep_share also caps a deep probe at a fraction of
-# the time still left on the global clock.
+# 4,500 nodes remains available. The ordinary ladder deadline is still the
+# proposal slice. A separate reserve can give one justified 4,500-node probe
+# a longer wall clock, clipped by the global remainder and by deep_share.
+# Node count and wall clock are different budgets.
 DERIVATION = (
     "First cap 160 nodes and 0.28s from the v0.119 48-node exhausted graphs "
     "and the 2,000-node/3s probes. Middle cap 800 nodes and 0.55s from partials "
     "that were still reducing cover below 1,151 nodes. Deep cap 4,500 nodes, "
-    "the existing excavation capability, with a 1.25s deadline and a 0.15 share "
-    "of the remaining global time. The proposal slice is 1.25s so one objective "
-    "cannot spend the historical 12s monopoly. A cover drop is not the only "
-    "reason to try the next allowance: a limited reserve may deepen one "
-    "blocked objective when an empty column, a buried receiver, or an "
-    "intermediate sequence makes the extra search worth attempting."
+    "the existing excavation capability. The ordinary ladder deadline is 1.25s "
+    "and a 0.15 share of the remaining global time. The proposal slice is 1.25s "
+    "so one objective cannot spend the historical 12s monopoly on every probe. "
+    "A cover drop is not the only reason to try the next allowance: a limited "
+    "reserve may deepen one blocked objective when an empty column, a buried "
+    "receiver, or an intermediate sequence makes the extra search worth attempting. "
+    "A separate deep reserve may give that 4,500-node rung up to about 12 seconds "
+    "when the remaining global deadline and the deep share leave at least 6.5 seconds. "
+    "A TIME_LIMIT is not a permanent disqualification when an intermediate sequence "
+    "or that position evidence exists. The node allowance and the wall-clock allowance "
+    "are reported separately."
 )
 
 _RESOURCE = frozenset({"NODE_LIMIT", "TIME_LIMIT", "PROBE_LIMIT"})
@@ -47,6 +53,7 @@ class Allowance:
     max_cost: int
     max_nodes: int
     deadline_s: float
+    reserved_deep: bool = False
 
 
 @dataclass(frozen=True)
@@ -159,6 +166,12 @@ class BudgetCoordinator:
     decision_log: List[dict] = field(default_factory=list)
     nonmonotone_deepened: int = 0
     nonmonotone_limit: int = 3
+    deep_ready: List[_Record] = field(default_factory=list)
+    deep_used: int = 0
+    deep_limit: int = 2
+    deep_wall_s: float = 12.0
+    deep_minimum_s: float = 6.5
+    deep_limit_noted: bool = False
     detail: bool = False
     _deepen_taken: bool = False
 
@@ -302,36 +315,61 @@ class BudgetCoordinator:
         self.records[(state_key, str(objective))] = record
         self.open_partials = [item for item in self.open_partials if item.objective != record.objective]
         self.strategic_holds = [item for item in self.strategic_holds if item.objective != record.objective]
-        if useful and self.limits.next_after(allowance.max_nodes) is not None:
+        self.deep_ready = [item for item in self.deep_ready if item.objective != record.objective]
+        nxt = self.limits.next_after(allowance.max_nodes)
+        if useful and nxt is not None:
             self.open_partials.append(record)
             self._note("progress", record.objective, "cover fell inside the node allowance")
-        elif (
-            justification
-            and classification == "resource_limited"
-            and self.limits.next_after(allowance.max_nodes) is not None
-        ):
-            self.strategic_holds.append(record)
-            self._note("justify", record.objective, justification)
+        elif justification and classification == "resource_limited" and nxt is not None:
+            if self._reserves_deep_rung(nxt):
+                self.deep_ready.append(record)
+                self._note(
+                    "justify",
+                    record.objective,
+                    justification + "; eligible for the reserved deep rung",
+                )
+            else:
+                self.strategic_holds.append(record)
+                self._note("justify", record.objective, justification)
 
     def take_deepen(self, time_left: float) -> Optional[_DeepGrant]:
-        """One larger probe after every target in this proposal had its cheap turn."""
+        """One larger probe after every target in this proposal had its cheap turn.
 
-        pool = self.open_partials if self.open_partials else self.strategic_holds
-        nonmonotone = not self.open_partials
-        if self._deepen_taken or self.viable_alternative or not pool:
+        Cover that fell inside its node budget still uses the ladder clock.
+        A justified probe whose next rung is 4,500 nodes can instead draw the
+        reserved deep wall. That wall is not the proposal slice. The 160-to-800
+        reserve is unchanged and is not spent by a reserved deep grant.
+        """
+
+        if self._deepen_taken or self.viable_alternative:
             return None
-        if nonmonotone and self.nonmonotone_deepened >= int(self.nonmonotone_limit):
-            self._note("stop", pool[0].objective, "the nonmonotone reserve is spent")
+        if self.open_partials:
+            if not self._deepen_allowed(time_left):
+                return self._defer_deepen(self.open_partials[0])
+            return self._grant_ladder(self.open_partials, time_left, nonmonotone=False)
+        reserved = self._grant_reserved(time_left)
+        if reserved is not None:
+            return reserved
+        if not self.strategic_holds:
+            return None
+        if self.nonmonotone_deepened >= int(self.nonmonotone_limit):
+            self._note("stop", self.strategic_holds[0].objective, "the nonmonotone reserve is spent")
             return None
         if not self._deepen_allowed(time_left):
-            self.deferred += 1
-            self.pending_deepen = True
-            self._count("temporarily_deferred")
-            self._note("defer", pool[0].objective, "another strategic line still needs a cheap probe")
-            self.events.append(
-                "budget: deferred a promising partial so another strategic line can run"
-            )
-            return None
+            return self._defer_deepen(self.strategic_holds[0])
+        return self._grant_ladder(self.strategic_holds, time_left, nonmonotone=True)
+
+    def _defer_deepen(self, record: _Record) -> None:
+        self.deferred += 1
+        self.pending_deepen = True
+        self._count("temporarily_deferred")
+        self._note("defer", record.objective, "another strategic line still needs a cheap probe")
+        self.events.append(
+            "budget: deferred a promising partial so another strategic line can run"
+        )
+        return None
+
+    def _grant_ladder(self, pool: List[_Record], time_left: float, *, nonmonotone: bool) -> Optional[_DeepGrant]:
         record = pool.pop(0)
         nxt = self.limits.next_after(record.allowance_nodes)
         if nxt is None:
@@ -352,6 +390,61 @@ class BudgetCoordinator:
         )
         return _DeepGrant(record.card, record.objective, record.column, granted)
 
+    def _deep_wall(self) -> float:
+        """Wall clock for one reserved 4,500-node probe. Ignores the proposal slice."""
+
+        remaining = max(0.0, self.remaining())
+        share = remaining * float(self.limits.deep_share)
+        return max(0.0, min(float(self.deep_wall_s), remaining, share))
+
+    def _reserves_deep_rung(self, nxt: Allowance) -> bool:
+        """True when ``nxt`` is the top ladder rung and it has at least 4,500 nodes."""
+
+        return int(nxt.max_nodes) >= 4500 and self.limits.next_after(nxt.max_nodes) is None
+
+    def _grant_reserved(self, time_left: float) -> Optional[_DeepGrant]:
+        """One 4,500-node probe whose clock is the global remainder, not the slice.
+
+        A short remainder leaves the record queued so a later call can still
+        grant a cheap deepen. The same objective is not granted twice: the
+        next rung after 4,500 does not exist, and ``deep_limit`` caps the solve.
+        """
+
+        if not self.deep_ready or not self._deepen_allowed(time_left):
+            return None
+        wall = self._deep_wall()
+        if wall + 1e-9 < float(self.deep_minimum_s):
+            return None
+        record = self.deep_ready[0]
+        nxt = self.limits.next_after(record.allowance_nodes)
+        if nxt is None or int(nxt.max_nodes) < 4500:
+            self.deep_ready.pop(0)
+            return self._grant_reserved(time_left)
+        if self.deep_used >= int(self.deep_limit):
+            if not self.deep_limit_noted:
+                self.deep_limit_noted = True
+                self._note("stop", record.objective, "the deep investigation reserve is spent")
+            return None
+        self.deep_ready.pop(0)
+        self._deepen_taken = True
+        self.pending_deepen = False
+        self.deepened += 1
+        self.revisited += 1
+        self.deep_used += 1
+        granted = Allowance(nxt.level, nxt.max_cost, nxt.max_nodes, wall, True)
+        why = record.justification or "reserved deep rung"
+        self._note(
+            "deepen",
+            record.objective,
+            f"{why}; reserved {granted.max_nodes} nodes and {granted.deadline_s:.2f}s",
+        )
+        self.events.append(
+            f"budget: reserved deep {record.objective} to {granted.max_nodes} nodes "
+            f"with {granted.deadline_s:.2f}s of wall clock inside the global deadline; "
+            f"node budget and time budget are separate; {why}"
+        )
+        return _DeepGrant(record.card, record.objective, record.column, granted)
+
     def _deepen_allowed(self, time_left: float) -> bool:
         remaining = self.remaining()
         if remaining < float(self.limits.reserve_s) + 0.05:
@@ -369,7 +462,7 @@ class BudgetCoordinator:
         larger allowance is not skipped either.
         """
 
-        if self.pending_deepen or self.open_partials or self.strategic_holds:
+        if self.pending_deepen or self.open_partials or self.strategic_holds or self.deep_ready:
             return False
         token = (ident, str(label or ""), tuple(blocked))
         seen = self.proposal_g.get(token)
@@ -428,6 +521,11 @@ class BudgetCoordinator:
             "objective_work": objectives[:12],
             "nonmonotone_deepened": int(self.nonmonotone_deepened),
             "strategic_holds": len(self.strategic_holds),
+            "deep_ready": len(self.deep_ready),
+            "deep_used": int(self.deep_used),
+            "deep_limit": int(self.deep_limit),
+            "deep_wall_s": float(self.deep_wall_s),
+            "deep_minimum_s": float(self.deep_minimum_s),
             "decisions": list(self.decision_log[-24:]),
             "limits": self.limits.as_dict(),
         }
@@ -444,8 +542,15 @@ def _nonmonotone_reason(state, card, plan) -> str:
         return ""
     status = getattr(plan, "status", "") or ""
     stop = getattr(plan, "stop", "") or ""
-    if status == "TIME_LIMIT" or stop == "TIME_LIMIT":
-        return ""
+    clock_stop = status == "TIME_LIMIT" or stop == "TIME_LIMIT"
+    if clock_stop:
+        # A clock that expired before any expansion is not evidence. A clock
+        # that stopped after an intermediate sequence, or after the position
+        # evidence below, can still justify one larger allowance.
+        nodes = int(getattr(plan, "nodes", 0) or 0)
+        actions = tuple(getattr(plan, "actions", ()) or ())
+        if nodes <= 0 and not actions:
+            return ""
     if status in _EXHAUSTED or stop in _EXHAUSTED:
         return ""
     if status in {"unlocked", "exposed"}:
