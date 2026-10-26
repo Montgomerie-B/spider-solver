@@ -670,7 +670,7 @@ def propose_foundation_step(
         miss = lock.get("feasibility_status") or "PROBE_LIMIT"
         events.append(f"foundation: {campaign.label} yields; {miss} is not infeasibility")
         return _proposal(None, "", events, False, agenda, block_deal=True)
-    aligned = _alignment_proposal(state, g, campaign, agenda, lock, events, time_left)
+    aligned = _alignment_proposal(state, g, campaign, agenda, lock, events, time_left, refused)
     if aligned is not None:
         return aligned
     # Alignment has already run when time remains. A measured connection on
@@ -4198,8 +4198,21 @@ def plan_receiver_alignment(
     return best, tuple(notes)
 
 
-def _alignment_proposal(state, g, campaign, agenda, lock, events, time_left):
+def alignment_already_refused(refused, label: str) -> bool:
+    """True when this suit's receiver alignment already failed on this state.
+
+    A later column of the same suit is not a new objective. The check is an
+    identity guard, not a judgement that alignment is impossible elsewhere.
+    """
+
+    prefix = f"ALIGN:{label}:"
+    return any(str(item).startswith(prefix) for item in refused)
+
+
+def _alignment_proposal(state, g, campaign, agenda, lock, events, time_left, refused=()):
     if time_left < 0.2 or not state.can_deal():
+        return None
+    if alignment_already_refused(refused, campaign.label):
         return None
     with _span(lock, "receiver_alignment"):
         found = plan_receiver_alignment(state, campaign)

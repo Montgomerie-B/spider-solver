@@ -664,5 +664,5 @@ def test_cli_optimise_rejects_a_partial_file_and_a_timeout_keeps_185(tmp_path, c
     assert provenance["incumbent_source"] == "imported"
     assert provenance["prefix_injected"] is False
     assert document["result"]["solved"] is False
-    assert document["schema"] == "spider-human-strategy-0.122"
+    assert document["schema"] == "spider-human-strategy-0.123"
     assert REGISTRY.stat().st_mtime_ns == before

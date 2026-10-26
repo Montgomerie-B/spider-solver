@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integrated human-strategy controller for Spider Solitaire. v0.122.
+"""Integrated human-strategy controller for Spider Solitaire. v0.123.
 
 The controller does not start a historical campaign, write the production
 incumbent, or change MobilityWare rules. ``--profile extended`` runs only
@@ -42,7 +42,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.122")
+    parser = argparse.ArgumentParser(description="Spider human-strategy controller v0.123")
     parser.add_argument("--deal", required=True)
     parser.add_argument(
         "--mode",
@@ -226,6 +226,10 @@ def main(argv=None) -> int:
         )
     best = result.provenance.get("best_verified_cost")
     print(f"status={result.status} mw={result.cumulative_g} solved={result.solved} steps={result.objectives_attempted}")
+    print(
+        f"strategic_commits={result.provenance.get('strategic_commits')} "
+        f"limit={result.provenance.get('strategic_commit_limit')}"
+    )
     print(f"BEST_VERIFIED={best if best is not None else 'none'}")
     print(f"IMPROVED={'true' if result.provenance.get('improved') else 'false'}")
     print(f"SEARCH_STATUS={result.provenance.get('search_status')}")

@@ -126,7 +126,7 @@ def _parse_g83():
 
 
 def test_schema_names_v0_122_and_the_ladder_deadline_stays_1_25():
-    assert SCHEMA_VERSION == "spider-human-strategy-0.122"
+    assert SCHEMA_VERSION == "spider-human-strategy-0.123"
     limits = TacticalLimits()
     assert limits.ladder[0] == (2, 4, 160, 0.28)
     assert limits.ladder[1] == (3, 6, 800, 0.55)

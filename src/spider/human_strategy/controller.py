@@ -30,6 +30,7 @@ from .evaluation import (
     bury_risk,
     cost_led_action,
     estimate_remaining,
+    longest_same_suit_run,
     same_suit_bonds,
 )
 from .incumbent import IncumbentRejected, proof_prune, verify_complete_solution
@@ -911,7 +912,10 @@ def solve(
     status = "STEP_LIMIT"
     stop_reason = "strategic step budget ended"
     commits = 0
+    peak_commits = 0
     slice_origin_commits = 0
+    suppressed_cycles: set = set()
+    incoming_force = None
     slice_origin_attempts = 0
     played_edges = set()
     comparisons: Dict[object, Optional[DealComparison]] = {}
@@ -1189,7 +1193,9 @@ def solve(
             break
         if commits >= profile.max_steps:
             status = "STEP_LIMIT"
-            stop_reason = "strategic step budget ended"
+            stop_reason = (
+                f"strategic step budget ended ({commits} of {int(profile.max_steps)} strategic commits)"
+            )
             if multiline and frontier.queue:
                 stop_reason += f"; still queued {len(frontier.queue)}"
             break
@@ -1221,9 +1227,14 @@ def solve(
                 if _handoff("attempt ceiling yielded", requeue=False, remember=True):
                     continue
             status = "STEP_LIMIT"
-            stop_reason = "strategic step budget ended"
+            stop_reason = (
+                f"attempt ceiling ended ({stats.attempted} objective attempts; "
+                f"{commits} of {int(profile.max_steps)} strategic commits)"
+            )
             if multiline and frontier.queue:
                 stop_reason += f"; still queued {len(frontier.queue)}"
+            elif multiline and frontier.deferred:
+                stop_reason += f"; deferred {len(frontier.deferred)} remain"
             break
         stats.states_evaluated += 1
         if multiline:
@@ -1313,11 +1324,27 @@ def solve(
             pending_action = line.remaining[0]
             if multiline and (ident, pending_action) in played_edges:
                 frontier.same_moves += 1
+                repeated = suppression_repeats(suppressed_cycles, ident, pending_action, force_id)
+                if repeated and force_id:
+                    failed.setdefault(ident, set()).add(force_id)
                 stats.events.append(
                     f"frontier: same move {format_action(pending_action)} already played from this state; "
                     "campaign labels are not a new history"
                 )
                 _clear_commitment(line)
+                if repeated:
+                    jumped = _backtrack(line, dormant, failed, stats)
+                    if jumped is not None:
+                        line, force_id = jumped
+                        continue
+                    if _handoff("repeated same move yielded", requeue=False, remember=True):
+                        continue
+                    status = "PLANNING_STALL"
+                    stop_reason = "same move already played and no different line remained"
+                    stop_reason = _annotate_stall(goal, line.state, foundation_lock, stop_reason)
+                    if _continue_from_frontier(status, stop_reason, remember=False):
+                        continue
+                    break
             else:
                 # A buried-card plan spends moves before the reveal. The
                 # preparation net would drop that prefix. Legality is checked
@@ -1341,6 +1368,8 @@ def solve(
                             line, held_ctx, continuation, profile, deadline, best_g, stats
                         )
                         commits += delta
+                        if commits > peak_commits:
+                            peak_commits = commits
                         if advanced and multiline:
                             played_edges.add((ident, pending_action))
                         if advanced:
@@ -1468,6 +1497,7 @@ def solve(
             margin=profile.commitment_margin,
             force_id=force_id,
         )
+        incoming_force = force_id
         force_id = None
         foundation_locked = False
         forced_foundation = foundation_lock.pop("forced_foundation_id", None)
@@ -1591,7 +1621,10 @@ def solve(
                         continue
                     break
             elif proposal.block_deal and _choice_deals(choice):
-                useful = _moves_that_meet_their_purpose(line.state, line.g, ctx, ranked)
+                useful = purpose_met_substitutes(
+                    _moves_that_meet_their_purpose(line.state, line.g, ctx, ranked),
+                    failed.get(ident, ()),
+                )
                 if useful:
                     choice = useful[0]
                     reason = "selected: foundation prerequisites are still open, so the deal waits"
@@ -1684,6 +1717,47 @@ def solve(
                 stats.events.append(guard_note)
                 choice = guarded
                 reason = "selected: preserve a productive run; the covering move is not a justified park"
+        if objective_already_failed(choice, failed.get(ident, ())):
+            # A proposer rebuilt an objective this physical state already failed.
+            # Executing it again does not change the position.
+            stats.events.append(
+                f"frontier: {choice.candidate_id} already failed on this state; "
+                "it is not a new objective"
+            )
+            blocked_now = failed.get(ident, ())
+            # A stock deal is left for the campaign proposal. Substituting the
+            # portfolio deal here would drop that proposal's evidence.
+            alternative = next_distinct_objective(
+                considered, blocked_now, choice.candidate_id
+            )
+            if alternative is None:
+                failed.setdefault(ident, set()).add(choice.candidate_id)
+                if incoming_force == choice.candidate_id:
+                    failed[ident].add(incoming_force)
+                dormant[:] = [
+                    item
+                    for item in dormant
+                    if not (
+                        _identity(item.line.state) == ident
+                        and item.force_id in failed.get(ident, ())
+                    )
+                ]
+                jumped = _backtrack(line, dormant, failed, stats)
+                if jumped is not None:
+                    line, force_id = jumped
+                    continue
+                if _handoff("repeated objective yielded", requeue=False, remember=True):
+                    continue
+                status = "PLANNING_STALL"
+                stop_reason = (
+                    "the same failed objective was proposed again and no different line remained"
+                )
+                stop_reason = _annotate_stall(goal, line.state, foundation_lock, stop_reason)
+                if _continue_from_frontier(status, stop_reason, remember=False):
+                    continue
+                break
+            choice = alternative
+            reason = "selected: an already-failed objective was not repeated"
         dormant_ids = [item.candidate_id for item in considered if item.candidate_id != choice.candidate_id]
         # Store the worst sibling first so the next backtrack pops the best one.
         # Popping insertion order would resume the weakest avenue and thrash.
@@ -1703,11 +1777,22 @@ def solve(
             boost_ident = None
         if multiline and choice.actions and not line.hold and (ident, choice.actions[0]) in played_edges:
             frontier.same_moves += 1
+            repeated = suppression_repeats(suppressed_cycles, ident, choice.actions[0], incoming_force)
             stats.events.append(
                 f"frontier: same move {format_action(choice.actions[0])} already played from this state; "
                 "campaign labels are not a new history"
             )
             failed.setdefault(ident, set()).add(choice.candidate_id)
+            if repeated and incoming_force:
+                failed[ident].add(incoming_force)
+                dormant[:] = [
+                    item
+                    for item in dormant
+                    if not (
+                        item.force_id == incoming_force
+                        and _identity(item.line.state) == ident
+                    )
+                ]
             jumped = _backtrack(line, dormant, failed, stats)
             if jumped is not None:
                 line, force_id = jumped
@@ -1766,6 +1851,8 @@ def solve(
             # before this step are not allowed to erase it.
             dormant[:] = [item for item in dormant if len(item.line.actions) >= len(line.actions)]
             commits += 1
+            if commits > peak_commits:
+                peak_commits = commits
             if execution[0] == "achieved" or not execution[4]:
                 stats.achieved += 1
                 _clear_commitment(line)
@@ -2132,6 +2219,9 @@ def solve(
         "foundation": foundation_trace[-12:],
         "frontier": _frontier_provenance(root, frontier, branch_log, multiline, profile, started, status),
         "states_evaluated": stats.states_evaluated,
+        "strategic_commits": int(commits),
+        "strategic_commit_peak": int(peak_commits),
+        "strategic_commit_limit": int(profile.max_steps),
         "bounds_evaluated": stats.bounds_evaluated,
         "safe_prunes": stats.incumbent_prunes,
         "pruned_by_incumbent": stats.incumbent_prunes,
@@ -2173,6 +2263,12 @@ def solve(
         "deadline_elapsed": bool(termination["deadline_elapsed"]),
         "termination": termination,
         "reported_progress": strategic_progress(line.state),
+        "partial_portfolio": _partial_portfolio(branch_log),
+        "partial_portfolio_note": (
+            "Each row is the outcome-rank leader inside one foundation and stock-row stage. "
+            "outcome_rank is a report order inside that stage. It is not an admissible bound "
+            "and it is not a total order across stages. Corrected g is the authoritative cost so far."
+        ),
         "component_s": {name: round(value, 3) for name, value in stats.component_s.items()},
         "component_inclusive": {
             name: round(value, 3) for name, value in stats.component_inclusive.items()
@@ -2420,6 +2516,57 @@ def _solve_then_optimise(
     return _finish(first, "not run")
 
 
+def _partial_portfolio(branch_log) -> list:
+    """Report one leader for each foundation and stock-row stage.
+
+    The sort is only a reading order. It does not prune and it is not a proof.
+    """
+
+    groups: Dict[tuple, dict] = {}
+    for record in branch_log:
+        payload = record.get("payload")
+        state = getattr(payload, "state", None)
+        if state is None:
+            continue
+        stage = (len(state.foundations), len(state.stock) // 10)
+        current = groups.get(stage)
+        if current is None or record["rank"] < current["rank"]:
+            groups[stage] = record
+    rows = []
+    for record in groups.values():
+        state = record["payload"].state
+        try:
+            legal = all_legal_actions(state)
+        except (TypeError, ValueError):
+            legal = []
+        tops = []
+        for column in state.columns:
+            top = column.top()
+            tops.append("" if top is None else str(top))
+        lock = record.get("lock") or {}
+        rows.append(
+            {
+                "stage_foundations": len(state.foundations),
+                "stage_stock_rows": len(state.stock) // 10,
+                "foundations": len(state.foundations),
+                "corrected_g": int(record["g"]),
+                "stock_deals_remaining": len(state.stock) // 10,
+                "face_down": face_down_count(state),
+                "empty_columns": empty_count(state),
+                "same_suit_bonds": same_suit_bonds(state),
+                "longest_same_suit_run": longest_same_suit_run(state),
+                "exposed_tops": tops,
+                "legal_moves": len(legal),
+                "objective": lock.get("label") or record.get("label") or "",
+                "status": record.get("status"),
+                "deferral_or_stop": record.get("stop_reason"),
+                "heuristic_only": True,
+            }
+        )
+    rows.sort(key=lambda item: (-item["foundations"], item["face_down"], item["corrected_g"]))
+    return rows[:8]
+
+
 def _frontier_provenance(root, frontier, branch_log, multiline, profile, started, status) -> dict:
     """Serializable frontier report. Every stored line is replay-checked."""
 
@@ -2464,6 +2611,8 @@ def _frontier_provenance(root, frontier, branch_log, multiline, profile, started
         "same_moves": frontier.same_moves,
         "unique_histories": len({tuple(item["actions"]) for item in reported}),
         "still_queued": len(frontier.queue),
+        "peak_queue": int(getattr(frontier, "peak_queue", 0) or 0),
+        "peak_deferred": int(getattr(frontier, "peak_deferred", 0) or 0),
         "deferred_held": int(frontier.deferred_held),
         "deferred_remaining": len(frontier.deferred),
         "recoveries": int(frontier.recoveries),
@@ -2491,6 +2640,98 @@ def _frontier_provenance(root, frontier, branch_log, multiline, profile, started
             "the ancestry length is not a per-line step limit."
         ),
     }
+
+
+def suppression_repeats(seen: set, ident, action, dormant_id) -> bool:
+    """True when this state already suppressed this action for this dormant target.
+
+    The first suppression is a normal same-move rejection. The second is a
+    cycle: campaign labels are not a new history, and the dormant target must
+    not be popped again for the same action. This is a loop guard, not a
+    ranking rule and not an admissible prune.
+    """
+
+    key = (ident, action, dormant_id or "")
+    repeated = key in seen
+    seen.add(key)
+    return repeated
+
+
+def _failed_action_texts(blocked_ids) -> set:
+    """Move texts already failed on this state.
+
+    Concrete ids are ``KIND:move 4 3 8``. Reclassifying that move is not a
+    new objective. Suit labels such as ``ALIGN:S#1:2`` do not match a move.
+    """
+
+    texts = set()
+    for item in blocked_ids:
+        text = str(item)
+        if ":" not in text:
+            continue
+        suffix = text.split(":", 1)[1]
+        # A failed move is the same objective under another kind label.
+        # A failed deal id is not every future deal: another objective may
+        # still play the stock row from this state.
+        if suffix.startswith("move "):
+            texts.add(suffix)
+    return texts
+
+
+def purpose_met_substitutes(useful, blocked_ids):
+    """Drop deal-substitutes this exact state has already failed.
+
+    ``_moves_that_meet_their_purpose`` rebuilds a legal tableau move when the
+    portfolio has filtered it. That rebuild is the same objective. The filter
+    is an identity guard for this state, not a claim that the move is
+    impossible from a different state, and not an admissible prune.
+    """
+
+    blocked = {str(item) for item in blocked_ids}
+    actions = _failed_action_texts(blocked)
+    kept = []
+    for item in useful:
+        if str(item.candidate_id) in blocked:
+            continue
+        action_text = format_action(item.actions[0]) if item.actions else ""
+        if action_text and action_text in actions:
+            continue
+        kept.append(item)
+    return kept
+
+
+def objective_already_failed(choice, blocked_ids) -> bool:
+    """True when this state already failed this candidate id.
+
+    The same move under a foundation join is a different objective. Rebuilt
+    deal-substitutes are filtered by ``purpose_met_substitutes`` instead.
+    An empty failure set never matches. This is not an admissible prune.
+    """
+
+    return str(choice.candidate_id) in {str(item) for item in blocked_ids}
+
+
+def next_distinct_objective(considered, blocked_ids, rejected_id: str):
+    """The next considered tableau objective this state has not already failed.
+
+    A stock deal is not substituted here. The campaign deal carries its own
+    evidence and is chosen by that proposal. Returns None when every remaining
+    tableau option already failed.
+    """
+
+    blocked = {str(item) for item in blocked_ids}
+    blocked.add(str(rejected_id))
+    actions = _failed_action_texts(blocked)
+    for item in considered:
+        if str(item.candidate_id) in blocked:
+            continue
+        if item.kind == "DEAL_NOW" or item.actions[:1] == (("deal",),):
+            continue
+        action_text = format_action(item.actions[0]) if item.actions else ""
+        if action_text and action_text in actions:
+            continue
+        return item
+    return None
 
 
 def _choice_deals(choice) -> bool:

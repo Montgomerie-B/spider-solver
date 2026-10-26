@@ -213,6 +213,8 @@ class StrategicFrontier:
     recovery_limit: int = 24
     recovered_states: int = 0
     recovered_idents: Set[object] = field(default_factory=set)
+    peak_queue: int = 0
+    peak_deferred: int = 0
     empty_snapshot: Optional[dict] = None
     timing: Optional[dict] = None
     inclusive: Optional[dict] = None
@@ -232,6 +234,16 @@ class StrategicFrontier:
         if spent <= 0:
             return
         self.inclusive[name] = self.inclusive.get(name, 0.0) + spent
+
+    def _note_occupancy(self) -> None:
+        """Record live queue sizes. This does not change admission."""
+
+        queued = len(self.queue)
+        waiting = len(self.deferred)
+        if queued > self.peak_queue:
+            self.peak_queue = queued
+        if waiting > self.peak_deferred:
+            self.peak_deferred = waiting
 
     def __post_init__(self) -> None:
         self.limit = max(1, min(16, int(self.limit)))
@@ -344,6 +356,7 @@ class StrategicFrontier:
             self._add_elapsed("frontier_admission", evaluated, admitted)
             return True, f"frontier: retain {reason} at g={g} label={label or 'none'}"
         finally:
+            self._note_occupancy()
             self._add_inclusive("frontier", started, time.perf_counter())
 
     def mark_expanded(self, state: SpiderState, label: str, force_id: Optional[str] = None) -> None:
@@ -651,6 +664,7 @@ class StrategicFrontier:
         chosen = eligible[0]
         self.deferred = [item for item in self.deferred if item.token != chosen.token]
         self.queue.append(chosen)
+        self._note_occupancy()
         self.recoveries += 1
         ident = chosen.token[0]
         if ident not in self.recovered_idents:
