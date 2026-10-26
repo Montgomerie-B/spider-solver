@@ -47,6 +47,20 @@ def _actions_from_fixture(path: Path) -> list:
     return [parse_canonical(item) for item in document["actions"]]
 
 
+def _prefix_actions(path: Path) -> list:
+    """Actions from a checkpoint file or from a v0.125 suit result."""
+
+    document = json.loads(path.read_text(encoding="utf-8"))
+    raw = document.get("actions")
+    if not raw and isinstance(document.get("result"), dict):
+        result = document["result"]
+        partial = result.get("best_partial") or {}
+        raw = partial.get("actions") or result.get("actions")
+    if not raw or not isinstance(raw, list) or not isinstance(raw[0], str):
+        raise SystemExit(f"prefix artifact has no action list: {path}")
+    return [parse_canonical(item) for item in raw]
+
+
 def _coverage(args) -> int:
     """Measure legal coverage. Does not run a timed search and does not solve."""
 
@@ -192,6 +206,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--incumbent-cost", type=int, default=None)
     parser.add_argument("--incumbent-moves", default=None)
     parser.add_argument("--cost-ceiling", type=int, default=300)
+    parser.add_argument(
+        "--prefix-artifact",
+        default=None,
+        help="Saved partial trajectory. The suit search continues from its end state.",
+    )
     parser.add_argument("--out", required=True)
     parser.add_argument("--coverage", action="store_true")
     parser.add_argument(
@@ -214,6 +233,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         opening = opening_from_deal(deal)
         deal_label = str(deal)
+    prefix = []
+    prefix_path = None
+    if args.prefix_artifact:
+        if args.variant != "suit" or args.mode != "cold":
+            raise SystemExit("checkpoint continuation is a cold suit search")
+        if args.incumbent_cost is not None or args.incumbent_moves or args.deal_seed is not None:
+            raise SystemExit("checkpoint continuation refuses an incumbent and a replacement deal")
+        prefix_path = _resolve(args.prefix_artifact)
+        prefix = _prefix_actions(prefix_path)
     if args.mode == "cold" and (args.incumbent_cost is not None or args.incumbent_moves):
         raise SystemExit("cold mode refuses an incumbent route")
     incumbent_cost = args.incumbent_cost
@@ -261,6 +289,7 @@ def main(argv: list[str] | None = None) -> int:
             mode=args.mode,
             incumbent_cost=incumbent_cost,
             cost_ceiling=args.cost_ceiling,
+            prefix_actions=prefix,
         )
         payload = result.to_dict()
         if args.mode == "optimise":
@@ -282,6 +311,9 @@ def main(argv: list[str] | None = None) -> int:
         "deal": deal_label,
         "result": payload,
     }
+    if prefix_path is not None:
+        document["search_kind"] = payload.get("provenance") or "checkpoint_continuation"
+        document["prefix_artifact"] = str(prefix_path)
     out = Path(args.out)
     if not out.is_absolute():
         out = REPO / out

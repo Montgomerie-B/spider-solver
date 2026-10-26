@@ -42,6 +42,7 @@ from spider.whole_game_anytime import LANES, lane_keys, opening_root, search_who
 
 SCHEMA = "spider-global-search-0.124"
 SUIT_SCHEMA = "spider-global-search-0.125"
+COMPLETION_SCHEMA = "spider-global-search-0.126"
 # Same hard path cap the original anytime search uses. It is not g + h.
 HARD_COST_CEILING = 300
 
@@ -149,6 +150,10 @@ class GlobalSearchResult:
     provenance: str = ""
     census: dict = field(default_factory=dict)
     leaders: Dict[str, dict] = field(default_factory=dict)
+    known_prefix: bool = False
+    checkpoint_id: Optional[str] = None
+    checkpoint_g: Optional[int] = None
+    prefix_len: int = 0
 
     def to_dict(self) -> dict:
         partial = None if self.best_partial is None else dict(self.best_partial)
@@ -198,7 +203,7 @@ class GlobalSearchResult:
         }
         if self.variant == "suit":
             payload["provenance"] = self.provenance
-            payload["known_prefix"] = False
+            payload["known_prefix"] = self.known_prefix
             payload["imported_substitute"] = False
             payload["proximity_prunes"] = 0
             payload["census"] = self.census
@@ -206,15 +211,29 @@ class GlobalSearchResult:
                 name: _export_partial(record) for name, record in self.leaders.items()
             }
             payload["incompleteness"] = _incompleteness(self.stop_reason, self.solved)
-            payload["notes"] = (
-                "Suit-completion proximity reorders the foundation lane only. "
-                "The other six lanes are the original tuples. "
-                "Every engine-legal successor is still generated. "
-                "Proximity is not passed to lower_bound_fn or proof_prune. "
-                "A unique, time, or memory limit is resource-limited incompleteness, "
-                "not proof that a foundation is impossible. "
-                "Cold mode does not load a stored solution or a known prefix."
-            )
+            if self.known_prefix:
+                payload["checkpoint_id"] = self.checkpoint_id
+                payload["checkpoint_g"] = self.checkpoint_g
+                payload["prefix_actions"] = self.prefix_len
+                payload["search_kind"] = "checkpoint_continuation"
+                payload["notes"] = (
+                    "Checkpoint continuation resumes a saved partial trajectory. "
+                    "It is not an independent cold solve. "
+                    "Corrected g is measured from the original deal. "
+                    "A finished game is checkpoint_assisted_complete only when "
+                    "the saved prefix plus the new suffix replay from that deal. "
+                    "Suit proximity orders the foundation lane and does not drop a successor."
+                )
+            else:
+                payload["notes"] = (
+                    "Suit-completion proximity reorders the foundation lane only. "
+                    "The other six lanes are the original tuples. "
+                    "Every engine-legal successor is still generated. "
+                    "Proximity is not passed to lower_bound_fn or proof_prune. "
+                    "A unique, time, or memory limit is resource-limited incompleteness, "
+                    "not proof that a foundation is impossible. "
+                    "Cold mode does not load a stored solution or a known prefix."
+                )
         return payload
 
 
@@ -479,6 +498,14 @@ def search_original_kernel(
     }
 
 
+def _search_root(state: SpiderState, g: int) -> dict:
+    """Kernel root. ``g`` is corrected cost already spent from the opening."""
+
+    root = opening_root(state)
+    root["g"] = int(g)
+    return root
+
+
 def suit_lane_keys(state: SpiderState, g: int) -> Dict[str, tuple]:
     """Original seven lanes. Only the foundation tuple gains proximity.
 
@@ -559,12 +586,18 @@ def search_suit_ordered(
     cost_ceiling: Optional[int] = HARD_COST_CEILING,
     advice_fn=None,
     advice_budget: int = 32,
+    prefix_actions: Sequence[Action] = (),
+    lane_keys_fn=None,
 ) -> GlobalSearchResult:
     """Whole-game kernel with suit proximity on the foundation lane only.
 
     ``advice_fn`` may move one legal action to the front. It is off unless
     a caller passes it. Primary comparisons leave it off. Cold mode refuses
     an incumbent and does not read a stored route.
+
+    ``prefix_actions`` resumes from a replay of that prefix. Corrected ``g``
+    stays absolute. The result is a checkpoint continuation, not a cold solve.
+    ``lane_keys_fn`` defaults to the v0.125 suit ordering.
     """
 
     if mode not in {"cold", "optimise"}:
@@ -602,6 +635,21 @@ def search_suit_ordered(
         ceiling_kind=ceiling_kind,
         provenance=provenance,
     )
+    prefix = tuple(prefix_actions)
+    if prefix and mode != "cold":
+        raise ValueError("checkpoint continuation refuses an incumbent")
+    search_state = opening
+    root_g = 0
+    if prefix:
+        search_state, root_g = replay_cost(opening, prefix)
+        out.schema = COMPLETION_SCHEMA
+        out.known_prefix = True
+        out.prefix_len = len(prefix)
+        out.checkpoint_g = int(root_g)
+        out.checkpoint_id = pack_state(search_state).hex()
+        out.provenance = "checkpoint_continuation"
+    keys_fn = suit_lane_keys if lane_keys_fn is None else lane_keys_fn
+    root_face_down = face_down_count(search_state)
     started = time.perf_counter()
     cpu_started = time.process_time()
     leader_nodes = {
@@ -628,7 +676,16 @@ def search_suit_ordered(
         "max_longest_run": 0,
         "max_exposed_run": 0,
         "min_face_down": None,
+        "max_empty": 0,
+        "states_with_empty": 0,
         "stock_rows": {},
+        "root_face_down": int(root_face_down),
+        "first_exposure": None,
+        "max_proximity_face_down": None,
+        "max_proximity_foundations": None,
+        "max_proximity_empty": None,
+        "max_proximity_legal": None,
+        "states_below_root_face_down": 0,
     }
     advice = None if advice_fn is None else AdviceCache(advice_budget)
 
@@ -649,6 +706,7 @@ def search_suit_ordered(
                     "stock_rows": record["stock_rows"],
                     "proximity": record["proximity"],
                     "longest_run": record["longest_run"],
+                    "suits": [pile[0].suit for pile in state.foundations],
                 }
         longest = int(record["longest_run"])
         exposed = int(record["exposed_run"])
@@ -682,6 +740,22 @@ def search_suit_ordered(
             census["max_exposed_run"] = exposed
         if census["min_face_down"] is None or record["face_down"] < census["min_face_down"]:
             census["min_face_down"] = record["face_down"]
+        empty_n = int(record["empty_columns"])
+        if empty_n > int(census["max_empty"]):
+            census["max_empty"] = empty_n
+        if empty_n:
+            census["states_with_empty"] += 1
+        if int(record["face_down"]) < int(census["root_face_down"]):
+            census["states_below_root_face_down"] += 1
+            if census["first_exposure"] is None:
+                census["first_exposure"] = {
+                    "g": record["g"],
+                    "elapsed_s": record["elapsed_s"],
+                    "foundations": found,
+                    "face_down": record["face_down"],
+                    "empty_columns": empty_n,
+                    "proximity": record["proximity"],
+                }
         row_key = str(record["stock_rows"])
         census["stock_rows"][row_key] = census["stock_rows"].get(row_key, 0) + 1
         key = f"f{found}_stock{record['stock_rows']}"
@@ -694,8 +768,15 @@ def search_suit_ordered(
             out.strata[key] = {k: v for k, v in record.items()}
         for axis in leader_nodes:
             if _axis_better(axis, record, out.leaders.get(axis)):
+                if "legal_moves" not in record:
+                    record["legal_moves"] = len(all_legal_actions(state))
                 out.leaders[axis] = record
                 leader_nodes[axis] = node
+                if axis == "proximity":
+                    census["max_proximity_face_down"] = record["face_down"]
+                    census["max_proximity_foundations"] = found
+                    census["max_proximity_empty"] = empty_n
+                    census["max_proximity_legal"] = record["legal_moves"]
         if _better_partial(record, out.best_partial):
             out.best_partial = record
 
@@ -704,7 +785,7 @@ def search_suit_ordered(
         return order_with_advice(actions, advice.suggest(state, advice_fn))
 
     kr = run_search(
-        [opening_root(opening)],
+        [_search_root(search_state, root_g)],
         limits=SearchLimits(
             max_unique=int(max_unique),
             time_limit_s=float(time_limit_s),
@@ -715,7 +796,7 @@ def search_suit_ordered(
         store_fn=pack_state,
         unpack_fn=unpack_state,
         lane_names=LANES,
-        lane_keys_fn=suit_lane_keys,
+        lane_keys_fn=keys_fn,
         is_terminal=lambda st: st.is_solved(),
         actions_fn=all_legal_actions,
         action_order=None if advice is None else order,
@@ -747,11 +828,12 @@ def search_suit_ordered(
         out.solution_g = int(best["g"])
     elif out.best_partial is not None:
         path = reconstruct_path(kr.nodes, int(out.best_partial["node"]))
-    out.actions = tuple(path)
-    if path:
+    full = list(prefix) + list(path)
+    out.actions = tuple(full)
+    if full:
         trial = opening.clone()
         try:
-            cost = int(replay_actions(trial, list(path)))
+            cost = int(replay_actions(trial, full))
         except ValueError:
             out.replay_ok = False
         else:
@@ -767,9 +849,17 @@ def search_suit_ordered(
                 not kr.terminals and out.best_partial is not None and cost == int(out.best_partial["g"])
             )
             if out.best_partial is not None and not kr.terminals:
-                out.best_partial["actions"] = list(path)
+                out.best_partial["actions"] = list(full)
                 out.best_partial["replay_g"] = cost
-    if out.solved and out.replay_ok and mode == "cold":
+                if prefix:
+                    out.best_partial["suffix_len"] = len(path)
+    if prefix:
+        if out.solved and out.replay_ok:
+            out.provenance = "checkpoint_assisted_complete"
+        else:
+            out.provenance = "checkpoint_continuation"
+            out.census["bounded_result"] = "checkpoint_continuation"
+    elif out.solved and out.replay_ok and mode == "cold":
         out.provenance = "independent_cold_complete"
     elif not out.solved and path and mode == "cold":
         out.provenance = "partial_legal_search"
@@ -778,10 +868,13 @@ def search_suit_ordered(
         record = out.leaders.get(axis)
         if record is None:
             continue
-        leader_path = reconstruct_path(kr.nodes, node)
-        record["actions"] = list(leader_path)
+        leader_suffix = reconstruct_path(kr.nodes, node)
+        leader_full = list(prefix) + list(leader_suffix)
+        record["actions"] = list(leader_full)
+        if prefix:
+            record["suffix_len"] = len(leader_suffix)
         try:
-            _end, leader_cost = replay_cost(opening, leader_path)
+            _end, leader_cost = replay_cost(opening, leader_full)
         except ValueError:
             record["replay_ok"] = False
         else:
