@@ -84,6 +84,13 @@ class KernelResult:
     prunes_by_F: Dict[int, int] = field(default_factory=dict)
     depth_skips: int = 0
     hit_depth_limit: bool = False
+    # Children skipped because their corrected cost already exceeds the ceiling.
+    # This is the safe incumbent prune. It is not a lower-bound prune.
+    ceiling_prunes: int = 0
+    # Legal actions whose corrected step cost is zero, counted when considered.
+    zero_cost_actions: int = 0
+    expanded_by_g: Dict[int, int] = field(default_factory=dict)
+    generated_by_g: Dict[int, int] = field(default_factory=dict)
 
     def reconstruct(self, node: int) -> List[Action]:
         path: List[Action] = []
@@ -284,15 +291,20 @@ def run_search(
             actions = action_order(state, actions)
         result.expanded += 1
         result.lane_exp[name] += 1
+        result.expanded_by_g[g] = result.expanded_by_g.get(g, 0) + 1
         for action in actions:
             cost = step_cost(state, action)
+            if cost == 0:
+                result.zero_cost_actions += 1
             child_g = g + cost
             if ceiling is not None and child_g > ceiling:
+                result.ceiling_prunes += 1
                 continue
             cap = capture_state(state, action)
             try:
                 apply_action(state, action)
                 result.generated += 1
+                result.generated_by_g[child_g] = result.generated_by_g.get(child_g, 0) + 1
                 child_store = store_fn(state)
                 child_ident = identity_fn(state)
                 prev = best_g.get(child_ident)
@@ -372,6 +384,7 @@ def run_search(
         result.closed_g = incumbent + slack
     else:
         result.closed_g = ceiling
+    note_rss()
     result.nodes = nodes
     result.elapsed_s = time.perf_counter() - started
     result.peak_rss_mb = peak

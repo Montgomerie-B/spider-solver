@@ -97,6 +97,18 @@ class SegmentResult:
     targets_considered: int = 0
     targets_touched: int = 0
     reused: bool = False
+    ceiling_prunes: int = 0
+    zero_cost_actions: int = 0
+    target_rejoins: int = 0
+    stale_skips: int = 0
+    peak_rss_mb: Optional[float] = None
+    min_g: Optional[int] = None
+    max_g: Optional[int] = None
+    min_h: Optional[int] = None
+    max_h: Optional[int] = None
+    lower_bound_calls: int = 0
+    expanded_by_g: Tuple[Tuple[int, int], ...] = ()
+    generated_by_g: Tuple[Tuple[int, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -370,6 +382,18 @@ def search_segment(
         lower_bound_prunes=int(kernel.lower_bound_prunes),
         elapsed_s=elapsed,
         stop_reason=kernel.stop_reason,
+        ceiling_prunes=int(kernel.ceiling_prunes),
+        zero_cost_actions=int(kernel.zero_cost_actions),
+        target_rejoins=len(kernel.terminals),
+        stale_skips=int(kernel.stale_skips),
+        peak_rss_mb=kernel.peak_rss_mb,
+        min_g=kernel.min_g,
+        max_g=kernel.max_g,
+        min_h=kernel.min_h,
+        max_h=kernel.max_h,
+        lower_bound_calls=int(kernel.lower_bound_calls),
+        expanded_by_g=tuple(sorted(kernel.expanded_by_g.items())),
+        generated_by_g=tuple(sorted(kernel.generated_by_g.items())),
     )
     if kernel.terminals:
         best = min(kernel.terminals, key=lambda item: int(item["g"]))

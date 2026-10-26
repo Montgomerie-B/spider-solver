@@ -374,6 +374,32 @@ def test_kernel_stop_reasons_unique_and_time_and_cost():
     )
     assert capped.max_g == 0
     assert capped.stop_reason == "complete"
+    assert capped.ceiling_prunes >= 0
+    assert capped.zero_cost_actions >= 0
+
+
+def test_ceiling_and_zero_cost_counters_do_not_change_the_search():
+    """A paid partial move is an incumbent prune. A whole free column is not."""
+
+    state = _columns([Card("h", 13), Card("h", 12)])
+    paid = step_cost(state, (0, 1, 1))
+    free = step_cost(state, (0, 1, 2))
+    assert paid == 1
+    assert free == 0
+    result = run_search(
+        [_root(state, 0)],
+        limits=SearchLimits(max_unique=30, time_limit_s=2.0, rss_abort_mb=4096, cost_ceiling=0),
+        identity_fn=pack_state,
+        lane_names=("cost",),
+        lane_key_fns=[lambda _st, g: (g,)],
+        is_terminal=lambda _s: False,
+        actions_fn=tableau_actions,
+    )
+    assert result.ceiling_prunes >= 1
+    assert result.zero_cost_actions >= 1
+    assert result.max_g == 0
+    assert result.generated_by_g.get(1, 0) == 0
+    assert sum(result.expanded_by_g.values()) == result.expanded
 
 
 def test_root_dedup_keeps_cheapest_and_merges_provenance():
