@@ -32,7 +32,7 @@ This file defines the **default development handoff** for the repository. Read i
 
 ## Current release handoff
 
-- Research baseline: v0.130 post-SD5 completion, `docs/post_sd5_completion_v0_130.md`, on `local/post-sd5-completion-v0-130`. From the exact checkpoint after stock deal 5 (`g=150`, `h=18`), no complete suffix was found inside 80,000 symmetry classes at ceiling 172 or 171. The checkpoint is unresolved, not proved minimal.
-- Next experiment, not started: change the tableau before SD5, using backward planning from the final row and a looser rejoin or a full endgame continuation. Do not treat that as general suffix repair unless the assignment says so.
-- Preferred next working branch: create it when that experiment is assigned. Do not merge `local/post-sd5-completion-v0-130` into `main` without approval.
+- Research baseline: v0.131 proof-first admission, `docs/proof_first_admission_v0_131.md`, on `local/proof-first-admission-v0-131`. Admissible `g + h` rejection now happens before a state takes a unique slot. From the exact checkpoint after stock deal 5 (`g=150`, `h=18`), the ceiling-171 search stopped on the 90 second limit after retaining 29,154 proof-eligible identities and expanding 2,744. No complete suffix was found. The checkpoint is unresolved, not proved minimal. The ceiling-172 control was not rerun.
+- Next experiment, not started: change the tableau before SD5, using the final stock row, purposeful spaces, and a flexible complete-game continuation. Do not treat that as general suffix repair unless the assignment says so.
+- Preferred next working branch: create it when that experiment is assigned. Do not merge `local/proof-first-admission-v0-131` into `main` without approval.
 - The coding agent should deliver a pushed branch and verified commit, not a list of PowerShell commands for the owner.

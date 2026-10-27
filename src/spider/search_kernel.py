@@ -75,7 +75,15 @@ class KernelResult:
     first_s: Optional[float] = None
     first_unique: Optional[int] = None
     first_g: Optional[int] = None
+    # Proof rejections. ``lower_bound_prunes`` counts every candidate event,
+    # including a repeated arrival of an identity that was never retained.
+    # ``proof_prune_identities`` counts each such identity once. An identity
+    # can be rejected at a high ``g`` and still be retained if a later
+    # cheaper arrival passes. ``proof_prune_unretained`` is the subset that
+    # is not in the retained best-g map when the search stops.
     lower_bound_prunes: int = 0
+    proof_prune_identities: int = 0
+    proof_prune_unretained: int = 0
     lower_bound_calls: int = 0
     lower_bound_s: float = 0.0
     min_h: Optional[int] = None
@@ -162,6 +170,8 @@ def run_search(
     best_g: Dict[bytes, int] = {}
     nodes: List[SearchNode] = []
     result.nodes = nodes
+    # Telemetry only. This set must not block a later cheaper arrival.
+    pruned_identities: set = set()
     heaps: Dict[str, list] = {n: [] for n in names}
     seq = 0
     seen_expand: Dict[bytes, int] = {}
@@ -311,6 +321,15 @@ def run_search(
                 if prev is not None and child_g >= prev:
                     result.duplicate_skips += 1
                     continue
+                # Admissible rejection happens before a unique slot, best-g
+                # entry, node, or heap entry exists. Equality g+h == ceiling
+                # stays eligible. A rejected arrival is not remembered as a
+                # dominated state, so a later cheaper g can still be stored.
+                if proof_dead(state, child_g):
+                    if child_ident not in pruned_identities:
+                        pruned_identities.add(child_ident)
+                        result.proof_prune_identities += 1
+                    continue
                 # max_unique is the number of distinct identities admitted.
                 # The identity that fills the cap is stored and terminal-checked.
                 # The previous code counted that child and dropped it first.
@@ -367,11 +386,6 @@ def run_search(
                         result.stop_reason = "unique limit"
                         break
                     continue
-                if proof_dead(state, child_g):
-                    if admitted_last:
-                        result.stop_reason = "unique limit"
-                        break
-                    continue
                 push(child_i, state, child_g)
                 if admitted_last:
                     result.stop_reason = "unique limit"
@@ -388,6 +402,9 @@ def run_search(
             if live and min(live) > incumbent + slack:
                 result.stop_reason = "harvested"
                 break
+    result.proof_prune_unretained = sum(
+        1 for ident in pruned_identities if ident not in best_g
+    )
     if not result.stop_reason:
         result.stop_reason = "depth limit" if result.hit_depth_limit else "complete"
     live_g = [nodes[heaps[n][0][-1]].g for n in names if heaps[n]]

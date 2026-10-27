@@ -69,6 +69,8 @@ class CompletionSearch:
     stale_skips: int
     ceiling_prunes: int
     lower_bound_prunes: int
+    proof_prune_identities: int
+    proof_prune_unretained: int
     lower_bound_calls: int
     zero_cost_actions: int
     symmetry_collapses: int
@@ -109,6 +111,10 @@ def search_post_sd5(
     first solution does not prove the cost is minimum. An empty frontier
     with no solution is a negative proof inside this ceiling, this identity,
     and this admissible bound. A unique, time, or memory stop is not.
+
+    A child with ``g + h`` above the ceiling is rejected before it takes a
+    unique slot. A later cheaper arrival to that identity is checked again.
+    Equality with the ceiling stays eligible.
     """
 
     if ordering not in _ORDERINGS:
@@ -222,6 +228,8 @@ def search_post_sd5(
         stale_skips=int(kernel.stale_skips),
         ceiling_prunes=int(kernel.ceiling_prunes),
         lower_bound_prunes=int(kernel.lower_bound_prunes),
+        proof_prune_identities=int(kernel.proof_prune_identities),
+        proof_prune_unretained=int(kernel.proof_prune_unretained),
         lower_bound_calls=int(kernel.lower_bound_calls),
         zero_cost_actions=int(kernel.zero_cost_actions),
         symmetry_collapses=int(collapses[0]),
@@ -265,6 +273,8 @@ def public_search(row: CompletionSearch) -> dict:
         "stale_skips": row.stale_skips,
         "ceiling_prunes": row.ceiling_prunes,
         "lower_bound_prunes": row.lower_bound_prunes,
+        "proof_prune_identities": row.proof_prune_identities,
+        "proof_prune_unretained": row.proof_prune_unretained,
         "lower_bound_calls": row.lower_bound_calls,
         "zero_cost_actions": row.zero_cost_actions,
         "symmetry_collapses": row.symmetry_collapses,
