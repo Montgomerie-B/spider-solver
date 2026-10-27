@@ -156,14 +156,24 @@ def locate_all_cards(state: SpiderState) -> Tuple[CardLocation, ...]:
         from_top = n - 1 - i
         deal_offset = from_top // 10  # 0 = next deal
         ep = epoch_now + 1 + deal_offset
+        # SpiderState.deal places stock[-10:] left to right on columns 0..9.
+        # The lower index inside each 10-card chunk is column 0. Counting
+        # from the top of the pile (`from_top % 10`) reverses that row.
+        # When the stock length is a multiple of 10 this column is `i % 10`.
+        chunk_start = n - 10 * (deal_offset + 1)
+        offset_in_chunk = i - chunk_start
+        if chunk_start >= 0 and 0 <= offset_in_chunk <= 9:
+            column = offset_in_chunk
+        else:
+            column = from_top % 10
         out.append(
             CardLocation(
                 card,
                 LocationKind.STOCK,
-                from_top % 10,
+                column,
                 deal_offset,
                 ep,
-                f"stock deal epoch {ep} col {from_top % 10 + 1}",
+                f"stock deal epoch {ep} col {column + 1}",
             )
         )
     for seq in state.foundations:
