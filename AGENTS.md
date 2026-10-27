@@ -32,7 +32,7 @@ This file defines the **default development handoff** for the repository. Read i
 
 ## Current release handoff
 
-- Research baseline: v0.129 goal-directed anchored scheduling, `docs/goal_directed_anchored_v0_129.md`, on `local/goal-directed-anchored-v0-129`. No replayed game beat the verified 172-move route. Actions 21–24 remain a completed negative proof. The other four windows stay budget-limited after the goal order entered their paid layers.
-- Next experiment, not started: a broader stock-boundary target and suffix repair. A goal-policy rejoin found before the graph finishes is a legal cost, and a completed uniform-cost search is the minimum-cost proof.
-- Preferred next working branch: create it when that experiment is assigned. Do not merge `local/goal-directed-anchored-v0-129` into `main` without approval.
+- Research baseline: v0.130 post-SD5 completion, `docs/post_sd5_completion_v0_130.md`, on `local/post-sd5-completion-v0-130`. From the exact checkpoint after stock deal 5 (`g=150`, `h=18`), no complete suffix was found inside 80,000 symmetry classes at ceiling 172 or 171. The checkpoint is unresolved, not proved minimal.
+- Next experiment, not started: change the tableau before SD5, using backward planning from the final row and a looser rejoin or a full endgame continuation. Do not treat that as general suffix repair unless the assignment says so.
+- Preferred next working branch: create it when that experiment is assigned. Do not merge `local/post-sd5-completion-v0-130` into `main` without approval.
 - The coding agent should deliver a pushed branch and verified commit, not a list of PowerShell commands for the owner.
