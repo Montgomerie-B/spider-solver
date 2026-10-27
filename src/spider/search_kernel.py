@@ -311,11 +311,15 @@ def run_search(
                 if prev is not None and child_g >= prev:
                     result.duplicate_skips += 1
                     continue
-                if prev is None:
-                    result.unique += 1
-                if result.unique >= limits.max_unique:
+                # max_unique is the number of distinct identities admitted.
+                # The identity that fills the cap is stored and terminal-checked.
+                # The previous code counted that child and dropped it first.
+                new_identity = prev is None
+                if new_identity and result.unique >= limits.max_unique:
                     result.stop_reason = "unique limit"
                     break
+                if new_identity:
+                    result.unique += 1
                 best_g[child_ident] = child_g
                 child_i = len(nodes)
                 nodes.append(
@@ -335,6 +339,7 @@ def run_search(
                     on_progress(result, state, child_g, child_i)
                 if on_child is not None:
                     on_child(state, child_g, child_i)
+                admitted_last = new_identity and result.unique >= limits.max_unique
                 if is_terminal(state):
                     result.terminals.append(
                         {
@@ -358,10 +363,19 @@ def run_search(
                     if stop_on_first_terminal:
                         result.stop_reason = "solved"
                         break
+                    if admitted_last:
+                        result.stop_reason = "unique limit"
+                        break
                     continue
                 if proof_dead(state, child_g):
+                    if admitted_last:
+                        result.stop_reason = "unique limit"
+                        break
                     continue
                 push(child_i, state, child_g)
+                if admitted_last:
+                    result.stop_reason = "unique limit"
+                    break
             finally:
                 restore_state(state, cap)
         if result.stop_reason in ("unique limit", "time limit", "rss abort", "abort", "solved"):

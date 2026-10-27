@@ -32,7 +32,7 @@ This file defines the **default development handoff** for the repository. Read i
 
 ## Current release handoff
 
-- Research baseline: v0.127 audit, `docs/whole_game_optimisation_audit_v0_127.md`, committed on `local/search-optimisation-audit-v0-127`.
-- Next experiment: v0.128 targeted anchored optimisation of five inconclusive windows from the verified 172-move route, as specified by the approved development prompt.
-- Preferred next working branch: `local/anchored-optimisation-v0-128`.
+- Research baseline: v0.129 goal-directed anchored scheduling, `docs/goal_directed_anchored_v0_129.md`, on `local/goal-directed-anchored-v0-129`. No replayed game beat the verified 172-move route. Actions 21–24 remain a completed negative proof. The other four windows stay budget-limited after the goal order entered their paid layers.
+- Next experiment, not started: a broader stock-boundary target and suffix repair. A goal-policy rejoin found before the graph finishes is a legal cost, and a completed uniform-cost search is the minimum-cost proof.
+- Preferred next working branch: create it when that experiment is assigned. Do not merge `local/goal-directed-anchored-v0-129` into `main` without approval.
 - The coding agent should deliver a pushed branch and verified commit, not a list of PowerShell commands for the owner.

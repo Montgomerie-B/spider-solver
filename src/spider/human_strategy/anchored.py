@@ -10,6 +10,7 @@ solve modes do not call this module.
 from __future__ import annotations
 
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import List, Optional, Sequence, Tuple
 
@@ -109,6 +110,11 @@ class SegmentResult:
     lower_bound_calls: int = 0
     expanded_by_g: Tuple[Tuple[int, int], ...] = ()
     generated_by_g: Tuple[Tuple[int, int], ...] = ()
+    policy: str = "ucs"
+    cost_optimal: bool = False
+    affinity_s: float = 0.0
+    affinity_calls: int = 0
+    lane_exp: Tuple[Tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -288,6 +294,53 @@ def select_windows(
     return tuple(chosen)
 
 
+def target_displacement(state: SpiderState, target: SpiderState) -> int:
+    """Cheap column-ordered distance from ``state`` to ``target``.
+
+    Lower is closer. The score is an expansion order only. It is not
+    admissible, and a high score does not remove a state or an action.
+    Matched cards are read from the bottom of each column. Cards covering a
+    matched base cost more than the same cards sitting on an empty column,
+    so a temporary park that exposes a buried mismatch sorts ahead of a
+    free shuffle of an already-correct column. Stock and foundations come
+    from the target state, not from a stored action list. ``MW_RULES`` may
+    deal onto an empty column; this score does not forbid that deal.
+    """
+
+    score = 0
+    for column, goal in zip(state.columns, target.columns):
+        current = _card_seq(list(column.face_down) + list(column.face_up))
+        wanted = _card_seq(list(goal.face_down) + list(goal.face_up))
+        limit = min(len(current), len(wanted))
+        prefix = 0
+        while prefix < limit and current[prefix] == wanted[prefix]:
+            prefix += 1
+        excess = len(current) - prefix
+        deficit = len(wanted) - prefix
+        score += excess * (1 + prefix) + deficit
+    current_stock = _card_seq(state.stock)
+    wanted_stock = _card_seq(target.stock)
+    if current_stock != wanted_stock:
+        if (
+            len(current_stock) >= len(wanted_stock)
+            and current_stock[: len(wanted_stock)] == wanted_stock
+        ):
+            score += len(current_stock) - len(wanted_stock)
+        else:
+            score += 500 + abs(len(current_stock) - len(wanted_stock))
+    have = Counter(_foundation_multiset(state))
+    need = Counter(_foundation_multiset(target))
+    for sequence, count in have.items():
+        over = count - need.get(sequence, 0)
+        if over > 0:
+            score += over * 100
+    for sequence, count in need.items():
+        short = count - have.get(sequence, 0)
+        if short > 0:
+            score += short * 13
+    return int(score)
+
+
 def search_segment(
     source: SpiderState,
     target: SpiderState,
@@ -297,21 +350,34 @@ def search_segment(
     max_unique: int = 2500,
     rss_abort_mb: float = 3072.0,
     exhaustive: bool = False,
+    policy: str = "ucs",
 ) -> SegmentResult:
-    """Best-first corrected-MW search for a path cheaper than ``ceiling``.
+    """Search for a path cheaper than ``ceiling``.
 
-    ``ceiling`` is the incumbent segment cost. A path that has spent that
-    much cannot be a strict improvement, so the kernel ceiling is one less.
-    Zero-cost whole-column transfers stay in the graph. A time, memory, or
-    unique-state stop is inconclusive. Completing the graph without a hit
-    is a negative result only inside this cost ceiling.
+    ``ceiling`` is the incumbent segment cost. The kernel ceiling is one
+    less. ``policy="ucs"`` is the v0.128 uniform-cost lane ``(g,)``.
+    ``policy="goal"`` round-robins a target lane ``(displacement, g)`` with
+    a cost lane ``(g, displacement)``. Displacement is ordering only.
+    The goal policy may expand a paid state before every zero-cost state.
+    The first goal-policy rejoin ends the run and is not a minimum-cost
+    proof unless the graph is also finished. Zero-cost whole-column
+    transfers stay legal. A time, memory, or unique-state stop is
+    inconclusive. Completing the graph without a hit is a negative result
+    only inside this cost ceiling.
     """
 
+    policy = str(policy)
+    if policy not in {"ucs", "goal"}:
+        raise ValueError(f"unknown segment policy: {policy}")
     ceiling = int(ceiling)
     if states_rejoin(source, target):
         if ceiling <= 0:
-            return SegmentResult("NOT_CHEAPER", (), 0, ceiling, stop_reason="already there", proof=True)
-        return SegmentResult("FOUND", (), 0, ceiling, stop_reason="empty rejoin", proof=True)
+            return SegmentResult(
+                "NOT_CHEAPER", (), 0, ceiling, stop_reason="already there", proof=True, policy=policy
+            )
+        return SegmentResult(
+            "FOUND", (), 0, ceiling, stop_reason="empty rejoin", proof=True, cost_optimal=True, policy=policy
+        )
     bound = segment_lower_bound(source, target)
     if bound is None or bound >= ceiling:
         return SegmentResult(
@@ -322,6 +388,8 @@ def search_segment(
             lower_bound_prunes=1,
             stop_reason="segment bound",
             proof=True,
+            cost_optimal=True,
+            policy=policy,
         )
     if time_limit_s <= 0 or max_unique <= 0:
         return SegmentResult(
@@ -331,6 +399,7 @@ def search_segment(
             ceiling,
             stop_reason="resource limit",
             proof=False,
+            policy=policy,
         )
     target_key = canonical_state_key(target)
     target_pack = pack_state(target)
@@ -346,6 +415,33 @@ def search_segment(
 
     def _order(state: SpiderState, actions: List[Action]) -> List[Action]:
         return sorted(actions, key=lambda action: (step_cost(state, action), str(action)))
+
+    affinity_s = [0.0]
+    affinity_calls = [0]
+    nearest = [10**9]
+    lane_names = ("cost",)
+    lane_key_fns = (lambda _state, g: (int(g),),)
+    lane_keys_fn = None
+    # Goal discovery stops at the first legal rejoin. UCS keeps the
+    # caller's exhaustive flag, which is what the v0.128 proof mode used.
+    stop_on_first = not exhaustive
+    if policy == "goal":
+        lane_names = ("goal", "cost")
+        lane_key_fns = None
+
+        def lane_keys_fn(state: SpiderState, g: int):
+            started_score = time.perf_counter()
+            displacement = target_displacement(state, target)
+            affinity_s[0] += time.perf_counter() - started_score
+            affinity_calls[0] += 1
+            if displacement < nearest[0]:
+                nearest[0] = displacement
+            # Worse-than-best states stay on the goal lane only. They are
+            # still expanded once closer states are done. They are not deleted.
+            cost_key = (int(g), int(displacement)) if displacement <= nearest[0] else None
+            return {"goal": (int(displacement), int(g)), "cost": cost_key}
+
+        stop_on_first = not exhaustive
 
     started = time.perf_counter()
     kernel = run_search(
@@ -364,13 +460,14 @@ def search_segment(
         identity_fn=pack_state,
         store_fn=pack_state,
         unpack_fn=unpack_state,
-        lane_names=("cost",),
-        lane_key_fns=(lambda _state, g: (int(g),),),
+        lane_names=lane_names,
+        lane_key_fns=lane_key_fns,
+        lane_keys_fn=lane_keys_fn,
         is_terminal=_terminal,
         actions_fn=all_legal_actions,
         action_order=_order,
         lower_bound_fn=_bound,
-        stop_on_first_terminal=not exhaustive,
+        stop_on_first_terminal=stop_on_first,
     )
     elapsed = time.perf_counter() - started
     common = dict(
@@ -394,17 +491,40 @@ def search_segment(
         lower_bound_calls=int(kernel.lower_bound_calls),
         expanded_by_g=tuple(sorted(kernel.expanded_by_g.items())),
         generated_by_g=tuple(sorted(kernel.generated_by_g.items())),
+        policy=policy,
+        affinity_s=affinity_s[0],
+        affinity_calls=affinity_calls[0],
+        lane_exp=tuple(sorted(kernel.lane_exp.items())),
     )
+    completed = kernel.stop_reason == "complete"
     if kernel.terminals:
         best = min(kernel.terminals, key=lambda item: int(item["g"]))
         actions = tuple(kernel.reconstruct(int(best["node"])))
         cost = int(best["g"])
         if cost >= ceiling or not _replays_to(source, actions, target, cost):
             return SegmentResult("NOT_CHEAPER", (), None, proof=False, **common)
-        return SegmentResult("FOUND", actions, cost, proof=True, **common)
+        # A finished graph's cheapest rejoin is the minimum under this ceiling.
+        # A first hit under the goal order proves that cost only.
+        optimal = bool(completed)
+        proved = True if policy == "ucs" else optimal
+        return SegmentResult(
+            "FOUND",
+            actions,
+            cost,
+            proof=proved,
+            cost_optimal=optimal,
+            **common,
+        )
     inconclusive = kernel.stop_reason in {"time limit", "unique limit", "rss abort", "abort"}
     status = "INCONCLUSIVE" if inconclusive else "EXHAUSTED"
-    return SegmentResult(status, (), None, proof=not inconclusive, **common)
+    return SegmentResult(
+        status,
+        (),
+        None,
+        proof=not inconclusive,
+        cost_optimal=bool(completed),
+        **common,
+    )
 
 
 def search_targets(
