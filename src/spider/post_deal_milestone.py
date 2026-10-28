@@ -13,19 +13,26 @@ stays eligible. Callers that omit it keep the historical kernel rule.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from spider.engine import SpiderState
-from spider.human_strategy.evaluation import admissible_remaining
+from spider.human_strategy.evaluation import (
+    admissible_remaining,
+    mixed_boundaries,
+    same_suit_bonds,
+)
 from spider.metrics import Action, format_action
 from spider.packed_state import pack_state, pack_whole_game_identity, unpack_state
 from spider.planner.strategic_objectives import evaluate_target
 from spider.purposeful_macro import PostDealRoot, compose_discovered_route
 from spider.research_actions import (
     apply_action,
+    capture_state,
     face_down_count,
     is_deal,
+    restore_state,
     step_cost,
     tableau_actions,
 )
@@ -52,8 +59,13 @@ TACTIC_PROOF = 171
 
 ENDPOINT_LIMIT = 8
 ENDPOINT_CEILING = 171
+# How many terminals the lower-f policy replays before it selects. A cap is
+# truncation, not a claim that an unverified terminal has a worse bound.
+PHASE_VERIFY_CAP = 128
+SCREEN_SLACK = 1
 
 _SUITS = ("s", "h", "d", "c")
+_PHASES = ("both_not_yet", "foundation_only", "reveal_only", "both_achieved")
 
 
 class MilestoneContractError(RuntimeError):
@@ -100,11 +112,15 @@ class MilestoneHit:
     symmetry: str
     replay_ok: bool
     state: Optional[SpiderState] = None
+    h: Optional[int] = None
+    f: Optional[int] = None
 
     def public(self) -> dict:
         return {
             "actions": [format_action(action) for action in self.actions],
             "g": self.g,
+            "h": self.h,
+            "f": self.f,
             "paid": self.paid,
             "zero_cost": self.zero_cost,
             "suit_gain": self.suit_gain,
@@ -155,6 +171,17 @@ class MilestoneResult:
     lane_exp: Tuple[Tuple[str, int], ...]
     diagnostics: Dict[str, int]
     hits: Tuple[MilestoneHit, ...] = field(default_factory=tuple)
+    phase_aware: bool = False
+    hit_policy: str = "lowest_g"
+    phases_admitted: Dict[str, int] = field(default_factory=dict)
+    phases_expanded: Dict[str, int] = field(default_factory=dict)
+    first_s: Optional[float] = None
+    first_g: Optional[int] = None
+    distinct_milestones: int = 0
+    queued_entries: int = 0
+    hit_truncation: Optional[dict] = None
+    cpu_s: float = 0.0
+    lower_bound_s: float = 0.0
 
     def public(self) -> dict:
         return {
@@ -197,6 +224,17 @@ class MilestoneResult:
             "lane_exp": [list(item) for item in self.lane_exp],
             "diagnostics": dict(self.diagnostics),
             "hits": [hit.public() for hit in self.hits],
+            "phase_aware": self.phase_aware,
+            "hit_policy": self.hit_policy,
+            "phases_admitted": dict(self.phases_admitted),
+            "phases_expanded": dict(self.phases_expanded),
+            "first_s": None if self.first_s is None else round(self.first_s, 6),
+            "first_g": self.first_g,
+            "distinct_milestones": self.distinct_milestones,
+            "queued_entries": self.queued_entries,
+            "hit_truncation": self.hit_truncation,
+            "cpu_s": round(self.cpu_s, 6),
+            "lower_bound_s": round(self.lower_bound_s, 6),
         }
 
 
@@ -267,6 +305,33 @@ def milestone_met(state: SpiderState, spec: MilestoneSpec) -> bool:
             {"column": int(spec.column), "max_face_down": int(spec.max_face_down)},
         )
     return bool(gained and revealed)
+
+
+def objective_status(state: SpiderState, spec: MilestoneSpec) -> Tuple[bool, bool]:
+    """Foundation done, reveal done. Both are read from the state and the source."""
+
+    founded = suit_foundation_count(state, spec.suit) >= int(spec.source_foundations) + 1
+    if spec.column is None:
+        revealed = face_down_count(state) <= int(spec.source_face_down) - 1
+    else:
+        revealed = bool(
+            evaluate_target(
+                state,
+                "column_face_down_le",
+                {"column": int(spec.column), "max_face_down": int(spec.max_face_down)},
+            )
+        )
+    return founded, revealed
+
+
+def phase_name(founded: bool, revealed: bool) -> str:
+    if founded and revealed:
+        return "both_achieved"
+    if founded:
+        return "foundation_only"
+    if revealed:
+        return "reveal_only"
+    return "both_not_yet"
 
 
 def milestone_identity(state: SpiderState, *, column: Optional[int] = None) -> bytes:
@@ -414,12 +479,16 @@ def rank_milestone_actions(
     suit: str,
     *,
     column: Optional[int] = None,
+    phase_aware: bool = False,
+    founded: bool = False,
+    revealed: bool = False,
 ) -> List[Action]:
     """Order every tableau action. None are removed.
 
     A move that extends the longest run of ``suit``, uncovers that run's
     next card, or reveals a face-down card comes first. Cost breaks the
-    remaining ties, so a zero-cost relocation is kept.
+    remaining ties, so a zero-cost relocation is kept. ``phase_aware``
+    puts the unfinished half of the objective first. It does not drop moves.
     """
 
     features = _measure(state, suit)
@@ -467,7 +536,14 @@ def rank_milestone_actions(
                 same = 0
             if column is not None and src == int(column):
                 frees = 0
-        return (extends, uncovers, reveal, frees, cost, same, index)
+        if not phase_aware:
+            return (extends, uncovers, reveal, frees, cost, same, index)
+        if founded and not revealed:
+            return (reveal, uncovers, extends, frees, cost, same, index)
+        if revealed and not founded:
+            return (extends, uncovers, same, reveal, frees, cost, index)
+        either = 0 if extends == 0 or reveal == 0 or uncovers == 0 else 1
+        return (either, extends, reveal, uncovers, frees, cost, same, index)
 
     ordered = [action for _index, action in sorted(enumerate(actions), key=rank)]
     if len(ordered) != len(list(actions)):
@@ -475,10 +551,41 @@ def rank_milestone_actions(
     return ordered
 
 
-def _lane_keys(state: SpiderState, g: int, suit: str, column: Optional[int]) -> Dict[str, tuple]:
+def _lane_keys(
+    state: SpiderState,
+    g: int,
+    suit: str,
+    column: Optional[int],
+    *,
+    phase_aware: bool = False,
+) -> Dict[str, tuple]:
     features = _measure(state, suit)
     # A named column is ordering only. Clearing it stays ahead of a run that
     # does not land on that column. The suit-wide search does not use it.
+    if phase_aware:
+        # Two objective lanes plus the setup lane. Round-robin gives a
+        # reveal-only state a turn even when a foundation-only state leads
+        # the foundation lane. These tuples are not lower bounds.
+        foundation_key: tuple = (
+            -features.foundations,
+            -features.run,
+            features.next_depth,
+            features.home_depth,
+            int(g),
+        )
+        reveal_key: tuple = (
+            features.face_down,
+            features.next_depth,
+            features.home_depth,
+            -features.run,
+            int(g),
+        )
+        if column is not None:
+            focus = len(state.columns[int(column)].face_up)
+            foundation_key = foundation_key + (focus,)
+            reveal_key = reveal_key + (focus,)
+        setup_key = _setup_key(features, g, state, column)
+        return {"foundation": foundation_key, "reveal": reveal_key, "setup": setup_key}
     if column is None:
         progress: tuple = (
             -features.foundations,
@@ -498,6 +605,10 @@ def _lane_keys(state: SpiderState, g: int, suit: str, column: Optional[int]) -> 
             features.face_down,
             int(g),
         )
+    return {"progress": progress, "setup": _setup_key(features, g, state, column)}
+
+
+def _setup_key(features: _Features, g: int, state: SpiderState, column: Optional[int]) -> tuple:
     setup: List[int] = [int(g)]
     if column is not None:
         setup.append(len(state.columns[int(column)].face_up))
@@ -510,7 +621,7 @@ def _lane_keys(state: SpiderState, g: int, suit: str, column: Optional[int]) -> 
             -features.foundations,
         ]
     )
-    return {"progress": progress, "setup": tuple(setup)}
+    return tuple(setup)
 
 
 def _replay(source: SpiderState, actions: Sequence[Action]) -> Tuple[SpiderState, int, int]:
@@ -545,18 +656,37 @@ def search_milestone(
     stop_on_first: bool = True,
     lower_bound_fn: Optional[Callable[[SpiderState, int], int]] = None,
     hit_limit: int = 8,
+    phase_aware: bool = False,
+    hit_policy: str = "lowest_g",
 ) -> MilestoneResult:
-    """Search from one physical source. Reference actions are not an input."""
+    """Search from one physical source. Reference actions are not an input.
+
+    ``phase_aware`` is opt-in. The default lanes and action order stay the
+    historical ones. ``hit_policy="lower_f"`` is a separate selection rule:
+    it keeps lower admissible ``f`` ahead of lower ``g``. Neither value is
+    a proof bound.
+    """
 
     spec = spec_from_source(source, suit, column=column, max_face_down=max_face_down)
     g0 = int(g0)
     cost_ceiling = g0 + int(paid_moves)
+    policy = str(hit_policy)
+    if policy not in {"lowest_g", "lower_f"}:
+        raise MilestoneContractError(f"unknown hit policy: {policy}")
     diagnostics = {
         "max_suit_foundations": spec.source_foundations,
         "min_face_down": spec.source_face_down,
         "foundation_without_reveal": 0,
         "reveal_without_foundation": 0,
     }
+    phases = {
+        "admitted": {name: 0 for name in _PHASES},
+        "expanded": {name: 0 for name in _PHASES},
+    }
+
+    def note(bucket: str, state: SpiderState) -> None:
+        founded, revealed = objective_status(state, spec)
+        phases[bucket][phase_name(founded, revealed)] += 1
 
     def is_goal(state: SpiderState) -> bool:
         if terminal_fn is not None:
@@ -581,6 +711,10 @@ def search_milestone(
             diagnostics["foundation_without_reveal"] += 1
         elif revealed and not gained:
             diagnostics["reveal_without_foundation"] += 1
+        note("admitted", state)
+
+    def on_expand(state: SpiderState, _g: int, _node_i: int) -> None:
+        note("expanded", state)
 
     bound = lower_bound_fn
     if bound is None and proof_ceiling is not None:
@@ -598,11 +732,22 @@ def search_milestone(
         return milestone_identity(state, column=spec.column)
 
     def order(state: SpiderState, actions: List[Action]) -> List[Action]:
-        return rank_milestone_actions(state, actions, suit, column=spec.column)
+        founded, revealed = objective_status(state, spec)
+        return rank_milestone_actions(
+            state,
+            actions,
+            suit,
+            column=spec.column,
+            phase_aware=bool(phase_aware),
+            founded=founded,
+            revealed=revealed,
+        )
 
     def keys(state: SpiderState, g: int) -> Dict[str, tuple]:
-        return _lane_keys(state, g, suit, spec.column)
+        return _lane_keys(state, g, suit, spec.column, phase_aware=bool(phase_aware))
 
+    names = ("foundation", "reveal", "setup") if phase_aware else ("progress", "setup")
+    cpu_started = time.process_time()
     kernel = run_search(
         [{"ordered_digest": pack_state(source).hex(), "g": g0}],
         limits=SearchLimits(
@@ -616,16 +761,42 @@ def search_milestone(
         identity_fn=identity,
         store_fn=pack_state,
         unpack_fn=unpack_state,
-        lane_names=("progress", "setup"),
+        lane_names=names,
         lane_keys_fn=keys,
         is_terminal=is_goal,
         actions_fn=tableau_actions,
         action_order=order,
         on_child=on_child,
+        on_expand=on_expand,
         lower_bound_fn=bound,
         stop_on_first_terminal=bool(stop_on_first),
     )
-    hits = _verify_hits(source, spec, kernel, g0, limit=int(hit_limit))
+    cpu_s = time.process_time() - cpu_started
+    verify_limit = int(hit_limit) if policy == "lowest_g" else max(int(hit_limit), PHASE_VERIFY_CAP)
+    verified = _verify_hits(source, spec, kernel, g0, limit=verify_limit)
+    if policy == "lowest_g":
+        hits = verified
+        truncation = {
+            "policy": "lowest_g",
+            "verified": len(verified),
+            "terminals": len(kernel.terminals),
+            "retained": min(len(verified), int(hit_limit)),
+            "reason": "lowest g then node index",
+            "unverified_terminals": max(0, len(kernel.terminals) - len(verified)),
+        }
+    else:
+        hits, truncation = choose_milestone_hits(
+            verified,
+            policy="lower_f",
+            limit=int(hit_limit),
+            require_both=terminal_fn is None,
+        )
+        truncation["terminals"] = len(kernel.terminals)
+        truncation["unverified_terminals"] = max(0, len(kernel.terminals) - len(verified))
+        if truncation["unverified_terminals"]:
+            truncation["reason"] += (
+                "; unverified terminals were not shown to have a worse f"
+            )
     best = hits[0] if hits else None
     if best is None or not best.replay_ok or best.state is None:
         met = False
@@ -671,7 +842,18 @@ def search_milestone(
         max_h=kernel.max_h,
         lane_exp=tuple(sorted(kernel.lane_exp.items())),
         diagnostics=diagnostics,
-        hits=tuple(hits if met or terminal_fn is None else hits),
+        hits=tuple(hits),
+        phase_aware=bool(phase_aware),
+        hit_policy=policy,
+        phases_admitted=dict(phases["admitted"]),
+        phases_expanded=dict(phases["expanded"]),
+        first_s=kernel.first_s,
+        first_g=kernel.first_g,
+        distinct_milestones=len({hit.symmetry for hit in hits if hit.suit_gain >= 1 and hit.face_down_drop >= 1}),
+        queued_entries=sum(int(value) for value in kernel.lane_remaining.values()),
+        hit_truncation=truncation,
+        cpu_s=float(cpu_s),
+        lower_bound_s=float(kernel.lower_bound_s),
     )
 
 
@@ -713,17 +895,90 @@ def _verify_hits(source, spec: MilestoneSpec, kernel, g0: int, *, limit: int) ->
     return hits
 
 
+def choose_milestone_hits(
+    hits: Sequence[MilestoneHit],
+    *,
+    policy: str = "lowest_g",
+    limit: int = 8,
+    require_both: bool = True,
+) -> Tuple[List[MilestoneHit], dict]:
+    """Pick retained hits. ``lower_f`` is selection, not a lane-order change.
+
+    ``f`` is an admissible lower bound. Keeping a lower ``f`` does not prove
+    that state can be finished, and dropping a higher ``f`` does not prove it
+    cannot.
+    """
+
+    if policy not in {"lowest_g", "lower_f"}:
+        raise MilestoneContractError(f"unknown hit policy: {policy}")
+    if policy == "lowest_g":
+        ordered_g = sorted(hits, key=lambda hit: (int(hit.g), hit.pack))
+        kept = ordered_g[: int(limit)]
+        return kept, {
+            "policy": "lowest_g",
+            "verified": len(hits),
+            "retained": len(kept),
+            "dropped_complete": max(0, len(hits) - len(kept)),
+            "reason": "lowest g",
+        }
+    pool: List[MilestoneHit] = []
+    for hit in hits:
+        if require_both and (int(hit.suit_gain) < 1 or int(hit.face_down_drop) < 1):
+            continue
+        if hit.f is None and hit.state is not None:
+            hit.h = int(admissible_remaining(hit.state))
+            hit.f = int(hit.g) + int(hit.h)
+        pool.append(hit)
+    pool.sort(key=lambda hit: (int(hit.f if hit.f is not None else 10**9), int(hit.g), hit.pack))
+    winners: Dict[str, MilestoneHit] = {}
+    dominated = 0
+    for hit in pool:
+        if hit.symmetry not in winners:
+            winners[hit.symmetry] = hit
+        else:
+            dominated += 1
+    ordered = sorted(
+        winners.values(),
+        key=lambda hit: (int(hit.f if hit.f is not None else 10**9), int(hit.g), hit.pack),
+    )
+    kept = ordered[: int(limit)]
+    reason = "lowest f, then g; one prefix per symmetry"
+    if dominated:
+        reason += f"; {dominated} symmetry duplicates kept the lower f"
+    if len(ordered) > int(limit):
+        reason += f"; truncated {len(ordered) - int(limit)} higher-f states"
+    return kept, {
+        "policy": "lower_f",
+        "verified": len(hits),
+        "retained": len(kept),
+        "dropped_complete": len(ordered) - len(kept),
+        "symmetry_dominated": dominated,
+        "reason": reason,
+    }
+
+
 def retain_endpoints(
     items: Sequence[MilestoneEndpoint],
     *,
     ceiling: int = ENDPOINT_CEILING,
     limit: int = ENDPOINT_LIMIT,
+    order: str = "g",
 ) -> Tuple[List[MilestoneEndpoint], List[dict]]:
     """Keep at most ``limit`` states with ``g + h <= ceiling``.
 
     Symmetry duplicates keep the cheaper physical prefix and that prefix's
-    root. A tactical cap is not applied here.
+    root. ``order="g"`` is the historical rule. ``order="f"`` keeps a lower
+    admissible bound ahead of a lower ``g``. A tactical cap is not applied
+    here, and neither order is a proof.
     """
+
+    if order not in {"g", "f"}:
+        raise MilestoneContractError(f"unknown endpoint order: {order}")
+
+    def sort_key(item: MilestoneEndpoint) -> tuple:
+        if order == "f":
+            return (int(item.f), int(item.g), item.pack)
+        return (int(item.g), item.pack)
 
     eligible = [
         item
@@ -733,7 +988,7 @@ def retain_endpoints(
         and int(item.face_down_drop) >= 1
         and int(item.f) <= int(ceiling)
     ]
-    eligible.sort(key=lambda item: (int(item.g), item.pack))
+    eligible.sort(key=sort_key)
     winners: Dict[str, MilestoneEndpoint] = {}
     dominated: List[dict] = []
     for item in eligible:
@@ -742,7 +997,7 @@ def retain_endpoints(
             winners[item.symmetry] = item
             continue
         dominated.append(_dominance_row(item, previous))
-    pool = sorted(winners.values(), key=lambda item: (int(item.g), int(item.f), int(item.root_index), item.pack))
+    pool = sorted(winners.values(), key=lambda item: sort_key(item) + (int(item.root_index),))
     chosen: List[MilestoneEndpoint] = []
     seen_roots = set()
     for item in pool:
@@ -815,3 +1070,87 @@ def route_for_endpoint(
         list(endpoint.actions) + list(continuation),
         suffix,
     )
+
+
+def describe_position(state: SpiderState, g: int) -> dict:
+    """Observable tableau facts at one corrected cost. ``h`` is recomputed."""
+
+    hidden_bound = int(admissible_remaining(state))
+    suits = [seq[0].suit if seq else "" for seq in state.foundations]
+    symmetry = "" if state.stock else pack_whole_game_identity(state).hex()
+    return {
+        "g": int(g),
+        "h": hidden_bound,
+        "f": int(g) + hidden_bound,
+        "pack": pack_state(state).hex(),
+        "symmetry": symmetry,
+        "bonds": int(same_suit_bonds(state)),
+        "mixed_joins": int(mixed_boundaries(state)),
+        "open_columns": sum(1 for column in state.columns if column.is_empty()),
+        "mobility": len(tableau_actions(state)),
+        "face_down": int(face_down_count(state)),
+        "foundations": len(state.foundations),
+        "foundation_suits": suits,
+        "stock": len(state.stock),
+    }
+
+
+def has_proof_eligible_child(state: SpiderState, g: int, ceiling: int) -> bool:
+    """True when some legal child still has ``g + h <= ceiling``.
+
+    Equality stays eligible. This looks at one ply. It is not a search and
+    it does not prove a longer line.
+    """
+
+    for action in tableau_actions(state):
+        child_g = int(g) + int(step_cost(state, action))
+        snap = capture_state(state, action)
+        try:
+            apply_action(state, action)
+            if child_g + int(admissible_remaining(state)) <= int(ceiling):
+                return True
+        except ValueError:
+            continue
+        finally:
+            restore_state(state, snap)
+    return False
+
+
+def screening_milestone(
+    endpoint: MilestoneEndpoint,
+    *,
+    ceiling: int = ENDPOINT_CEILING,
+    excluded_packs: Sequence[str] = (),
+) -> dict:
+    """Whether a milestone is worth a new continuation.
+
+    ``f <= ceiling - 1`` is a screen for this experiment. It is not a proof
+    that the state can be finished, and failing the screen is not a proof
+    that no other state can.
+    """
+
+    screen = int(ceiling) - int(SCREEN_SLACK)
+    reasons: List[str] = []
+    if endpoint.pack in set(excluded_packs):
+        reasons.append("previously exhausted identity")
+    if int(endpoint.f) > screen:
+        reasons.append("f above screen")
+    if not endpoint.replay_ok or int(endpoint.suit_gain) < 1 or int(endpoint.face_down_drop) < 1:
+        reasons.append("not a verified two-part milestone")
+    affordable = False
+    if not reasons:
+        affordable = has_proof_eligible_child(endpoint.state, int(endpoint.g), int(ceiling))
+        if not affordable:
+            reasons.append("no proof-eligible successor")
+    return {
+        "accepted": not reasons,
+        "reasons": reasons,
+        "screen_f": screen,
+        "proof": False,
+        "affordable_successor": affordable,
+        "f": int(endpoint.f),
+        "g": int(endpoint.g),
+        "h": int(endpoint.h),
+        "pack": endpoint.pack,
+        "root_index": int(endpoint.root_index),
+    }

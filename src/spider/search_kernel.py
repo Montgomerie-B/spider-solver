@@ -146,6 +146,7 @@ def run_search(
     action_order: Optional[ActionOrderFn] = None,
     on_child: Optional[Callable[[SpiderState, int, int], None]] = None,
     on_progress: Optional[Callable[["KernelResult", SpiderState, int, int], None]] = None,
+    on_expand: Optional[Callable[[SpiderState, int, int], None]] = None,
     lower_bound_fn: Optional[Callable[[SpiderState, int], int]] = None,
     stop_on_first_terminal: bool = False,
 ) -> KernelResult:
@@ -164,6 +165,9 @@ def run_search(
     ``cost_ceiling``, as before. When it is set, ``g + h > proof_ceiling``
     is the proof rule and ``cost_ceiling`` remains the paid-move cap.
     Equality with the proof ceiling stays eligible.
+
+    ``on_expand`` is optional telemetry. It runs after a node is counted as
+    expanded and does not change admission, order, or pruning.
     """
 
     started = time.perf_counter()
@@ -336,6 +340,8 @@ def run_search(
         result.expanded += 1
         result.lane_exp[name] += 1
         result.expanded_by_g[g] = result.expanded_by_g.get(g, 0) + 1
+        if on_expand is not None:
+            on_expand(state, g, node_i)
         for action in actions:
             cost = step_cost(state, action)
             if cost == 0:
