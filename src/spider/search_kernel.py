@@ -70,6 +70,8 @@ class KernelResult:
     lane_pops: Dict[str, int] = field(default_factory=dict)
     lane_exp: Dict[str, int] = field(default_factory=dict)
     lane_stale: Dict[str, int] = field(default_factory=dict)
+    # Heap sizes at stop. Telemetry only. It does not change admission.
+    lane_remaining: Dict[str, int] = field(default_factory=dict)
     terminals: List[dict] = field(default_factory=list)
     nodes: List[SearchNode] = field(default_factory=list)
     first_s: Optional[float] = None
@@ -134,6 +136,7 @@ def run_search(
     lane_names: Sequence[str] = ("cost",),
     lane_key_fns: Optional[Sequence[LaneKeyFn]] = None,
     lane_keys_fn: Optional[Callable[[SpiderState, int], Dict[str, tuple]]] = None,
+    origin_lane_keys_fn: Optional[Callable[[SpiderState, int, int], Dict[str, Optional[tuple]]]] = None,
     is_terminal: TerminalFn = lambda st: len(st.foundations) >= 8,
     actions_fn: Optional[ActionsFn] = None,
     action_order: Optional[ActionOrderFn] = None,
@@ -147,15 +150,25 @@ def run_search(
     ``lane_key_fns[i](state, g) -> tuple | None`` is ordering only. ``None``
     skips that lane for this state (sparse participation). One lane with
     ``lambda st, g: (g,)`` is UCS-like. Multiple lanes round-robin.
+
+    ``origin_lane_keys_fn(state, g, origin)`` is opt-in. ``origin`` is
+    ``nodes[node_i].origin``. When the hook is omitted, lane selection is
+    the existing one. Best-g, proof pruning, and one expansion per identity
+    at a given g stay shared either way.
     """
 
     started = time.perf_counter()
     deadline = started + limits.time_limit_s
     names = list(lane_names)
-    if lane_keys_fn is None and lane_key_fns is None:
+    if origin_lane_keys_fn is None and lane_keys_fn is None and lane_key_fns is None:
         lane_key_fns = [lambda st, g: (g,)]
         names = ["cost"]
-    if lane_keys_fn is None and lane_key_fns is not None and len(lane_key_fns) != len(names):
+    if (
+        origin_lane_keys_fn is None
+        and lane_keys_fn is None
+        and lane_key_fns is not None
+        and len(lane_key_fns) != len(names)
+    ):
         raise ValueError("lane_names and lane_key_fns length mismatch")
     result = KernelResult(
         lane_pops={n: 0 for n in names},
@@ -209,6 +222,15 @@ def run_search(
 
     def push(node_i: int, state: SpiderState, g: int) -> None:
         nonlocal seq
+        if origin_lane_keys_fn is not None:
+            keys = origin_lane_keys_fn(state, g, int(nodes[node_i].origin)) or {}
+            for name in names:
+                key = keys.get(name)
+                if key is None:
+                    continue
+                heapq.heappush(heaps[name], (*key, seq, node_i))
+                seq += 1
+            return
         if lane_keys_fn is not None:
             keys = lane_keys_fn(state, g)
             for name in names:
@@ -417,6 +439,7 @@ def run_search(
         result.closed_g = ceiling
     note_rss()
     result.nodes = nodes
+    result.lane_remaining = {name: len(heaps[name]) for name in names}
     result.elapsed_s = time.perf_counter() - started
     result.peak_rss_mb = peak
     return result
