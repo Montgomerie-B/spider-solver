@@ -39,6 +39,10 @@ class SearchLimits:
     harvest_slack: Optional[int] = None
     # None preserves the historical unbounded-depth behaviour.
     max_depth: Optional[int] = None
+    # None keeps the historical proof rule: g + h is compared with cost_ceiling,
+    # including harvest tightening. A separate value prunes only on that proof
+    # ceiling and does not change the paid-move cap.
+    proof_ceiling: Optional[int] = None
 
 
 @dataclass
@@ -155,6 +159,11 @@ def run_search(
     ``nodes[node_i].origin``. When the hook is omitted, lane selection is
     the existing one. Best-g, proof pruning, and one expansion per identity
     at a given g stay shared either way.
+
+    ``limits.proof_ceiling`` defaults to None. Proof pruning then uses
+    ``cost_ceiling``, as before. When it is set, ``g + h > proof_ceiling``
+    is the proof rule and ``cost_ceiling`` remains the paid-move cap.
+    Equality with the proof ceiling stays eligible.
     """
 
     started = time.perf_counter()
@@ -177,6 +186,8 @@ def run_search(
     )
     peak = rss_mb()
     ceiling = limits.cost_ceiling
+    # Paid cap and proof cap are the same object unless the caller splits them.
+    proof_box = [limits.proof_ceiling if limits.proof_ceiling is not None else ceiling]
     incumbent: Optional[int] = None
     slack = limits.harvest_slack
 
@@ -210,10 +221,11 @@ def run_search(
         return h
 
     def proof_dead(state: SpiderState, g: int) -> bool:
-        if lower_bound_fn is None or ceiling is None:
+        proof_limit = proof_box[0]
+        if lower_bound_fn is None or proof_limit is None:
             return False
         h = bound_h(state, g)
-        if int(g) + h > int(ceiling):
+        if int(g) + h > int(proof_limit):
             result.lower_bound_prunes += 1
             n_f = len(state.foundations)
             result.prunes_by_F[n_f] = result.prunes_by_F.get(n_f, 0) + 1
@@ -401,6 +413,8 @@ def run_search(
                         result.incumbent_g = child_g
                         if slack is not None and ceiling is not None:
                             ceiling = min(ceiling, incumbent + slack)
+                            if limits.proof_ceiling is None:
+                                proof_box[0] = ceiling
                     if stop_on_first_terminal:
                         result.stop_reason = "solved"
                         break
