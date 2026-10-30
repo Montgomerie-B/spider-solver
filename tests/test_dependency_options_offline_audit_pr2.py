@@ -331,7 +331,11 @@ def test_moving_an_interval_changes_its_column_bound_join_id():
     assert "join:c:8:col0" not in after_ids
     assert any(item.startswith("join:c:8:col2") for item in after_ids)
     assert after.can_move(2, 1, 1) is True
-    assert "join:c:8:col0" in option.broken_dependencies
+    # The column id changes. The intact run still has its receiver, so the
+    # source JOIN is not a break. docs/dependency_contract_continuity_pr3.md.
+    assert "join:c:8:col0" not in option.broken_dependencies
+    assert option.blocks == ()
+    assert option.dependency_penalty == 0
 
 
 def test_size_two_preserves_feasibility_without_minimising_two_stage_cost():

@@ -6,6 +6,12 @@ It is not a substitute move, not a proof, and not a second search.
 ``dependency_penalty`` is a portfolio sort key. It is not added to
 ``h_target`` and it is not an argument of ``kernel_lower_bound``.
 The Human Strategy Controller does not import this module.
+
+``source_g`` is the caller's declared base. Admission checks the incremental
+identity ``target_g == source_g + cost``. That identity is not an opening
+cost. Absolute ``g`` stays ``unestablished`` unless a separate source-cost
+claim replays from a trusted ``g=0`` root. It is not a rank key and not a
+proof term.
 """
 
 from __future__ import annotations
@@ -88,6 +94,8 @@ class TacticalOption:
     replay_ok: bool
     provenance: str
     independent_cold_complete: bool
+    source_g_provenance: str = "unestablished"
+    unresolved_dependencies: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -117,6 +125,23 @@ class AncestorClaim:
 
 
 @dataclass(frozen=True)
+class SourceCostClaim:
+    """Opt-in corrected-cost replay from a trusted ``g=0`` opening.
+
+    ``continuation`` is the legal action list from ``opening_pack`` to
+    ``source_pack``. An empty continuation is valid only when ``source_g``
+    is 0 and the source already is that opening. This is not an ancestor
+    claim. A verified checkpoint proves checkpoint-to-source reachability,
+    not the corrected cost from the opening.
+    """
+
+    opening_pack: str
+    continuation: tuple
+    source_pack: str
+    source_g: int
+
+
+@dataclass(frozen=True)
 class PortfolioPick:
     chosen: tuple
     diverse_ancestor_available: bool
@@ -131,6 +156,9 @@ class PortfolioPick:
     unsupported_receive_ids: tuple = ()
     source_signatures: tuple = ()
     outcome_signatures: tuple = ()
+    source_g_provenance: str = "unestablished"
+    absolute_g_used_for_proof: bool = False
+    rejected_source_cost_claims: int = 0
 
 
 @dataclass(frozen=True)
@@ -472,69 +500,284 @@ def rebuild_obligations(state: SpiderState) -> Tuple[ObligationNode, ...]:
     return tuple(_as_public(node) for node in _analyze(state))
 
 
-def _merged(node: _OpenNode, final_nodes: Sequence[_OpenNode]) -> bool:
-    """True when this join's rank span now sits inside a longer component."""
-
-    if node.kind != "JOIN":
-        return False
-    still_here = any(
-        other.kind == "JOIN"
-        and other.column == node.column
-        and other.suit == node.suit
-        and other.low == node.low
-        and other.high == node.high
-        for other in final_nodes
-    )
-    if still_here:
-        return False
-    span = node.high - node.low
-    return any(
-        other.kind == "JOIN"
-        and other.suit == node.suit
-        and other.low <= node.low
-        and other.high >= node.high
-        and (other.high - other.low) > span
-        for other in final_nodes
-    )
-
-
 def _reveal_done(node: _OpenNode, final: SpiderState) -> bool:
     if node.kind != "REVEAL":
         return False
     return len(final.columns[node.column].face_down) < node.face_down_at_build
 
 
-def _dependency_report(source: SpiderState, final: SpiderState):
+class _Track:
+    """Face-up index span of one source JOIN, followed along a replay."""
+
+    __slots__ = ("column", "start", "end", "cards", "status")
+
+    def __init__(self, column: int, start: int, end: int, cards: tuple, status: str):
+        self.column = column
+        self.start = start
+        self.end = end
+        self.cards = cards
+        self.status = status
+
+
+def _span_cards(state: SpiderState, column: int, start: int, end: int) -> tuple:
+    face_up = state.columns[column].face_up
+    return tuple((int(card.rank), card.suit) for card in face_up[start:end + 1])
+
+
+def _lose_all(tracks: dict) -> None:
+    for track in tracks.values():
+        track.status = "unresolved"
+
+
+def _join_nodes(nodes: Sequence[_OpenNode]) -> Tuple[_OpenNode, ...]:
+    return tuple(node for node in nodes if node.kind == "JOIN")
+
+
+def _initial_tracks(state: SpiderState) -> dict:
+    """Pair each JOIN with the interval that produced it. No suit search."""
+
+    intervals = _visible_intervals(state)
+    joins = _join_nodes(_analyze(state))
+    tracks = {}
+    matched = len(intervals) == len(joins)
+    if matched:
+        for interval, node in zip(intervals, joins):
+            if (
+                interval.column != node.column
+                or interval.suit != node.suit
+                or interval.low != node.low
+                or interval.high != node.high
+            ):
+                matched = False
+                break
+    if not matched:
+        for node in joins:
+            tracks[node.obligation_id] = _Track(0, 0, -1, (), "unresolved")
+        return tracks
+    for interval, node in zip(intervals, joins):
+        tracks[node.obligation_id] = _Track(
+            column=interval.column,
+            start=interval.start,
+            end=interval.end,
+            cards=_span_cards(state, interval.column, interval.start, interval.end),
+            status="intact",
+        )
+    return tracks
+
+
+def _drop_removed_top(tracks: dict, column: int, length_before: int) -> None:
+    """The engine removed one same-suit top sequence. Survivors stay put."""
+
+    if length_before < 13:
+        for track in tracks.values():
+            if track.status == "intact" and track.column == column:
+                track.status = "unresolved"
+        return
+    cut = length_before - 13
+    for track in tracks.values():
+        if track.status != "intact" or track.column != column:
+            continue
+        if track.end < cut:
+            continue
+        track.status = "unresolved"
+
+
+def _drop_inconsistent(tracks: dict, state: SpiderState) -> None:
+    for track in tracks.values():
+        if track.status != "intact":
+            continue
+        face_up = state.columns[track.column].face_up
+        if track.start < 0 or track.end < track.start or track.end >= len(face_up):
+            track.status = "unresolved"
+            continue
+        if _span_cards(state, track.column, track.start, track.end) != track.cards:
+            track.status = "unresolved"
+
+
+def _follow_move(tracks: dict, pre_len: Sequence[int], action: tuple, state: SpiderState) -> None:
+    src, dst, count = action
+    moved = state.last_move
+    if (
+        not isinstance(moved, tuple)
+        or len(moved) < 5
+        or int(moved[0]) != int(src)
+        or int(moved[1]) != int(dst)
+        or int(moved[2]) != int(count)
+    ):
+        _lose_all(tracks)
+        return
+    cut = int(pre_len[src]) - int(count)
+    for track in tracks.values():
+        if track.status != "intact" or track.column != src:
+            continue
+        if track.end < cut:
+            continue
+        if track.start >= cut:
+            shift = track.start - cut
+            track.column = int(dst)
+            track.start = int(pre_len[dst]) + shift
+            track.end = int(pre_len[dst]) + (track.end - cut)
+            continue
+        track.status = "unresolved"
+    if moved[4]:
+        _drop_removed_top(tracks, int(dst), int(pre_len[dst]) + int(count))
+
+
+def _follow_deal(
+    tracks: dict,
+    pre_len: Sequence[int],
+    pre_down: Sequence[int],
+    state: SpiderState,
+) -> None:
+    for column in range(len(state.columns)):
+        before = int(pre_len[column])
+        after = len(state.columns[column].face_up)
+        if after == before + 1:
+            continue
+        removed_len = before + 1 - 13
+        flipped = removed_len == 0 and after == 1 and int(pre_down[column]) > 0
+        emptied = removed_len == 0 and after == 0 and int(pre_down[column]) == 0
+        if removed_len >= 0 and (after == removed_len or flipped or emptied):
+            _drop_removed_top(tracks, column, before + 1)
+            continue
+        for track in tracks.values():
+            if track.status == "intact" and track.column == column:
+                track.status = "unresolved"
+
+
+def _follow_joins(source: SpiderState, actions: Sequence) -> Tuple[SpiderState, dict]:
+    """Replay ``actions`` and move each intact JOIN span with the cards.
+
+    A split, a foundation removal, or a span whose cards no longer sit at
+    the path index is ``unresolved``. Suit and rank are not used to find
+    another copy.
+    """
+
+    state = source.clone()
+    tracks = _initial_tracks(state)
+    for action in actions:
+        normalized = ("deal",) if is_deal(action) else tuple(int(part) for part in action)
+        pre_len = [len(column.face_up) for column in state.columns]
+        pre_down = [len(column.face_down) for column in state.columns]
+        try:
+            legal = all_legal_actions(state) if is_deal(normalized) else tableau_actions(state)
+            if normalized not in legal:
+                _lose_all(tracks)
+                break
+            apply_action(state, normalized)
+        except (ValueError, TypeError, OptionContractError):
+            _lose_all(tracks)
+            break
+        if is_deal(normalized):
+            _follow_deal(tracks, pre_len, pre_down, state)
+        else:
+            _follow_move(tracks, pre_len, normalized, state)
+        _drop_inconsistent(tracks, state)
+    return state, tracks
+
+
+def _joins_by_span(state: SpiderState, nodes: Sequence[_OpenNode]) -> dict:
+    intervals = _visible_intervals(state)
+    joins = _join_nodes(nodes)
+    if len(intervals) != len(joins):
+        return {}
+    paired = {}
+    for interval, node in zip(intervals, joins):
+        if (
+            interval.column != node.column
+            or interval.suit != node.suit
+            or interval.low != node.low
+            or interval.high != node.high
+        ):
+            return {}
+        paired[(interval.column, interval.start, interval.end)] = node
+    return paired
+
+
+def _outstanding_ids(nodes: Sequence[_OpenNode]) -> Tuple[str, ...]:
+    return tuple(sorted(node.obligation_id for node in nodes if node.kind in _TACTICAL))
+
+
+def _dependency_report(source: SpiderState, final: SpiderState, actions: Sequence):
+    """Proven breaks, new enables, and unresolved source ids.
+
+    An intact component that changed column is not a break while its
+    replayed span still has a legal receiver. A missing column id is not
+    evidence. A split, a merge into a longer span, a foundation removal,
+    or an unfollowed span is unresolved: no break and no enablement.
+    """
+
+    replayed, tracks = _follow_joins(source, actions)
     source_nodes = _analyze(source)
     final_nodes = _analyze(final)
-    final_by_id = {node.obligation_id: node for node in final_nodes}
+    outstanding = _outstanding_ids(final_nodes)
+    if pack_state(replayed).hex() != pack_state(final).hex():
+        unresolved = _outstanding_ids(source_nodes)
+        return (), (), outstanding, 0, unresolved
+    spans = _joins_by_span(final, final_nodes)
     broken = []
     enabled = []
+    unresolved = []
     lost_receivers = 0
     for node in source_nodes:
         if node.kind not in _TACTICAL:
             continue
-        if _merged(node, final_nodes) or _reveal_done(node, final):
+        if node.kind == "REVEAL":
+            if _reveal_done(node, final):
+                continue
+            final_node = next(
+                (item for item in final_nodes if item.obligation_id == node.obligation_id),
+                None,
+            )
+            if final_node is None:
+                unresolved.append(node.obligation_id)
+                continue
+            if node.landing_count > 0 and final_node.landing_count == 0:
+                broken.append(node.obligation_id)
+                lost_receivers += 1
+                continue
+            if (not node.actionable) and final_node.actionable:
+                enabled.append(node.obligation_id)
             continue
-        final_node = final_by_id.get(node.obligation_id)
-        final_landings = 0 if final_node is None else final_node.landing_count
-        final_actionable = False if final_node is None else final_node.actionable
-        lost = node.landing_count > 0 and final_landings == 0
-        if lost:
+        track = tracks.get(node.obligation_id)
+        if track is None or track.status != "intact":
+            unresolved.append(node.obligation_id)
+            continue
+        physical = spans.get((track.column, track.start, track.end))
+        if physical is None:
+            unresolved.append(node.obligation_id)
+            continue
+        if node.landing_count > 0 and physical.landing_count == 0:
             broken.append(node.obligation_id)
             lost_receivers += 1
             continue
-        if (not node.actionable) and final_actionable:
+        if (
+            node.obligation_id == physical.obligation_id
+            and (not node.actionable)
+            and physical.actionable
+        ):
             enabled.append(node.obligation_id)
     broken_ids = tuple(sorted(broken))
-    outstanding = tuple(
-        sorted(
-            node.obligation_id
-            for node in final_nodes
-            if node.kind in _TACTICAL
-        )
+    return (
+        broken_ids,
+        tuple(sorted(enabled)),
+        outstanding,
+        lost_receivers,
+        tuple(sorted(unresolved)),
     )
-    return broken_ids, tuple(sorted(enabled)), outstanding, lost_receivers
+
+
+def _ranking_penalty(
+    broken: Sequence[str],
+    lost_receivers: int,
+    before: SpiderState,
+    after: SpiderState,
+) -> int:
+    empties_spent = max(
+        0,
+        len(empty_column_indices(before)) - len(empty_column_indices(after)),
+    )
+    return len(broken) + empties_spent + lost_receivers
 
 
 def _effects(before: SpiderState, after: SpiderState, exposed: int) -> EffectDelta:
@@ -689,7 +932,9 @@ def build_option(
     # Admissible remainder only. The dependency penalty is not added here.
     h_target = int(admissible_remaining(final))
     f_target = target_g + h_target
-    broken, enabled, outstanding, lost_receivers = _dependency_report(source, final)
+    broken, enabled, outstanding, lost_receivers, unresolved = _dependency_report(
+        source, final, normalized
+    )
     if any(is_deal(action) for action in normalized):
         workspace = WorkspaceAudit(
             empty_at_start=len(empty_column_indices(source)),
@@ -710,8 +955,7 @@ def build_option(
         )
     else:
         workspace = audit_workspace(source, normalized)
-    empties_spent = max(0, workspace.empty_at_start - workspace.empty_at_end)
-    penalty = len(broken) + empties_spent + lost_receivers
+    penalty = _ranking_penalty(broken, lost_receivers, source, final)
     postconditions = []
     for action in normalized:
         postconditions.extend(_final_predicates(final, action))
@@ -744,6 +988,8 @@ def build_option(
         replay_ok=_replay_ok(source, normalized, target_pack, cost),
         provenance=provenance,
         independent_cold_complete=False,
+        source_g_provenance="unestablished",
+        unresolved_dependencies=unresolved,
     )
 
 
@@ -757,10 +1003,10 @@ def dependency_penalty_of(
     The result is not an admissible bound.
     """
 
-    broken, _enabled, _outstanding, lost_receivers = _dependency_report(before, after)
-    workspace = option.workspace
-    empties_spent = max(0, workspace.empty_at_start - workspace.empty_at_end)
-    return len(broken) + empties_spent + lost_receivers
+    broken, _enabled, _outstanding, lost_receivers, _unresolved = _dependency_report(
+        before, after, option.actions
+    )
+    return _ranking_penalty(broken, lost_receivers, before, after)
 
 
 def diversity_signature(state: SpiderState) -> tuple:
@@ -887,19 +1133,24 @@ def _unsupported_receive_ids(obligations: Sequence[ObligationNode]) -> Tuple[str
 
 
 def _option_replays(option: TacticalOption) -> bool:
-    """Recompute pack, corrected cost, absolute g, admissible h, and f.
+    """Recompute selector fields from the replayed source and target.
 
-    A declared field that disagrees with that replay is rejected. The
-    dependency penalty is not part of the check and is not added to ``h``
-    or ``f``.
+    The incremental identity ``target_g == source_g + cost`` is checked.
+    ``source_g`` itself is not an opening cost. A stored provenance other
+    than ``unestablished`` is rejected: an option cannot certify its own
+    absolute ``g``. The dependency penalty is checked and is not added to
+    ``h`` or ``f``.
     """
 
     if not option.replay_ok or option.finishability_proof:
         return False
+    if option.source_g_provenance != "unestablished":
+        return False
     try:
-        state = unpack_state(bytes.fromhex(option.source_pack))
+        origin = unpack_state(bytes.fromhex(option.source_pack))
     except (TypeError, ValueError):
         return False
+    state = origin.clone()
     total = 0
     for action in option.actions:
         legal = all_legal_actions(state) if is_deal(action) else tableau_actions(state)
@@ -917,6 +1168,23 @@ def _option_replays(option: TacticalOption) -> bool:
         return False
     if int(option.f_target) != int(option.target_g) + height:
         return False
+    if int(option.target_bonds) != int(same_suit_bonds(state)):
+        return False
+    broken, enabled, outstanding, lost_receivers, unresolved = _dependency_report(
+        origin, state, option.actions
+    )
+    if tuple(option.broken_dependencies) != broken:
+        return False
+    if tuple(option.blocks) != broken:
+        return False
+    if tuple(option.enables) != enabled:
+        return False
+    if tuple(option.outstanding_obligations) != outstanding:
+        return False
+    if tuple(option.unresolved_dependencies) != unresolved:
+        return False
+    if int(option.dependency_penalty) != _ranking_penalty(broken, lost_receivers, origin, state):
+        return False
     return True
 
 
@@ -930,7 +1198,9 @@ def verify_ancestor_claim(claim: AncestorClaim) -> bool:
     """Replay ``continuation`` from the checkpoint. Packs must match.
 
     Stock length is not consulted. A different source pack reached from the
-    same checkpoint is the same ancestor.
+    same checkpoint is the same ancestor. The summed corrected cost is not
+    read. A verified claim is checkpoint-relative until a source-cost claim
+    ties that checkpoint to a ``g=0`` opening.
     """
 
     try:
@@ -944,6 +1214,55 @@ def verify_ancestor_claim(claim: AncestorClaim) -> bool:
             return False
         apply_action(state, normalized)
     return pack_state(state).hex() == claim.source_pack
+
+
+def verify_source_cost_claim(claim: SourceCostClaim) -> bool:
+    """Replay ``continuation`` from a trusted ``g=0`` opening.
+
+    The summed corrected cost must equal ``source_g``, and the resulting
+    pack must be ``source_pack``. An empty continuation therefore requires
+    ``source_g == 0``. A failed claim does not reject a relatively
+    consistent option.
+    """
+
+    try:
+        state = unpack_state(bytes.fromhex(claim.opening_pack))
+    except (TypeError, ValueError):
+        return False
+    total = 0
+    for action in claim.continuation:
+        normalized = _normalize_action(action)
+        legal = all_legal_actions(state) if is_deal(normalized) else tableau_actions(state)
+        if normalized not in legal:
+            return False
+        total += int(apply_action(state, normalized))
+    if pack_state(state).hex() != claim.source_pack:
+        return False
+    return int(claim.source_g) == total
+
+
+def _bound_source_costs(
+    claims: Sequence[SourceCostClaim],
+    survivors: Sequence[TacticalOption],
+) -> Tuple[set, int]:
+    """Return ``(pack, source_g)`` pairs a claim actually supports."""
+
+    supported = set()
+    rejected = 0
+    admitted = {
+        (option.source_pack, int(option.source_g))
+        for option in survivors
+    }
+    for claim in claims:
+        if not verify_source_cost_claim(claim):
+            rejected += 1
+            continue
+        key = (claim.source_pack, int(claim.source_g))
+        if key in admitted:
+            supported.add(key)
+        else:
+            rejected += 1
+    return supported, rejected
 
 
 def _rank_key(option: TacticalOption) -> tuple:
@@ -1013,6 +1332,7 @@ def select_dependency_portfolio(
     *,
     limit: int = 8,
     ancestor_claims: Optional[Sequence[AncestorClaim]] = None,
+    source_cost_claims: Optional[Sequence[SourceCostClaim]] = None,
 ) -> PortfolioPick:
     """Reserve a unique JOIN or REVEAL receiver, then fill by source signature.
 
@@ -1027,6 +1347,11 @@ def select_dependency_portfolio(
     two or more replay-verified checkpoint packs. Distinct source packs and
     ``len(stock) % 10 == 0`` are not ancestors. Outcome signatures are
     reported and do not change the rank order.
+
+    ``source_g`` is not a rank key. ``absolute_g_used_for_proof`` stays
+    false. ``source_g_provenance`` is ``opening_verified`` only when every
+    admitted option has a source-cost claim whose corrected cost matches
+    ``source_g``. Verified ancestor packs alone are ``checkpoint_relative``.
     """
 
     survivors = [option for option in options if _option_replays(option)]
@@ -1079,6 +1404,20 @@ def select_dependency_portfolio(
         ancestor_status = "one_verified"
     else:
         ancestor_status = "not_established"
+    supported_costs, rejected_costs = _bound_source_costs(
+        () if source_cost_claims is None else tuple(source_cost_claims),
+        survivors,
+    )
+    opening_verified = bool(survivors) and all(
+        (option.source_pack, int(option.source_g)) in supported_costs
+        for option in survivors
+    )
+    if opening_verified:
+        source_g_provenance = "opening_verified"
+    elif verified_packs:
+        source_g_provenance = "checkpoint_relative"
+    else:
+        source_g_provenance = "unestablished"
     return PortfolioPick(
         chosen=tuple(chosen),
         diverse_ancestor_available=len(verified_packs) >= 2,
@@ -1093,6 +1432,9 @@ def select_dependency_portfolio(
         unsupported_receive_ids=unsupported_receive,
         source_signatures=tuple(_signature_of(option) for option in chosen),
         outcome_signatures=tuple(outcome_signature(option) for option in chosen),
+        source_g_provenance=source_g_provenance,
+        absolute_g_used_for_proof=False,
+        rejected_source_cost_claims=rejected_costs,
     )
 
 
