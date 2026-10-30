@@ -59,8 +59,9 @@ TACTIC_PROOF = 171
 
 ENDPOINT_LIMIT = 8
 ENDPOINT_CEILING = 171
-# How many terminals the lower-f policy replays before it selects. A cap is
-# truncation, not a claim that an unverified terminal has a worse bound.
+# Legacy window. ``lowest_g`` and any caller that passes a limit into
+# ``_verify_hits`` may still stop here. Opt-in ``lower_f`` replays every
+# recorded terminal before it ranks ``f``.
 PHASE_VERIFY_CAP = 128
 SCREEN_SLACK = 1
 
@@ -182,6 +183,9 @@ class MilestoneResult:
     hit_truncation: Optional[dict] = None
     cpu_s: float = 0.0
     lower_bound_s: float = 0.0
+    verify_wall_s: float = 0.0
+    verify_cpu_s: float = 0.0
+    verification: str = ""
 
     def public(self) -> dict:
         return {
@@ -235,6 +239,9 @@ class MilestoneResult:
             "hit_truncation": self.hit_truncation,
             "cpu_s": round(self.cpu_s, 6),
             "lower_bound_s": round(self.lower_bound_s, 6),
+            "verify_wall_s": round(self.verify_wall_s, 6),
+            "verify_cpu_s": round(self.verify_cpu_s, 6),
+            "verification": self.verification,
         }
 
 
@@ -482,13 +489,19 @@ def rank_milestone_actions(
     phase_aware: bool = False,
     founded: bool = False,
     revealed: bool = False,
+    run_reveal: bool = False,
+    run_min: int = 7,
+    source_face_down: Optional[int] = None,
 ) -> List[Action]:
     """Order every tableau action. None are removed.
 
     A move that extends the longest run of ``suit``, uncovers that run's
     next card, or reveals a face-down card comes first. Cost breaks the
     remaining ties, so a zero-cost relocation is kept. ``phase_aware``
-    puts the unfinished half of the objective first. It does not drop moves.
+    puts the unfinished half of a suit-foundation objective first.
+    ``run_reveal`` does the same for a top run of ``suit`` and a
+    source-relative reveal. It does not treat a suit foundation as that run.
+    Neither flag drops a move.
     """
 
     features = _measure(state, suit)
@@ -536,6 +549,18 @@ def rank_milestone_actions(
                 same = 0
             if column is not None and src == int(column):
                 frees = 0
+        if run_reveal:
+            run_done = features.run >= int(run_min)
+            reveal_done = (
+                source_face_down is not None
+                and features.face_down < int(source_face_down)
+            )
+            if run_done and not reveal_done:
+                return (reveal, uncovers, extends, frees, cost, same, index)
+            if reveal_done and not run_done:
+                return (extends, uncovers, same, reveal, frees, cost, index)
+            either = 0 if extends == 0 or reveal == 0 else 1
+            return (either, extends, reveal, uncovers, frees, cost, same, index)
         if not phase_aware:
             return (extends, uncovers, reveal, frees, cost, same, index)
         if founded and not revealed:
@@ -558,10 +583,34 @@ def _lane_keys(
     column: Optional[int],
     *,
     phase_aware: bool = False,
+    run_reveal: bool = False,
 ) -> Dict[str, tuple]:
     features = _measure(state, suit)
     # A named column is ordering only. Clearing it stays ahead of a run that
     # does not land on that column. The suit-wide search does not use it.
+    if run_reveal:
+        run_key = (
+            -features.run,
+            features.next_depth,
+            features.home_depth,
+            features.face_down,
+            int(g),
+        )
+        reveal_key = (
+            features.face_down,
+            features.next_depth,
+            -features.run,
+            int(g),
+        )
+        if column is not None:
+            focus = len(state.columns[int(column)].face_up)
+            run_key = run_key + (focus,)
+            reveal_key = reveal_key + (focus,)
+        return {
+            "run": run_key,
+            "reveal": reveal_key,
+            "setup": _setup_key(features, g, state, column),
+        }
     if phase_aware:
         # Two objective lanes plus the setup lane. Round-robin gives a
         # reveal-only state a turn even when a foundation-only state leads
@@ -658,13 +707,16 @@ def search_milestone(
     hit_limit: int = 8,
     phase_aware: bool = False,
     hit_policy: str = "lowest_g",
+    run_reveal: bool = False,
+    run_min: int = 7,
 ) -> MilestoneResult:
     """Search from one physical source. Reference actions are not an input.
 
     ``phase_aware`` is opt-in. The default lanes and action order stay the
-    historical ones. ``hit_policy="lower_f"`` is a separate selection rule:
-    it keeps lower admissible ``f`` ahead of lower ``g``. Neither value is
-    a proof bound.
+    historical ones. ``run_reveal`` is a separate opt-in: round-robin a
+    top-run lane, a source-relative reveal lane, and the setup lane.
+    ``hit_policy="lower_f"`` replays every recorded terminal, then keeps a
+    lower admissible ``f``. Neither value is a proof bound.
     """
 
     spec = spec_from_source(source, suit, column=column, max_face_down=max_face_down)
@@ -673,12 +725,19 @@ def search_milestone(
     policy = str(hit_policy)
     if policy not in {"lowest_g", "lower_f"}:
         raise MilestoneContractError(f"unknown hit policy: {policy}")
+    if run_reveal and phase_aware:
+        raise MilestoneContractError("run_reveal and phase_aware are different objectives")
     diagnostics = {
         "max_suit_foundations": spec.source_foundations,
         "min_face_down": spec.source_face_down,
         "foundation_without_reveal": 0,
         "reveal_without_foundation": 0,
     }
+    if run_reveal:
+        diagnostics["max_top_run"] = 0
+        diagnostics["run_without_reveal"] = 0
+        diagnostics["reveal_without_run"] = 0
+        diagnostics["run_and_reveal"] = 0
     phases = {
         "admitted": {name: 0 for name in _PHASES},
         "expanded": {name: 0 for name in _PHASES},
@@ -694,8 +753,21 @@ def search_milestone(
         return milestone_met(state, spec)
 
     def on_child(state: SpiderState, _g: int, _node_i: int) -> None:
-        foundations = suit_foundation_count(state, suit)
         hidden = face_down_count(state)
+        if run_reveal:
+            run_len = _measure(state, suit).run
+            diagnostics["min_face_down"] = min(int(diagnostics["min_face_down"]), hidden)
+            diagnostics["max_top_run"] = max(int(diagnostics["max_top_run"]), int(run_len))
+            run_done = int(run_len) >= int(run_min)
+            reveal_done = hidden < int(spec.source_face_down)
+            if run_done and reveal_done:
+                diagnostics["run_and_reveal"] += 1
+            elif run_done:
+                diagnostics["run_without_reveal"] += 1
+            elif reveal_done:
+                diagnostics["reveal_without_run"] += 1
+            return
+        foundations = suit_foundation_count(state, suit)
         diagnostics["max_suit_foundations"] = max(diagnostics["max_suit_foundations"], foundations)
         diagnostics["min_face_down"] = min(diagnostics["min_face_down"], hidden)
         gained = foundations >= spec.source_foundations + 1
@@ -714,6 +786,8 @@ def search_milestone(
         note("admitted", state)
 
     def on_expand(state: SpiderState, _g: int, _node_i: int) -> None:
+        if run_reveal:
+            return
         note("expanded", state)
 
     bound = lower_bound_fn
@@ -741,12 +815,27 @@ def search_milestone(
             phase_aware=bool(phase_aware),
             founded=founded,
             revealed=revealed,
+            run_reveal=bool(run_reveal),
+            run_min=int(run_min),
+            source_face_down=int(spec.source_face_down),
         )
 
     def keys(state: SpiderState, g: int) -> Dict[str, tuple]:
-        return _lane_keys(state, g, suit, spec.column, phase_aware=bool(phase_aware))
+        return _lane_keys(
+            state,
+            g,
+            suit,
+            spec.column,
+            phase_aware=bool(phase_aware),
+            run_reveal=bool(run_reveal),
+        )
 
-    names = ("foundation", "reveal", "setup") if phase_aware else ("progress", "setup")
+    if run_reveal:
+        names = ("run", "reveal", "setup")
+    elif phase_aware:
+        names = ("foundation", "reveal", "setup")
+    else:
+        names = ("progress", "setup")
     cpu_started = time.process_time()
     kernel = run_search(
         [{"ordered_digest": pack_state(source).hex(), "g": g0}],
@@ -772,9 +861,10 @@ def search_milestone(
         stop_on_first_terminal=bool(stop_on_first),
     )
     cpu_s = time.process_time() - cpu_started
-    verify_limit = int(hit_limit) if policy == "lowest_g" else max(int(hit_limit), PHASE_VERIFY_CAP)
-    verified = _verify_hits(source, spec, kernel, g0, limit=verify_limit)
+    verify_wall_started = time.perf_counter()
+    verify_cpu_started = time.process_time()
     if policy == "lowest_g":
+        verified = _verify_hits(source, spec, kernel, g0, limit=int(hit_limit))
         hits = verified
         truncation = {
             "policy": "lowest_g",
@@ -783,20 +873,23 @@ def search_milestone(
             "retained": min(len(verified), int(hit_limit)),
             "reason": "lowest g then node index",
             "unverified_terminals": max(0, len(kernel.terminals) - len(verified)),
+            "exhaustive": False,
         }
+        verification = "legacy"
     else:
-        hits, truncation = choose_milestone_hits(
-            verified,
-            policy="lower_f",
+        hits, truncation = select_exhaustive_lower_f(
+            source,
+            spec,
+            kernel,
+            g0,
             limit=int(hit_limit),
-            require_both=terminal_fn is None,
+            terminal_fn=terminal_fn,
         )
-        truncation["terminals"] = len(kernel.terminals)
-        truncation["unverified_terminals"] = max(0, len(kernel.terminals) - len(verified))
-        if truncation["unverified_terminals"]:
-            truncation["reason"] += (
-                "; unverified terminals were not shown to have a worse f"
-            )
+        verification = str(truncation.get("verification") or "")
+        if verification != "complete":
+            hits = []
+    verify_wall_s = time.perf_counter() - verify_wall_started
+    verify_cpu_s = time.process_time() - verify_cpu_started
     best = hits[0] if hits else None
     if best is None or not best.replay_ok or best.state is None:
         met = False
@@ -854,6 +947,9 @@ def search_milestone(
         hit_truncation=truncation,
         cpu_s=float(cpu_s),
         lower_bound_s=float(kernel.lower_bound_s),
+        verify_wall_s=float(verify_wall_s),
+        verify_cpu_s=float(verify_cpu_s),
+        verification=verification,
     )
 
 
@@ -893,6 +989,150 @@ def _verify_hits(source, spec: MilestoneSpec, kernel, g0: int, *, limit: int) ->
             )
         )
     return hits
+
+
+def _replay_recorded_terminal(source, spec: MilestoneSpec, kernel, g0: int, item: dict):
+    """Replay one kernel terminal. ``None`` means the record did not replay."""
+
+    try:
+        actions = tuple(kernel.reconstruct(int(item["node"])))
+        final, spent, zeros = _replay(source, actions)
+    except (ValueError, MilestoneContractError, KeyError, IndexError, TypeError):
+        return None
+    if g0 + spent != int(item["g"]) or pack_state(final).hex() != item["store"]:
+        return None
+    hidden = int(admissible_remaining(final))
+    gain = suit_foundation_count(final, spec.suit) - spec.source_foundations
+    drop = spec.source_face_down - face_down_count(final)
+    return MilestoneHit(
+        actions=actions,
+        g=int(item["g"]),
+        paid=int(spent),
+        zero_cost=int(zeros),
+        suit_gain=int(gain),
+        face_down_drop=int(drop),
+        pack=pack_state(final).hex(),
+        symmetry=pack_whole_game_identity(final).hex(),
+        replay_ok=True,
+        state=final,
+        h=hidden,
+        f=int(item["g"]) + hidden,
+    )
+
+
+def _keep_best_g(items: Sequence[MilestoneHit], keyfn) -> Tuple[List[MilestoneHit], int]:
+    """One physical chain per key. The lower ``g`` dominates."""
+
+    winners: Dict[str, MilestoneHit] = {}
+    dominated = 0
+    for hit in items:
+        key = str(keyfn(hit))
+        previous = winners.get(key)
+        if previous is None:
+            winners[key] = hit
+            continue
+        challenger = (int(hit.g), int(hit.f), hit.pack)
+        incumbent = (int(previous.g), int(previous.f), previous.pack)
+        if challenger < incumbent:
+            winners[key] = hit
+        dominated += 1
+    return list(winners.values()), dominated
+
+
+def select_exhaustive_lower_f(
+    source,
+    spec: MilestoneSpec,
+    kernel,
+    g0: int,
+    *,
+    limit: int,
+    terminal_fn: Optional[Callable[[SpiderState], bool]] = None,
+) -> Tuple[List[MilestoneHit], dict]:
+    """Replay every recorded terminal, then rank admissible ``f``.
+
+    Best-``g`` dominance runs before the ``f`` sort. A same physical pack
+    or the same post-stock symmetry keeps the cheaper chain. Post-processing
+    time is the caller's to report. It is not part of the search deadline.
+    An unfinished walk is ``INCOMPLETE VERIFICATION`` and returns no best.
+    """
+
+    try:
+        ordered = sorted(kernel.terminals, key=lambda item: (int(item["g"]), int(item["node"])))
+    except (KeyError, TypeError, ValueError):
+        return [], {
+            "policy": "lower_f",
+            "verification": "INCOMPLETE VERIFICATION",
+            "exhaustive": False,
+            "terminals": 0,
+            "verified": 0,
+            "replay_rejected": 0,
+            "cost_dominated": 0,
+            "distinct": 0,
+            "screened": 0,
+            "selected": 0,
+            "retained": 0,
+            "unverified_terminals": 0,
+            "reason": "INCOMPLETE VERIFICATION",
+        }
+    verified: List[MilestoneHit] = []
+    replay_rejected = 0
+    screened = 0
+    incomplete = False
+    try:
+        for item in ordered:
+            hit = _replay_recorded_terminal(source, spec, kernel, g0, item)
+            if hit is None:
+                replay_rejected += 1
+                continue
+            if terminal_fn is not None and hit.state is not None and not terminal_fn(hit.state):
+                screened += 1
+                continue
+            verified.append(hit)
+    except Exception:
+        incomplete = True
+    base = {
+        "policy": "lower_f",
+        "terminals": len(ordered),
+        "verified": len(verified),
+        "replay_rejected": replay_rejected,
+        "screened": screened,
+        "unverified_terminals": 0,
+    }
+    if incomplete:
+        base.update(
+            {
+                "verification": "INCOMPLETE VERIFICATION",
+                "exhaustive": False,
+                "cost_dominated": 0,
+                "distinct": 0,
+                "selected": 0,
+                "retained": 0,
+                "reason": "INCOMPLETE VERIFICATION",
+            }
+        )
+        return [], base
+    by_pack, pack_dominated = _keep_best_g(verified, lambda hit: hit.pack)
+    by_symmetry, symmetry_dominated = _keep_best_g(by_pack, lambda hit: hit.symmetry)
+    ranked = sorted(by_symmetry, key=lambda hit: (int(hit.f), int(hit.g), hit.pack))
+    kept = ranked[: int(limit)]
+    dominated = int(pack_dominated) + int(symmetry_dominated)
+    reason = "every recorded terminal verified; best g per pack and symmetry; lowest f, then g"
+    if dominated:
+        reason += f"; {dominated} cost-dominated"
+    if len(ranked) > int(limit):
+        reason += f"; truncated {len(ranked) - int(limit)} higher-f states"
+    base.update(
+        {
+            "verification": "complete",
+            "exhaustive": True,
+            "cost_dominated": dominated,
+            "distinct": len(ranked),
+            "selected": len(kept),
+            "retained": len(kept),
+            "reason": reason,
+        }
+    )
+    return kept, base
 
 
 def choose_milestone_hits(
