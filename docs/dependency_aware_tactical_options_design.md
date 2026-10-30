@@ -2,7 +2,7 @@
 
 **Author:** design review (issue #17)  
 **Date:** 2026-10-30  
-**Status:** Reviewed — specification only; implementation not authorized  
+**Status:** Reviewed — fixture corrected against SpiderState.can_move; implementation not authorized  
 **Document type:** Design specification — not an implementation  
 **Repository:** `Montgomerie-B/spider-solver` (local checkout `spider-play-lab-v0-103`)  
 **Review branch:** `review/planning-architecture-post-v0-139`  
@@ -352,7 +352,7 @@ An unsatisfied node is **feasible** when every `requires_any` group has at least
 - `blocks`: the same tuple as `broken_dependencies`. It is empty when `broken_dependencies` is empty. A satisfied id is never in `blocks`.
 - `enables`: ids unsatisfied on `source`, absent from `broken_dependencies`, not actionable on `source`, and actionable on `final`. That is the requires-edge becoming actionable. Satisfying the id is not membership in `enables`.
 - `outstanding_obligations`: ids still unsatisfied on `final`.
-- `receivers_became_illegal`: the number of unsatisfied source obligations whose feasible landing count went from greater than zero to zero. Using one landing while another landing of the same OR-group remains does not increment this count.
+- `receivers_became_illegal`: the number of obligations that are still unsatisfied on the final state and whose feasible landing count fell from greater than zero to zero. An obligation the option itself satisfies is excluded, the same exclusion as `broken_dependencies`. Using one landing while another landing of the same OR-group remains does not increment this count.
 - `empties_spent_unrecovered`: `max(0, workspace.empty_at_start - workspace.empty_at_end)`. Spaces recovered inside the option are not counted.
 - `dependency_penalty`: `len(broken_dependencies) + empties_spent_unrecovered + receivers_became_illegal`.
 
@@ -566,70 +566,252 @@ This is the only recommended first implementation experiment. Do not run it as p
 
 The fixture is built in the test from `Column` and `SpiderState`, the same way `tests/test_heart_run_followthrough_v0_138.py` builds boards. The stock token `"ad"` is the v0.138 identity lesson (one stock card so ordered `pack_state` stays in force). It is not a copy of a deal row. No other card in the fixture is taken from a published line.
 
-Face-up lists are bottom-to-top, matching `can_move` (`face_up[-1]` is the top). One stock card makes `can_deal` false.
+Face-up lists are bottom-to-top, matching `can_move` (`face_up[-1]` is the top). One stock card makes `can_deal` false. `SpiderState.can_move` (`src/spider/engine.py`) returns true when the destination `top is None` or when `top.rank - 1 == run[0].rank`. An empty column is a landing for any movable run. It is not king-only.
 
-**Source board**
+**Measured correction (2026-10-30).** [Issue #17 comment 6519775452](https://github.com/Montgomerie-B/spider-solver/issues/17#issuecomment-6519775452) is correct. The previous text of this section put only `8c` face-up on column 3 and no face-down card. On that board `can_move` allows `(3, 1, 1)` to empty column 3, and after `(0, 2, 1)` the move `(0, 3, 1)` is a legal REVEAL onto that empty column (`apply_action` cost 1, flip true, face-down 1→0). The same-suit `9c` JOIN landing is gone, but the new empty column is a REVEAL landing. The rule in section 2 already says an empty column satisfies a REVEAL and does not by itself satisfy a JOIN. On that one-card board the REVEAL was not blocked, so `blocks = (JOIN, REVEAL)` was wrong. That empty column also admits cost-0 moves, including a king onto column 3 and `(1, 3, 2)`. This revision does not keep the one-card column and does not remodel the empty as a delay of the same obligation. The corrected spend leaves `kd`, so both column-0 ids are blocked and those cost-0 landings do not exist. Column 3 face-up, bottom to top, is `kd`, `8c`, with no face-down card. Columns 4–9 stay `ks`, `kh`, `kd`, `kc`, `ks`, `kh`, so the fixture has two `kd` copies (column 3's bottom card and column 6). That is inside a two-deck pack. No rank or suit in the fixture exceeds two copies. The figures below were measured with `SpiderState.can_move`, `research_actions.py` `tableau_actions`, `step_cost`, and `apply_action`, plus `same_suit_bonds`, `admissible_remaining`, and `empty_column_indices`. Each call is a legality, cost, or bound evaluation. None of them is a solver search.
+
+**Source board (size 1)**
 
 | Column | face-down | face-up (bottom to top) | Role |
 | --- | --- | --- | --- |
 | 0 | `4d` | `8c`, `3h` | buried card under `8c`; `3h` blocks it |
-| 1 | empty | `9c` | the only same-suit rank+1 receiver for an `8c` |
+| 1 | empty | `9c` | the only same-suit rank+1 receiver for an `8c` on this board |
 | 2 | empty | `4d` | non-critical park for `3h` |
-| 3 | empty | `8c` | the other `8c`; moving it onto column 1 spends the only `9c` and adds a bond |
-| 4–9 | empty | one king each (`ks`, `kh`, `kd`, `kc`, `ks`, `kh`) | occupied, no empty column, kings have no rank-14 landing |
+| 3 | empty | `kd`, `8c` | the other `8c` on a king; `(3, 1, 1)` spends the only `9c`, adds a bond, and leaves `kd`, so column 3 does not become empty |
+| 4–9 | empty | one king each (`ks`, `kh`, `kd`, `kc`, `ks`, `kh`) | occupied; two `kd` copies (column 3 and column 6); kings have no rank-14 landing |
 
 Stock: one card `ad`. Foundations: none.
 
-**Obligations at the source, after `rebuild_obligations`:**
+**Size-1 source, measured.** `tableau_actions` is exactly `{(0, 2, 1), (3, 1, 1)}`. Each action has `step_cost` 1. `same_suit_bonds` is 0. `empty_column_indices` is `()`. Face-down count is 1. Foundations are 0. `can_deal` is false. `admissible_remaining` is 8. No zero-cost move exists on this state.
+
+**Obligations at the size-1 source, after `rebuild_obligations`:**
 
 - `REVEAL` column 0 depth 0 (the `4d`), AND-requires the blocker `3h` to leave and a legal receiver for the covering `8c`.
-- `JOIN` the visible `8c` interval on column 0 onto a `9c` top. OR-group of receivers has one member: column 1's `9c`. An empty column is not on the board, and a second `9c` is not on the board, so this OR-group has size 1.
+- `JOIN` the visible `8c` interval on column 0 onto a `9c` top. JOIN landings are same-suit rank+1 tops. The receiver OR-group has one member: column 1's `9c`. An empty column is not on the board, and a second `9c` is not on the board, so this OR-group has size 1. An empty column would be a REVEAL landing and would not by itself be a JOIN landing. That rule is unchanged.
+- `join:c:8:col3` is the other visible `8c`, on column 3. Spending it uses its own receiver. That satisfaction does not put the id in `blocks`.
 - `SPACE` is not outstanding as a two-space demand. No empty column exists.
 - `FOUNDATION` is not the objective. The pilot does not complete a 13-card run.
 
-The portfolio sees two one-action options built by `build_option` from the source. The second macro is not a member of either `actions` tuple and is not passed to `action_order`. The test replays it with `apply_action` after the preserving option.
+The portfolio input under test is two one-action options built by `build_option` from this source. The preserving successor `(0, 1, 1)` is not a member of either `actions` tuple and is not passed to `action_order`. The test replays it with `apply_action` after the preserving option. It does not seed reference actions.
 
-**Preserving option** `preserve-receiver`. `actions = ((0, 2, 1),)`. Cost 1 from `step_cost`: `3h` moves onto `4d`. Column 1's `9c` stays the top. Column 0's top becomes `8c`. Face-down stays 1. Source bonds are 0 (no same-suit consecutive pair). `3h` on `4d` is a mixed join, so `target_bonds` stays 0 and `effects.bonds` is 0.
+**Preserving option** `preserve-receiver`. `actions = ((0, 2, 1),)`. Cost 1 from `step_cost`: `3h` moves onto `4d`. `target_bonds` stays 0. `effects.bonds` is 0. Face-down stays 1. `empty_column_indices` stays `()`. Legal moves on that state are exactly `{(0, 1, 1), (3, 1, 1)}`, each cost 1.
 
-On the source, `join:c:8:col0` and `reveal:col0:depth0` are unsatisfied and feasible (the only `9c` landing exists) and not actionable (`8c` is under `3h`; `[8c, 3h]` is not a movable run, so `(0, 1, 1)` is absent). After `(0, 2, 1)`, `(0, 1, 1)` is in `tableau_actions` and both ids are actionable and still unsatisfied. `build_option` therefore sets `enables = ("join:c:8:col0", "reveal:col0:depth0")`, `broken_dependencies = ()`, `blocks = ()`, `dependency_penalty = 0`. This option is a preserver while the JOIN OR-group has size 1.
+On the source, `join:c:8:col0` and `reveal:col0:depth0` are unsatisfied and feasible (the only `9c` landing exists) and not actionable (`8c` is under `3h`; `[8c, 3h]` is not a movable run, so `(0, 1, 1)` is absent). After `(0, 2, 1)`, both `(0, 1, 1)` and the still-legal `(3, 1, 1)` are in `tableau_actions`. Both obligation ids are actionable and still unsatisfied. `build_option` therefore sets `enables = ("join:c:8:col0", "reveal:col0:depth0")`, `broken_dependencies = ()`, `blocks = ()`, `dependency_penalty = 0`. This option is a preserver while the JOIN OR-group has size 1. The reserve, not the penalty number, is why it takes the first slot. Penalty 0 versus penalty 4 is ranking only.
 
-**Successor the test replays, not an option and not a seed.** From the state after `preserve-receiver`, `step_cost` of `(0, 1, 1)` is 1 because column 0 still has a face-down card. `apply_action` moves `8c` onto `9c`, flips `4d`, and leaves foundations at 0. The position is not solved. That tuple is not appended to `preserve-receiver.actions` and is not inserted by `prefer_option_actions`.
+**Successor the test replays, not an option and not a seed.** From the state after `preserve-receiver`, `step_cost` of `(0, 1, 1)` is 1 because column 0 still has a face-down card. Combined corrected cost of preserve then join is 2. `apply_action` moves `8c` onto `9c`, sets the flip flag, and takes face-down from 1 to 0. Foundations stay 0. Bonds become 1. Column 0 face-up is `4d`. Column 1 face-up is `9c`, `8c`. The position is not solved. One later legal move remains, `(2, 0, 1)`, at cost 1. The test must not claim that the joined position has no legal moves. `(0, 1, 1)` is not appended to `preserve-receiver.actions` and is not inserted by `prefer_option_actions`.
 
-**Negative control** `spend-only-receiver`. `actions = ((3, 1, 1),)`. Cost 1. The free `8c` moves onto `9c`, so `target_bonds = 1`. That move satisfies a different node, `join:c:8:col3`. Satisfaction does not put `join:c:8:col3` in `blocks` or `broken_dependencies`. Column 1's top becomes `8c`. With no other `9c` and no empty column, `join:c:8:col0` and `reveal:col0:depth0` are unsatisfied and not feasible. `broken_dependencies` and `blocks` are those two ids. `enables` is empty. `receivers_became_illegal` counts each of those obligations once. `dependency_penalty` is greater than 0. The option is a breaker. It remains in `tableau_actions(source)`.
+**Negative control** `spend-only-receiver`. `actions = ((3, 1, 1),)`. Cost 1. `target_bonds = 1`. The final state used for enables, blocks, and the penalty is the state after that one action, not the state after the blocker is also removed. Measured on that final state: bonds are 1, `empty_column_indices` stays `()`, column 3 face-up is `kd` only, column 1 face-up is `9c`, `8c`, and `tableau_actions` is exactly `{(0, 2, 1)}` at cost 1. No zero-cost move exists on this state.
 
-**OR-branch variant**, same module: column 4's face-up card is `9c` instead of `ks`. `rebuild_obligations` gives `join:c:8:col0` an OR-group of size 2. `critical` is empty, so the reserve does not run. `(3, 1, 1)` leaves column 4's `9c`, so the column-0 join stays feasible: `broken_dependencies`, `blocks`, and `receivers_became_illegal` stay empty and `dependency_penalty` stays 0. The column-0 `8c` is still under `3h`, so the spend option's `enables` does not contain `join:c:8:col0`. Both options cost 1 and have penalty 0. `target_bonds` is 1 on the spend option and 0 on the preserving option, so `pick.chosen[0].option_id == "spend-only-receiver"`.
+`join:c:8:col0` and `reveal:col0:depth0` were unsatisfied and feasible on the source, are still unsatisfied on this final state, and are not feasible there: there is no `9c` top and no empty column. `broken_dependencies == blocks == ("join:c:8:col0", "reveal:col0:depth0")`. `enables == ()`. The buried `8c` is still under `3h`, so neither id became actionable. `join:c:8:col3` is satisfied by using its own receiver. It is excluded from `broken_dependencies`, from `blocks`, and from `receivers_became_illegal`, and it is not added into the penalty. `empties_spent_unrecovered` is 0. `receivers_became_illegal` is 2. The penalty formula is unchanged, so `dependency_penalty` is `len(broken_dependencies) + empties_spent_unrecovered + receivers_became_illegal` = `2 + 0 + 2 == 4`. Those two counters name the same two ids. The formula adds both terms. The 4 is a sort key. It is not added to `h` or `f`, and `kernel_lower_bound` does not read it. The option is a breaker. `(3, 1, 1)` remains in `tableau_actions(source)`.
 
-**Positive oracle.** These are the assertions. A correct test does not assert their negations.
+**Oracle outside `spend.actions`.** The sequence `(3, 1, 1)` then `(0, 2, 1)` is how the test shows that removing the blocker still creates no landing. It is not part of `spend-only-receiver.actions`. Combined corrected cost is 2. `empty_column_indices` is `()`. Face-down stays 1. Bonds stay 1. `tableau_actions` is empty. That empty legal set is the measured fact, so the reveal cannot be played. The required named asserts are `can_move(0, 1, 1)` false, `can_move(0, 3, 1)` false, and `empty_column_indices == ()`. No zero-cost move exists on the size-1 source, on the state after `(3, 1, 1)`, or on this two-action state.
+
+**OR-branch variant (size 2)**, same module. The board is the size-1 board except column 4 face-up is `9c` instead of `ks`. Source legal moves are exactly `{(0, 2, 1), (3, 1, 1), (3, 4, 1)}`, each cost 1. Bonds are 0. `empty_column_indices` is `()`. `admissible_remaining` is 8. `(3, 4, 1)` is a real legal move. It is not one of the two constructed options. `tableau_actions` must still return it. The portfolio input under test remains the two named options. The test does not pass `(3, 4, 1)` to `action_order` and does not seed it.
+
+`rebuild_obligations` gives both `join:c:8:col0` and `reveal:col0:depth0` two `9c` landings (column 1 and column 4) and no empty column. Every receiver OR-group has size 2, so `critical` is empty and the reserve does not run. Enablement outranks bonds only while an OR-group has size 1. That decision is unchanged.
+
+After `(3, 1, 1)`: empties stay `()`, bonds are 1, column 4 is still `9c`, and legal moves are exactly `{(0, 2, 1), (1, 4, 1)}`, each cost 1. The column-0 join's feasible landing count falls from 2 to 1, not to 0. `broken_dependencies == ()`, `blocks == ()`, `enables == ()`, `dependency_penalty == 0`, `target_bonds == 1`, cost 1. The buried `8c` is still under `3h`, so neither column-0 id became actionable. `join:c:8:col3` is again satisfied by its own receiver and is not counted.
+
+After `(3, 1, 1)` then `(0, 2, 1)`: empties stay `()`, bonds are 1, face-down stays 1. Legal moves are exactly `{(0, 4, 1), (1, 4, 1)}`, each cost 1. `can_move(0, 1, 1)` is false. `can_move(0, 3, 1)` is false. `(0, 4, 1)` is the remaining same-suit reveal. The second `9c` keeps both column-0 obligations feasible. The size-1 reserve does not apply.
+
+`(3, 1, 1)` then `(0, 2, 1)` then `(0, 4, 1)`: combined corrected cost 3. The third action costs 1 and flips. Face-down becomes 0. Foundations stay 0. Bonds become 2. This sequence is an oracle, not an option action list. The size-1 reserve still does not apply.
+
+After `(0, 2, 1)` alone on this board, legal moves are exactly `{(0, 1, 1), (0, 4, 1), (3, 1, 1), (3, 4, 1)}`, each cost 1. Preserve still has `enables == ("join:c:8:col0", "reveal:col0:depth0")`, because both `(0, 1, 1)` and `(0, 4, 1)` are legal, and `blocks == ()`, penalty 0, `target_bonds` 0, cost 1. It does not win the slot. `pick.chosen[0].option_id == "spend-only-receiver"` because `critical` is empty, both options cost 1 and have penalty 0, and `target_bonds` 1 beats 0. Penalty 0 versus penalty 0 is not a proof. The higher bond is a tie-break only.
+
+**Positive oracle.** These are the assertions. A correct test does not assert their negations. `source` is the size-1 board. `source_or` is the same board with column 4 face-up `9c` instead of `ks`. `options` and `options_or` are only the two named options. `preserve` / `spend` and `preserve_or` / `spend_or` are those options. Ranks are `Card.rank` (`a` is 1, `k` is 13). `face_down_count` and `empty_column_indices` are the functions in `research_actions.py`. `same_suit_bonds` and `admissible_remaining` are the functions in `human_strategy/evaluation.py`. `can_move` and `can_deal` are `SpiderState` methods. `apply_replay` clones and calls `apply_action`, and it returns that clone, so `last_move` is the last primitive's `(src, dst, k, flipped, removed)` from `SpiderState.move`.
 
 ```python
+def face_up(state, index):
+    return tuple((card.rank, card.suit) for card in state.columns[index].face_up)
+
+assert tuple((card.rank, card.suit) for card in source.columns[0].face_down) == ((4, "d"),)
+assert face_up(source, 0) == ((8, "c"), (3, "h"))
+assert face_up(source, 1) == ((9, "c"),)
+assert face_up(source, 2) == ((4, "d"),)
+assert face_up(source, 3) == ((13, "d"), (8, "c"))
+assert source.columns[3].face_down == []
+assert [face_up(source, index) for index in range(4, 10)] == [
+    ((13, "s"),),
+    ((13, "h"),),
+    ((13, "d"),),
+    ((13, "c"),),
+    ((13, "s"),),
+    ((13, "h"),),
+]
+assert len(source.stock) == 1
+assert (source.stock[0].rank, source.stock[0].suit) == (1, "d")
+assert source.can_deal() is False
+assert len(source.foundations) == 0
+assert face_down_count(source) == 1
+assert same_suit_bonds(source) == 0
+assert empty_column_indices(source) == ()
+assert admissible_remaining(source) == 8
+assert set(tableau_actions(source)) == {(0, 2, 1), (3, 1, 1)}
+assert step_cost(source, (0, 2, 1)) == 1
+assert step_cost(source, (3, 1, 1)) == 1
+assert (3, 1, 1) in tableau_actions(source)
+
+assert preserve.actions == ((0, 2, 1),)
+assert preserve.cost == 1
+assert preserve.target_bonds == 0
+assert preserve.enables == ("join:c:8:col0", "reveal:col0:depth0")
+assert preserve.broken_dependencies == ()
+assert preserve.blocks == ()
+assert preserve.dependency_penalty == 0
+assert preserve.f_target == preserve.target_g + preserve.h_target
+assert (0, 1, 1) not in preserve.actions
+
+after_preserve = apply_replay(source, ((0, 2, 1),))
+assert same_suit_bonds(after_preserve) == 0
+assert empty_column_indices(after_preserve) == ()
+assert face_down_count(after_preserve) == 1
+assert set(tableau_actions(after_preserve)) == {(0, 1, 1), (3, 1, 1)}
+assert step_cost(after_preserve, (0, 1, 1)) == 1
+assert step_cost(after_preserve, (3, 1, 1)) == 1
+assert admissible_remaining(after_preserve) == 8
+
+after_join = apply_replay(after_preserve, ((0, 1, 1),))
+assert step_cost(source, (0, 2, 1)) + step_cost(after_preserve, (0, 1, 1)) == 2
+assert after_join.last_move[3] is True
+assert face_down_count(after_join) == 0
+assert len(after_join.foundations) == 0
+assert same_suit_bonds(after_join) == 1
+assert face_up(after_join, 0) == ((4, "d"),)
+assert face_up(after_join, 1) == ((9, "c"), (8, "c"))
+assert set(tableau_actions(after_join)) == {(2, 0, 1)}
+assert step_cost(after_join, (2, 0, 1)) == 1
+assert admissible_remaining(after_join) == 8
+
+assert spend.actions == ((3, 1, 1),)
+assert spend.cost == 1
+assert spend.target_bonds == 1
+assert spend.broken_dependencies == ("join:c:8:col0", "reveal:col0:depth0")
+assert spend.blocks == ("join:c:8:col0", "reveal:col0:depth0")
+assert spend.enables == ()
+assert spend.dependency_penalty == 4  # 2 + 0 + 2, ranking only
+assert "join:c:8:col3" not in spend.blocks
+assert "join:c:8:col3" not in spend.broken_dependencies
+assert spend.f_target == spend.target_g + spend.h_target
+
+after_spend = apply_replay(source, ((3, 1, 1),))
+assert step_cost(source, (3, 1, 1)) == 1
+assert same_suit_bonds(after_spend) == 1
+assert empty_column_indices(after_spend) == ()
+assert face_up(after_spend, 3) == ((13, "d"),)
+assert face_up(after_spend, 1) == ((9, "c"), (8, "c"))
+assert set(tableau_actions(after_spend)) == {(0, 2, 1)}
+assert step_cost(after_spend, (0, 2, 1)) == 1
+assert admissible_remaining(after_spend) == 8
+
+after_spend_then_blocker = apply_replay(after_spend, ((0, 2, 1),))
+assert step_cost(source, (3, 1, 1)) + step_cost(after_spend, (0, 2, 1)) == 2
+assert empty_column_indices(after_spend_then_blocker) == ()
+assert face_down_count(after_spend_then_blocker) == 1
+assert same_suit_bonds(after_spend_then_blocker) == 1
+assert tableau_actions(after_spend_then_blocker) == []
+assert after_spend_then_blocker.can_move(0, 1, 1) is False
+assert after_spend_then_blocker.can_move(0, 3, 1) is False
+assert admissible_remaining(after_spend_then_blocker) == 8
+assert spend.actions == ((3, 1, 1),)
+
 pick = select_dependency_portfolio(options, obligations, limit=2)
 assert pick.chosen[0].option_id == "preserve-receiver"
 assert pick.chosen[0].actions == ((0, 2, 1),)
 assert pick.chosen[0].cost == 1
-assert (3, 1, 1) in tableau_actions(source)
-
-after_preserve = apply_replay(source, ((0, 2, 1),))
-assert (0, 1, 1) in tableau_actions(after_preserve)
-successor_cost = step_cost(after_preserve, (0, 1, 1))
-assert successor_cost == 1
-
-after_spend = apply_replay(source, ((3, 1, 1),))
-after_spend_then_blocker = apply_replay(after_spend, ((0, 2, 1),))
-assert (0, 1, 1) not in tableau_actions(after_spend_then_blocker)
-
+assert pick.chosen[0].dependency_penalty == 0
+assert pick.chosen[0].f_target == pick.chosen[0].target_g + pick.chosen[0].h_target
 assert kernel_lower_bound(source, 0) == admissible_remaining(source)
 assert kernel_lower_bound(after_preserve, 1) == admissible_remaining(after_preserve)
 assert kernel_lower_bound(after_spend, 1) == admissible_remaining(after_spend)
-assert pick.chosen[0].f_target == pick.chosen[0].target_g + pick.chosen[0].h_target
+
+assert face_up(source_or, 4) == ((9, "c"),)
+assert face_up(source_or, 3) == ((13, "d"), (8, "c"))
+assert same_suit_bonds(source_or) == 0
+assert empty_column_indices(source_or) == ()
+assert admissible_remaining(source_or) == 8
+assert set(tableau_actions(source_or)) == {(0, 2, 1), (3, 1, 1), (3, 4, 1)}
+assert step_cost(source_or, (0, 2, 1)) == 1
+assert step_cost(source_or, (3, 1, 1)) == 1
+assert step_cost(source_or, (3, 4, 1)) == 1
+assert (3, 1, 1) in tableau_actions(source_or)
+assert (3, 4, 1) in tableau_actions(source_or)
+assert all((3, 4, 1) not in option.actions for option in options_or)
+
+assert preserve_or.actions == ((0, 2, 1),)
+assert preserve_or.cost == 1
+assert preserve_or.target_bonds == 0
+assert preserve_or.enables == ("join:c:8:col0", "reveal:col0:depth0")
+assert preserve_or.blocks == ()
+assert preserve_or.dependency_penalty == 0
+assert preserve_or.f_target == preserve_or.target_g + preserve_or.h_target
+
+assert spend_or.actions == ((3, 1, 1),)
+assert spend_or.cost == 1
+assert spend_or.target_bonds == 1
+assert spend_or.broken_dependencies == ()
+assert spend_or.blocks == ()
+assert spend_or.enables == ()
+assert spend_or.dependency_penalty == 0
+assert "join:c:8:col3" not in spend_or.blocks
+assert spend_or.f_target == spend_or.target_g + spend_or.h_target
+
+after_spend_or = apply_replay(source_or, ((3, 1, 1),))
+assert empty_column_indices(after_spend_or) == ()
+assert same_suit_bonds(after_spend_or) == 1
+assert face_up(after_spend_or, 4) == ((9, "c"),)
+assert set(tableau_actions(after_spend_or)) == {(0, 2, 1), (1, 4, 1)}
+assert step_cost(after_spend_or, (0, 2, 1)) == 1
+assert step_cost(after_spend_or, (1, 4, 1)) == 1
+assert admissible_remaining(after_spend_or) == 8
+
+after_or_block = apply_replay(after_spend_or, ((0, 2, 1),))
+assert empty_column_indices(after_or_block) == ()
+assert same_suit_bonds(after_or_block) == 1
+assert face_down_count(after_or_block) == 1
+assert set(tableau_actions(after_or_block)) == {(0, 4, 1), (1, 4, 1)}
+assert step_cost(after_or_block, (0, 4, 1)) == 1
+assert step_cost(after_or_block, (1, 4, 1)) == 1
+assert after_or_block.can_move(0, 1, 1) is False
+assert after_or_block.can_move(0, 3, 1) is False
+assert after_or_block.can_move(0, 4, 1) is True
+assert admissible_remaining(after_or_block) == 8
+
+after_or_reveal = apply_replay(after_or_block, ((0, 4, 1),))
+assert (
+    step_cost(source_or, (3, 1, 1))
+    + step_cost(after_spend_or, (0, 2, 1))
+    + step_cost(after_or_block, (0, 4, 1))
+) == 3
+assert after_or_reveal.last_move[3] is True
+assert face_down_count(after_or_reveal) == 0
+assert len(after_or_reveal.foundations) == 0
+assert same_suit_bonds(after_or_reveal) == 2
+assert admissible_remaining(after_or_reveal) == 8
+
+after_preserve_or = apply_replay(source_or, ((0, 2, 1),))
+assert set(tableau_actions(after_preserve_or)) == {(0, 1, 1), (0, 4, 1), (3, 1, 1), (3, 4, 1)}
+assert all(step_cost(after_preserve_or, action) == 1 for action in tableau_actions(after_preserve_or))
+assert admissible_remaining(after_preserve_or) == 8
+
+pick_or = select_dependency_portfolio(options_or, obligations_or, limit=2)
+assert pick_or.chosen[0].option_id == "spend-only-receiver"
+assert pick_or.chosen[0].actions == ((3, 1, 1),)
+assert pick_or.chosen[0].cost == 1
+assert pick_or.chosen[0].target_bonds == 1
+assert pick_or.chosen[0].dependency_penalty == 0
+assert pick_or.chosen[0].f_target == pick_or.chosen[0].target_g + pick_or.chosen[0].h_target
+assert kernel_lower_bound(source_or, 0) == admissible_remaining(source_or)
+assert kernel_lower_bound(after_preserve_or, 1) == admissible_remaining(after_preserve_or)
+assert kernel_lower_bound(after_spend_or, 1) == admissible_remaining(after_spend_or)
 ```
 
-`apply_replay` is the test's clone-and-`apply_action` helper. `limit=2` may place `spend-only-receiver` in `pick.chosen[1]`. `limit=1` still leaves `(3, 1, 1)` in `tableau_actions(source)`. The OR-branch fixture asserts `pick.chosen[0].option_id == "spend-only-receiver"`. The ordered-identity guard asserts `source.stock`, and asserts `pack_state` changes if columns 0 and 1 are swapped.
+`apply_replay` is the test's clone-and-`apply_action` helper. On the size-1 board, `limit=2` may place `spend-only-receiver` in `pick.chosen[1]`. `limit=1` still leaves `(3, 1, 1)` in `tableau_actions(source)`. On the size-2 board, `limit=2` may place `preserve-receiver` in `pick_or.chosen[1]`; that option does not win the first slot. The ordered-identity guard asserts `source.stock`, and asserts `pack_state` changes if columns 0 and 1 are swapped. Penalty 4 versus penalty 0, and penalty 0 versus penalty 0, are ranking only. Neither value is an argument to `kernel_lower_bound`.
 
-`(0, 1, 1)` is absent after the spend-then-blocker sequence because column 1's top is then `8c`, and `can_move` requires `top.rank - 1 == run[0].rank`. That tuple is also absent at the source, where column 0's top is `3h`. The oracle that shows the receiver was destroyed is the absence after the blocker has been removed, not the absence at the source.
+`(0, 1, 1)` is absent at the size-1 source because column 0's top is `3h`, and `[8c, 3h]` is not a movable run. That absence does not show that the receiver was destroyed. The oracle is the state after `(3, 1, 1)` then `(0, 2, 1)`, and that sequence is not `spend-only-receiver.actions`. `tableau_actions` there is empty. That empty legal set is the measured fact, so the reveal cannot be played. `can_move(0, 1, 1)` is false because column 1's top is `8c`, not a `9c`. `can_move(0, 3, 1)` is false because column 3's top is `kd`: not an empty column and not a rank-9 card. `empty_column_indices` is `()`. The joined preserving line is different: after `(0, 2, 1)` then `(0, 1, 1)` the legal set is `{(2, 0, 1)}`, not empty.
 
 **Optional kernel call.** It shows that reordering does not drop a legal move. It is not a completion claim. `stop_on_first_terminal` stays false. The call passes `identity_fn=pack_state` and `store_fn=pack_state`. While stock remains, `pack_whole_game_identity` returns `pack_state` and does not call `pack_post_stock_symmetry_state` (`packed_state.pack_search_identity`). The ordered identity is `pack_state`, so the call names that function. The default `identity_fn=pack_post_stock_symmetry_state` raises `ValueError("post-stock column symmetry is undefined while stock remains")` on this fixture. The test does not catch that exception.
 
-`proof_ceiling` is a `SearchLimits` field, not a `run_search` keyword. The root `g` is 0. **Inference** from the bound code, not a solver run: one stock card makes `stock_rows` 0, so `assembly_bound_detail` is active; each suit has `m = 2` and this fragment cannot cover two full rank demands, so each infeasible suit contributes `m` and assembly `h` is 8; the reveal component is `ceil(1 / 2) = 1`; `admissible_remaining` is 8. `0 + 8 <= 50`, so `proof_dead` does not drop the root and `actions_fn` runs. Equality with 50 would also stay eligible. `cost_ceiling` stays `None`.
+`proof_ceiling` is a `SearchLimits` field, not a `run_search` keyword. The root `g` is 0. **Measured** on 2026-10-30, as a bound evaluation and not a search: `admissible_remaining` returned 8 on every state probed, including both corrected sources. `0 + 8 <= 50`, so `proof_ceiling=50` and root `g=0` do not drop the root, and `actions_fn` runs. Equality with 50 would also stay eligible. `cost_ceiling` stays `None`. Do not raise `max_unique` or `time_limit_s`. `dependency_penalty` is not read by `kernel_lower_bound`. The size-2 call below uses the same unit cap. It is not a research-budget increase.
 
 ```python
 recorded = []
@@ -663,13 +845,38 @@ run_search(
     lower_bound_fn=kernel_lower_bound,
     stop_on_first_terminal=False,
 )
-assert set(recorded[0]) == set(tableau_actions(source))
-assert len(recorded[0]) == len(tableau_actions(source))
+assert set(recorded[0]) == {(0, 2, 1), (3, 1, 1)}
 assert (3, 1, 1) in recorded[0]
 assert (0, 2, 1) in recorded[0]
+
+recorded_or = []
+
+def actions_fn_or(state):
+    acts = tableau_actions(state)
+    recorded_or.append(tuple(acts))
+    return acts
+
+run_search(
+    [{"ordered_digest": pack_state(source_or).hex(), "g": 0}],
+    limits=SearchLimits(
+        max_unique=20,
+        time_limit_s=2.0,
+        rss_abort_mb=512,
+        cost_ceiling=None,
+        proof_ceiling=50,
+    ),
+    identity_fn=pack_state,
+    store_fn=pack_state,
+    unpack_fn=unpack_state,
+    actions_fn=actions_fn_or,
+    action_order=action_order,
+    lower_bound_fn=kernel_lower_bound,
+    stop_on_first_terminal=False,
+)
+assert set(recorded_or[0]) == {(0, 2, 1), (3, 1, 1), (3, 4, 1)}
 ```
 
-`(0, 1, 1)` is not a preferred prefix. Caps stay `max_unique=20` and `time_limit_s=2.0`.
+`(0, 1, 1)` is not a preferred prefix. `(3, 4, 1)` is not a preferred prefix either. Caps stay `max_unique=20` and `time_limit_s=2.0` on both calls.
 
 Pass does not mean a 171 game. Fail means the contract does not yet distinguish enablement from local attractiveness. A green test is the gate that must pass before a later issue is allowed to score already recorded checkpoints offline. A search of deal 4925153 is a third stage. It is not this experiment and it is not a PR below.
 
@@ -746,6 +953,10 @@ Pass `admissible_remaining(state) + dependency_penalty` as `lower_bound_fn`. Tha
 ### Alternative C — ledger and checkpoint resume before any selector test
 
 Issue #17 asks for an offline comparison and for a persistent-search design, and it allows the pilot to reuse recorded checkpoints. Building the ledger or `FrontierCheckpoint` first would exercise serialization before the selector is shown to prefer enablement over a bond. A checkpoint of the current milestone search would persist the preference this design is meant to replace. The safer order is the synthetic selector test at unit caps, then an offline scorer on records that already exist, then serialization behind the same kernel. The ledger and the checkpoint are specified above so that later PRs do not invent their fields. They are not PR 1. This alternative is rejected as the first experiment and kept as the sequence of later PRs.
+
+### Alternative D — keep the one-card column and call the empty a delay
+
+Keeping column 3 as a lone face-up `8c`, and treating the empty it creates as a delay of the same obligation, is rejected. `SpiderState.can_move` accepts any movable card onto an empty column (`top is None`, not king-only). After `(3, 1, 1)` then `(0, 2, 1)` on that board, `(0, 3, 1)` is legal: `apply_action` returns cost 1, the flip flag is true, and face-down goes from 1 to 0. The engine shows a real reveal, not a same-obligation delay. The empty column satisfies a REVEAL and does not by itself satisfy a JOIN, which is why `blocks = (JOIN, REVEAL)` was wrong. Section 6 adopts the smallest correction: `kd` under column 3's `8c`, so the spend leaves a king and no empty column.
 
 ---
 
@@ -828,7 +1039,7 @@ Staged rollout of implementation, only after authorization, is the PR sequence a
 | Risk | Severity | Mitigation |
 | --- | --- | --- |
 | `dependency_penalty` is passed into `lower_bound_fn` | High | `kernel_lower_bound` returns only `admissible_remaining`. PR 1 asserts equality on three states and asserts `f_target == target_g + h_target`. |
-| The synthetic board is accidentally copied from a published line and the test becomes a tuned example | Medium | The card layout is specified from the contract (one buried card, one blocker, one critical `9c`, one spending `8c`, one stock card). PR 1 does not import `deals/` or `solutions/`. |
+| The synthetic board is copied from a published line, or column 3 is left as a one-card `8c` and the empty is misread as a delayed obligation | Medium | The corrected layout is the contract plus `SpiderState.can_move`: column 0 buries `4d` under `8c` and `3h`, column 1 is `9c`, column 2 is `4d`, column 3 is `kd` then `8c` with no face-down, and columns 4–9 are `ks kh kd kc ks kh`. Two `kd` copies (column 3 and column 6) stay inside a two-deck pack. No rank or suit exceeds two copies. The size-2 board changes only column 4 to `9c`. Alternative D records why the one-card column was rejected. PR 1 does not import `deals/` or `solutions/`. |
 | Equal `(g, h, f)` is treated as one exhausted state | Medium | The ledger identity note separates the v0.136 pack (foundations 3, exhausted) from the v0.139 compound (foundations 2, not exhausted). The pilot does not load either pack. |
 | A portfolio omission is reported as a proof | Medium | `omitted_not_proved_impossible` is required. Breakers stay in `tableau_actions`. |
 | Resume creates a second best-g map | High if implemented poorly | Specified as a load of the kernel map. Not in PR 1. Heaps are rebuilt from open nodes. `proof_pruned_hex` cannot block a cheaper arrival. |
@@ -852,7 +1063,7 @@ Non-blocking notes, already decided for the first experiment:
 ## References
 
 - `docs/planning_architecture_review_post_v0_139.md` — review under validation
-- GitHub issue #17 — design gate, no v0.140 code
+- GitHub issue #17 — design gate, no v0.140 code. Fixture correction: [comment 6519775452](https://github.com/Montgomerie-B/spider-solver/issues/17#issuecomment-6519775452)
 - `src/spider/purposeful_macro.py` — `MacroCandidate`, `WorkspaceAudit`, `select_portfolio`, `GATE_B_LANDINGS`, `GATE_B_G_POST`, discovery constants
 - `src/spider/human_strategy/evaluation.py` — `admissible_remaining`
 - `src/spider/assembly_lower_bound.py` — `suit_lb`, `physical_units`, `assembly_lb`
@@ -860,6 +1071,7 @@ Non-blocking notes, already decided for the first experiment:
 - `src/spider/search_kernel.py` — `run_search`, `proof_dead`, `SearchNode`, `KernelResult`
 - `src/spider/whole_game_anytime.py` — `search_whole_game`, `COST_CEILING`
 - `src/spider/packed_state.py` — `pack_state`, `pack_whole_game_identity`, `pack_post_stock_symmetry_state`
+- `src/spider/engine.py` — `SpiderState.can_move` (`top is None` or `top.rank - 1 == run[0].rank`; not king-only)
 - `src/spider/rules.py` — `mw_move_cost`, `MW_RULES`
 - `src/spider/research_actions.py` — `step_cost`, `tableau_actions`, `apply_action`
 - `src/spider/post_deal_milestone.py` — `select_exhaustive_lower_f`, `PHASE_VERIFY_CAP`, `screening_milestone`, `has_proof_eligible_child`
@@ -894,7 +1106,7 @@ This design commit adds documentation only. Implementation PRs below are future 
 **Adds:**
 
 - `src/spider/dependency_options.py` — the types and functions in the API section, including the synthetic-board helper only if the test wants it beside the assertions; the board literals themselves live in the test.
-- `tests/test_dependency_options_two_stage.py` — the source board, the cost-1 `preserve-receiver` option `((0, 2, 1),)`, the replayed successor `(0, 1, 1)`, the `spend-only-receiver` control, the size-1 and size-2 OR-group assertions, the `tableau_actions` retention assertion, `kernel_lower_bound == admissible_remaining`, and the optional `run_search` call with `identity_fn=pack_state`, root `g=0`, `max_unique=20`, and `time_limit_s=2.0`.
+- `tests/test_dependency_options_two_stage.py` — the corrected size-1 board (column 3 face-up `kd`, `8c`, no face-down; columns 4–9 `ks kh kd kc ks kh`) and the size-2 board (column 4 face-up `9c` instead of `ks`). Size-1 legal sets are `{(0, 2, 1), (3, 1, 1)}` at the source, `{(0, 1, 1), (3, 1, 1)}` after preserve, `{(0, 2, 1)}` after spend, empty after spend then `(0, 2, 1)`, and `{(2, 0, 1)}` after preserve then `(0, 1, 1)`. Combined corrected costs are 2 for preserve-then-join and 2 for the negative sequence. Spend penalty is 4 and preserve penalty is 0; both are ranking only. The size-2 source legal set is `{(0, 2, 1), (3, 1, 1), (3, 4, 1)}`. `(3, 4, 1)` stays in `tableau_actions` and is not a constructed option. After spend the legal set is `{(0, 2, 1), (1, 4, 1)}`. After spend then preserve it is `{(0, 4, 1), (1, 4, 1)}`. The alternate reveal `(0, 4, 1)` makes the three-action corrected cost 3. Spend on that board has penalty 0 and wins the first slot on `target_bonds`. Asserts include the `can_move(0, 1, 1)` / `can_move(0, 3, 1)` negatives, `empty_column_indices == ()`, flip and face-down and foundation results, enables/blocks/penalty, `kernel_lower_bound == admissible_remaining` on each source and after preserve and after spend, `f_target == target_g + h_target`, and `(3, 1, 1)` still in `tableau_actions(source)`. The optional `run_search` uses `identity_fn=pack_state`, root `g=0`, `max_unique=20`, `time_limit_s=2.0`, and `proof_ceiling=50`, and records exactly `{(0, 2, 1), (3, 1, 1)}` on size 1 and exactly `{(0, 2, 1), (3, 1, 1), (3, 4, 1)}` on size 2.
 
 These paths do not collide with existing modules. There is no `dependency_options.py` under `src/spider/` and no `test_dependency_options_two_stage.py` under `tests/`.
 
