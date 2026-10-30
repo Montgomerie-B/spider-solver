@@ -101,11 +101,36 @@ class ObligationNode:
 
 
 @dataclass(frozen=True)
+class AncestorClaim:
+    """Replay-verified checkpoint that reaches an option source.
+
+    The ancestor is ``checkpoint_pack``. It is not the option's own pack
+    and it is not inferred from the stock length. ``continuation`` is the
+    legal action list from that checkpoint to ``source_pack``. An empty
+    continuation is valid only when the source already is that checkpoint.
+    """
+
+    checkpoint_pack: str
+    continuation: tuple
+    source_pack: str
+    label: str = ""
+
+
+@dataclass(frozen=True)
 class PortfolioPick:
     chosen: tuple
     diverse_ancestor_available: bool
     omitted_not_proved_impossible: bool
     breakers_not_proof_pruned: tuple
+    ancestor_status: str = "not_established"
+    verified_checkpoint_packs: tuple = ()
+    rejected_ancestor_claims: int = 0
+    obligations_status: str = "matched"
+    receive_protection: str = "not_present"
+    protected_ids: tuple = ()
+    unsupported_receive_ids: tuple = ()
+    source_signatures: tuple = ()
+    outcome_signatures: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -794,6 +819,43 @@ def _signature_distance(left: tuple, right: tuple) -> int:
     return distance
 
 
+def outcome_signature(option: TacticalOption) -> tuple:
+    """Diversity signature of the replayed target, not of the source.
+
+    Reported beside the source signature. It is not a portfolio weight and
+    it is not a proof term.
+    """
+
+    return diversity_signature(unpack_state(bytes.fromhex(option.target_pack)))
+
+
+def _obligation_key(nodes: Sequence[ObligationNode]) -> tuple:
+    """Full graph identity. Obligation id strings alone are not enough."""
+
+    return tuple(
+        sorted(
+            (
+                node.obligation_id,
+                node.kind,
+                bool(node.satisfied),
+                tuple(node.requires_all),
+                tuple(tuple(group) for group in node.requires_any),
+                node.landing,
+            )
+            for node in nodes
+        )
+    )
+
+
+def obligations_match_state(
+    state: SpiderState,
+    obligations: Sequence[ObligationNode],
+) -> bool:
+    """True when ``obligations`` is the graph rebuilt from this physical state."""
+
+    return _obligation_key(rebuild_obligations(state)) == _obligation_key(obligations)
+
+
 def _receiver_group_size(node: ObligationNode) -> int:
     if not node.requires_any:
         return 0
@@ -801,23 +863,87 @@ def _receiver_group_size(node: ObligationNode) -> int:
 
 
 def _critical_ids(obligations: Sequence[ObligationNode]) -> Tuple[str, ...]:
+    """Size-1 JOIN and REVEAL receivers. RECEIVE is not protected."""
+
     return tuple(
         node.obligation_id
         for node in obligations
-        if not node.satisfied and _receiver_group_size(node) == 1
+        if node.kind in _TACTICAL
+        and not node.satisfied
+        and _receiver_group_size(node) == 1
+    )
+
+
+def _unsupported_receive_ids(obligations: Sequence[ObligationNode]) -> Tuple[str, ...]:
+    return tuple(
+        sorted(
+            node.obligation_id
+            for node in obligations
+            if node.kind == "RECEIVE"
+            and not node.satisfied
+            and _receiver_group_size(node) == 1
+        )
     )
 
 
 def _option_replays(option: TacticalOption) -> bool:
+    """Recompute pack, corrected cost, absolute g, admissible h, and f.
+
+    A declared field that disagrees with that replay is rejected. The
+    dependency penalty is not part of the check and is not added to ``h``
+    or ``f``.
+    """
+
     if not option.replay_ok or option.finishability_proof:
         return False
-    state = unpack_state(bytes.fromhex(option.source_pack))
+    try:
+        state = unpack_state(bytes.fromhex(option.source_pack))
+    except (TypeError, ValueError):
+        return False
+    total = 0
     for action in option.actions:
         legal = all_legal_actions(state) if is_deal(action) else tableau_actions(state)
         if action not in legal:
             return False
-        apply_action(state, action)
-    return pack_state(state).hex() == option.target_pack
+        total += int(apply_action(state, action))
+    if pack_state(state).hex() != option.target_pack:
+        return False
+    if int(option.cost) != total:
+        return False
+    if int(option.target_g) != int(option.source_g) + total:
+        return False
+    height = int(admissible_remaining(state))
+    if int(option.h_target) != height:
+        return False
+    if int(option.f_target) != int(option.target_g) + height:
+        return False
+    return True
+
+
+def _normalize_action(action) -> tuple:
+    if is_deal(action):
+        return ("deal",)
+    return tuple(int(part) for part in action)
+
+
+def verify_ancestor_claim(claim: AncestorClaim) -> bool:
+    """Replay ``continuation`` from the checkpoint. Packs must match.
+
+    Stock length is not consulted. A different source pack reached from the
+    same checkpoint is the same ancestor.
+    """
+
+    try:
+        state = unpack_state(bytes.fromhex(claim.checkpoint_pack))
+    except (TypeError, ValueError):
+        return False
+    for action in claim.continuation:
+        normalized = _normalize_action(action)
+        legal = all_legal_actions(state) if is_deal(normalized) else tableau_actions(state)
+        if normalized not in legal:
+            return False
+        apply_action(state, normalized)
+    return pack_state(state).hex() == claim.source_pack
 
 
 def _rank_key(option: TacticalOption) -> tuple:
@@ -851,9 +977,34 @@ def _pick_farthest(pool: Sequence[TacticalOption], chosen: Sequence[TacticalOpti
     return min(pool, key=sort_key)
 
 
-def _on_stock_boundary(option: TacticalOption) -> bool:
-    state = unpack_state(bytes.fromhex(option.source_pack))
-    return len(state.stock) % 10 == 0
+def _sources_match_obligations(
+    options: Sequence[TacticalOption],
+    obligations: Sequence[ObligationNode],
+) -> bool:
+    packs = {option.source_pack for option in options}
+    for pack in packs:
+        state = unpack_state(bytes.fromhex(pack))
+        if not obligations_match_state(state, obligations):
+            return False
+    return True
+
+
+def _verified_checkpoints(
+    claims: Sequence[AncestorClaim],
+    survivors: Sequence[TacticalOption],
+) -> Tuple[tuple, int]:
+    source_packs = {option.source_pack for option in survivors}
+    verified = []
+    rejected = 0
+    for claim in claims:
+        if claim.source_pack not in source_packs:
+            rejected += 1
+            continue
+        if verify_ancestor_claim(claim):
+            verified.append(claim.checkpoint_pack)
+        else:
+            rejected += 1
+    return tuple(sorted(set(verified))), rejected
 
 
 def select_dependency_portfolio(
@@ -861,15 +1012,33 @@ def select_dependency_portfolio(
     obligations: Sequence[ObligationNode],
     *,
     limit: int = 8,
+    ancestor_claims: Optional[Sequence[AncestorClaim]] = None,
 ) -> PortfolioPick:
-    """Reserve a unique receiver, then fill by signature distance.
+    """Reserve a unique JOIN or REVEAL receiver, then fill by source signature.
 
     The cap is not a proof that an omitted option cannot finish. A breaker
     stays available to the generator. Nothing here edits ``tableau_actions``.
+
+    Critical priority is applied only when ``obligations`` rebuilds to the
+    same graph as every admitted source. A graph from another physical state
+    is refused. RECEIVE nodes are reported and are not protected.
+
+    ``diverse_ancestor_available`` is true only when admitted options carry
+    two or more replay-verified checkpoint packs. Distinct source packs and
+    ``len(stock) % 10 == 0`` are not ancestors. Outcome signatures are
+    reported and do not change the rank order.
     """
 
     survivors = [option for option in options if _option_replays(option)]
-    critical = _critical_ids(obligations)
+    obligations_ok = bool(survivors) and _sources_match_obligations(survivors, obligations)
+    receive_nodes = [node for node in obligations if node.kind == "RECEIVE"]
+    unsupported_receive = _unsupported_receive_ids(obligations) if obligations_ok else ()
+    if obligations_ok:
+        critical = _critical_ids(obligations)
+        obligations_status = "matched"
+    else:
+        critical = ()
+        obligations_status = "refused" if survivors else "not_applied"
     breakers = []
     preservers = []
     neutrals = []
@@ -900,14 +1069,30 @@ def select_dependency_portfolio(
         if len(chosen) >= limit:
             break
     omitted = len(chosen) < len(survivors)
-    boundary_packs = {
-        option.source_pack for option in survivors if _on_stock_boundary(option)
-    }
+    verified_packs, rejected_claims = _verified_checkpoints(
+        () if ancestor_claims is None else tuple(ancestor_claims),
+        survivors,
+    )
+    if len(verified_packs) >= 2:
+        ancestor_status = "diverse_verified"
+    elif len(verified_packs) == 1:
+        ancestor_status = "one_verified"
+    else:
+        ancestor_status = "not_established"
     return PortfolioPick(
         chosen=tuple(chosen),
-        diverse_ancestor_available=len(boundary_packs) >= 2,
+        diverse_ancestor_available=len(verified_packs) >= 2,
         omitted_not_proved_impossible=omitted,
         breakers_not_proof_pruned=tuple(option.option_id for option in breakers),
+        ancestor_status=ancestor_status,
+        verified_checkpoint_packs=verified_packs,
+        rejected_ancestor_claims=rejected_claims,
+        obligations_status=obligations_status,
+        receive_protection="unsupported" if receive_nodes else "not_present",
+        protected_ids=critical,
+        unsupported_receive_ids=unsupported_receive,
+        source_signatures=tuple(_signature_of(option) for option in chosen),
+        outcome_signatures=tuple(outcome_signature(option) for option in chosen),
     )
 
 
