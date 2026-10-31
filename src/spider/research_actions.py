@@ -6,6 +6,7 @@ via ``step_cost`` / ``apply_action``.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
 
@@ -181,6 +182,19 @@ def engine_tableau_actions(
 
 
 def rss_mb() -> Optional[float]:
+    """Peak RSS of this process, plus child processes when the host reports them.
+
+    Windows keeps the historical working-set query. Other hosts use
+    ``ru_maxrss`` for this process and its children. Search order is unchanged.
+    """
+
+    measured = _windows_peak_rss_mb()
+    if measured is not None:
+        return measured
+    return _posix_aggregate_rss_mb()
+
+
+def _windows_peak_rss_mb() -> Optional[float]:
     try:
         import ctypes
         from ctypes import wintypes
@@ -214,6 +228,26 @@ def rss_mb() -> Optional[float]:
         if not psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
             return None
         return counters.PeakWorkingSetSize / (1024.0 * 1024.0)
+    except Exception:
+        return None
+
+
+def _posix_aggregate_rss_mb() -> Optional[float]:
+    try:
+        import resource
+
+        total = 0
+        seen = False
+        for who in (resource.RUSAGE_SELF, getattr(resource, "RUSAGE_CHILDREN", None)):
+            if who is None:
+                continue
+            total += int(resource.getrusage(who).ru_maxrss)
+            seen = True
+        if not seen:
+            return None
+        if sys.platform == "darwin":
+            return total / (1024.0 * 1024.0)
+        return total / 1024.0
     except Exception:
         return None
 
