@@ -1,0 +1,179 @@
+{
+  "schema": "spider-whole-game-method-v1",
+  "version": 1,
+  "deal_id": "4925153",
+  "deal_path": "deals/4925153.txt",
+  "frozen_at_commit": "5fcd197b4f04c3b754a6bcd6c0b158a395f8a472",
+  "entrypoint": "spider.global_search_experiment.search_suit_ordered",
+  "kernel": "spider.search_kernel.run_search",
+  "kernel_copied": false,
+  "reference_implementation": "search_suit_ordered",
+  "mode": "cold",
+  "advice": false,
+  "advice_budget": 0,
+  "seed_recorded": 0,
+  "seed_wired_into_successor_order": false,
+  "stop_on_first_terminal": false,
+  "time_limit_s": 1500,
+  "max_unique": 1000000,
+  "requested_rss_mb": 3000,
+  "paid_cost_ceiling": 400,
+  "ceiling_kind": "hard_path_cap",
+  "lower_bound_fn": null,
+  "proof_rule": "g + h > ceiling prunes only when a lower bound is supplied; equality stays eligible",
+  "cold_proof_bound": "none",
+  "identity_fn": "pack_whole_game_identity",
+  "store_fn": "pack_state",
+  "actions_fn": "all_legal_actions",
+  "action_order": null,
+  "lane_names": [
+    "cost",
+    "foundation",
+    "reveal",
+    "workspace",
+    "construction",
+    "prep",
+    "epoch"
+  ],
+  "lane_keys": {
+    "cost": ["g"],
+    "foundation": ["-foundations", "-suit_completion_score", "face_down", "stock_rows", "g"],
+    "reveal": ["face_down", "-foundations", "-empty_n", "g"],
+    "workspace": ["-empty_n", "face_down", "-run_compression", "g"],
+    "construction": ["-same_suit_bonds", "-longest_run", "-merge_edges", "face_down", "g"],
+    "prep": ["-stock_rows", "face_down", "-same_suit_bonds", "-empty_n", "g"],
+    "epoch": ["stock_rows", "-foundations", "face_down", "g"]
+  },
+  "base_foundation_key_before_proximity": ["-foundations", "face_down", "stock_rows", "g"],
+  "round_robin": "lanes are popped in lane_names order; an empty lane counts toward a full empty cycle; a pop resets that cycle",
+  "tie_break": "heap entry is the lane key, then a monotonic insertion sequence, then the node index; equal keys expand in insertion order",
+  "reopen": "a child whose corrected cost is greater than or equal to the stored cost of that identity is skipped; a strictly cheaper arrival replaces it and is pushed again",
+  "expansion_guard": "an identity already expanded at a cost less than or equal to the popped cost is a stale skip",
+  "identity": {
+    "while_stock_remains": "ordered pack_state magic SPK1; columns stay in physical order 0..9",
+    "after_stock_empty": "pack_post_stock_symmetry_state magic SPS1; column blobs are sorted; card order inside a column is kept",
+    "store": "pack_state always; reconstruction uses the ordered physical bytes",
+    "foundations_in_pack": "sorted for canonicity"
+  },
+  "successors": {
+    "generator": "SpiderState.enumerate_legal_actions via all_legal_actions",
+    "includes_deal": true,
+    "deal_rule": "Deal is emitted only when the engine reports it legal, including the MobilityWare empty-column rule",
+    "same_suit_blocks": "legal blocks come from the engine; the search does not drop them",
+    "kernel_default_omits_deal": true,
+    "this_recipe_passes_all_legal_actions": true
+  },
+  "cost": {
+    "tableau_step": "0 or 1",
+    "zero_cost_whole_column": "a whole face-up column moved onto a structurally empty destination costs 0 only when the source has no face-down cards",
+    "automatic_removal": "a completed same-suit king-to-ace sequence is removed inside the engine and is not an explicit action",
+    "zero_cost_counter": "search_kernel.zero_cost_actions counts each considered legal action whose step cost is 0"
+  },
+  "suit_proximity": {
+    "role": "ordering on the foundation lane only",
+    "admissible": false,
+    "function": "suit_completion_score",
+    "constants": {
+      "LENGTH_WEIGHT": 100,
+      "KING_BONUS": 250,
+      "ACE_BONUS": 80,
+      "JOIN_BONUS": 40,
+      "COVER_BASE": 80,
+      "COVER_PER_CARD": 20,
+      "PENALTY_EXPOSED": 2,
+      "PENALTY_FACE_UP": 8,
+      "PENALTY_FACE_DOWN": 20,
+      "PENALTY_STOCK": 28,
+      "PENALTY_ABSENT": 40
+    }
+  },
+  "terminal": "is_solved: eight foundations, empty stock, empty tableau, all 104 cards",
+  "best_terminal": "minimum of (corrected cost, ordered store bytes)",
+  "optimise_mode_label": {
+    "historical_provenance_string": "imported_verified_complete",
+    "meaning": "optimise mode received a scalar incumbent cost; the string does not mean a published route file was read"
+  },
+  "separated_records": {
+    "root_ancestry": "fresh_opening",
+    "incumbent_source": "none",
+    "action_guidance": "none"
+  },
+  "saved_versus_resumable": {
+    "saved": "configuration, source identity, sampled replayable prefixes, complete move files, and verification",
+    "exact_frontier_retained": false,
+    "restart_inherits_exhaustion": false,
+    "resume_kind": "sampled_reseed",
+    "resume_replays_a_prefix_from_the_opening": true
+  },
+  "historical_checkpoint_s": 300,
+  "status_fields_absent_from_historical_ledger": [
+    "lane_pops",
+    "per_lane_expansion_counts",
+    "stale_pop_counts"
+  ],
+  "historical_complete_routes": [
+    {
+      "cost": 164,
+      "working_tree_crlf_sha256": "5BC761FDB750A9FCDB9236706E4DD25EA8B8C83A91C75C564898695FF4488BE6",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_164.moves",
+      "search": "cold opening, ceiling 400, 1500s, unique cap 1000000"
+    },
+    {
+      "cost": 162,
+      "working_tree_crlf_sha256": "3BD1308C5953C0F970035DFE69ACDAF7B8C423893842004BF1253D0417E10F94",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_162.moves",
+      "search": "fresh opening, scalar incumbent 164, paid ceiling 163, 1200s"
+    },
+    {
+      "cost": 160,
+      "working_tree_crlf_sha256": "46C98EA85C3749ED5E30173F49425CD596AF1CAB3DD28FB3AB356FEFD936C00E",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_160.moves",
+      "search": "fresh opening, scalar incumbent 162, paid ceiling 161, 900s"
+    },
+    {
+      "cost": 158,
+      "working_tree_crlf_sha256": "C5F4059E8288A8160449F5ACF2E8F8B3848368A63A1A99FAE8132E0358492CC1",
+      "git_lf_sha256": "D1CBE17BEDCA6625DD48223685908EB07C46990A70E0638A57F7E7C4AF19BD21",
+      "git_blob": "83430885e4c65b2c986b1cfa2b786914da256cb8",
+      "git_blob_bytes": 1859,
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_158.moves",
+      "search": "fresh opening, scalar incumbent 160, paid ceiling 159, 900s",
+      "reported_path_hash16": "9145868d32e42008"
+    }
+  ],
+  "historical_unsuccessful_ceiling_157": {
+    "incumbent_cost": 158,
+    "paid_ceiling": 157,
+    "time_limit_s": 900,
+    "max_unique_configured": 800000,
+    "unique_reached": 472757,
+    "expanded": 107356,
+    "peak_rss_mb": 906.28,
+    "lower_bound_prunes": 353044,
+    "solved": false,
+    "max_foundations": 5,
+    "stop_reason": "time limit",
+    "lane_pops": "unknown"
+  },
+  "source_sha256_lf": {
+    "src/spider/global_search_experiment.py": "A5F62ED795B118C962E1D387FF7238C7C5C6ED334ED0447DEDF49E71EE07B386",
+    "src/spider/search_kernel.py": "CB3D951A09C2A5694E8936A3308BF5D79A3E0FD6BB34600C14A28A59617A24BB",
+    "src/spider/whole_game_anytime.py": "F4F8156ADBBD609EB8C8BD08621A622270A79A9DCBD73B57CBF1199ACF33279D",
+    "src/spider/suit_completion.py": "F30E2F7664F96D0F51604AE5995BCE25F420E77B5E1D9FC09BF6A7BF3F17166B",
+    "src/spider/packed_state.py": "0DE6DA808C60FC4C0550B7FE6D50C9D39EACE32BEAE809DB18818679ED159535",
+    "src/spider/research_actions.py": "4D333000BD7330D3F187DC4A8836BC6D135117AA1E4654A27606A2B2BDFFB3E1",
+    "src/spider/autonomous_solve_campaign.py": "116F60E09C3F3D322FB93EBC073C628117A580CD9B0FC6B14E112BC52ACAA174",
+    "src/spider/human_strategy/evaluation.py": "EF2F4CEA55DFC814F5F0D89A6728E00C0A874B917D65E17E3CB5964B9F031921",
+    "src/spider/human_strategy/anchored.py": "21FDA88324A7C6506CCE0762963EDA036F7AAD830EC8B5A308FA79CFBC049838"
+  },
+  "capture_platform": {
+    "python": "3.14.5",
+    "implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "excluded_from_cold_and_scalar_opening_search": [
+    "canonical 172 action sequence",
+    "autonomous 185 action sequence",
+    "g123 hierarchical route"
+  ]
+}
