@@ -280,6 +280,62 @@ def test_a_later_flush_keeps_unfinished_branches_from_earlier_attempts():
     assert document["exact_frontier_retained"] is False
 
 
+def test_continuation_search_receives_the_unfinished_prefix(tmp_path, monkeypatch):
+    status = tmp_path / "status.json"
+    recipe = load_recipe(RECIPE)
+    run_method_attempt(
+        _opening(),
+        mode="cold",
+        status_path=status,
+        recipe=recipe,
+        time_limit_s=2.0,
+        max_unique=30,
+        rss_abort_mb=512,
+        cost_ceiling=12,
+        checkpoint_s=0,
+        machine={"workers": 1},
+        solution_dir=tmp_path,
+        repo_root=ROOT,
+    )
+    captured = {}
+
+    class _Stub:
+        stop_reason = "unique limit"
+        solved = False
+        replay_ok = False
+        solution_g = None
+        replay_g = None
+        provenance = "checkpoint_continuation"
+        peak_rss_mb = 1.0
+        ceiling_kind = "hard_path_cap"
+        lane_pops = {}
+        actions = ()
+
+    def fake(state, **kwargs):
+        captured.update(kwargs)
+        return _Stub()
+
+    monkeypatch.setattr("spider.method_capture.search_suit_ordered", fake)
+    run_method_attempt(
+        _opening(),
+        mode="continue",
+        status_path=status,
+        recipe=recipe,
+        time_limit_s=5.0,
+        max_unique=20,
+        rss_abort_mb=512,
+        cost_ceiling=400,
+        checkpoint_s=0,
+        machine={"workers": 1},
+        solution_dir=tmp_path,
+        resume_from="unfinished",
+        repo_root=ROOT,
+    )
+    assert captured["mode"] == "cold"
+    assert captured["prefix_actions"]
+    assert "incumbent_cost" not in captured
+
+
 def test_continuation_refuses_a_solved_terminal():
     document = {
         "schema": "spider-method-capture-26",

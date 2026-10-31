@@ -914,6 +914,10 @@ def run_method_attempt(
         "authentication": authentication,
     }
     document["attempts"].append(attempt)
+    if mode == "continue":
+        kwargs["prefix_actions"] = tuple(prefix)
+    elif kwargs.get("prefix_actions"):
+        raise ValueError("only a sampled continuation may replay a prefix")
     observer = _Observer(opening, prefix, attempt, document, status_path, checkpoint_s, log)
     observer.flush(running=True)
     observer.last_write = time.perf_counter()
