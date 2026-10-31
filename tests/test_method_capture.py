@@ -414,3 +414,45 @@ def test_continuation_refuses_a_solved_terminal():
     }
     assert choose_continuation(affordable, "unfinished", max_g=157)["g"] == 145
     assert choose_continuation(affordable, "unfinished")["g"] == 160
+    exhausted = {
+        "schema": "spider-method-capture-26",
+        "reference_seed": False,
+        "exact_frontier_retained": False,
+        "restart_inherits_exhaustion": False,
+        "attempts": [
+            {
+                "search_kind": "sampled_reseed",
+                "stop_reason": "complete",
+                "solved": False,
+                "prefix_len": 155,
+                "branches": [],
+            },
+            {
+                "branches": [
+                    {
+                        "role": "leader",
+                        "terminal": False,
+                        "replay_ok": True,
+                        "actions": ["deal"],
+                        "action_count": 155,
+                        "g": 155,
+                        "foundations": 6,
+                        "face_down": 0,
+                        "stock_rows": 0,
+                    },
+                    {
+                        "role": "leader",
+                        "terminal": False,
+                        "replay_ok": True,
+                        "actions": ["move 1 2 1"],
+                        "action_count": 145,
+                        "g": 145,
+                        "foundations": 5,
+                        "face_down": 4,
+                        "stock_rows": 0,
+                    },
+                ]
+            },
+        ],
+    }
+    assert choose_continuation(exhausted, "unfinished", max_g=157)["g"] == 145

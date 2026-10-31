@@ -324,7 +324,12 @@ def _terminal(branch: dict) -> bool:
     return branch.get("terminal") is True
 
 
-def choose_continuation(document: dict, which: str = "unfinished", max_g: Optional[int] = None) -> dict:
+def choose_continuation(
+    document: dict,
+    which: str = "unfinished",
+    max_g: Optional[int] = None,
+    min_slack: int = 0,
+) -> dict:
     """Pick unfinished or untried work. A solved terminal is not a seed.
 
     ``max_g`` skips a prefix that already costs more than the paid ceiling.
@@ -335,6 +340,15 @@ def choose_continuation(document: dict, which: str = "unfinished", max_g: Option
     which = which or "unfinished"
     if which in {"best", "complete"}:
         raise ValueError("a solved terminal is not a continuation seed")
+    exhausted_lengths = {
+        int(attempt["prefix_len"])
+        for attempt in document.get("attempts") or []
+        if isinstance(attempt, dict)
+        and attempt.get("search_kind") == "sampled_reseed"
+        and attempt.get("stop_reason") == "complete"
+        and not attempt.get("solved")
+        and attempt.get("prefix_len")
+    }
     pool = []
     for attempt in document.get("attempts") or []:
         if not isinstance(attempt, dict):
@@ -344,7 +358,9 @@ def choose_continuation(document: dict, which: str = "unfinished", max_g: Option
                 continue
             if _terminal(branch) or not branch.get("actions"):
                 continue
-            if max_g is not None and int(branch.get("g") or 0) > int(max_g):
+            if max_g is not None and int(branch.get("g") or 0) > int(max_g) - int(min_slack):
+                continue
+            if int(branch.get("action_count") or 0) in exhausted_lengths:
                 continue
             if which == "untried":
                 if branch.get("role") == "untried" and branch.get("expanded") is False:
@@ -360,8 +376,14 @@ def choose_continuation(document: dict, which: str = "unfinished", max_g: Option
     return pool[0]
 
 
-def continuation_prefix(opening, document: dict, which: str = "unfinished", max_g: Optional[int] = None) -> List[Action]:
-    branch = choose_continuation(document, which, max_g=max_g)
+def continuation_prefix(
+    opening,
+    document: dict,
+    which: str = "unfinished",
+    max_g: Optional[int] = None,
+    min_slack: int = 0,
+) -> List[Action]:
+    branch = choose_continuation(document, which, max_g=max_g, min_slack=min_slack)
     actions = [parse_action_text(text) for text in branch.get("actions") or []]
     if not actions:
         raise ValueError("refusing an empty continuation prefix")
@@ -799,6 +821,7 @@ def run_method_attempt(
     window_s: float = 120.0,
     medium_s: float = 240.0,
     historical_best_g: Optional[int] = None,
+    min_slack: int = 0,
     authentication: Optional[dict] = None,
     log: LogFn = None,
     repo_root: Optional[Path] = None,
@@ -837,7 +860,13 @@ def run_method_attempt(
         )
     prefix: Sequence[Action] = ()
     if mode == "continue":
-        prefix = continuation_prefix(opening, document, resume_from, max_g=cost_ceiling)
+        prefix = continuation_prefix(
+            opening,
+            document,
+            resume_from,
+            max_g=cost_ceiling,
+            min_slack=int(min_slack),
+        )
         kwargs = cold_search_kwargs(
             recipe,
             rss_abort_mb=rss_abort_mb,
