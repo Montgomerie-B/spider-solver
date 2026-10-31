@@ -572,8 +572,18 @@ def test_pre_run_manifest_locks_the_four_roots_and_the_control_hash():
     assert document["runs_per_root"] == 1
     assert document["parent_sha"] == "6a469a5aa10058423d98be57fecd057071023774"
     assert document["control_verdict_left_unchanged"] == "NO_CLEAR_BENEFIT"
-    control_hash = hashlib.sha256(CONTROL.read_bytes()).hexdigest().upper()
-    assert document["control_sha256"] == control_hash
+    # Historical pin stays the CRLF digest recorded in the spec. LF and CRLF
+    # bytes of the same control JSON both validate. The file is not rewritten.
+    control_sha256_crlf = "CB3679168F2E90F3D24D870AA060300CD5B8D6292335B0C491460B7ECEA39BB6"
+    control_sha256_lf = "E736A8A37828554A4C5064FC58C147DA36F1699D73A3BE4222AC37C11D76351F"
+    raw_control = CONTROL.read_bytes()
+    raw_hash = hashlib.sha256(raw_control).hexdigest().upper()
+    assert raw_hash in {control_sha256_crlf, control_sha256_lf}
+    assert document["control_sha256"] == control_sha256_crlf
+    lf_control = raw_control.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    crlf_control = lf_control.replace(b"\n", b"\r\n")
+    assert hashlib.sha256(lf_control).hexdigest().upper() == control_sha256_lf
+    assert hashlib.sha256(crlf_control).hexdigest().upper() == control_sha256_crlf
     assert document["accepted_hashes"] == {
         "deal_lf": DEAL_SHA256_LF,
         "deal_crlf": DEAL_SHA256_CRLF,

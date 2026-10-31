@@ -588,6 +588,8 @@ def search_suit_ordered(
     advice_budget: int = 32,
     prefix_actions: Sequence[Action] = (),
     lane_keys_fn=None,
+    progress_hook=None,
+    expand_hook=None,
 ) -> GlobalSearchResult:
     """Whole-game kernel with suit proximity on the foundation lane only.
 
@@ -598,6 +600,9 @@ def search_suit_ordered(
     ``prefix_actions`` resumes from a replay of that prefix. Corrected ``g``
     stays absolute. The result is a checkpoint continuation, not a cold solve.
     ``lane_keys_fn`` defaults to the v0.125 suit ordering.
+
+    ``progress_hook(kr, state, g, node)`` and ``expand_hook(state, g, node)``
+    are optional telemetry. They do not change admission, order, or pruning.
     """
 
     if mode not in {"cold", "optimise"}:
@@ -779,6 +784,8 @@ def search_suit_ordered(
                     census["max_proximity_legal"] = record["legal_moves"]
         if _better_partial(record, out.best_partial):
             out.best_partial = record
+        if progress_hook is not None:
+            progress_hook(kr, state, g, node)
 
     def order(state: SpiderState, actions: List[Action]) -> List[Action]:
         assert advice is not None
@@ -801,6 +808,7 @@ def search_suit_ordered(
         actions_fn=all_legal_actions,
         action_order=None if advice is None else order,
         on_progress=on_progress,
+        on_expand=expand_hook,
         lower_bound_fn=bound,
         stop_on_first_terminal=False,
     )
