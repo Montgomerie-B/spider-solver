@@ -249,6 +249,37 @@ def test_short_cold_status_separates_complete_and_unfinished_work(tmp_path):
         continuation_prefix(_opening(), reloaded, "unfinished")
 
 
+def test_a_later_flush_keeps_unfinished_branches_from_earlier_attempts():
+    from spider.method_capture import _publish_samples
+
+    document = {
+        "attempts": [
+            {
+                "branches": [
+                    {
+                        "id": "leader-1",
+                        "role": "leader",
+                        "replay_ok": True,
+                        "terminal": False,
+                        "actions": ["deal"],
+                        "g": 9,
+                        "foundations": 2,
+                        "face_down": 20,
+                        "stock_rows": 3,
+                        "action_count": 9,
+                        "expanded": True,
+                    }
+                ]
+            }
+        ],
+        "best_branch": None,
+    }
+    _publish_samples(document, [])
+    assert document["best_unfinished"][0]["id"] == "leader-1"
+    assert document["best_branch"]["g"] == 9
+    assert document["exact_frontier_retained"] is False
+
+
 def test_continuation_refuses_a_solved_terminal():
     document = {
         "schema": "spider-method-capture-26",

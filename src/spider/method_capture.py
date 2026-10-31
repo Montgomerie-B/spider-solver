@@ -651,7 +651,14 @@ def _compact(branch: dict) -> dict:
 
 
 def _publish_samples(document: dict, branches: Sequence[dict]) -> None:
-    verified = [branch for branch in branches if branch.get("replay_ok") and branch.get("actions")]
+    del branches
+    verified = []
+    for attempt in document.get("attempts") or []:
+        if not isinstance(attempt, dict):
+            continue
+        for branch in attempt.get("branches") or []:
+            if branch.get("replay_ok") and branch.get("actions"):
+                verified.append(branch)
     unfinished = [branch for branch in verified if not _terminal(branch)]
     leaders = [branch for branch in unfinished if branch.get("role") == "leader"] or unfinished
     best = None
@@ -804,6 +811,7 @@ def run_method_attempt(
     source = _source_identity(repo)
     status_path = Path(status_path)
     document = _load_document(status_path, machine, source)
+    _publish_samples(document, [])
     if mode == "repair":
         return _run_repair(
             opening,
