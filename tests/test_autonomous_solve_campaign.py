@@ -16,6 +16,7 @@ from spider.autonomous_solve_campaign import (
     SCHEMA,
     assert_cold_document,
     campaign_category,
+    optimise_campaign_incumbent,
     run_campaign_attempt,
     verified_prefix,
 )
@@ -221,3 +222,25 @@ def test_cold_campaign_source_does_not_name_stored_routes():
     assert "all_legal_actions" in search
     assert "lower_bound_fn=bound" in search
     assert "production_ceiling" not in module
+
+
+def test_optimise_refuses_a_published_route_path(tmp_path):
+    opening = _opening()
+    published = tmp_path / "solutions" / "example.moves"
+    with pytest.raises(ValueError, match="solutions"):
+        optimise_campaign_incumbent(
+            opening,
+            incumbent_path=published,
+            status_path=tmp_path / "status.json",
+            time_limit_s=1.0,
+            rss_abort_mb=512,
+        )
+    named = tmp_path / "route_canonical.moves"
+    with pytest.raises(ValueError, match="published"):
+        optimise_campaign_incumbent(
+            opening,
+            incumbent_path=named,
+            status_path=tmp_path / "status.json",
+            time_limit_s=1.0,
+            rss_abort_mb=512,
+        )

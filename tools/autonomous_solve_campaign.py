@@ -17,7 +17,11 @@ from pathlib import Path
 if not getattr(sys, "frozen", False):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from spider.autonomous_solve_campaign import assert_cold_document, run_campaign_attempt
+from spider.autonomous_solve_campaign import (
+    assert_cold_document,
+    optimise_campaign_incumbent,
+    run_campaign_attempt,
+)
 from spider.research_actions import opening_from_deal
 
 REPO = Path(__file__).resolve().parents[1]
@@ -64,11 +68,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--checkpoint-s", type=float, default=600.0)
     parser.add_argument("--solution-dir", default="docs/research/autonomous_solve_campaign")
     parser.add_argument("--fresh", action="store_true")
+    parser.add_argument("--optimise-incumbent", default="")
+    parser.add_argument("--window-s", type=float, default=25.0)
+    parser.add_argument("--medium-s", type=float, default=45.0)
+    parser.add_argument("--max-windows", type=int, default=32)
+    parser.add_argument("--adaptive", action="store_true")
     args = parser.parse_args(argv)
 
     deal = _resolve(args.deal)
     status = _resolve(args.status)
-    if args.fresh and status.is_file() and not args.resume:
+    if args.fresh and status.is_file() and not args.resume and not args.optimise_incumbent:
         status.unlink()
     total, avail = _memory()
     avail_mb = avail / (1024 * 1024) if avail else 0
@@ -87,6 +96,25 @@ def main(argv: list[str] | None = None) -> int:
         f"available_mb={machine['available_mb']} rss_cap_mb={applied_mb}",
         flush=True,
     )
+    if args.optimise_incumbent:
+        opening = opening_from_deal(deal)
+        document = optimise_campaign_incumbent(
+            opening,
+            incumbent_path=_resolve(args.optimise_incumbent),
+            status_path=status,
+            time_limit_s=float(args.time_limit),
+            rss_abort_mb=float(applied_mb),
+            max_unique=int(args.max_unique),
+            window_s=float(args.window_s),
+            medium_s=float(args.medium_s),
+            max_windows=int(args.max_windows),
+            adaptive=bool(args.adaptive),
+            solution_dir=_resolve(args.solution_dir),
+            log=lambda line: print(line, flush=True),
+        )
+        print(f"CATEGORY {document['category']}", flush=True)
+        print(f"STATUS {status}", flush=True)
+        return 0
     resume = None
     if args.resume:
         resume_path = _resolve(args.resume)

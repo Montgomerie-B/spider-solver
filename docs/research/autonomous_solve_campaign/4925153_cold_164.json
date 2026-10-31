@@ -1,0 +1,19 @@
+{
+  "action_count": 164,
+  "automatic_foundation_removals": 8,
+  "category": "INDEPENDENT_COMPLETE_FOUND",
+  "corrected_cost": 164,
+  "deal_id": "4925153",
+  "foundations": 8,
+  "moves": "docs/research/autonomous_solve_campaign/4925153_cold_164.moves",
+  "optimality": "unestablished",
+  "path_hash": "e56a441f03423876",
+  "reference_seed": false,
+  "schema": "spider-autonomous-solve-campaign-25",
+  "sha256": "5BC761FDB750A9FCDB9236706E4DD25EA8B8C83A91C75C564898695FF4488BE6",
+  "source": "opening search checkpoint at 300s",
+  "stock_deals": 5,
+  "stock_remaining": 0,
+  "tableau_moves": 159,
+  "validation": "validate_solution"
+}

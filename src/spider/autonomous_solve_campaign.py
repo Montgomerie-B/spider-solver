@@ -519,6 +519,133 @@ def _validate_complete(opening, result, attempt, document, solution_dir: Optiona
     document["action_count"] = len(actions)
 
 
+def _refuse_reference_route(path: Path) -> None:
+    if "solutions" in Path(path).parts:
+        raise ValueError("campaign optimisation does not read the solutions directory")
+    stem = Path(path).stem.lower()
+    if "canonical" in stem or stem.endswith("_185") or "v0_74" in stem:
+        raise ValueError("campaign optimisation refuses a published reference route")
+
+
+def optimise_campaign_incumbent(
+    opening,
+    *,
+    incumbent_path: Path,
+    status_path: Path,
+    time_limit_s: float,
+    rss_abort_mb: float,
+    max_unique: int = 40000,
+    window_s: float = 25.0,
+    medium_s: float = 45.0,
+    max_windows: int = 32,
+    adaptive: bool = True,
+    solution_dir: Optional[Path] = None,
+    log: LogFn = None,
+) -> dict:
+    """Try to beat one cold-campaign solution. The published routes are refused.
+
+    This is an incumbent search, not a cold discovery. A cheaper verified
+    route stays in the research directory and does not enter the production
+    registry.
+    """
+
+    from spider.human_strategy.anchored import optimise_anchored
+    from spider.metrics import parse_moves_file
+    from spider.solution_archive import validate_solution
+
+    incumbent_path = Path(incumbent_path)
+    _refuse_reference_route(incumbent_path)
+    actions = parse_moves_file(incumbent_path)
+    report = validate_solution(
+        "4925153",
+        actions,
+        expected_deal_id="4925153",
+    )
+    if not report.valid:
+        raise ValueError(report.failure_reason or "incumbent failed validation")
+    incumbent_g = int(report.mobilityware_moves)
+    if log is not None:
+        log(f"OPTIMISE incumbent_g={incumbent_g} actions={len(actions)} ceiling={incumbent_g - 1}")
+    result = optimise_anchored(
+        opening,
+        actions,
+        mode="anchored",
+        source="cold_campaign",
+        source_id=incumbent_path.name,
+        time_limit_s=float(time_limit_s),
+        window_time_s=float(window_s),
+        medium_time_s=float(medium_s),
+        max_windows=int(max_windows),
+        max_unique=int(max_unique),
+        rss_abort_mb=float(rss_abort_mb),
+        max_improvements=6,
+        expected_cost=incumbent_g,
+        adaptive=bool(adaptive),
+        horizon=24,
+        max_regions=8,
+    )
+    improved_actions = list(result.actions)
+    improved = validate_solution(
+        "4925153",
+        improved_actions,
+        claimed_mobilityware_moves=int(result.cumulative_g),
+        expected_deal_id="4925153",
+    )
+    better = bool(improved.valid) and int(improved.mobilityware_moves) < incumbent_g
+    document = _load_document(Path(status_path), None)
+    attempt = {
+        "id": f"a{len(document['attempts']) + 1}",
+        "status": "finished",
+        "kind": "anchored_optimise",
+        "reference_seed": False,
+        "campaign_provenance": "cold_descendant_optimise",
+        "incumbent_g": incumbent_g,
+        "incumbent_file": incumbent_path.name,
+        "cost_ceiling": incumbent_g - 1,
+        "ceiling_is_proof": False,
+        "exact_frontier_retained": False,
+        "restart_inherits_exhaustion": False,
+        "solved": bool(improved.valid),
+        "validated": bool(improved.valid),
+        "improved": better,
+        "solution_g": int(improved.mobilityware_moves) if improved.valid else None,
+        "action_count": len(improved_actions),
+        "replay_g": improved.mobilityware_moves,
+        "stop_reason": result.status,
+        "stop_class": "improved" if better else "no_improvement",
+        "elapsed_s": result.elapsed_s,
+        "peak_rss_mb": result.peak_rss_mb,
+        "search_provenance": "anchored_optimise_of_cold_route",
+        "optimality": "unestablished",
+        "windows": (result.provenance or {}).get("windows_examined"),
+        "improvements": (result.provenance or {}).get("improvements"),
+        "expansions": (result.provenance or {}).get("search_expansions"),
+    }
+    if better and solution_dir is not None:
+        attempt["candidate"] = _write_candidate(
+            improved_actions,
+            int(improved.mobilityware_moves),
+            Path(solution_dir),
+        )
+        document["solution_g"] = int(improved.mobilityware_moves)
+        document["action_count"] = len(improved_actions)
+    document["attempts"].append(attempt)
+    document["optimise"] = {
+        "incumbent_g": incumbent_g,
+        "best_g": attempt["solution_g"],
+        "improved": better,
+        "status": result.status,
+    }
+    atomic_write_json(Path(status_path), document)
+    if log is not None:
+        log(
+            "OPTIMISE "
+            f"status={result.status} improved={better} "
+            f"g={attempt['solution_g']} windows={attempt['windows']}"
+        )
+    return document
+
+
 def _write_candidate(actions: Sequence[Action], g: int, directory: Path) -> dict:
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"4925153_cold_{g}.moves"
