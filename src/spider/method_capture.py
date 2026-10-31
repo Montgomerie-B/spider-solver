@@ -324,8 +324,12 @@ def _terminal(branch: dict) -> bool:
     return branch.get("terminal") is True
 
 
-def choose_continuation(document: dict, which: str = "unfinished") -> dict:
-    """Pick unfinished or untried work. A solved terminal is not a seed."""
+def choose_continuation(document: dict, which: str = "unfinished", max_g: Optional[int] = None) -> dict:
+    """Pick unfinished or untried work. A solved terminal is not a seed.
+
+    ``max_g`` skips a prefix that already costs more than the paid ceiling.
+    Those prefixes cannot enter an improvement search.
+    """
 
     assert_method_document(document)
     which = which or "unfinished"
@@ -339,6 +343,8 @@ def choose_continuation(document: dict, which: str = "unfinished") -> dict:
             if not isinstance(branch, dict) or branch.get("replay_ok") is not True:
                 continue
             if _terminal(branch) or not branch.get("actions"):
+                continue
+            if max_g is not None and int(branch.get("g") or 0) > int(max_g):
                 continue
             if which == "untried":
                 if branch.get("role") == "untried" and branch.get("expanded") is False:
@@ -354,8 +360,8 @@ def choose_continuation(document: dict, which: str = "unfinished") -> dict:
     return pool[0]
 
 
-def continuation_prefix(opening, document: dict, which: str = "unfinished") -> List[Action]:
-    branch = choose_continuation(document, which)
+def continuation_prefix(opening, document: dict, which: str = "unfinished", max_g: Optional[int] = None) -> List[Action]:
+    branch = choose_continuation(document, which, max_g=max_g)
     actions = [parse_action_text(text) for text in branch.get("actions") or []]
     if not actions:
         raise ValueError("refusing an empty continuation prefix")
@@ -831,7 +837,7 @@ def run_method_attempt(
         )
     prefix: Sequence[Action] = ()
     if mode == "continue":
-        prefix = continuation_prefix(opening, document, resume_from)
+        prefix = continuation_prefix(opening, document, resume_from, max_g=cost_ceiling)
         kwargs = cold_search_kwargs(
             recipe,
             rss_abort_mb=rss_abort_mb,

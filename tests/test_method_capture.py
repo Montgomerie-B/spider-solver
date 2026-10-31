@@ -322,3 +322,39 @@ def test_continuation_refuses_a_solved_terminal():
     assert chosen["g"] == 4
     with pytest.raises(ValueError, match="solved terminal"):
         choose_continuation(document, "complete")
+    affordable = {
+        "schema": "spider-method-capture-26",
+        "reference_seed": False,
+        "exact_frontier_retained": False,
+        "restart_inherits_exhaustion": False,
+        "attempts": [
+            {
+                "branches": [
+                    {
+                        "role": "leader",
+                        "terminal": False,
+                        "replay_ok": True,
+                        "actions": ["deal"],
+                        "g": 160,
+                        "foundations": 7,
+                        "face_down": 0,
+                        "stock_rows": 0,
+                        "pack": "aa",
+                    },
+                    {
+                        "role": "leader",
+                        "terminal": False,
+                        "replay_ok": True,
+                        "actions": ["move 1 2 1"],
+                        "g": 145,
+                        "foundations": 5,
+                        "face_down": 4,
+                        "stock_rows": 0,
+                        "pack": "bb",
+                    },
+                ]
+            }
+        ],
+    }
+    assert choose_continuation(affordable, "unfinished", max_g=157)["g"] == 145
+    assert choose_continuation(affordable, "unfinished")["g"] == 160
