@@ -1,0 +1,18 @@
+{
+  "action_count": 162,
+  "automatic_foundation_removals": 8,
+  "corrected_cost": 162,
+  "deal_id": "4925153",
+  "foundations": 8,
+  "moves": "docs/research/autonomous_solve_campaign/4925153_cold_162.moves",
+  "note": "Paid ceiling 163. The incumbent was the cold 164.",
+  "optimality": "unestablished",
+  "path_hash": "f5c01d7af0713b15",
+  "reference_seed": false,
+  "schema": "spider-autonomous-solve-campaign-25",
+  "sha256": "3BD1308C5953C0F970035DFE69ACDAF7B8C423893842004BF1253D0417E10F94",
+  "stock_deals": 5,
+  "stock_remaining": 0,
+  "tableau_moves": 157,
+  "validation": "validate_solution"
+}
