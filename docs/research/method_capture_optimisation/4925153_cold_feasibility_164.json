@@ -1,0 +1,14 @@
+{
+  "action_count": 164,
+  "g": 164,
+  "hashes": {
+    "bytes": 2043,
+    "crlf_sha256": "6D5C84387ABCC7EFF6C265DEBE9DC2A70A96D4AAA0E1F18DB8B303B2C3F1D9AE",
+    "lf_sha256": "339977FBBFB55A0AF55505F1652093F95933BB957D3F4B24DCD727DEBE614152",
+    "newline": "crlf",
+    "raw_sha256": "6D5C84387ABCC7EFF6C265DEBE9DC2A70A96D4AAA0E1F18DB8B303B2C3F1D9AE"
+  },
+  "moves": "4925153_cold_feasibility_164.moves",
+  "path_hash16": "e56a441f03423876",
+  "search_kind": "cold_feasibility"
+}
