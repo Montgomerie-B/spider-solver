@@ -6,6 +6,7 @@ positions. They do not launch either policy arm.
 
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -17,14 +18,18 @@ sys.path.insert(0, str(ROOT / "src"))
 from spider.metrics import CANONICAL_MOBILITYWARE_MOVES
 from spider.packed_state import pack_state
 from spider.practical_witness_manifest import (
+    ACCEPTED_CANONICAL_SHA256,
+    ACCEPTED_DEAL_SHA256,
+    CANONICAL_SHA256_CRLF,
+    CANONICAL_SHA256_LF,
+    DEAL_SHA256_CRLF,
+    DEAL_SHA256_LF,
     EPISODE_ADDITIONAL_PAID,
     EPISODE_PLANNING_DECISIONS,
     EPISODE_PRIMITIVE_ACTIONS,
     EPISODE_PROBE_IDENTITIES,
     EPISODE_RSS_MB,
     EPISODE_WALL_S,
-    EXPECTED_CANONICAL_SHA256,
-    EXPECTED_DEAL_SHA256,
     PREPARATION_BUDGET_S,
     PROBE_COST_CEILING,
     PROBE_MAX_UNIQUE,
@@ -81,8 +86,12 @@ _EXPECTED = (
 def test_preparation_authenticates_the_canonical_route():
     manifest = prepare_manifest()
     assert isinstance(manifest, PlayManifest)
-    assert manifest.deal_sha256 == EXPECTED_DEAL_SHA256
-    assert manifest.canonical_sha256 == EXPECTED_CANONICAL_SHA256
+    deal_bytes = (ROOT / "deals" / "4925153.txt").read_bytes()
+    move_bytes = (ROOT / "solutions" / "4925153_canonical.moves").read_bytes()
+    assert manifest.deal_sha256 == hashlib.sha256(deal_bytes).hexdigest().upper()
+    assert manifest.canonical_sha256 == hashlib.sha256(move_bytes).hexdigest().upper()
+    assert manifest.deal_sha256 in ACCEPTED_DEAL_SHA256
+    assert manifest.canonical_sha256 in ACCEPTED_CANONICAL_SHA256
     assert manifest.canonical_mw == CANONICAL_MOBILITYWARE_MOVES == 172
     assert manifest.canonical_foundations == 8
     assert manifest.canonical_stock_remaining == 0
@@ -193,6 +202,93 @@ def test_manifest_does_not_retain_the_reference_suffix():
 def test_preparation_cap_blocks_instead_of_returning_roots():
     with pytest.raises(ProvenanceBlocker):
         prepare_manifest(budget_s=-1.0)
+
+
+def _lf(payload: bytes) -> bytes:
+    return payload.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def _crlf(payload: bytes) -> bytes:
+    return _lf(payload).replace(b"\n", b"\r\n")
+
+
+def _root_key(manifest):
+    return tuple(
+        (
+            root.root_id,
+            root.prefix_actions,
+            root.corrected_cost,
+            root.pack_hex,
+            root.stock,
+            root.hidden,
+            root.foundations,
+        )
+        for root in manifest.roots
+    )
+
+
+def test_lf_and_crlf_copies_are_the_same_roots_and_token_edits_are_rejected(tmp_path):
+    deal_path = ROOT / "deals" / "4925153.txt"
+    move_path = ROOT / "solutions" / "4925153_canonical.moves"
+    deal_before = deal_path.read_bytes()
+    move_before = move_path.read_bytes()
+    deal_lf = _lf(deal_before)
+    deal_crlf = _crlf(deal_before)
+    move_lf = _lf(move_before)
+    move_crlf = _crlf(move_before)
+    assert hashlib.sha256(deal_lf).hexdigest().upper() == DEAL_SHA256_LF
+    assert hashlib.sha256(deal_crlf).hexdigest().upper() == DEAL_SHA256_CRLF
+    assert hashlib.sha256(move_lf).hexdigest().upper() == CANONICAL_SHA256_LF
+    assert hashlib.sha256(move_crlf).hexdigest().upper() == CANONICAL_SHA256_CRLF
+    assert DEAL_SHA256_LF != DEAL_SHA256_CRLF
+    assert CANONICAL_SHA256_LF != CANONICAL_SHA256_CRLF
+
+    def write(name, payload):
+        path = tmp_path / name
+        path.write_bytes(payload)
+        return path
+
+    lf = prepare_manifest(
+        deal_path=write("deal-lf.txt", deal_lf),
+        canonical_path=write("moves-lf.moves", move_lf),
+    )
+    crlf = prepare_manifest(
+        deal_path=write("deal-crlf.txt", deal_crlf),
+        canonical_path=write("moves-crlf.moves", move_crlf),
+    )
+    assert lf.deal_sha256 == DEAL_SHA256_LF
+    assert crlf.deal_sha256 == DEAL_SHA256_CRLF
+    assert lf.canonical_sha256 == CANONICAL_SHA256_LF
+    assert crlf.canonical_sha256 == CANONICAL_SHA256_CRLF
+    assert _root_key(lf) == _root_key(crlf) == _root_key(prepare_manifest())
+    assert lf.canonical_mw == crlf.canonical_mw == 172
+    assert lf.canonical_foundations == crlf.canonical_foundations == 8
+    assert lf.canonical_stock_remaining == crlf.canonical_stock_remaining == 0
+    assert lf.canonical_tableau_empty is True and crlf.canonical_tableau_empty is True
+
+    changed_deal = deal_lf.replace(b"10c", b"10d", 1)
+    assert hashlib.sha256(changed_deal).hexdigest().upper() not in ACCEPTED_DEAL_SHA256
+    with pytest.raises(ProvenanceBlocker):
+        prepare_manifest(
+            deal_path=write("deal-token.txt", changed_deal),
+            canonical_path=write("moves-lf-again.moves", move_lf),
+        )
+    changed_moves = move_lf.replace(b"\nmove ", b"\nmove 9 ", 1)
+    assert hashlib.sha256(changed_moves).hexdigest().upper() not in ACCEPTED_CANONICAL_SHA256
+    with pytest.raises(ProvenanceBlocker):
+        prepare_manifest(
+            deal_path=write("deal-lf-again.txt", deal_lf),
+            canonical_path=write("moves-token.moves", changed_moves),
+        )
+    padded = deal_lf.replace(b"\n", b" \n", 1)
+    assert hashlib.sha256(padded).hexdigest().upper() not in ACCEPTED_DEAL_SHA256
+    with pytest.raises(ProvenanceBlocker):
+        prepare_manifest(
+            deal_path=write("deal-padded.txt", padded),
+            canonical_path=write("moves-lf-pad.moves", move_lf),
+        )
+    assert deal_path.read_bytes() == deal_before
+    assert move_path.read_bytes() == move_before
 
 
 def test_materialize_rejects_a_mismatched_pack():

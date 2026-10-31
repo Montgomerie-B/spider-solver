@@ -1,0 +1,100 @@
+{
+  "issue": 24,
+  "experiment": "cycle-escape-play-pilot",
+  "parent_sha": "6a469a5aa10058423d98be57fecd057071023774",
+  "control_trace": "docs/practical_witness_play_pilot.json",
+  "control_sha256": "CB3679168F2E90F3D24D870AA060300CD5B8D6292335B0C491460B7ECEA39BB6",
+  "control_verdict_left_unchanged": "NO_CLEAR_BENEFIT",
+  "opt_in_cycle_escape": true,
+  "default_cycle_escape": false,
+  "official_mode": "witness",
+  "runs_per_root": 1,
+  "accepted_hashes": {
+    "deal_lf": "1F99DD116590757E607A7112F09A2247BCA4B34D3AE91659E55646BCE370C943",
+    "deal_crlf": "C0B70979B3E6B90E266691DF956026629C890F49C12ED519801D6779434734DF",
+    "canonical_lf": "B4B7E3FCC957CA7D8B1AFEB9A5DB0BAC8FB6DD96443780B5727180CE55BF4A4E",
+    "canonical_crlf": "18338A08576AD24E9AF1F4BA2E7DB3E28768788DD511E823193B1937F3FEEF33"
+  },
+  "roots": [
+    {
+      "root_id": "opening",
+      "pack_hex": "53504b310100003205013a2c36083502050115191b11282d05013b273a070c04050131122d1a16170401260d13343d04010c3c020305040118360a2a2804011214320406040123062b383904013123153b37131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b0b29241d242609270835",
+      "corrected_cost": 0,
+      "prefix_length": 0,
+      "stock": 50,
+      "hidden": 44,
+      "foundations": 0
+    },
+    {
+      "root_id": "after-deal-1",
+      "pack_hex": "53504b310100002802023a2c360b050515191b11282d0c2b2a290009282706151423323124030231122d1a1d0203260d13122400040c3b0a2600041817160900080807060504030227000b3d3c3b3a39383736353408000404230235131a2233193717013325290b1c22343c3d381b09320a2c1d1839030525140d0116072121112a1c2b",
+      "corrected_cost": 51,
+      "prefix_length": 52,
+      "stock": 40,
+      "hidden": 12,
+      "foundations": 0
+    },
+    {
+      "root_id": "after-deal-2",
+      "pack_hex": "53504b310100001e0002060d050d15191b11282d0c0b0a09080706050403020100052423323116030a31122d1a1d2c2b2a2928272607000327262100050d0c3b3a2100081817161514131211000636352423022a000c3d3c3b3a393837363534081c0002042b131a2233193717013325290b1c22343c3d381b09320a2c1d183903052514",
+      "corrected_cost": 89,
+      "prefix_length": 90,
+      "stock": 30,
+      "hidden": 8,
+      "foundations": 0
+    },
+    {
+      "root_id": "after-deal-3",
+      "pack_hex": "53504b310101001400092d2c2b2a2928272632040415191b112827260a000624233231162c030431122d1a1d1c1d00040807061800060d0c3b3a21390009181716151413121103000736352423022105000b3d3c3b3a393837363534250004042b2a14131a2233193717013325290b1c22343c3d381b090d0d0c0b0a090807060504030201",
+      "corrected_cost": 101,
+      "prefix_length": 102,
+      "stock": 20,
+      "hidden": 7,
+      "foundations": 1
+    }
+  ],
+  "probe": {
+    "max_unique": 20,
+    "time_limit_s": 2.0,
+    "rss_abort_mb": 512.0,
+    "cost_ceiling": 4,
+    "cost_ceiling_scope": "total corrected moves from the decision source",
+    "local_g": "replayed candidate prefix cost from the decision state",
+    "max_depth": null,
+    "harvest_slack": null,
+    "stop_on_first_terminal": false,
+    "slots": 8,
+    "deal_slot": "reserve the eighth slot when Deal is legal and outside the first eight",
+    "unfinished_witness": "executable as ordering evidence, not a minimum certificate"
+  },
+  "episode": {
+    "wall_s": 60.0,
+    "additional_paid": 12,
+    "primitive_actions": 64,
+    "planning_decisions": 8,
+    "probe_identities": 1280,
+    "rss_mb": 512.0,
+    "workers": 1,
+    "alternation": "even root index baseline then witness; odd root index witness then baseline",
+    "one_run_per_mode": true
+  },
+  "cycle_escape": {
+    "default_enabled": false,
+    "official_opt_in": true,
+    "official_mode": "witness",
+    "runs_per_root": 1,
+    "trigger": "single original-action fallback whose one-step destination was already reached at an equal or lower corrected g",
+    "order": "existing full PR3 order, including unprobed actions and Deal",
+    "accept": "first affordable successor that is unseen or arrives at a strictly lower g",
+    "witness_plans": "unchanged",
+    "preview_identities": "not counted as kernel identities",
+    "not_a_witness": true,
+    "not_a_lower_bound": true
+  },
+  "metric": {
+    "escape_progress": "foundations or hidden cards improve without worsening the other; stock count and extra actions are not progress",
+    "escape_benefit": "at least two warm roots improve on that rule and no pair regresses or trades off",
+    "escape_only": "a correct fallback recovery without that benefit is ESCAPE_ONLY_NO_CLEAR_GAME_BENEFIT",
+    "stock_alone": "fewer stock cards alone is not a win"
+  }
+}

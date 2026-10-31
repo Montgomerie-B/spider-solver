@@ -62,10 +62,22 @@ RECOMMENDATIONS = {
     "NO_CLEAR_BENEFIT": (
         "Leave the probe caps, budgets, and selector unchanged."
     ),
+    "PROGRESS_AFTER_ESCAPE": (
+        "Report the within-deal continuation only. Leave the default cycle "
+        "guard, probe caps, and selector unchanged."
+    ),
+    "ESCAPE_ONLY_NO_CLEAR_GAME_BENEFIT": (
+        "Leave the default cycle guard unchanged. The opt-in escape did not "
+        "show a clear foundation or hidden-card benefit."
+    ),
     "CORRECTNESS_BLOCKER": (
         "Preserve the trace and leave the engine and search kernel unchanged."
     ),
 }
+_NO_FRESH_DETAIL = (
+    "episode-local: no affordable unseen or cheaper successor remains; "
+    "not global exhaustion and not an unsolvable position"
+)
 
 
 @dataclass(frozen=True)
@@ -394,6 +406,40 @@ def judge_trial(labels: Sequence[str], *, checks_ok: bool) -> str:
     return "NO_CLEAR_BENEFIT"
 
 
+def escape_label(control: Endpoint, played: Endpoint) -> str:
+    """Progress of one opt-in episode against its frozen witness control.
+
+    Stock is ignored. A solved game still outranks an incomplete one.
+    """
+
+    label = compare_endpoints(control, played)
+    return {
+        "witness": "improved",
+        "baseline": "regressed",
+        "tie": "tie",
+        "tradeoff": "tradeoff",
+    }[label]
+
+
+def judge_escape(labels: Sequence[str], *, checks_ok: bool) -> str:
+    """Benefit rule for the opt-in arm. Recovery correctness is separate.
+
+    ``labels`` are opening, after-deal-1, after-deal-2, after-deal-3.
+    Two warm-root improvements are required, and no pair may regress or
+    trade one progress measure off against the other.
+    """
+
+    if not checks_ok or len(tuple(labels)) != 4:
+        return "CORRECTNESS_BLOCKER"
+    if any(label not in ("improved", "regressed", "tie", "tradeoff") for label in labels):
+        return "CORRECTNESS_BLOCKER"
+    warm_improvements = sum(label == "improved" for label in tuple(labels)[1:])
+    blocked = any(label in ("regressed", "tradeoff") for label in labels)
+    if warm_improvements >= 2 and not blocked:
+        return "PROGRESS_AFTER_ESCAPE"
+    return "ESCAPE_ONLY_NO_CLEAR_GAME_BENEFIT"
+
+
 def observed_trajectory(baseline_samples: Sequence[dict], witness_samples: Sequence[dict], root_hidden: int) -> list:
     """Paid cost at reveal counts both arms actually reached. Not an optimum."""
 
@@ -684,6 +730,288 @@ def _fallback_selection(mode: str, draft: DecisionDraft, reason: str) -> Selecti
     )
 
 
+def _single_original_fallback(selection: Selection) -> bool:
+    """A verified witness plan is not a fallback, even when it has one action."""
+
+    return (not selection.used_witness) and len(tuple(selection.actions)) == 1
+
+
+def _preview_step(state: SpiderState, action) -> Optional[dict]:
+    """One legal step on a clone. The caller's state is not modified."""
+
+    normalized = _normalize(action)
+    legal = {_normalize(item) for item in all_legal_actions(state)}
+    if normalized not in legal:
+        return None
+    clone = state.clone()
+    priced = int(step_cost(clone, normalized))
+    applied = int(apply_action(clone, normalized))
+    if applied != priced:
+        raise ValueError(f"cost mismatch on {normalized!r}")
+    return {"action": normalized, "cost": priced, "pack": pack_state(clone).hex()}
+
+
+def _step_fits(budget: EpisodeBudget, paid: int, primitives: int, cost: int) -> bool:
+    if int(primitives) >= int(budget.primitive_actions):
+        return False
+    if int(paid) >= int(budget.additional_paid):
+        return False
+    if int(paid) + int(cost) > int(budget.additional_paid):
+        return False
+    return True
+
+
+def _uncertainty(option_id: str, probed_status: dict, unprobed_ids: Sequence[str]) -> str:
+    if option_id in set(unprobed_ids) or option_id not in probed_status:
+        return "unprobed-legal-fallback"
+    status = probed_status[option_id]
+    if status in ("unknown", "exhausted-no-hit", None):
+        return "unknown-legal-fallback"
+    return f"probed-{status}-legal-fallback"
+
+
+def _binding_cap(budget: EpisodeBudget, *, paid: int, primitives: int, started: float) -> Optional[str]:
+    if perf_counter() - started >= float(budget.wall_s):
+        return "time"
+    if int(primitives) >= int(budget.primitive_actions):
+        return "primitive-actions"
+    if int(paid) >= int(budget.additional_paid):
+        return "paid-moves"
+    if _over_rss(budget):
+        return "rss"
+    return None
+
+
+def consider_cycle_escape(
+    state: SpiderState,
+    selection: Selection,
+    ordered: Sequence[Tuple[str, tuple]],
+    seen: dict,
+    budget: EpisodeBudget,
+    *,
+    paid: int,
+    primitives: int,
+    started: float,
+    probed_status: dict,
+    unprobed_ids: Sequence[str],
+    remaining_ids: int,
+    decisions_used: int,
+) -> dict:
+    """Try the next legal fallback when the chosen single action repeats.
+
+    Previews use a clone and do not write ``seen``, do not call the kernel,
+    and do not count as probe identities. The scan follows ``ordered``, which
+    is the admitted PR3 order, including actions that were not probed.
+    """
+
+    preview_started = perf_counter()
+
+    def elapsed() -> float:
+        return perf_counter() - preview_started
+
+    def finish(replacement, halt, detail, log, count) -> dict:
+        seconds = elapsed()
+        log["preview_count"] = int(count)
+        log["preview_seconds"] = seconds
+        log["remaining"] = {
+            "wall_s": max(0.0, float(budget.wall_s) - (perf_counter() - started)),
+            "paid": int(budget.additional_paid) - int(paid),
+            "primitives": int(budget.primitive_actions) - int(primitives),
+            "decisions": int(budget.planning_decisions) - int(decisions_used),
+            "probe_identities": int(remaining_ids),
+        }
+        log["preview_identities"] = 0
+        return {
+            "replacement": replacement,
+            "halt": halt,
+            "detail": detail,
+            "preview_count": int(count),
+            "preview_seconds": seconds,
+            "log": log,
+        }
+
+    if not _single_original_fallback(selection):
+        return finish(
+            None,
+            None,
+            "",
+            {"triggered": False, "reason": "not-a-single-original-action-fallback"},
+            0,
+        )
+    cap = _binding_cap(budget, paid=paid, primitives=primitives, started=started)
+    if cap is not None:
+        return finish(
+            None,
+            cap,
+            "",
+            {"triggered": False, "reason": "episode-cap", "cap": cap},
+            0,
+        )
+    original = _normalize(selection.actions[0])
+    preview = _preview_step(state, original)
+    if preview is None:
+        return finish(
+            None,
+            "correctness-blocker",
+            f"selected fallback is illegal: {original!r}",
+            {"triggered": False, "reason": "illegal-fallback"},
+            1,
+        )
+    arrival = int(paid) + int(preview["cost"])
+    earlier = seen.get(preview["pack"])
+    repeats = earlier is not None and arrival >= int(earlier)
+    if not repeats:
+        return finish(
+            None,
+            None,
+            "",
+            {
+                "triggered": False,
+                "reason": "original-fallback-is-not-a-repeat",
+                "original_option_id": selection.option_id,
+                "original_action": action_token(original),
+                "destination": preview["pack"],
+                "arrival_g": arrival,
+                "earlier_g": None if earlier is None else int(earlier),
+            },
+            1,
+        )
+    if not _step_fits(budget, paid, primitives, preview["cost"]):
+        return finish(
+            None,
+            None,
+            "",
+            {
+                "triggered": False,
+                "reason": "original-fallback-does-not-fit",
+                "original_option_id": selection.option_id,
+                "original_action": action_token(original),
+                "destination": preview["pack"],
+                "arrival_g": arrival,
+                "earlier_g": int(earlier),
+            },
+            1,
+        )
+
+    deal_available = any(is_deal(action) for _option_id, action in ordered)
+    checked = []
+    count = 1
+    selected_row = None
+    halt = None
+    for option_id, action in ordered:
+        if perf_counter() - started >= float(budget.wall_s):
+            halt = "time"
+            break
+        if _over_rss(budget):
+            halt = "rss"
+            break
+        normalized = _normalize(action)
+        if normalized == original and option_id == selection.option_id:
+            row_preview = preview
+        else:
+            count += 1
+            row_preview = _preview_step(state, normalized)
+        if row_preview is None:
+            checked.append(
+                {
+                    "option_id": option_id,
+                    "action": action_token(normalized),
+                    "legal": False,
+                    "affordable": False,
+                    "fresh": False,
+                    "disposition": "illegal",
+                }
+            )
+            continue
+        row_g = int(paid) + int(row_preview["cost"])
+        row_earlier = seen.get(row_preview["pack"])
+        fresh = row_earlier is None or row_g < int(row_earlier)
+        affordable = _step_fits(budget, paid, primitives, row_preview["cost"])
+        if not affordable:
+            disposition = "unaffordable"
+        elif row_earlier is None:
+            disposition = "unseen"
+        elif row_g < int(row_earlier):
+            disposition = "cheaper"
+        else:
+            disposition = "repeat"
+        row = {
+            "option_id": option_id,
+            "action": action_token(row_preview["action"]),
+            "legal": True,
+            "cost": int(row_preview["cost"]),
+            "affordable": bool(affordable),
+            "fresh": bool(fresh),
+            "destination": row_preview["pack"],
+            "arrival_g": row_g,
+            "earlier_g": None if row_earlier is None else int(row_earlier),
+            "disposition": disposition,
+        }
+        if fresh and affordable and halt is None:
+            row["disposition"] = "selected"
+            checked.append(row)
+            selected_row = row
+            break
+        checked.append(row)
+
+    log = {
+        "triggered": True,
+        "trigger_pack": pack_state(state).hex(),
+        "trigger_paid": int(paid),
+        "original_option_id": selection.option_id,
+        "original_action": action_token(original),
+        "repeated_destination": preview["pack"],
+        "earlier_g": int(earlier),
+        "arrival_g": arrival,
+        "checked": checked,
+        "deal_available": bool(deal_available),
+        "source_pack": pack_state(state).hex(),
+        "proved_strategy": False,
+        "admissible_bound": False,
+        "used_witness": False,
+        "optimality_claim": False,
+    }
+    if halt is not None:
+        log["selected_option_id"] = None
+        return finish(None, halt, "", log, count)
+    if selected_row is None:
+        log["selected_option_id"] = None
+        return finish(None, "no-fresh-successor", _NO_FRESH_DETAIL, log, count)
+
+    uncertainty = _uncertainty(selected_row["option_id"], probed_status, unprobed_ids)
+    unknown = tuple(selection.unknown_ids)
+    if uncertainty.startswith("unprobed") or uncertainty.startswith("unknown"):
+        if selected_row["option_id"] not in unknown:
+            unknown = unknown + (selected_row["option_id"],)
+    chosen_action = next(
+        action for option_id, action in ordered if option_id == selected_row["option_id"]
+    )
+    replacement = Selection(
+        mode=selection.mode,
+        option_id=selected_row["option_id"],
+        actions=(_normalize(chosen_action),),
+        reason="cycle-escape",
+        used_witness=False,
+        witness_status=None,
+        total_cost=int(selected_row["cost"]),
+        admissible_bound=False,
+        scoped_minimum=False,
+        full_game_optimum=False,
+        optimality_claim=False,
+        unknown_ids=unknown,
+    )
+    log.update(
+        {
+            "selected_option_id": selected_row["option_id"],
+            "selected_action": selected_row["action"],
+            "destination_pack": selected_row["destination"],
+            "uncertainty": uncertainty,
+            "selected_cost": int(selected_row["cost"]),
+        }
+    )
+    return finish(replacement, None, "", log, count)
+
+
 def _snapshot(state: SpiderState, paid: int) -> dict:
     return {
         "paid": int(paid),
@@ -765,14 +1093,72 @@ def execute_plan(
     return current, paid, primitives, played, None, ""
 
 
+def _selection_payload(selection: Selection) -> dict:
+    return {
+        "mode": selection.mode,
+        "option_id": selection.option_id,
+        "actions": [action_token(action) for action in selection.actions],
+        "reason": selection.reason,
+        "used_witness": bool(selection.used_witness),
+        "witness_status": selection.witness_status,
+        "total_cost": selection.total_cost,
+        "admissible_bound": bool(selection.admissible_bound),
+        "scoped_minimum": bool(selection.scoped_minimum),
+        "full_game_optimum": bool(selection.full_game_optimum),
+        "optimality_claim": bool(selection.optimality_claim),
+        "unknown_ids": list(selection.unknown_ids),
+    }
+
+
+def _decision_payload(index, pack, draft: DecisionDraft, selection: Selection, recovery) -> dict:
+    record = {
+        "index": index,
+        "source_pack": pack,
+        "legal_ids": list(draft.legal_ids),
+        "ordered_ids": list(draft.ordered_ids),
+        "probed_ids": [item.option_id for item in draft.probed],
+        "unprobed_ids": list(draft.unprobed_ids),
+        "displaced_id": draft.displaced_id,
+        "deal_reserved": draft.deal_reserved,
+        "reprobe_suppressed": draft.reprobe_suppressed,
+        "obligations_status": draft.obligations_status,
+        "identities": draft.identities,
+        "candidates": [
+            {
+                "option_id": item.option_id,
+                "baseline_index": item.baseline_index,
+                "status": item.status,
+                "stop_reason": item.stop_reason,
+                "total_cost": item.total_cost,
+                "unique": item.unique,
+                "kernel_called": item.kernel_called,
+                "admissible_bound": item.admissible_bound,
+                "scoped_minimum": item.scoped_minimum,
+                "full_game_optimum": item.full_game_optimum,
+                "bound_scope": item.bound_scope,
+            }
+            for item in draft.probed
+        ],
+        "selection": _selection_payload(selection),
+    }
+    if recovery is not None:
+        record["recovery"] = recovery
+    return record
+
+
 def run_episode(
     state: SpiderState,
     mode: str,
     budget: Optional[EpisodeBudget] = None,
     *,
     source_pack: Optional[str] = None,
+    cycle_escape: bool = False,
 ) -> dict:
-    """Play one limited episode from ``state``. The caller's state is unchanged."""
+    """Play one limited episode from ``state``. The caller's state is unchanged.
+
+    ``cycle_escape`` defaults off. The default still stops before playing a
+    repeating fallback. The opt-in arm may replace that one action.
+    """
 
     budget = EpisodeBudget() if budget is None else budget
     if int(budget.workers) != 1:
@@ -805,6 +1191,9 @@ def run_episode(
         "actions": [],
         "decision_records": [],
         "samples": samples,
+        "cycle_escape": bool(cycle_escape),
+        "preview_count": 0,
+        "preview_seconds": 0.0,
         "baseline_seconds": 0.0,
         "continuation_seconds": 0.0,
         "overhead_seconds": 0.0,
@@ -899,21 +1288,67 @@ def run_episode(
         else:
             selection = choose(mode, draft.probed)
         planned.add(pack)
-        predicate = reveal_predicate(current)
-        require_predicate = bool(selection.used_witness)
-        expected = selection.total_cost if require_predicate else None
-        if expected is None and selection.actions:
+        recovery = None
+        played_selection = selection
+        if cycle_escape:
             try:
-                _checked, expected = _replay(current, selection.actions)
+                outcome = consider_cycle_escape(
+                    current,
+                    selection,
+                    tuple(
+                        (option_id, draft.action_by_id[option_id])
+                        for option_id in draft.ordered_ids
+                    ),
+                    seen,
+                    budget,
+                    paid=paid,
+                    primitives=primitives,
+                    started=started,
+                    probed_status={item.option_id: item.status for item in draft.probed},
+                    unprobed_ids=draft.unprobed_ids,
+                    remaining_ids=budget.probe_identities - identities,
+                    decisions_used=decisions,
+                )
             except ValueError as exc:
                 stop = "correctness-blocker"
                 detail = str(exc)
                 payload["checks_ok"] = False
+                payload["decision_records"].append(
+                    _decision_payload(decisions - 1, pack, draft, selection, None)
+                )
+                break
+            payload["preview_count"] += int(outcome["preview_count"])
+            payload["preview_seconds"] += float(outcome["preview_seconds"])
+            recovery = outcome["log"]
+            if outcome["halt"] is not None and outcome["replacement"] is None:
+                stop = outcome["halt"]
+                detail = outcome["detail"]
+                if outcome["halt"] == "correctness-blocker":
+                    payload["checks_ok"] = False
+                payload["decision_records"].append(
+                    _decision_payload(decisions - 1, pack, draft, selection, recovery)
+                )
+                break
+            if outcome["replacement"] is not None:
+                played_selection = outcome["replacement"]
+        predicate = reveal_predicate(current)
+        require_predicate = bool(played_selection.used_witness)
+        expected = played_selection.total_cost if require_predicate else None
+        if expected is None and played_selection.actions:
+            try:
+                _checked, expected = _replay(current, played_selection.actions)
+            except ValueError as exc:
+                stop = "correctness-blocker"
+                detail = str(exc)
+                payload["checks_ok"] = False
+                payload["decision_records"].append(
+                    _decision_payload(decisions - 1, pack, draft, selection, recovery)
+                )
                 break
         hidden_before = face_down_count(current)
         current, paid, primitives, played, exec_stop, exec_detail = execute_plan(
             current,
-            selection.actions,
+            played_selection.actions,
             budget,
             seen,
             paid=paid,
@@ -937,50 +1372,18 @@ def run_episode(
             1 if hidden_before == 1 else REVEAL_GOAL
         ):
             goals += 1
+        if (
+            recovery is not None
+            and recovery.get("triggered")
+            and recovery.get("selected_option_id")
+            and exec_stop == "repeated-state"
+            and played_selection.option_id == recovery.get("selected_option_id")
+        ):
+            exec_stop = "correctness-blocker"
+            exec_detail = "execution cycle guard rejected the previewed alternative"
+            payload["checks_ok"] = False
         payload["decision_records"].append(
-            {
-                "index": decisions - 1,
-                "source_pack": pack,
-                "legal_ids": list(draft.legal_ids),
-                "ordered_ids": list(draft.ordered_ids),
-                "probed_ids": [item.option_id for item in draft.probed],
-                "unprobed_ids": list(draft.unprobed_ids),
-                "displaced_id": draft.displaced_id,
-                "deal_reserved": draft.deal_reserved,
-                "reprobe_suppressed": draft.reprobe_suppressed,
-                "obligations_status": draft.obligations_status,
-                "identities": draft.identities,
-                "candidates": [
-                    {
-                        "option_id": item.option_id,
-                        "baseline_index": item.baseline_index,
-                        "status": item.status,
-                        "stop_reason": item.stop_reason,
-                        "total_cost": item.total_cost,
-                        "unique": item.unique,
-                        "kernel_called": item.kernel_called,
-                        "admissible_bound": item.admissible_bound,
-                        "scoped_minimum": item.scoped_minimum,
-                        "full_game_optimum": item.full_game_optimum,
-                        "bound_scope": item.bound_scope,
-                    }
-                    for item in draft.probed
-                ],
-                "selection": {
-                    "mode": selection.mode,
-                    "option_id": selection.option_id,
-                    "actions": [action_token(action) for action in selection.actions],
-                    "reason": selection.reason,
-                    "used_witness": selection.used_witness,
-                    "witness_status": selection.witness_status,
-                    "total_cost": selection.total_cost,
-                    "admissible_bound": selection.admissible_bound,
-                    "scoped_minimum": selection.scoped_minimum,
-                    "full_game_optimum": False,
-                    "optimality_claim": False,
-                    "unknown_ids": list(selection.unknown_ids),
-                },
-            }
+            _decision_payload(decisions - 1, pack, draft, selection, recovery)
         )
         if exec_stop:
             stop = exec_stop
@@ -1199,4 +1602,149 @@ def run_paired_trial(
         "verdict": verdict,
         "recommendation": recommendation(verdict),
         "independent_cold_complete": False,
+    }
+
+
+def _escape_proof_ok(episode: dict) -> bool:
+    """An escape choice is a legal fallback. It must not become a proof."""
+
+    if episode.get("optimality_claim") or episode.get("absolute_g_used_for_proof"):
+        return False
+    for decision in episode.get("decision_records") or []:
+        selection = decision.get("selection") or {}
+        if selection.get("optimality_claim") or selection.get("full_game_optimum"):
+            return False
+        if selection.get("admissible_bound") and selection.get("witness_status") != "exact":
+            return False
+        recovery = decision.get("recovery") or {}
+        if not recovery.get("triggered") or not recovery.get("selected_option_id"):
+            continue
+        if recovery.get("proved_strategy") or recovery.get("admissible_bound"):
+            return False
+        if recovery.get("used_witness") or recovery.get("optimality_claim"):
+            return False
+        uncertainty = str(recovery.get("uncertainty") or "")
+        if not uncertainty.endswith("legal-fallback"):
+            return False
+    return True
+
+
+def run_cycle_escape_trial(
+    manifest,
+    *,
+    confirm_official: bool = False,
+    budget: Optional[EpisodeBudget] = None,
+    specification_sha: str = "",
+    implementation_sha: str = "",
+) -> dict:
+    """Run the opt-in witness arm once per root. Tests must leave the flag false."""
+
+    if not confirm_official:
+        raise RuntimeError(
+            "official cycle-escape episodes require confirm_official=True "
+            "and must not run inside unit tests"
+        )
+    budget = EpisodeBudget() if budget is None else budget
+    episodes = []
+    checks_ok = True
+    for root in manifest.roots:
+        if not root.counts_as_evidence:
+            continue
+        try:
+            source = materialize_root(root)
+            if pack_state(source).hex() != root.pack_hex:
+                raise RuntimeError("materialised pack drifted")
+            episode = run_episode(
+                source,
+                "witness",
+                budget,
+                source_pack=root.pack_hex,
+                cycle_escape=True,
+            )
+        except Exception as exc:
+            episode = {
+                "mode": "witness",
+                "root_id": root.root_id,
+                "stop_reason": "correctness-blocker",
+                "detail": str(exc),
+                "checks_ok": False,
+                "solved": False,
+                "foundations": 0,
+                "hidden": 0,
+                "stock": 0,
+                "paid": 0,
+                "actions": [],
+                "samples": [],
+                "decision_records": [],
+                "final_pack": "",
+                "independent_cold_complete": False,
+                "cycle_escape": True,
+                "preview_count": 0,
+                "preview_seconds": 0.0,
+                "optimality_claim": False,
+            }
+        episode["root_id"] = root.root_id
+        episode["deal_ordinal"] = root.deal_ordinal
+        episode["imported_prefix"] = [action_token(action) for action in root.prefix_actions]
+        episode["imported_cost"] = root.corrected_cost
+        episode["imported_prefix_recorded"] = root.imported_prefix
+        played = [step["action"] for step in episode.get("actions", [])]
+        ok = bool(episode.get("checks_ok", False) and episode.get("final_pack"))
+        reason = episode.get("detail", "")
+        if ok:
+            ok, reason = audit_replay(root, played, episode["final_pack"], int(episode.get("paid", 0)))
+            if not ok:
+                episode["checks_ok"] = False
+                episode["detail"] = reason
+                episode["stop_reason"] = "correctness-blocker"
+        if not _escape_proof_ok(episode):
+            ok = False
+            episode["checks_ok"] = False
+            episode["stop_reason"] = "correctness-blocker"
+            episode["detail"] = "escape result carried a proof or certainty flag"
+        composed = [
+            action if not isinstance(action, list) else (
+                ("deal",) if action == ["deal"] else tuple(action)
+            )
+            for action in list(root.prefix_actions) + played
+        ]
+        accepted = False
+        if episode.get("solved"):
+            verified = validate_solution("4925153", composed)
+            accepted = bool(
+                verified.valid
+                and verified.solved
+                and verified.foundations == 8
+                and verified.stock_remaining == 0
+            )
+            if not accepted:
+                ok = False
+                episode["checks_ok"] = False
+                episode["stop_reason"] = "correctness-blocker"
+                episode["detail"] = "solved episode failed the eight-foundation verifier"
+        episode["independent_cold_complete"] = independent_cold_complete(
+            opening_root=not root.imported_prefix,
+            solved=bool(episode.get("solved")),
+            verifier_accepted=accepted,
+        )
+        if not ok:
+            checks_ok = False
+        episodes.append(episode)
+        if not ok:
+            break
+    opening_complete = any(
+        episode.get("root_id") == "opening" and episode.get("independent_cold_complete")
+        for episode in episodes
+    )
+    return {
+        "specification_sha": specification_sha,
+        "implementation_sha": implementation_sha,
+        "specification": policy_specification(),
+        "deal_sha256": manifest.deal_sha256,
+        "canonical_sha256": manifest.canonical_sha256,
+        "mode": "witness",
+        "cycle_escape": True,
+        "episodes": episodes,
+        "checks_ok": checks_ok,
+        "independent_cold_complete": bool(opening_complete),
     }

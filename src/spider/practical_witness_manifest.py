@@ -33,12 +33,21 @@ from spider.solution_archive import validate_solution
 DEAL_ID = "4925153"
 DEAL_RELATIVE = "deals/4925153.txt"
 CANONICAL_RELATIVE = "solutions/4925153_canonical.moves"
+# Historical names stay the CRLF raw hashes used by the frozen #23 trace.
+# Git LF blobs are a second authorised representation of the same tokens.
+# Authentication compares raw bytes with these four digests only.
 EXPECTED_CANONICAL_SHA256 = (
     "18338A08576AD24E9AF1F4BA2E7DB3E28768788DD511E823193B1937F3FEEF33"
 )
 EXPECTED_DEAL_SHA256 = (
     "C0B70979B3E6B90E266691DF956026629C890F49C12ED519801D6779434734DF"
 )
+DEAL_SHA256_LF = "1F99DD116590757E607A7112F09A2247BCA4B34D3AE91659E55646BCE370C943"
+DEAL_SHA256_CRLF = EXPECTED_DEAL_SHA256
+CANONICAL_SHA256_LF = "B4B7E3FCC957CA7D8B1AFEB9A5DB0BAC8FB6DD96443780B5727180CE55BF4A4E"
+CANONICAL_SHA256_CRLF = EXPECTED_CANONICAL_SHA256
+ACCEPTED_DEAL_SHA256 = frozenset({DEAL_SHA256_LF, DEAL_SHA256_CRLF})
+ACCEPTED_CANONICAL_SHA256 = frozenset({CANONICAL_SHA256_LF, CANONICAL_SHA256_CRLF})
 ROOT_IDS = ("opening", "after-deal-1", "after-deal-2", "after-deal-3")
 
 PREPARATION_BUDGET_S = 30.0
@@ -187,6 +196,37 @@ def policy_specification() -> dict:
                 "illegal execution, source or witness mismatch, broken accounting, "
                 "or a false provenance or certainty claim"
             ),
+            "escape_progress": (
+                "foundations or hidden cards improve without worsening the other; "
+                "stock count and extra actions are not progress"
+            ),
+            "escape_benefit": (
+                "at least two warm roots improve on that rule and no pair "
+                "regresses or trades off"
+            ),
+            "escape_only": (
+                "a correct fallback recovery without that benefit is "
+                "ESCAPE_ONLY_NO_CLEAR_GAME_BENEFIT"
+            ),
+        },
+        "cycle_escape": {
+            "default_enabled": False,
+            "official_opt_in": True,
+            "official_mode": "witness",
+            "runs_per_root": 1,
+            "trigger": (
+                "single original-action fallback whose one-step destination "
+                "was already reached at an equal or lower corrected g"
+            ),
+            "order": "existing full PR3 order, including unprobed actions and Deal",
+            "accept": (
+                "first affordable successor that is unseen or arrives at a "
+                "strictly lower g"
+            ),
+            "witness_plans": "unchanged",
+            "preview_identities": "not counted as kernel identities",
+            "not_a_witness": True,
+            "not_a_lower_bound": True,
         },
     }
 
@@ -209,8 +249,9 @@ def _normalize(action) -> tuple:
     return (int(action[0]), int(action[1]), int(action[2]))
 
 
-def _opening() -> SpiderState:
-    return SpiderState.from_cards(load_deal(REPO_ROOT / DEAL_RELATIVE))
+def _opening(deal_path: Optional[Path] = None) -> SpiderState:
+    path = REPO_ROOT / DEAL_RELATIVE if deal_path is None else Path(deal_path)
+    return SpiderState.from_cards(load_deal(path))
 
 
 def _card_count(state: SpiderState) -> int:
@@ -277,24 +318,38 @@ def materialize_root(root: FrozenRoot) -> SpiderState:
     return state
 
 
-def prepare_manifest(*, budget_s: float = PREPARATION_BUDGET_S) -> PlayManifest:
-    """Authenticate four roots. Raise rather than return a partial manifest."""
+def prepare_manifest(
+    *,
+    budget_s: float = PREPARATION_BUDGET_S,
+    deal_path: Optional[Path] = None,
+    canonical_path: Optional[Path] = None,
+) -> PlayManifest:
+    """Authenticate four roots. Raise rather than return a partial manifest.
+
+    ``deal_path`` and ``canonical_path`` default to the checkout. A test may
+    point them at temporary copies. Only the four explicit raw hashes are
+    accepted, and the manifest records the hash of the bytes it actually read.
+    """
 
     started = perf_counter()
     _guard(started, budget_s)
-    deal_path = REPO_ROOT / DEAL_RELATIVE
-    canonical_path = REPO_ROOT / CANONICAL_RELATIVE
-    deal_sha = _sha256(deal_path)
-    canonical_sha = _sha256(canonical_path)
+    deal_file = REPO_ROOT / DEAL_RELATIVE if deal_path is None else Path(deal_path)
+    canonical_file = REPO_ROOT / CANONICAL_RELATIVE if canonical_path is None else Path(canonical_path)
+    deal_sha = _sha256(deal_file)
+    canonical_sha = _sha256(canonical_file)
     _guard(started, budget_s)
-    if deal_sha != EXPECTED_DEAL_SHA256:
-        raise ProvenanceBlocker("deal file hash does not match the frozen reference")
-    if canonical_sha != EXPECTED_CANONICAL_SHA256:
-        raise ProvenanceBlocker("canonical route hash does not match the frozen reference")
+    if deal_sha not in ACCEPTED_DEAL_SHA256:
+        raise ProvenanceBlocker(
+            "deal file hash does not match an authorised raw byte representation"
+        )
+    if canonical_sha not in ACCEPTED_CANONICAL_SHA256:
+        raise ProvenanceBlocker(
+            "canonical route hash does not match an authorised raw byte representation"
+        )
 
     verified = validate_solution(
         DEAL_ID,
-        canonical_path,
+        canonical_file,
         claimed_mobilityware_moves=CANONICAL_MOBILITYWARE_MOVES,
     )
     _guard(started, budget_s)
@@ -310,7 +365,7 @@ def prepare_manifest(*, budget_s: float = PREPARATION_BUDGET_S) -> PlayManifest:
         raise ProvenanceBlocker("canonical accounting is not 172 moves, 8 foundations, empty stock")
 
     actions = tuple(_normalize(action) for action in verified.actions)
-    state = _opening()
+    state = _opening(deal_file)
     paid = 0
     prefix: list = []
     snapshots = [_facts(state, (), 0, 0)]
