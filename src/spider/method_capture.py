@@ -1185,6 +1185,7 @@ def run_method_attempt(
     authentication: Optional[dict] = None,
     log: LogFn = None,
     repo_root: Optional[Path] = None,
+    representation: str = "reference",
 ) -> dict:
     """Run one labelled method-v1 attempt and atomically update its ledger."""
 
@@ -1205,6 +1206,8 @@ def run_method_attempt(
     if _promote_saved_terminals(document, solution_dir=solution_dir, incumbent=recovery_incumbent):
         atomic_write_json(status_path, document)
     if mode == "repair":
+        if representation != "reference":
+            raise ValueError("route repair keeps the reference representation")
         return _run_repair(
             opening,
             document,
@@ -1321,9 +1324,13 @@ def run_method_attempt(
                 "prefix_len": len(prefix),
                 "historical_best_g": historical_best_g,
                 "incumbent_cost": incumbent_cost,
+                "representation": representation,
             },
         ),
     }
+    attempt["representation"] = representation
+    if representation != "reference":
+        kwargs["representation"] = representation
     document["attempts"].append(attempt)
     if mode == "continue":
         kwargs["prefix_actions"] = tuple(prefix)

@@ -10,6 +10,8 @@ from __future__ import annotations
 import sys
 from typing import Dict, Optional
 
+from spider.packed_heap import unpack_lane_key
+
 
 def _charge(obj, bucket: str, seen: set, buckets: Dict[str, int]) -> int:
     marker = id(obj)
@@ -115,6 +117,10 @@ def account_retained(diagnostics: dict, *, ceiling: Optional[int]) -> dict:
             pruned_exclusive_payload += len(ident)
             _charge(ident, "pruned_exclusive_key", seen, buckets)
 
+    entry_nodes = diagnostics.get("entry_nodes")
+    seq_mask = diagnostics.get("seq_mask")
+    if entry_nodes is not None:
+        _charge(entry_nodes, "entry_nodes", seen, buckets)
     lanes = {}
     heap_entries = 0
     live_entries = 0
@@ -133,21 +139,27 @@ def account_retained(diagnostics: dict, *, ceiling: Optional[int]) -> dict:
         seq_max = None
         for entry in heap:
             entry_bytes += _charge(entry, "heap_entry", seen, buckets)
-            if not isinstance(entry, tuple):
+            if isinstance(entry, tuple):
+                key_parts = entry[:-2]
+                seq = int(entry[-2])
+                node_i = entry[-1]
+            elif isinstance(entry, int) and entry_nodes is not None and seq_mask is not None:
+                seq = int(entry) & int(seq_mask)
+                node_i = int(entry_nodes[seq])
+                key_parts = unpack_lane_key(name, int(entry))[0]
+            else:
                 continue
             if key_length is None:
-                key_length = len(entry) - 2
-            for index, component in enumerate(entry[:-2]):
+                key_length = len(key_parts)
+            for index, component in enumerate(key_parts):
                 if index >= len(component_min):
                     component_min.append(int(component))
                     component_max.append(int(component))
                 else:
                     component_min[index] = min(component_min[index], int(component))
                     component_max[index] = max(component_max[index], int(component))
-            seq = int(entry[-2])
             seq_min = seq if seq_min is None else min(seq_min, seq)
             seq_max = seq if seq_max is None else max(seq_max, seq)
-            node_i = entry[-1]
             node = nodes[node_i]
             g = int(node.g)
             best = best_g.get(node.ident)

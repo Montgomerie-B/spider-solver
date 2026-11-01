@@ -591,6 +591,7 @@ def search_suit_ordered(
     progress_hook=None,
     expand_hook=None,
     kernel_diagnostics: Optional[dict] = None,
+    representation: str = "reference",
 ) -> GlobalSearchResult:
     """Whole-game kernel with suit proximity on the foundation lane only.
 
@@ -604,6 +605,9 @@ def search_suit_ordered(
 
     ``progress_hook(kr, state, g, node)`` and ``expand_hook(state, g, node)``
     are optional telemetry. They do not change admission, order, or pruning.
+
+    ``representation`` defaults to ``reference``. ``compact`` is the opt-in
+    slots node and packed heap. It is not a different schedule.
     """
 
     if mode not in {"cold", "optimise"}:
@@ -813,6 +817,7 @@ def search_suit_ordered(
         lower_bound_fn=bound,
         stop_on_first_terminal=False,
         diagnostics=kernel_diagnostics,
+        representation=representation,
     )
     out.unique = kr.unique
     out.expanded = kr.expanded

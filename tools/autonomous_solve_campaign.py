@@ -75,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repair-windows", type=int, default=6)
     parser.add_argument("--historical-best", type=int, default=158)
     parser.add_argument("--min-slack", type=int, default=0)
+    parser.add_argument("--representation", default="reference", choices=("reference", "compact"))
     args = parser.parse_args(argv)
     if args.mode:
         if args.status == "docs/autonomous_solve_campaign_status.json":
@@ -157,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
             historical_best_g=int(args.historical_best) if args.mode == "cold" else None,
             min_slack=int(args.min_slack),
             authentication=authentication,
+            representation=args.representation,
             log=lambda line: print(line, flush=True),
         )
         print(f"COLD {document.get('cold_reproduction')}", flush=True)

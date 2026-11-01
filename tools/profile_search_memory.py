@@ -7,6 +7,7 @@ A time or RSS stop is reported as itself and is not labelled fixed-work.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -20,6 +21,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from spider.global_search_experiment import search_suit_ordered
 from spider.method_capture import clamp_rss_mb, probe_host_memory
+from spider.packed_heap import pack_lane_key
+from spider.packed_state import pack_whole_game_identity
 from spider.research_actions import opening_from_deal
 from spider.search_memory_profile import account_retained
 
@@ -83,11 +86,21 @@ def main() -> int:
     parser.add_argument("--time-limit", type=float, default=900.0)
     parser.add_argument("--memory-mb", type=float, default=3000.0)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--representation", default="reference", choices=("reference", "compact"))
     args = parser.parse_args()
     memory = probe_host_memory()
     rss_cap = clamp_rss_mb(float(args.memory_mb), int(memory["available_bytes"]), workers=1)
     opening = opening_from_deal(ROOT / "deals" / "4925153.txt")
     diagnostics: dict = {}
+    expand_digest = hashlib.blake2s()
+    expansions_hashed = 0
+
+    def expand_hook(state, g, _node_i) -> None:
+        nonlocal expansions_hashed
+        expand_digest.update(pack_whole_game_identity(state))
+        expand_digest.update(int(g).to_bytes(4, "little", signed=True))
+        expansions_hashed += 1
+
     started = time.perf_counter()
     result = search_suit_ordered(
         opening,
@@ -101,6 +114,8 @@ def main() -> int:
         advice_fn=None,
         prefix_actions=(),
         kernel_diagnostics=diagnostics,
+        expand_hook=expand_hook,
+        representation=args.representation,
     )
     # Measure before accounting. The id set built by the accountant is not search memory.
     memory_at_stop = _working_sets()
@@ -108,6 +123,24 @@ def main() -> int:
     proof_identities = diagnostics.get("proof_prune_identities")
     proof_unretained = diagnostics.get("proof_prune_unretained")
     ceiling_prunes = diagnostics.get("ceiling_prunes")
+    same_entry_repack = None
+    if args.representation == "reference":
+        tuple_bytes = 0
+        packed_bytes = 0
+        repacked = 0
+        for name, heap in diagnostics["heaps"].items():
+            for entry in heap:
+                if not isinstance(entry, tuple):
+                    continue
+                repacked += 1
+                tuple_bytes += sys.getsizeof(entry)
+                packed_bytes += sys.getsizeof(pack_lane_key(name, entry[:-2], int(entry[-2])))
+        same_entry_repack = {
+            "entries": repacked,
+            "tuple_getsizeof": tuple_bytes,
+            "packed_int_getsizeof": packed_bytes,
+            "note": "Same retained keys packed after the RSS snapshot. This is not a second search.",
+        }
     diagnostics.clear()
     fixed = result.stop_reason == "unique limit" and int(result.unique) >= int(args.max_unique)
     payload = {
@@ -121,8 +154,10 @@ def main() -> int:
         "advice": False,
         "route_actions_passed": False,
         "seed_recorded": 0,
-        "representation": "reference",
-        "ordering": "frozen_suit_v1",
+        "representation": args.representation,
+        "ordering_claim": "frozen_suit_v1",
+        "expand_digest": expand_digest.hexdigest(),
+        "expansions_hashed": expansions_hashed,
         "commit": _commit(ROOT),
         "python": platform.python_version(),
         "cpu_count": os.cpu_count(),
@@ -160,6 +195,8 @@ def main() -> int:
             float(result.peak_rss_mb) * 1024.0 * 1024.0 / int(result.unique),
             2,
         )
+    if same_entry_repack is not None:
+        payload["same_entry_repack"] = same_entry_repack
     current_bytes = memory_at_stop.get("working_set_bytes")
     if current_bytes is not None:
         payload["working_set_mb_before_accounting"] = round(int(current_bytes) / (1024.0 * 1024.0), 2)

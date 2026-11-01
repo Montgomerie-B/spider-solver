@@ -6,6 +6,7 @@ and an engine-derived terminal predicate.
 
 from __future__ import annotations
 
+import array
 import heapq
 import time
 from dataclasses import dataclass, field
@@ -13,6 +14,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from spider.engine import SpiderState
 from spider.metrics import Action
+from spider.packed_heap import SEQ_MASK, pack_lane_key
 from spider.packed_state import pack_post_stock_symmetry_state, pack_state, unpack_state
 from spider.research_actions import (
     apply_action,
@@ -47,6 +49,19 @@ class SearchLimits:
 
 @dataclass
 class SearchNode:
+    ident: bytes
+    store: bytes
+    g: int
+    origin: int
+    parent: int
+    action: Optional[Action]
+    depth: int = 0
+
+
+@dataclass(slots=True)
+class CompactSearchNode:
+    """Same fields as ``SearchNode`` without a per-node ``__dict__``."""
+
     ident: bytes
     store: bytes
     g: int
@@ -150,6 +165,7 @@ def run_search(
     lower_bound_fn: Optional[Callable[[SpiderState, int], int]] = None,
     stop_on_first_terminal: bool = False,
     diagnostics: Optional[dict] = None,
+    representation: str = "reference",
 ) -> KernelResult:
     """Exact best-g search. ``roots`` need ordered_digest, symmetry_digest, g.
 
@@ -173,8 +189,20 @@ def run_search(
     ``diagnostics`` is optional. When a dict is passed, the kernel stores
     references to the retained maps and heaps after the search stops. It
     does not change admission, order, or pruning. The default is None.
+
+    ``representation`` defaults to ``reference``. ``compact`` keeps the same
+    admission, proof, and round-robin rules. It stores a slots node, shares
+    an identity with its ordered pack when the bytes are equal, and packs
+    each heap key plus the tie sequence into one integer. Stale heap entries
+    are still popped, so a lane's turn is not skipped. An out-of-range key
+    raises instead of changing the order.
     """
 
+    if representation not in {"reference", "compact"}:
+        raise ValueError(f"unknown representation {representation!r}")
+    compact = representation == "compact"
+    node_cls = CompactSearchNode if compact else SearchNode
+    entry_nodes = array.array("I") if compact else None
     started = time.perf_counter()
     deadline = started + limits.time_limit_s
     names = list(lane_names)
@@ -241,33 +269,39 @@ def run_search(
             return True
         return False
 
-    def push(node_i: int, state: SpiderState, g: int) -> None:
+    def remember(name: str, key, node_i: int) -> None:
         nonlocal seq
+        if key is None:
+            return
+        if compact:
+            assert entry_nodes is not None
+            ticket = len(entry_nodes)
+            entry_nodes.append(node_i)
+            heapq.heappush(heaps[name], pack_lane_key(name, key, ticket))
+            return
+        heapq.heappush(heaps[name], (*key, seq, node_i))
+        seq += 1
+
+    def node_index(entry) -> int:
+        if compact:
+            assert entry_nodes is not None
+            return int(entry_nodes[int(entry) & SEQ_MASK])
+        return int(entry[-1])
+
+    def push(node_i: int, state: SpiderState, g: int) -> None:
         if origin_lane_keys_fn is not None:
             keys = origin_lane_keys_fn(state, g, int(nodes[node_i].origin)) or {}
             for name in names:
-                key = keys.get(name)
-                if key is None:
-                    continue
-                heapq.heappush(heaps[name], (*key, seq, node_i))
-                seq += 1
+                remember(name, keys.get(name), node_i)
             return
         if lane_keys_fn is not None:
             keys = lane_keys_fn(state, g)
             for name in names:
-                key = keys.get(name)
-                if key is None:
-                    continue
-                heapq.heappush(heaps[name], (*key, seq, node_i))
-                seq += 1
+                remember(name, keys.get(name), node_i)
             return
         assert lane_key_fns is not None
         for name, keyfn in zip(names, lane_key_fns):
-            key = keyfn(state, g)
-            if key is None:
-                continue
-            heapq.heappush(heaps[name], (*key, seq, node_i))
-            seq += 1
+            remember(name, keyfn(state, g), node_i)
 
     order = sorted(range(len(roots)), key=lambda i: (int(roots[i]["g"]), roots[i].get("ordered_digest", "")))
     for origin in order:
@@ -275,18 +309,20 @@ def run_search(
         store = bytes.fromhex(rec["ordered_digest"])
         st0 = unpack_fn(store)
         ident = identity_fn(st0)
+        if compact and ident == store:
+            ident = store
         g0 = int(rec["g"])
         if ident in best_g:
             if g0 < best_g[ident]:
                 best_g[ident] = g0
                 for i, n in enumerate(nodes):
                     if n.ident == ident:
-                        nodes[i] = SearchNode(ident, store, g0, origin, -1, None)
+                        nodes[i] = node_cls(ident, store, g0, origin, -1, None)
                         break
             continue
         best_g[ident] = g0
         node_i = len(nodes)
-        nodes.append(SearchNode(ident, store, g0, origin, -1, None))
+        nodes.append(node_cls(ident, store, g0, origin, -1, None))
         if ceiling is None or g0 <= ceiling:
             if not proof_dead(st0, g0):
                 push(node_i, st0, g0)
@@ -316,7 +352,7 @@ def run_search(
             continue
         result.lane_pops[name] += 1
         rec_t = heapq.heappop(heap)
-        node_i = rec_t[-1]
+        node_i = node_index(rec_t)
         node = nodes[node_i]
         g = node.g
         if g != best_g.get(node.ident) or (ceiling is not None and g > ceiling):
@@ -362,6 +398,8 @@ def run_search(
                 result.generated_by_g[child_g] = result.generated_by_g.get(child_g, 0) + 1
                 child_store = store_fn(state)
                 child_ident = identity_fn(state)
+                if compact and child_ident == child_store:
+                    child_ident = child_store
                 prev = best_g.get(child_ident)
                 if prev is not None and child_g >= prev:
                     result.duplicate_skips += 1
@@ -387,7 +425,7 @@ def run_search(
                 best_g[child_ident] = child_g
                 child_i = len(nodes)
                 nodes.append(
-                    SearchNode(
+                    node_cls(
                         child_ident,
                         child_store,
                         child_g,
@@ -445,7 +483,7 @@ def run_search(
             live = []
             for n in names:
                 if heaps[n]:
-                    live.append(nodes[heaps[n][0][-1]].g)
+                    live.append(nodes[node_index(heaps[n][0])].g)
             if live and min(live) > incumbent + slack:
                 result.stop_reason = "harvested"
                 break
@@ -454,7 +492,7 @@ def run_search(
     )
     if not result.stop_reason:
         result.stop_reason = "depth limit" if result.hit_depth_limit else "complete"
-    live_g = [nodes[heaps[n][0][-1]].g for n in names if heaps[n]]
+    live_g = [nodes[node_index(heaps[n][0])].g for n in names if heaps[n]]
     if live_g:
         result.min_live_g = min(live_g)
         result.closed_g = min(live_g) - 1
@@ -478,6 +516,9 @@ def run_search(
         diagnostics["expanded_by_g"] = result.expanded_by_g
         diagnostics["generated_by_g"] = result.generated_by_g
         diagnostics["ceiling"] = ceiling
+        diagnostics["representation"] = representation
+        diagnostics["entry_nodes"] = entry_nodes
+        diagnostics["seq_mask"] = SEQ_MASK if compact else None
         diagnostics["proof_prune_identities"] = result.proof_prune_identities
         diagnostics["proof_prune_unretained"] = result.proof_prune_unretained
         diagnostics["ceiling_prunes"] = result.ceiling_prunes
