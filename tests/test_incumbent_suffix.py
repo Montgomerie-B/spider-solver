@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -15,10 +16,15 @@ from spider.autonomous_solve_campaign import atomic_write_json
 from spider.global_search_experiment import replay_cost, search_suit_ordered
 from spider.incumbent_suffix import (
     SCHEMA,
+    VERIFIED_157_GIT_BLOB,
+    VERIFIED_157_HASH16,
+    VERIFIED_157_RELATIVE,
     LiveSuffixChecker,
     SuffixTable,
     SuffixWitness,
+    authenticate_campaign,
     authenticate_inputs,
+    authenticate_moves_path,
     best_published_g,
     bound_at,
     build_suffix_table,
@@ -28,10 +34,14 @@ from spider.incumbent_suffix import (
     last_eligible_index,
     load_attempt_ledger,
     load_authenticated_route,
+    load_campaign_routes,
     load_own_routes,
     publish_verified_game,
+    require_pre120_index,
     run_prefix_attempt,
+    select_campaign_route,
     shared_prefix_length,
+    verified_published_incumbent,
 )
 from spider.packed_state import pack_state, pack_whole_game_identity, unpack_state
 from spider.research_actions import all_legal_actions, opening_from_deal
@@ -530,3 +540,170 @@ def test_prefix_attempt_checkpoints_a_bounded_run(corpus, tmp_path):
     assert resumed["attempts"][0]["source"] == saved["attempts"][0]["source"]
     assert resumed["attempts"][0]["launch"] == saved["attempts"][0]["launch"]
     assert resumed["attempts"][0]["launch"]["ceiling"] == 157
+
+
+def test_historical_fixture_stays_four_routes_when_157_is_added(corpus):
+    historical = load_own_routes(ROOT)
+    assert [route["label"] for route in historical] == ["164", "162", "160", "158"]
+    assert len(corpus["table"]) == 220
+    manifest = authenticate_campaign(ROOT, ceiling=156, incumbent=157)
+    assert manifest["schema"] == "spider-pre120-optimisation"
+    assert manifest["historical"]["labels"] == ["164", "162", "160", "158"]
+    assert manifest["historical"]["distinct_physical_states"] == 220
+    assert manifest["historical"]["shared_prefix_actions"] == 130
+    assert manifest["historical"]["splice_prefix_records"] == 735
+    assert manifest["historical"]["splice_exact_matches"] == 664
+    assert manifest["historical"]["splice_best_total"] == 158
+    assert manifest["historical"]["splice_improving_combinations"] == 0
+    assert manifest["incumbent"] == 157
+    assert manifest["ceiling"] == 156
+    assert manifest["route_157"]["g"] == 157
+    assert manifest["route_157"]["path_hash16"] == VERIFIED_157_HASH16
+    assert manifest["route_157"]["git_blob"] == VERIFIED_157_GIT_BLOB
+    assert manifest["route_157"]["tableau_moves"] == 152
+    assert manifest["route_157"]["stock_deals"] == 5
+    assert manifest["route_157"]["foundations"] == 8
+    assert manifest["shared_prefix_157_158"] == 121
+    assert manifest["shared_prefix_all_routes"] == 121
+    assert manifest["distinct_physical_states"] > 220
+    assert manifest["splice"]["prefix_records"] > 735
+    assert manifest["splice"]["best_total"] == 157
+    assert manifest["splice"]["improving_combinations"] == 0
+    assert manifest["splice_publication"] is None
+    assert "prefix_actions" not in manifest["splice"]["best"]
+    labels = [route["label"] for route in manifest["routes"]]
+    assert labels[:4] == ["164", "162", "160", "158"]
+    assert "157" in labels
+    for index in (100, 110, 119):
+        bound = manifest["bounds_on_157"][str(index)]
+        assert bound["f"] == bound["g"] + bound["h"]
+        assert bound["f"] <= 156
+    route_157 = next(route for route in load_campaign_routes(ROOT) if route["label"] == "157")
+    route_158 = corpus["by_label"]["158"]
+    assert route_157["actions"][:121] == list(route_158["actions"][:121])
+    assert route_157["actions"][121] != route_158["actions"][121]
+    assert bound_at(corpus["opening"], route_157["actions"], 119)["pack"] == bound_at(
+        corpus["opening"], route_158["actions"], 119
+    )["pack"]
+    table = build_suffix_table(corpus["opening"], load_campaign_routes(ROOT))
+    opening_witness = table.get(pack_state(corpus["opening"]))
+    assert opening_witness is not None
+    assert opening_witness.source_label == "157"
+    assert opening_witness.suffix_cost == 157
+    assert opening_witness.total_g == 157
+    diverged, diverged_g = replay_cost(corpus["opening"], route_157["actions"][:122])
+    diverged_witness = table.get(pack_state(diverged))
+    assert diverged_witness is not None
+    assert diverged_witness.source_label == "157"
+    assert diverged_g + diverged_witness.suffix_cost == 157
+    assert corpus["table"].get(pack_state(diverged)) is None
+    assert select_campaign_route(load_campaign_routes(ROOT), "best")["label"] == "157"
+    assert select_campaign_route(
+        [
+            {"label": "158", "g": 158},
+            {"label": "157", "g": 157},
+            {"label": "156", "g": 156, "adopted": True},
+        ],
+        "best",
+    )["label"] == "156"
+
+
+def test_authentication_failure_is_not_replaced_by_sidecar_metadata(corpus, tmp_path):
+    opening = corpus["opening"]
+    pinned = authenticate_moves_path(
+        opening,
+        ROOT / VERIFIED_157_RELATIVE,
+        label="157",
+        root=ROOT,
+        expected_g=157,
+        expected_hash16=VERIFIED_157_HASH16,
+        expected_git_blob=VERIFIED_157_GIT_BLOB,
+        git_relative=VERIFIED_157_RELATIVE,
+    )
+    copied = tmp_path / "wrong.moves"
+    copied.write_bytes((ROOT / "docs/research/autonomous_solve_campaign/4925153_cold_158.moves").read_bytes())
+    with pytest.raises(ValueError, match="corrected cost"):
+        authenticate_moves_path(
+            opening,
+            copied,
+            label="157",
+            root=ROOT,
+            expected_g=157,
+            expected_hash16=VERIFIED_157_HASH16,
+        )
+    corrupt = tmp_path / "corrupt.moves"
+    corrupt.write_text("move 1 1 99\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        authenticate_moves_path(opening, corrupt, label="corrupt", root=ROOT)
+    published = publish_verified_game(tmp_path, pinned["actions"], 157, header="pinned")
+    sidecar = Path(published["sidecar"])
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    payload["g"] = 140
+    payload["path_hash16"] = "deadbeefdeadbeef"
+    sidecar.write_text(json.dumps(payload), encoding="utf-8")
+    assert best_published_g(tmp_path) == 140
+    found = verified_published_incumbent(tmp_path, opening, root=ROOT)
+    assert found is not None
+    assert found["g"] == 157
+    assert found["path_hash16"] == VERIFIED_157_HASH16
+    assert found["sidecar_agreed"] is False
+    adopted = load_campaign_routes(ROOT, tmp_path)
+    adopted_157 = [route for route in adopted if route["path_hash16"] == VERIFIED_157_HASH16]
+    assert len(adopted_157) == 1
+    assert select_campaign_route(adopted, "best")["g"] == 157
+
+
+def test_pre120_runner_rejects_closed_prefixes_and_launches_119(corpus, tmp_path):
+    for closed in (120, 130, 140):
+        with pytest.raises(ValueError, match="closed"):
+            require_pre120_index(closed)
+    assert require_pre120_index(119) == 119
+    assert require_pre120_index(58) == 58
+    routes = load_campaign_routes(ROOT)
+    document = run_prefix_attempt(
+        action_index=119,
+        time_limit_s=15.0,
+        max_unique=2,
+        memory_mb=1024,
+        checkpoint_s=0,
+        output_dir=tmp_path,
+        root=ROOT,
+        route_label="157",
+        incumbent=157,
+        ceiling=156,
+        routes=routes,
+        verify_published=True,
+        improvement_below=157,
+    )
+    attempt = document["attempts"][-1]
+    assert attempt["route_label"] == "157"
+    assert attempt["route_hash16"] == VERIFIED_157_HASH16
+    assert attempt["prefix_index"] == 119
+    assert attempt["ceiling"] == 156
+    assert attempt["incumbent"] == 157
+    assert attempt["prefix_f"] <= 156
+    assert attempt["provenance"] == "incumbent_prefix_suffix_assisted"
+    assert attempt["representation"] == "compact"
+    assert attempt["sampled_reseeds"] == 0
+    assert attempt["retained_frontier"] == "leaders_not_full_frontier"
+    assert attempt["launch"]["available"] is True
+    assert attempt["launch"]["ceiling"] == 156
+    assert attempt["launch"]["incumbent"] == 157
+    assert attempt["source"]["commit"]
+    assert document["source"] == attempt["source"]
+    assert document.get("best_verified_g") is None
+    assert document["verified_improvement"] == "NO_VERIFIED_IMPROVEMENT"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "tools/pre120_optimisation.py",
+            "authenticate",
+            "--output",
+            "docs/research/incumbent_suffix_optimisation",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode != 0
+    assert "accepted" in completed.stderr.lower()

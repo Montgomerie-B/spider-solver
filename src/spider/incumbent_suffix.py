@@ -1,8 +1,10 @@
 """Own-campaign suffix witnesses and prefix-improvement search.
 
-The 164, 162, 160 and 158 games are feasible completions. A matching
-physical state may reuse the cheapest verified suffix. That cost is an
-upper bound, never an admissible lower bound, and a miss proves nothing.
+The 164, 162, 160 and 158 games are the historical suffix fixtures. The
+verified 157 game is an additional prefix and suffix source for the
+pre-120 campaign. A matching physical state may reuse the cheapest
+verified suffix. That cost is an upper bound, never an admissible lower
+bound, and a miss proves nothing.
 """
 
 from __future__ import annotations
@@ -40,6 +42,13 @@ OWN_ROUTES = (
     ("160", "docs/research/autonomous_solve_campaign/4925153_cold_160.moves"),
     ("158", "docs/research/autonomous_solve_campaign/4925153_cold_158.moves"),
 )
+HISTORICAL_LABELS = frozenset(label for label, _relative in OWN_ROUTES)
+VERIFIED_157_RELATIVE = "docs/research/incumbent_suffix_optimisation/4925153_assisted_157.moves"
+VERIFIED_157_COST = 157
+VERIFIED_157_HASH16 = "89c75b02b80f1271"
+VERIFIED_157_GIT_BLOB = "34c4510cab64a5cb243e66e87faeef2a7751f6a9"
+CAMPAIGN_SCHEMA = "spider-pre120-optimisation"
+CAMPAIGN_BOUND_INDEXES = (58, 80, 90, 100, 110, 119, 120)
 SAVED_PREFIX_LEDGERS = (
     "docs/research/method_capture_optimisation/status.json",
     "docs/research/search_memory_efficiency/status.json",
@@ -50,6 +59,7 @@ SOURCE_FILES = (
     "src/spider/search_kernel.py",
     "src/spider/global_search_experiment.py",
     "src/spider/search_memory_profile.py",
+    "tools/pre120_optimisation.py",
 )
 
 
@@ -132,6 +142,186 @@ def load_authenticated_route(root: Path, label: str, relative: str) -> dict:
 def load_own_routes(root: Optional[Path] = None) -> List[dict]:
     repo = Path(root) if root is not None else _repo_root()
     return [load_authenticated_route(repo, label, relative) for label, relative in OWN_ROUTES]
+
+
+def _relative_to_repo(root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _committed_blob(root: Path, relative: str) -> str:
+    return subprocess.check_output(
+        ["git", "rev-parse", f"HEAD:{relative}"],
+        cwd=root,
+        text=True,
+        encoding="utf-8",
+    ).strip()
+
+
+def authenticate_moves_path(
+    opening,
+    path: Path,
+    *,
+    label: str,
+    root: Optional[Path] = None,
+    expected_g: Optional[int] = None,
+    expected_hash16: Optional[str] = None,
+    expected_git_blob: Optional[str] = None,
+    git_relative: Optional[str] = None,
+) -> dict:
+    """Replay one moves file from the original opening. Sidecar metadata is not read."""
+
+    repo = Path(root) if root is not None else _repo_root()
+    candidate = Path(path)
+    refuse_reference_route(candidate)
+    if not candidate.is_file():
+        raise ValueError(f"{label} route is missing: {candidate}")
+    actions = parse_moves_file(candidate)
+    report = validate_solution(DEAL_ID, actions, expected_deal_id=DEAL_ID)
+    if not report.valid:
+        raise ValueError(report.failure_reason or f"{label} failed validation")
+    end, total = replay_cost(opening, actions)
+    verified = int(report.mobilityware_moves)
+    if int(total) != verified:
+        raise ValueError(f"{label} replay cost {total} != validated {verified}")
+    if not end.is_solved():
+        raise ValueError(f"{label} replay did not finish the layout")
+    digest = action_path_hash(actions)
+    if expected_g is not None and verified != int(expected_g):
+        raise ValueError(f"{label} corrected cost {verified} != expected {expected_g}")
+    if expected_hash16 is not None and digest != str(expected_hash16):
+        raise ValueError(f"{label} action hash {digest} != expected {expected_hash16}")
+    if expected_git_blob is not None:
+        relative = git_relative or _relative_to_repo(repo, candidate)
+        blob = _committed_blob(repo, relative)
+        if blob != str(expected_git_blob):
+            raise ValueError(f"{label} git blob {blob} != expected {expected_git_blob}")
+    return {
+        "label": label,
+        "path": _relative_to_repo(repo, candidate),
+        "actions": actions,
+        "g": verified,
+        "explicit_commands": int(report.explicit_commands),
+        "tableau_moves": int(report.tableau_moves),
+        "stock_deals": int(report.stock_deals),
+        "automatic_foundation_removals": int(report.automatic_foundation_removals),
+        "path_hash16": digest,
+        "foundations": int(report.foundations),
+        "adopted": False,
+    }
+
+
+def _public_route(route: dict) -> dict:
+    return {key: value for key, value in route.items() if key != "actions"}
+
+
+def _adopted_label(routes: Sequence[dict], verified_g: int, digest: str) -> str:
+    labels = {str(route["label"]) for route in routes}
+    base = str(int(verified_g))
+    if base not in labels:
+        return base
+    return f"{base}_{digest[:8]}"
+
+
+def authenticated_published_routes(opening, directory: Path, *, root: Optional[Path] = None) -> List[dict]:
+    """Replay every published moves file. A sidecar cost is not the authority."""
+
+    folder = Path(directory)
+    if not folder.is_dir():
+        return []
+    repo = Path(root) if root is not None else _repo_root()
+    found = []
+    for path in sorted(folder.glob("4925153_assisted_*.moves")):
+        route = authenticate_moves_path(opening, path, label="published", root=repo)
+        sidecar_path = path.with_suffix(".json")
+        agreed = None
+        if sidecar_path.is_file():
+            try:
+                payload = json.loads(sidecar_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                agreed = False
+            else:
+                agreed = (
+                    int(payload.get("g")) == int(route["g"])
+                    and str(payload.get("path_hash16") or "") == route["path_hash16"]
+                )
+        route["sidecar_agreed"] = agreed
+        route["adopted"] = True
+        found.append(route)
+    return found
+
+
+def verified_published_incumbent(directory: Path, opening, *, root: Optional[Path] = None) -> Optional[dict]:
+    """Lowest fully replayed published game. Missing or lying sidecar metadata is ignored."""
+
+    best = None
+    for route in authenticated_published_routes(opening, directory, root=root):
+        if best is None or int(route["g"]) < int(best["g"]):
+            best = route
+    return best
+
+
+def load_campaign_routes(root: Optional[Path] = None, output_dir: Optional[Path] = None) -> List[dict]:
+    """Historical fixtures, the pinned 157 game, and cheaper-or-equal verified successors."""
+
+    repo = Path(root) if root is not None else _repo_root()
+    opening = opening_from_deal(repo / "deals" / f"{DEAL_ID}.txt")
+    routes = load_own_routes(repo)
+    pinned = authenticate_moves_path(
+        opening,
+        repo / VERIFIED_157_RELATIVE,
+        label="157",
+        root=repo,
+        expected_g=VERIFIED_157_COST,
+        expected_hash16=VERIFIED_157_HASH16,
+        expected_git_blob=VERIFIED_157_GIT_BLOB,
+        git_relative=VERIFIED_157_RELATIVE,
+    )
+    if int(pinned["tableau_moves"]) != 152 or int(pinned["stock_deals"]) != 5:
+        raise ValueError("157 route tableau or deal count does not match the accepted replay")
+    if int(pinned["foundations"]) != 8:
+        raise ValueError("157 route did not finish eight foundations")
+    routes.append(pinned)
+    if output_dir is None:
+        return routes
+    seen = {route["path_hash16"] for route in routes}
+    for extra in authenticated_published_routes(opening, Path(output_dir), root=repo):
+        if extra["path_hash16"] in seen or int(extra["g"]) > VERIFIED_157_COST:
+            continue
+        extra["label"] = _adopted_label(routes, int(extra["g"]), extra["path_hash16"])
+        extra["adopted"] = True
+        routes.append(extra)
+        seen.add(extra["path_hash16"])
+    return routes
+
+
+def select_campaign_route(routes: Sequence[dict], label: str) -> dict:
+    """Choose a campaign prefix. Historical 164/162/160/158 games are suffix sources only."""
+
+    if label == "best":
+        candidates = [route for route in routes if route["label"] not in HISTORICAL_LABELS]
+        if not candidates:
+            raise ValueError("no verified campaign route is available")
+        return min(candidates, key=lambda route: (int(route["g"]), str(route["label"])))
+    for route in routes:
+        if route["label"] == label:
+            return route
+    raise ValueError(f"{label} is not an authenticated campaign route")
+
+
+def require_pre120_index(action_index: int) -> int:
+    """The action-120 component, and the 130 and 140 prefixes, are already closed."""
+
+    index = int(action_index)
+    if index < 0:
+        raise ValueError("prefix index is negative")
+    if index >= 120:
+        raise ValueError(
+            "action 120, 130 and 140 prefixes are closed; this campaign starts before action 120"
+        )
+    return index
 
 
 def shared_prefix_length(routes: Sequence[dict]) -> int:
@@ -286,7 +476,13 @@ def saved_branch_records(opening, root: Path) -> List[dict]:
     return records
 
 
-def splice_saved_prefixes(table: SuffixTable, records: Sequence[dict], incumbent: int = 158) -> dict:
+def splice_saved_prefixes(
+    table: SuffixTable,
+    records: Sequence[dict],
+    incumbent: int = 158,
+    *,
+    retain_best_actions: bool = False,
+) -> dict:
     """Cheap exact-pack check. This is not a search and not an optimality proof."""
 
     matches = 0
@@ -309,6 +505,9 @@ def splice_saved_prefixes(table: SuffixTable, records: Sequence[dict], incumbent
                 "suffix_source": witness.source_label,
                 "suffix_index": int(witness.action_index),
             }
+            if retain_best_actions:
+                best["prefix_actions"] = list(record.get("actions") or [])
+                best["suffix_actions"] = list(witness.suffix_actions)
         if total < int(incumbent):
             improving += 1
     return {
@@ -622,10 +821,123 @@ def _compact_branch(record: dict) -> dict:
     }
 
 
-def improvement_label(best_g: Optional[int]) -> str:
-    if best_g is not None and int(best_g) < 158:
+def improvement_label(best_g: Optional[int], *, below: int = 158) -> str:
+    if best_g is not None and int(best_g) < int(below):
         return "VERIFIED_IMPROVEMENT"
     return "NO_VERIFIED_IMPROVEMENT"
+
+
+def _strip_splice_actions(splice: dict) -> dict:
+    public = dict(splice)
+    best = public.get("best")
+    if isinstance(best, dict):
+        public["best"] = {
+            key: value
+            for key, value in best.items()
+            if key not in {"prefix_actions", "suffix_actions"}
+        }
+    return public
+
+
+def publish_splice_improvement(directory: Path, splice: dict, *, incumbent: int) -> Optional[dict]:
+    """Full-replay a cheaper exact splice and publish it. A tie is not an improvement."""
+
+    if int(splice.get("improving_combinations") or 0) < 1:
+        return None
+    best = splice.get("best")
+    if not isinstance(best, dict) or "prefix_actions" not in best or "suffix_actions" not in best:
+        raise ValueError("splice improvement is missing replayable actions")
+    full = list(best["prefix_actions"]) + list(best["suffix_actions"])
+    report = validate_solution(DEAL_ID, full, expected_deal_id=DEAL_ID)
+    verified = None if not report.valid else int(report.mobilityware_moves)
+    projected = int(best["total"])
+    if not report.valid or verified != projected or verified >= int(incumbent):
+        raise ValueError(report.failure_reason or "splice improvement failed full replay")
+    return publish_verified_game(
+        directory,
+        full,
+        int(verified),
+        header=(
+            f"Splice-assisted solution for deal {DEAL_ID}. "
+            f"Corrected MW={verified}. "
+            f"Prefix {best.get('prefix_source')} plus suffix {best.get('suffix_source')}."
+        ),
+    )
+
+
+def authenticate_campaign(
+    root: Optional[Path] = None,
+    *,
+    output_dir: Optional[Path] = None,
+    ceiling: int = 156,
+    incumbent: int = 157,
+) -> dict:
+    """Expanded 157 inputs. Historical four-route counts stay in their own block."""
+
+    repo = Path(root) if root is not None else _repo_root()
+    opening = opening_from_deal(repo / "deals" / f"{DEAL_ID}.txt")
+    historical = load_own_routes(repo)
+    historical_table = build_suffix_table(opening, historical)
+    historical_records = route_prefix_records(opening, historical)
+    branches = saved_branch_records(opening, repo)
+    historical_splice = splice_saved_prefixes(
+        historical_table, historical_records + branches, 158
+    )
+    routes = load_campaign_routes(repo, output_dir)
+    table = build_suffix_table(opening, routes)
+    reference = select_campaign_route(routes, "157")
+    route_158 = next(route for route in routes if route["label"] == "158")
+    records = route_prefix_records(opening, routes)
+    splice = splice_saved_prefixes(
+        table, records + branches, int(incumbent), retain_best_actions=True
+    )
+    published = None
+    if output_dir is not None:
+        published = publish_splice_improvement(Path(output_dir), splice, incumbent=int(incumbent))
+    bounds = {}
+    for index in CAMPAIGN_BOUND_INDEXES:
+        if 0 <= int(index) <= len(reference["actions"]):
+            bounds[str(index)] = bound_at(opening, reference["actions"], int(index))
+    eligible = last_eligible_index(opening, reference["actions"], int(ceiling))
+    pinned_hashes = file_hashes(repo / VERIFIED_157_RELATIVE)
+    return {
+        "schema": CAMPAIGN_SCHEMA,
+        "deal_id": DEAL_ID,
+        "assistance": "incumbent_prefix_suffix_assisted",
+        "incumbent": int(incumbent),
+        "ceiling": int(ceiling),
+        "historical": {
+            "labels": [route["label"] for route in historical],
+            "distinct_physical_states": len(historical_table),
+            "shared_prefix_actions": shared_prefix_length(historical),
+            "splice_prefix_records": historical_splice["prefix_records"],
+            "splice_exact_matches": historical_splice["exact_matches"],
+            "splice_best_total": historical_splice["best_total"],
+            "splice_improving_combinations": historical_splice["improving_combinations"],
+        },
+        "routes": [_public_route(route) for route in routes],
+        "route_157": {
+            **_public_route(reference),
+            "file_hashes": pinned_hashes,
+            "git_blob": VERIFIED_157_GIT_BLOB,
+        },
+        "shared_prefix_all_routes": shared_prefix_length(routes),
+        "shared_prefix_157_158": shared_prefix_length([reference, route_158]),
+        "distinct_physical_states": len(table),
+        "bounds_on_157": bounds,
+        "last_eligible_index": eligible,
+        "last_eligible_bound": None if eligible is None else bound_at(opening, reference["actions"], eligible),
+        "splice": _strip_splice_actions(splice),
+        "splice_publication": published,
+        "saved_branch_records": len(branches),
+        "source": source_fingerprint(repo),
+        "note": (
+            "Suffix costs are completion witnesses. They are not admissible bounds. "
+            "The historical four-route fixture is unchanged. "
+            "The splice check does not search and does not prove an unseen prefix is impossible. "
+            "A closed action-120 component says nothing about a departure before that prefix."
+        ),
+    }
 
 
 def _unavailable_provenance() -> dict:
@@ -694,6 +1006,9 @@ def run_prefix_attempt(
     incumbent: int = 158,
     ceiling: int = 157,
     log=None,
+    routes: Optional[Sequence[dict]] = None,
+    verify_published: bool = False,
+    improvement_below: int = 158,
 ) -> dict:
     """Compact prefix-improve search from one authenticated own-route prefix."""
 
@@ -701,14 +1016,18 @@ def run_prefix_attempt(
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     opening = opening_from_deal(repo / "deals" / f"{DEAL_ID}.txt")
-    routes = load_own_routes(repo)
-    route = next(item for item in routes if item["label"] == route_label)
+    loaded = load_own_routes(repo) if routes is None else list(routes)
+    route = next(item for item in loaded if item["label"] == route_label)
     if int(action_index) < 0 or int(action_index) > len(route["actions"]):
         raise ValueError("prefix index is outside the authenticated route")
     prefix = tuple(route["actions"][: int(action_index)])
     bound = bound_at(opening, route["actions"], int(action_index))
-    table = build_suffix_table(opening, routes)
-    published = best_published_g(output)
+    table = build_suffix_table(opening, loaded)
+    if verify_published:
+        published_route = verified_published_incumbent(output, opening, root=repo)
+        published = None if published_route is None else int(published_route["g"])
+    else:
+        published = best_published_g(output)
     active_incumbent = int(incumbent) if published is None else min(int(incumbent), int(published))
     host = probe_host_memory()
     applied = clamp_rss_mb(float(memory_mb), int(host["available_bytes"]), workers=1)
@@ -840,6 +1159,12 @@ def run_prefix_attempt(
             "search_kind": result.search_kind_label,
             "suffix": result.suffix_stats,
             "branches": branches,
+            "sampled_reseeds": 0,
+            "retained_frontier": "leaders_not_full_frontier",
+            "exhaustion_scope": (
+                "exact authenticated prefix, physical root, absolute g, "
+                "deal 4925153, MW rules, and the compatible absolute ceiling"
+            ),
             "wall_s": round(time.time() - started, 3),
         }
     )
@@ -848,8 +1173,18 @@ def run_prefix_attempt(
         previous = document.get("best_verified_g")
         if previous is None or verified < int(previous):
             document["best_verified_g"] = verified
+    if (
+        verify_published
+        and published is not None
+        and int(published) < int(improvement_below)
+    ):
+        previous = document.get("best_verified_g")
+        if previous is None or int(published) < int(previous):
+            document["best_verified_g"] = int(published)
     document["running"] = False
-    document["verified_improvement"] = improvement_label(document.get("best_verified_g"))
+    document["verified_improvement"] = improvement_label(
+        document.get("best_verified_g"), below=int(improvement_below)
+    )
     atomic_write_json(status_path, document)
     if log is not None:
         log(
