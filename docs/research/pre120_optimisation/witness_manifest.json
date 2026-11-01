@@ -1,0 +1,216 @@
+{
+  "assistance": "incumbent_prefix_suffix_assisted",
+  "bounds_on_157": {
+    "100": {
+      "f": 134,
+      "face_down": 10,
+      "foundations": 3,
+      "g": 100,
+      "h": 34,
+      "index": 100,
+      "pack": "53504b3101030000040a3a2c3608350413120d3229283706030115191b1100033d3c3b030d31122d1a071d1c1b1a1918171615141300030c0b0a000202010005181716110300031d1c05000439382726000b24232b2a140925343322210d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "110": {
+      "f": 141,
+      "face_down": 10,
+      "foundations": 3,
+      "g": 110,
+      "h": 31,
+      "index": 110,
+      "pack": "53504b3101030000040c3a2c3608350413120d32292837060534030115191b1100033d3c3b030d31122d1a071d1c1b1a1918171615141300040c0b0a09000000071817161103020100021d1c00053938272625000824232b2a143322210d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "119": {
+      "f": 147,
+      "face_down": 10,
+      "foundations": 3,
+      "g": 119,
+      "h": 28,
+      "index": 119,
+      "pack": "53504b3101030000040d3a2c3608350413120d3229283706053433030115191b1100033d3c3b030d31122d1a071d1c1b1a1918171615141300040c0b0a0900011400071817161103020100061d1c2b2a393800000007272625242322210d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "120": {
+      "f": 148,
+      "face_down": 10,
+      "foundations": 3,
+      "g": 120,
+      "h": 28,
+      "index": 120,
+      "pack": "53504b3101030000040b3a2c3608350413120d322928370605030115191b1100033d3c3b030d31122d1a071d1c1b1a1918171615141300040c0b0a0900011400071817161103020100061d1c2b2a3938000234330007272625242322210d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "58": {
+      "f": 117,
+      "face_down": 14,
+      "foundations": 0,
+      "g": 58,
+      "h": 59,
+      "index": 58,
+      "pack": "53504b310100000004083a2c3608350413120d322913050c15191b11282d0c2b2a29282726010a0b1a010c3b2706151424233231162c1c22030531122d1a071d22330110260d0c0b0a09080706050403022118341900050221393837000818171611033d3c1700041d1c0501000d3d3c3b3a393837363534251b33000724232b2a140925",
+      "stock_cards": 0
+    },
+    "80": {
+      "f": 124,
+      "face_down": 13,
+      "foundations": 1,
+      "g": 80,
+      "h": 44,
+      "index": 80,
+      "pack": "53504b3101010000040a3a2c3608350413120d3229132221050215191b11282d0c01113b2706151424233231162c2b2a2928272625030931122d1a071d1c1b1a191817000000020201000d18171611033d3c0b0a3938372600031d1c05000b3d3c3b3a39383736353433000b24232b2a140925343322210d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "90": {
+      "f": 127,
+      "face_down": 11,
+      "foundations": 3,
+      "g": 90,
+      "h": 37,
+      "index": 90,
+      "pack": "53504b310103000004073a2c3608350413120d3229030115191b1101023b2706030d31122d1a071d1c1b1a1918171615141300010c00020201000d18171611033d3c0b0a3938372600031d1c05000128000b24232b2a140925343322210d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    }
+  },
+  "ceiling": 156,
+  "deal_id": "4925153",
+  "distinct_physical_states": 248,
+  "historical": {
+    "distinct_physical_states": 220,
+    "labels": [
+      "164",
+      "162",
+      "160",
+      "158"
+    ],
+    "shared_prefix_actions": 130,
+    "splice_best_total": 158,
+    "splice_exact_matches": 664,
+    "splice_improving_combinations": 0,
+    "splice_prefix_records": 735
+  },
+  "incumbent": 157,
+  "last_eligible_bound": {
+    "f": 156,
+    "face_down": 9,
+    "foundations": 4,
+    "g": 139,
+    "h": 17,
+    "index": 139,
+    "pack": "53504b310104000004043a2c360835343332020115191b00033d3c3b030831122d1a0706050403020100050d0c0b0a090003393837000418171611000d1d1c2b2a2928272625242322210000000214130d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+    "stock_cards": 0
+  },
+  "last_eligible_index": 139,
+  "note": "Suffix costs are completion witnesses. They are not admissible bounds. The historical four-route fixture is unchanged. The splice check does not search and does not prove an unseen prefix is impossible. A closed action-120 component says nothing about a departure before that prefix.",
+  "route_157": {
+    "adopted": false,
+    "automatic_foundation_removals": 8,
+    "explicit_commands": 157,
+    "file_hashes": {
+      "bytes": 1980,
+      "crlf_sha256": "78BB38022565792BFE6A30813172667E2C8FDB15BC609BCE7899B50F22CF60CD",
+      "lf_sha256": "08F57DBB7BABA8899EC1D7F01267D9816526E55316431CC0AB14E5D549F8BB6B",
+      "newline": "crlf",
+      "raw_sha256": "78BB38022565792BFE6A30813172667E2C8FDB15BC609BCE7899B50F22CF60CD"
+    },
+    "foundations": 8,
+    "g": 157,
+    "git_blob": "34c4510cab64a5cb243e66e87faeef2a7751f6a9",
+    "label": "157",
+    "path": "docs/research/incumbent_suffix_optimisation/4925153_assisted_157.moves",
+    "path_hash16": "89c75b02b80f1271",
+    "stock_deals": 5,
+    "tableau_moves": 152
+  },
+  "routes": [
+    {
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 164,
+      "foundations": 8,
+      "g": 164,
+      "label": "164",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_164.moves",
+      "path_hash16": "e56a441f03423876",
+      "stock_deals": 5,
+      "tableau_moves": 159
+    },
+    {
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 162,
+      "foundations": 8,
+      "g": 162,
+      "label": "162",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_162.moves",
+      "path_hash16": "f5c01d7af0713b15",
+      "stock_deals": 5,
+      "tableau_moves": 157
+    },
+    {
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 160,
+      "foundations": 8,
+      "g": 160,
+      "label": "160",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_160.moves",
+      "path_hash16": "c521042076b473dc",
+      "stock_deals": 5,
+      "tableau_moves": 155
+    },
+    {
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 158,
+      "foundations": 8,
+      "g": 158,
+      "label": "158",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_158.moves",
+      "path_hash16": "9145868d32e42008",
+      "stock_deals": 5,
+      "tableau_moves": 153
+    },
+    {
+      "adopted": false,
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 157,
+      "foundations": 8,
+      "g": 157,
+      "label": "157",
+      "path": "docs/research/incumbent_suffix_optimisation/4925153_assisted_157.moves",
+      "path_hash16": "89c75b02b80f1271",
+      "stock_deals": 5,
+      "tableau_moves": 152
+    }
+  ],
+  "saved_branch_records": 87,
+  "schema": "spider-pre120-optimisation",
+  "shared_prefix_157_158": 121,
+  "shared_prefix_all_routes": 121,
+  "source": {
+    "commit": "8e883ed137648bf076e245e3b9b9fed8769fb711",
+    "dirty": false,
+    "files_sha256": {
+      "src/spider/global_search_experiment.py": "dadd76e38500c7180fc0b588de9c79068743899092f531070ca550a8b26736a7",
+      "src/spider/incumbent_suffix.py": "ba73afd2abeda352f663c25deea096d9c18e1cc1d63e0e76326d64c68048763d",
+      "src/spider/packed_heap.py": "4cfa5ce974df3ea1c159a858f4c64d39266ab3929d25cc7923a73b05a4ace264",
+      "src/spider/search_kernel.py": "f0780438f40578edf6581e51d2170c0a1425ed196fc20c3be68f052597854c1a",
+      "src/spider/search_memory_profile.py": "43139a1f68376142e3e2721ad7aae96c0532fdadb7e5491dc3a1135a28c8ca51",
+      "tools/pre120_optimisation.py": "575e604900cd6509b4f20a55633298773d418abf7bf048627b6592876e292e46"
+    }
+  },
+  "splice": {
+    "best": {
+      "prefix_g": 0,
+      "prefix_source": "route:164:0",
+      "suffix_cost": 157,
+      "suffix_index": 0,
+      "suffix_source": "157",
+      "total": 157
+    },
+    "best_total": 157,
+    "claim": "saved_path_splice_not_a_search",
+    "exact_matches": 822,
+    "improving_combinations": 0,
+    "prefix_records": 893,
+    "record_definition": "One record per route state, including the opening and the solved end, plus one end state for each distinct replay_ok action list in each saved ledger."
+  },
+  "splice_publication": null
+}
