@@ -61,6 +61,23 @@ Keep the reference representation as the default. Add one opt-in compact represe
 
 A local `heapq` check of 300,000 pushes and pops, outside the solver, took 0.744 s for 7-tuples, 0.667 s for wide integers, and 4.469 s for a pure-Python array heap. The array heap was rejected on that throughput gap. The integer size is 28, 32, or 36 bytes for 30, 60, and 90 bit values. The search comparison, not this check, decides whether the compact form stays on the experiment path.
 
+## Paired comparison
+
+The compact implementation was frozen at `0a34919b4167bb50b9165321e6fe16fb26455ccb` before this comparison. Both arms are the opening ceiling-157 search with no route. Each expansion is hashed. The digests match, so compact is the same frozen suit order. It is not a schedule variant and it is not a proof.
+
+| Work | Arm | Elapsed s | Expansions/s | Peak RSS MB | Accounted MB | Heap entry bytes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 25,000 | reference | 32.437 | 89.405 | 74.55 | 34.99 | 16,891,888 |
+| 25,000 | compact | 32.699 | 88.689 | 53.35 | 21.09 | 5,924,684 |
+| 100,000 | reference | 164.764 | 94.578 | 210.52 | 144.42 | 66,522,928 |
+| 100,000 | compact | 162.062 | 96.154 | 125.01 | 91.61 | 23,327,988 |
+
+Unique, expanded, generated, duplicate, stale, lower-bound, and proof-identity counts match on both sizes. Live, already-expanded, and superseded heap counts match. The 100,000 digest is `b93c5aa616d92b33cfc4b6969cf4a10cecfbc1dc001b51ee5289a27b39edf708` for 15,583 expansions. The 25,000 digest is `a741849af9ad734915b6d66cfae9aeaf70d3aadadde39f13db4738d2f6221ca9` for 2,900 expansions.
+
+Repacking the retained reference tuples after the RSS snapshot produces the same integer byte count the compact search measured: 66,522,928 tuple bytes become 23,327,988 integer bytes at 100,000 identities. Compact also shares the 21,416 equal stock-present packs and drops the node dictionaries. Peak RSS falls by 40.6 percent at 100,000 identities. Elapsed time does not get worse.
+
+From 25,000 to 100,000, marginal peak RSS is 1,901 bytes per identity for the reference and 1,002 bytes for compact. A 2,000,000-identity compact search projects to about 1,850 MB before any faster growth of the proof-prune set. The attempt therefore uses compact mode, a 2,000,000 identity cap, a 3,600 second limit, and the launch-time RSS clamp. The reference mode remains the default.
+
 ## Not established
 
-These samples do not show a shorter solution. They do not prove the old 1,200,000-identity tree was memory-bound: that run peaked near 2,441 MB under a 3,000 MB request. Raising the unique cap on the reference kernel is not an efficiency result. Optimality remains unproved.
+These samples do not show a shorter solution. They do not prove the old 1,200,000-identity tree was memory-bound: that run peaked near 2,441 MB under a 3,000 MB request. Raising the unique cap on the reference kernel is not the result above. The compact run is the same order with a smaller retained graph. Optimality remains unproved.
