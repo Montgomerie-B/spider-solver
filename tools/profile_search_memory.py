@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -124,6 +125,7 @@ def main() -> int:
         "ordering": "frozen_suit_v1",
         "commit": _commit(ROOT),
         "python": platform.python_version(),
+        "cpu_count": os.cpu_count(),
         "platform": platform.platform(),
         "machine": memory,
         "requested_max_unique": int(args.max_unique),

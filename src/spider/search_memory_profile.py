@@ -127,10 +127,26 @@ def account_retained(diagnostics: dict, *, ceiling: Optional[int]) -> dict:
         lane_expanded = 0
         key_length = None
         entry_bytes = 0
+        component_min: list = []
+        component_max: list = []
+        seq_min = None
+        seq_max = None
         for entry in heap:
             entry_bytes += _charge(entry, "heap_entry", seen, buckets)
+            if not isinstance(entry, tuple):
+                continue
             if key_length is None:
                 key_length = len(entry) - 2
+            for index, component in enumerate(entry[:-2]):
+                if index >= len(component_min):
+                    component_min.append(int(component))
+                    component_max.append(int(component))
+                else:
+                    component_min[index] = min(component_min[index], int(component))
+                    component_max[index] = max(component_max[index], int(component))
+            seq = int(entry[-2])
+            seq_min = seq if seq_min is None else min(seq_min, seq)
+            seq_max = seq if seq_max is None else max(seq_max, seq)
             node_i = entry[-1]
             node = nodes[node_i]
             g = int(node.g)
@@ -148,6 +164,10 @@ def account_retained(diagnostics: dict, *, ceiling: Optional[int]) -> dict:
             "superseded": lane_superseded,
             "already_expanded": lane_expanded,
             "key_length": key_length,
+            "key_component_min": component_min,
+            "key_component_max": component_max,
+            "seq_min": seq_min,
+            "seq_max": seq_max,
             "entry_bytes": entry_bytes,
             "list_bytes": sys.getsizeof(heap),
         }
