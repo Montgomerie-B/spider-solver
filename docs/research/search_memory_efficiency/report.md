@@ -78,6 +78,42 @@ Repacking the retained reference tuples after the RSS snapshot produces the same
 
 From 25,000 to 100,000, marginal peak RSS is 1,901 bytes per identity for the reference and 1,002 bytes for compact. A 2,000,000-identity compact search projects to about 1,850 MB before any faster growth of the proof-prune set. The attempt therefore uses compact mode, a 2,000,000 identity cap, a 3,600 second limit, and the launch-time RSS clamp. The reference mode remains the default.
 
+## Bounded opening attempt
+
+The comparison above is the qualifying gain. One compact opening search then used it. The source was clean `fe370509bf726c5025a6056fed1fbaeee0ac3b93`. Python 3.14.5. The launch probe was 8 CPUs, 16,264.7 MB total, 7,396.8 MB available. The applied RSS cap was 2,958.7 MB, the minimum of the 3,000 MB request, 8,192 MB, and 40 percent of available RAM. Authentication replayed the historical 158 only to check the scalar: cost 158, path hash `9145868d32e42008`, `actions_loaded_into_search` false. The search read no route. Advice stayed off. The prefix was empty. Seed 0 was recorded and is not wired into successor order.
+
+```text
+py -3 tools/autonomous_solve_campaign.py --mode opening-improve --deal deals/4925153.txt --incumbent-cost 158 --cost-ceiling 157 --authenticate docs/research/autonomous_solve_campaign/4925153_cold_158.moves --time-limit 3600 --max-unique 2000000 --memory-mb 3000 --checkpoint-s 600 --representation compact --status docs/research/search_memory_efficiency/status.json --solution-dir docs/research/search_memory_efficiency
+```
+
+The attempt stopped on the time limit at 3,602.502 seconds. It did not stop on the identity cap or the RSS cap.
+
+| Field | Value |
+| --- | ---: |
+| Unique identities | 1,593,761 |
+| Expanded | 467,732 |
+| Generated | 7,282,460 |
+| Duplicate skips | 3,912,200 |
+| Stale skips | 81,695 |
+| Lower-bound prunes | 1,475,464 |
+| Ceiling prunes | 0 |
+| Peak RSS MB | 1,851.96 |
+| Max foundations | 5 |
+| Min live g | 7 |
+| Closed g observation | 6 |
+
+`solved` is false. No complete candidate was written. `replay_ok` is true only for the best unfinished partial, which replays at its recorded cost. `validated` is false. `best_verified_g` is null. `verified_improvement` is `NO_VERIFIED_IMPROVEMENT`. `cold_reproduction` is `NOT_RUN`. The kernel provenance string `imported_verified_complete` is a label, not a proof. `ceiling_is_proof` is false. `exact_frontier_retained` is false. `resume_kind` is `sampled_reseed`.
+
+The deepest replayed unfinished states have 5 foundations, 4 face-down cards, and an empty stock. The leader is corrected cost 145. The milestone is corrected cost 147. Both replay. Neither is a finished game. The saved branches are a sample, not the kernel heap. `min_live_g` 7 and `closed_g` 6 are observations of the remaining heap heads. They do not prove that every route costs at least 7.
+
+The 2,000,000-identity projection of about 1,850 MB was an estimate from the 25,000-to-100,000 slope, before extra proof-prune growth. This run reached 1,593,761 identities at 1,851.96 MB, with 1,475,464 lower-bound prunes, and still had headroom under the 2,958.7 MB clamp. Time, not memory, ended it.
+
+The earlier reference opening attempt, a2 in the accepted method-capture ledger, admitted its 1,200,000-identity cap, expanded 334,452 nodes, ran 2,922.161 seconds, and peaked at 2,440.96 MB. It also reached 5 foundations and did not solve. This compact attempt admitted more identities and expanded more nodes at a lower peak. The time budgets differ, so that pair is context. The order-preserving measurement remains the 25,000 and 100,000 table.
+
+## Tests
+
+After the compact kernel was frozen, the maintained selection was run once: the 31 files in `docs/strategic_continuity_v0_123.md` section 19, plus the later global-search, dependency, witness, cycle-escape, campaign, method-capture, packed-heap, and memory-profile modules. The command was `py -3 -m pytest -p no:cacheprovider` with `PYTHONPATH=src`. Result: 783 passed in 276.34 seconds. `tests/test_human_strategy_v0_120.py::test_a_short_live_solve_shares_probes_and_keeps_the_deep_cap_idle` did not fail in this run. That test can still return `PLANNING_STALL` instead of `TIME_LIMIT` in a full suite, and it was not weakened. Eight modules that fail collection were not in this selection and were not edited.
+
 ## Not established
 
-These samples do not show a shorter solution. They do not prove the old 1,200,000-identity tree was memory-bound: that run peaked near 2,441 MB under a 3,000 MB request. Raising the unique cap on the reference kernel is not the result above. The compact run is the same order with a smaller retained graph. Optimality remains unproved.
+No shorter solution was found. The best verified cost remains 158. The cold reproduction remains the validated 164. Optimality is unproved. The old 1,200,000-identity tree was not shown to be memory-bound: it stopped on its identity cap at 2,441 MB. This attempt also had RSS headroom. Raising the unique cap on the unchanged reference kernel is not the result. Compact mode is the same frozen suit order with a smaller retained graph. No second campaign was started. The accepted method-capture ledger, recipe, and historical 158 and 164 files were not rewritten.
