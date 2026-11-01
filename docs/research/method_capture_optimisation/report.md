@@ -62,7 +62,7 @@ The 158 route has deals at actions 21, 51, 54, 55, and 58. Stock is empty from a
 
 a4 stored a 155-move prefix and then called the search without it. The kernel provenance is `partial_legal_search`. That attempt is not a reseed. The fix keeps `prefix_actions` on continuation calls.
 
-a5 replayed the 155-move, 6-foundation, stock-empty branch. Provenance `checkpoint_continuation`. All seven lane heaps ended empty. Stop class `heap_empty_under_paid_ceiling`. 192 unique states. This shows that prefix cannot finish at cost 157. It does not show that every line from the opening fails.
+a5 replayed the 155-move, 6-foundation, stock-empty branch. Provenance `checkpoint_continuation`. All seven lane heaps ended empty. Stop class `heap_empty_under_paid_ceiling`. 192 unique states. This shows that prefix cannot finish at cost 157. It does not show that every line from the opening fails. A later selector must not treat that result as every other 155-action prefix. The saved 7-foundation branch at cost 155 stays eligible.
 
 a6 replayed the 145-move, 5-foundation branch from the ceiling-157 search. Provenance `checkpoint_continuation`. It reached 7 foundations, considered 573,216 zero-cost actions, admitted 0 zero-cost edges, and applied 2,689,561 ceiling prunes. `min_live_g` was 149. `closed_g` 148 is the heap observation `min_live_g - 1`, not a closure proof. Peak RSS was 715 MB.
 
@@ -76,6 +76,18 @@ The opening search under ceiling 157 is limited by identity memory: 1.2 million 
 
 The maintained regression is the 31 files in the v0.123 command plus 29 later modules, including `tests/test_method_capture.py`: 60 files. It is not the whole suite. Result: 767 passed, 0 failed, 401.51 seconds. The previous 59-file selection was 752 passed. The added passes are the method-capture tests. `tests/test_human_strategy_v0_120.py::test_a_short_live_solve_shares_probes_and_keeps_the_deep_cap_idle` can report `PLANNING_STALL` instead of `TIME_LIMIT` (issue #6). These eight modules still fail collection and were not edited: `test_exact_state_policy_context_equivalence_v0_1.py`, `test_one_shot_natural_empty_service_v0_1.py`, `test_one_shot_natural_r3_service_v0_1.py`, `test_workspace_opportunity_service_lane_v0_1.py`, `test_workspace_service_generalisation_panel_v0_1.py`, `test_workspace_service_lag1_grace_v0_1.py`, `test_workspace_service_stock_guard_v0_1.py`, `test_workspace_service_stock_synchronous_v0_1.py`.
 
+The runner corrections after that accepted run added focused method-capture checks only. The 767-test result was not rerun, and no further search was started.
+
+## Runner corrections
+
+Continuation exhaustion is the physical pack, prefix hash, root g, deal, rules, and the ceiling that emptied. Action-count length is not an identity. A higher ceiling does not reuse a tighter exhaustion. a5's 192-state result still applies to its own 155-action, 6-foundation root at ceiling 157.
+
+A validated terminal is written, with `best_complete`, when the terminal is checkpointed. A terminal already stored in the ledger is published again before a later search starts. The same path hash is a no-op. A higher cost does not replace the stored best, in search or in repair.
+
+Each new attempt freezes its commit, dirty flag, relevant LF file hashes, recipe identity, and run configuration. Later loads keep that snapshot. The shared `source` field on the accepted ledger stays `a73478bc354b1da0d3d0749fff1e0c7fd5631648`; it is the last value that runner wrote, not the provenance of a1–a7. Those attempts have no stored snapshot. On load they are marked `commit: unknown`. No retrospective SHA is written into the raw ledger. a4 remains a fresh opening: the stored prefix was not passed, and the kernel provenance stays `partial_legal_search`.
+
 ## What remains unfinished
 
-`exact_frontier_retained` is false. The ledger keeps replayable unfinished branches and a ring of untried states. A default continuation skips solved terminals, skips a prefix whose cost is already over the ceiling, and skips a prefix whose paid-ceiling heap already emptied. Canonical, autonomous 185, and g123 actions were not loaded into the cold or scalar searches.
+`exact_frontier_retained` is false. The ledger keeps replayable unfinished branches and a ring of untried states. A continuation skips solved terminals and skips a prefix whose cost is already over the paid ceiling. It skips an emptied component only when the pack, root g, deal, and rules match and the requested ceiling is no higher than the search that emptied. Canonical, autonomous 185, and g123 actions were not loaded into the cold or scalar searches.
+
+The next optimisation target is memory use and search allocation. Larger searches hit state caps. Profiling the retained states and the seven queues should guide that change. This correction pass did not profile them.

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -34,6 +35,17 @@ SCHEMA = "spider-method-capture-26"
 RECIPE_SCHEMA = "spider-whole-game-method-v1"
 AGGREGATE_CAP_MB = 8 * 1024.0
 MODES = ("cold", "opening-improve", "repair", "continue")
+DEAL_ID = "4925153"
+RULES_ID = "MW_RULES"
+RECIPE_RELATIVE = "docs/research/method_capture_optimisation/method_v1.json"
+SOURCE_FILES = (
+    "src/spider/method_capture.py",
+    "src/spider/global_search_experiment.py",
+    "src/spider/search_kernel.py",
+    "src/spider/research_actions.py",
+    "tools/autonomous_solve_campaign.py",
+    RECIPE_RELATIVE,
+)
 LogFn = Optional[Callable[[str], None]]
 
 
@@ -324,6 +336,116 @@ def _terminal(branch: dict) -> bool:
     return branch.get("terminal") is True
 
 
+def _prefix_hash16(actions: Sequence[Action]) -> str:
+    return action_path_hash(actions)
+
+
+def _actions_from_branch(branch: dict) -> List[Action]:
+    return [parse_action_text(text) for text in branch.get("actions") or []]
+
+
+def _component_exhausted(attempt: dict) -> bool:
+    """A reusable exhaustion is a heap that emptied, not a resource cap."""
+
+    if attempt.get("search_kind") != "sampled_reseed":
+        return False
+    if attempt.get("stop_reason") != "complete" or attempt.get("solved"):
+        return False
+    stop_class = attempt.get("stop_class")
+    return stop_class in {None, "", "heap_empty_under_paid_ceiling"}
+
+
+def _exhaustion_from_saved_root(attempt: dict, deal_id: str) -> Optional[dict]:
+    """Identify a historical exhausted root from its saved node, not its length."""
+
+    if not _component_exhausted(attempt):
+        return None
+    prefix_len = attempt.get("prefix_len")
+    ceiling = attempt.get("cost_ceiling")
+    if not prefix_len or ceiling is None:
+        return None
+    for branch in attempt.get("branches") or []:
+        if not isinstance(branch, dict) or branch.get("replay_ok") is not True:
+            continue
+        if _terminal(branch) or not branch.get("pack"):
+            continue
+        if int(branch.get("node") if branch.get("node") is not None else -1) != 0:
+            continue
+        if int(branch.get("action_count") or 0) != int(prefix_len):
+            continue
+        actions = _actions_from_branch(branch)
+        return {
+            "pack": branch.get("pack"),
+            "prefix_hash16": _prefix_hash16(actions) if actions else None,
+            "root_g": int(branch.get("g") or 0),
+            "prefix_len": int(prefix_len),
+            "deal_id": str(deal_id),
+            "rules": RULES_ID,
+            "cost_ceiling": int(ceiling),
+            "component_exhausted": True,
+            "derived_from": "saved_root_branch",
+            "attempt_id": attempt.get("id"),
+            "root_ancestry": attempt.get("root_ancestry") or "verified_unfinished_prefix",
+            "search_scope": {
+                "cost_ceiling": int(ceiling),
+                "max_unique": attempt.get("max_unique"),
+                "time_limit_s": attempt.get("time_limit_s"),
+                "rss_abort_mb": attempt.get("rss_abort_mb"),
+                "stop_reason": attempt.get("stop_reason"),
+                "stop_class": attempt.get("stop_class") or "heap_empty_under_paid_ceiling",
+            },
+        }
+    return None
+
+
+def _exhaustion_records(document: dict) -> List[dict]:
+    """Exact roots whose paid component emptied. Length is not a record."""
+
+    deal_id = str(document.get("deal_id") or DEAL_ID)
+    records = []
+    for attempt in document.get("attempts") or []:
+        if not isinstance(attempt, dict) or not _component_exhausted(attempt):
+            continue
+        stored = attempt.get("exhausted_root")
+        if isinstance(stored, dict) and stored.get("pack") and stored.get("component_exhausted") is not False:
+            record = dict(stored)
+            record.setdefault("deal_id", deal_id)
+            record.setdefault("rules", RULES_ID)
+            record["component_exhausted"] = True
+            records.append(record)
+            continue
+        derived = _exhaustion_from_saved_root(attempt, deal_id)
+        if derived is not None:
+            records.append(derived)
+    return records
+
+
+def _exhaustion_covers(record: dict, branch: dict, *, requested_ceiling: Optional[int], deal_id: str) -> bool:
+    """Reuse one emptied component only inside the ceiling that emptied it."""
+
+    if record.get("component_exhausted") is False:
+        return False
+    if requested_ceiling is None:
+        return False
+    if str(record.get("deal_id") or deal_id) != str(deal_id):
+        return False
+    if str(record.get("rules") or RULES_ID) != RULES_ID:
+        return False
+    pack = record.get("pack")
+    if not pack or pack != branch.get("pack"):
+        return False
+    if int(record.get("root_g") if record.get("root_g") is not None else -1) != int(branch.get("g") or -2):
+        return False
+    ceiling = record.get("cost_ceiling")
+    if ceiling is None or int(requested_ceiling) > int(ceiling):
+        return False
+    recorded_hash = record.get("prefix_hash16")
+    branch_hash = branch.get("prefix_hash16")
+    if recorded_hash and branch_hash and recorded_hash != branch_hash:
+        return False
+    return True
+
+
 def choose_continuation(
     document: dict,
     which: str = "unfinished",
@@ -333,22 +455,17 @@ def choose_continuation(
     """Pick unfinished or untried work. A solved terminal is not a seed.
 
     ``max_g`` skips a prefix that already costs more than the paid ceiling.
-    Those prefixes cannot enter an improvement search.
+    A heap that emptied excludes only that root's pack, root g, deal, and
+    rules, and only when the requested ceiling is within the exhausted scope.
+    Two prefixes of the same action count stay distinct.
     """
 
     assert_method_document(document)
     which = which or "unfinished"
     if which in {"best", "complete"}:
         raise ValueError("a solved terminal is not a continuation seed")
-    exhausted_lengths = {
-        int(attempt["prefix_len"])
-        for attempt in document.get("attempts") or []
-        if isinstance(attempt, dict)
-        and attempt.get("search_kind") == "sampled_reseed"
-        and attempt.get("stop_reason") == "complete"
-        and not attempt.get("solved")
-        and attempt.get("prefix_len")
-    }
+    deal_id = str(document.get("deal_id") or DEAL_ID)
+    exhausted = _exhaustion_records(document)
     pool = []
     for attempt in document.get("attempts") or []:
         if not isinstance(attempt, dict):
@@ -360,7 +477,10 @@ def choose_continuation(
                 continue
             if max_g is not None and int(branch.get("g") or 0) > int(max_g) - int(min_slack):
                 continue
-            if int(branch.get("action_count") or 0) in exhausted_lengths:
+            if any(
+                _exhaustion_covers(record, branch, requested_ceiling=max_g, deal_id=deal_id)
+                for record in exhausted
+            ):
                 continue
             if which == "untried":
                 if branch.get("role") == "untried" and branch.get("expanded") is False:
@@ -369,9 +489,6 @@ def choose_continuation(
                 pool.append(branch)
     if not pool:
         raise ValueError("no verified unfinished branch is stored; refusing to restart a solved terminal")
-    if which == "untried":
-        pool.sort(key=lambda branch: (-int(branch["foundations"]), int(branch["face_down"]), int(branch["g"])))
-        return pool[0]
     pool.sort(key=lambda branch: (-int(branch["foundations"]), int(branch["face_down"]), int(branch["g"])))
     return pool[0]
 
@@ -406,17 +523,109 @@ def _better_progress(candidate: dict, current: Optional[dict]) -> bool:
     return new < old
 
 
-def _source_identity(repo: Path) -> dict:
+def _git_text(repo: Path, args: Sequence[str]) -> Optional[str]:
     try:
-        commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
+        return subprocess.check_output(
+            ["git", *args],
             cwd=str(repo),
             text=True,
             stderr=subprocess.DEVNULL,
-        ).strip()
+        )
     except (OSError, subprocess.CalledProcessError):
-        commit = "unknown"
-    return {"commit": commit or "unknown"}
+        return None
+
+
+def _source_identity_snapshot(repo: Path, recipe: dict) -> dict:
+    """Commit, dirty flag, and LF hashes for the files that define this run."""
+
+    commit = _git_text(repo, ["rev-parse", "HEAD"])
+    porcelain = _git_text(repo, ["status", "--porcelain"])
+    if commit is None or porcelain is None:
+        dirty: object = "unknown"
+        relevant_dirty: List[str] = []
+        commit_text = "unknown"
+    else:
+        commit_text = commit.strip() or "unknown"
+        dirty_lines = [line for line in porcelain.splitlines() if line.strip()]
+        dirty = bool(dirty_lines)
+        relevant_dirty = []
+        known = set(SOURCE_FILES)
+        for line in dirty_lines:
+            path_text = line[3:].strip().replace("\\", "/") if len(line) > 3 else ""
+            if path_text in known:
+                relevant_dirty.append(path_text)
+    hashes = {}
+    for relative in SOURCE_FILES:
+        path = repo / relative
+        if path.is_file():
+            hashes[relative] = file_hashes(path)["lf_sha256"]
+    recipe_path = repo / RECIPE_RELATIVE
+    recipe_hash = hashes.get(RECIPE_RELATIVE)
+    if recipe_hash is None and recipe_path.is_file():
+        recipe_hash = file_hashes(recipe_path)["lf_sha256"]
+    return {
+        "commit": commit_text,
+        "dirty": dirty,
+        "relevant_dirty": relevant_dirty,
+        "relevant_lf_sha256": hashes,
+        "recipe": {
+            "schema": recipe.get("schema"),
+            "version": recipe.get("version"),
+            "frozen_at_commit": recipe.get("frozen_at_commit"),
+            "path": RECIPE_RELATIVE,
+            "lf_sha256": recipe_hash,
+        },
+    }
+
+
+def _freeze_attempt_source(identity: dict, configuration: dict) -> dict:
+    """Copy the identity known at attempt creation. Later loads must not replace it."""
+
+    return {
+        "commit": identity.get("commit") or "unknown",
+        "dirty": identity.get("dirty", "unknown"),
+        "relevant_dirty": list(identity.get("relevant_dirty") or []),
+        "relevant_lf_sha256": dict(identity.get("relevant_lf_sha256") or {}),
+        "recipe": dict(identity.get("recipe") or {}),
+        "configuration": dict(configuration),
+    }
+
+
+def _historical_source_snapshot(attempt: dict) -> dict:
+    """Unknown provenance for a ledger row that never stored its own snapshot."""
+
+    snapshot = {
+        "commit": "unknown",
+        "dirty": "unknown",
+        "historical": True,
+        "note": (
+            "No per-attempt source snapshot was recorded. "
+            "A retrospective commit is not assigned."
+        ),
+    }
+    stored_prefix = int(attempt.get("prefix_len") or 0) > 0
+    fresh_opening = (
+        attempt.get("search_kind") == "sampled_reseed"
+        and attempt.get("kernel_provenance_string") == "partial_legal_search"
+        and stored_prefix
+    )
+    if fresh_opening:
+        snapshot["errata"] = (
+            "Stored prefix_len was not the executed search. "
+            "The run was a fresh opening. "
+            "Kernel provenance remains partial_legal_search. "
+            "Raw telemetry is unchanged."
+        )
+    return snapshot
+
+
+def _attach_historical_source_errata(document: dict) -> None:
+    """Fill missing snapshots in memory. An existing snapshot is left as stored."""
+
+    for attempt in document.get("attempts") or []:
+        if not isinstance(attempt, dict) or isinstance(attempt.get("source_snapshot"), dict):
+            continue
+        attempt["source_snapshot"] = _historical_source_snapshot(attempt)
 
 
 def _fresh_document(machine: Optional[dict], source: dict) -> dict:
@@ -456,12 +665,28 @@ def _load_document(path: Path, machine: Optional[dict], source: dict) -> dict:
     assert_method_document(document)
     if machine:
         document["machine"] = machine
-    document["source"] = source
+    # The shared source field is the last writer already stored. Attempt
+    # provenance lives on each attempt and is not replaced from HEAD.
+    _attach_historical_source_errata(document)
     return document
 
 
 class _Observer:
-    def __init__(self, opening, prefix, attempt, document, path, checkpoint_s, log):
+    def __init__(
+        self,
+        opening,
+        prefix,
+        attempt,
+        document,
+        path,
+        checkpoint_s,
+        log,
+        *,
+        solution_dir: Optional[Path] = None,
+        kind: str = "",
+        header: str = "",
+        incumbent: Optional[int] = None,
+    ):
         self.opening = opening
         self.prefix = list(prefix)
         self.attempt = attempt
@@ -469,6 +694,10 @@ class _Observer:
         self.path = path
         self.checkpoint_s = float(checkpoint_s)
         self.log = log
+        self.solution_dir = None if solution_dir is None else Path(solution_dir)
+        self.kind = kind
+        self.header = header
+        self.incumbent = incumbent
         self.started = time.perf_counter()
         self.last_write = 0.0
         self.expanded = set()
@@ -645,6 +874,14 @@ class _Observer:
             elif running:
                 self.attempt["stop_reason"] = ""
                 self.attempt["stop_class"] = "still_running"
+            _publish_terminals(
+                self.document,
+                branches,
+                solution_dir=self.solution_dir,
+                kind=self.kind or str(self.attempt.get("search_kind") or ""),
+                header=self.header,
+                incumbent=self.incumbent,
+            )
             _publish_samples(self.document, branches)
             self.document["running"] = bool(running)
             atomic_write_json(self.path, self.document)
@@ -730,10 +967,20 @@ def _note_outcome(document: dict, *, kind: str, solved: bool, solution_g: Option
 def _write_candidate(actions: Sequence[Action], g: int, directory: Path, *, kind: str, header: str) -> dict:
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"4925153_{kind}_{int(g)}.moves"
-    if path.exists():
-        path = directory / f"4925153_{kind}_{int(g)}_{len(actions)}.moves"
-    export_actions_to_moves_file(list(actions), path, header=header)
-    hashes = file_hashes(path)
+    temporary = directory / f".{path.name}.{os.getpid()}.tmp"
+    export_actions_to_moves_file(list(actions), temporary, header=header)
+    try:
+        hashes = file_hashes(temporary)
+        if path.exists() and file_hashes(path)["raw_sha256"] == hashes["raw_sha256"]:
+            temporary.unlink()
+        else:
+            if path.exists():
+                path = directory / f"4925153_{kind}_{int(g)}_{len(actions)}.moves"
+            os.replace(temporary, path)
+    except Exception:
+        if temporary.exists():
+            temporary.unlink()
+        raise
     sidecar = {
         "g": int(g),
         "action_count": len(actions),
@@ -756,46 +1003,147 @@ def _write_candidate(actions: Sequence[Action], g: int, directory: Path, *, kind
     }
 
 
-def _accept_complete(opening, result, attempt, document, solution_dir: Optional[Path], *, kind: str, header: str, incumbent: Optional[int]) -> None:
+def _promote_verified_complete(
+    document: dict,
+    actions: Sequence[Action],
+    g: int,
+    *,
+    solution_dir: Optional[Path],
+    kind: str,
+    header: str,
+    incumbent: Optional[int],
+    attempt: Optional[dict] = None,
+) -> bool:
+    """Validate a finished game and publish it when it is a new best.
+
+    The same cost and path hash is a no-op. A higher cost does not replace
+    ``best_complete``. Returns True only when the stored best moves downward.
+    """
+
     from spider.solution_archive import validate_solution
 
-    actions = list(result.actions)
+    played = list(actions)
+    digest = action_path_hash(played)
+    current = document.get("best_complete") if isinstance(document.get("best_complete"), dict) else None
+    if (
+        current is not None
+        and current.get("validated") is True
+        and current.get("path_hash16") == digest
+        and int(current.get("g") or -1) == int(g)
+    ):
+        return False
     report = validate_solution(
-        "4925153",
-        actions,
-        claimed_mobilityware_moves=result.solution_g,
-        expected_deal_id="4925153",
+        DEAL_ID,
+        played,
+        claimed_mobilityware_moves=int(g),
+        expected_deal_id=DEAL_ID,
     )
-    attempt["validated"] = bool(report.valid)
-    attempt["validation_g"] = report.mobilityware_moves
-    attempt["validation_failure"] = report.failure_reason or ""
-    attempt["action_count"] = len(actions)
-    attempt["path_hash16"] = action_path_hash(actions)
-    if not report.valid or int(report.mobilityware_moves or -1) != int(result.solution_g):
-        attempt["solved"] = False
-        attempt["contract_failure"] = True
-        return
-    attempt["contract_failure"] = False
+    if attempt is not None:
+        attempt["validated"] = bool(report.valid)
+        attempt["validation_g"] = report.mobilityware_moves
+        attempt["validation_failure"] = report.failure_reason or ""
+        attempt["action_count"] = len(played)
+        attempt["path_hash16"] = digest
+    if not report.valid or int(report.mobilityware_moves or -1) != int(g):
+        if attempt is not None:
+            attempt["solved"] = False
+            attempt["contract_failure"] = True
+        return False
+    if attempt is not None:
+        attempt["contract_failure"] = False
+    _note_outcome(document, kind=kind, solved=True, solution_g=int(g), incumbent=incumbent)
+    if current is not None and int(g) >= int(current["g"]):
+        return False
     candidate = None
     if solution_dir is not None:
-        candidate = _write_candidate(actions, int(result.solution_g), Path(solution_dir), kind=kind, header=header)
-        attempt["candidate"] = candidate
-    current = document.get("best_complete")
-    if current is None or int(result.solution_g) < int(current["g"]):
-        document["best_complete"] = {
-            "g": int(result.solution_g),
-            "action_count": len(actions),
-            "path_hash16": attempt["path_hash16"],
-            "search_kind": kind,
-            "validated": True,
-            "candidate": candidate,
-        }
-    _note_outcome(
+        candidate = _write_candidate(played, int(g), Path(solution_dir), kind=kind, header=header)
+        if attempt is not None:
+            attempt["candidate"] = candidate
+    document["best_complete"] = {
+        "g": int(g),
+        "action_count": len(played),
+        "path_hash16": digest,
+        "search_kind": kind,
+        "validated": True,
+        "candidate": candidate,
+    }
+    return True
+
+
+def _publish_terminals(
+    document: dict,
+    branches: Sequence[dict],
+    *,
+    solution_dir: Optional[Path],
+    kind: str,
+    header: str,
+    incumbent: Optional[int],
+    attempt: Optional[dict] = None,
+) -> bool:
+    """Publish replayable terminals in cost order. The cheapest new best wins."""
+
+    terminals = [
+        branch
+        for branch in branches
+        if isinstance(branch, dict) and branch.get("terminal") is True and branch.get("replay_ok") is True and branch.get("actions")
+    ]
+    terminals.sort(key=lambda branch: int(branch.get("g") or 0))
+    changed = False
+    for branch in terminals:
+        actions = _actions_from_branch(branch)
+        if not actions:
+            continue
+        if _promote_verified_complete(
+            document,
+            actions,
+            int(branch.get("g") or 0),
+            solution_dir=solution_dir,
+            kind=kind,
+            header=header or "Verified terminal published when it was found.",
+            incumbent=incumbent,
+            attempt=attempt,
+        ):
+            changed = True
+    return changed
+
+
+def _promote_saved_terminals(
+    document: dict,
+    *,
+    solution_dir: Optional[Path],
+    incumbent: Optional[int],
+) -> bool:
+    """Publish a terminal already stored on an attempt before another search starts."""
+
+    changed = False
+    for attempt in document.get("attempts") or []:
+        if not isinstance(attempt, dict):
+            continue
+        kind = str(attempt.get("search_kind") or "saved_terminal")
+        if _publish_terminals(
+            document,
+            attempt.get("branches") or [],
+            solution_dir=solution_dir,
+            kind=kind,
+            header="Saved terminal published before the search resumed.",
+            incumbent=incumbent,
+            attempt=None,
+        ):
+            changed = True
+    return changed
+
+
+def _accept_complete(opening, result, attempt, document, solution_dir: Optional[Path], *, kind: str, header: str, incumbent: Optional[int]) -> None:
+    del opening
+    _promote_verified_complete(
         document,
+        list(result.actions),
+        int(result.solution_g),
+        solution_dir=solution_dir,
         kind=kind,
-        solved=True,
-        solution_g=int(result.solution_g),
+        header=header,
         incumbent=incumbent,
+        attempt=attempt,
     )
 
 
@@ -837,10 +1185,13 @@ def run_method_attempt(
     if mode == "repair" and route_path is None:
         raise ValueError("route repair requires the campaign route")
     repo = Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[2]
-    source = _source_identity(repo)
+    identity = _source_identity_snapshot(repo, recipe)
     status_path = Path(status_path)
-    document = _load_document(status_path, machine, source)
+    document = _load_document(status_path, machine, {"commit": identity["commit"]})
     _publish_samples(document, [])
+    recovery_incumbent = incumbent_cost if incumbent_cost is not None else historical_best_g
+    if _promote_saved_terminals(document, solution_dir=solution_dir, incumbent=recovery_incumbent):
+        atomic_write_json(status_path, document)
     if mode == "repair":
         return _run_repair(
             opening,
@@ -856,6 +1207,7 @@ def run_method_attempt(
             window_s=float(window_s),
             medium_s=float(medium_s),
             solution_dir=solution_dir,
+            source_identity=identity,
             log=log,
         )
     prefix: Sequence[Action] = ()
@@ -941,16 +1293,68 @@ def run_method_attempt(
         "validated": False,
         "branches": [],
         "authentication": authentication,
+        "source_snapshot": _freeze_attempt_source(
+            identity,
+            {
+                "mode": mode,
+                "search_kind": kind,
+                "cost_ceiling": kwargs["cost_ceiling"],
+                "time_limit_s": kwargs["time_limit_s"],
+                "max_unique": kwargs["max_unique"],
+                "rss_abort_mb": kwargs["rss_abort_mb"],
+                "checkpoint_s": float(checkpoint_s),
+                "seed_recorded": kwargs["seed"],
+                "resume_from": None if mode != "continue" else resume_from,
+                "min_slack": int(min_slack),
+                "prefix_len": len(prefix),
+                "historical_best_g": historical_best_g,
+                "incumbent_cost": incumbent_cost,
+            },
+        ),
     }
     document["attempts"].append(attempt)
     if mode == "continue":
         kwargs["prefix_actions"] = tuple(prefix)
     elif kwargs.get("prefix_actions"):
         raise ValueError("only a sampled continuation may replay a prefix")
-    observer = _Observer(opening, prefix, attempt, document, status_path, checkpoint_s, log)
+    observer = _Observer(
+        opening,
+        prefix,
+        attempt,
+        document,
+        status_path,
+        checkpoint_s,
+        log,
+        solution_dir=solution_dir,
+        kind=kind,
+        header=header,
+        incumbent=compare,
+    )
     observer.flush(running=True)
     observer.last_write = time.perf_counter()
     result = search_suit_ordered(opening, progress_hook=observer.on_progress, expand_hook=observer.on_expand, **kwargs)
+    if mode == "continue" and result.stop_reason == "complete" and not result.solved and prefix:
+        end, root_g = replay_cost(opening, prefix)
+        attempt["exhausted_root"] = {
+            "pack": pack_state(end).hex(),
+            "prefix_hash16": action_path_hash(tuple(prefix)),
+            "root_g": int(root_g),
+            "prefix_len": len(prefix),
+            "deal_id": DEAL_ID,
+            "rules": RULES_ID,
+            "cost_ceiling": int(kwargs["cost_ceiling"]),
+            "component_exhausted": True,
+            "root_ancestry": ancestry,
+            "search_scope": {
+                "cost_ceiling": int(kwargs["cost_ceiling"]),
+                "max_unique": int(kwargs["max_unique"]),
+                "time_limit_s": float(kwargs["time_limit_s"]),
+                "rss_abort_mb": float(kwargs["rss_abort_mb"]),
+                "search_mode": kwargs["mode"],
+                "stop_reason": result.stop_reason,
+                "stop_class": classify_stop(result.stop_reason),
+            },
+        }
     observer.flush(running=False, result=result)
     if result.solved and result.replay_ok:
         _accept_complete(
@@ -992,6 +1396,7 @@ def _run_repair(
     window_s: float,
     medium_s: float,
     solution_dir: Optional[Path],
+    source_identity: dict,
     log: LogFn,
 ) -> dict:
     from spider.metrics import parse_moves_file
@@ -1038,6 +1443,24 @@ def _run_repair(
         "solved": False,
         "improved": False,
         "validated": False,
+        "source_snapshot": _freeze_attempt_source(
+            source_identity,
+            {
+                "mode": "repair",
+                "search_kind": "route_guided_repair",
+                "cost_ceiling": incumbent_g - 1,
+                "time_limit_s": float(time_limit_s),
+                "max_unique": int(max_unique),
+                "rss_abort_mb": float(rss_abort_mb),
+                "repair_span": int(repair_span),
+                "repair_stride": int(repair_stride),
+                "repair_windows": int(repair_windows),
+                "window_s": float(window_s),
+                "medium_s": float(medium_s),
+                "route": route_path.name,
+                "incumbent_g": incumbent_g,
+            },
+        ),
     }
     document["attempts"].append(attempt)
     atomic_write_json(status_path, document)
@@ -1110,28 +1533,15 @@ def _run_repair(
                     f"Prefix {prefix_cost}, replacement {record['replacement_cost']}, "
                     f"suffix {suffix_cost}, recomputed total {recomputed}."
                 )
-                if solution_dir is not None:
-                    attempt["candidate"] = _write_candidate(
-                        current_actions,
-                        current_cost,
-                        Path(solution_dir),
-                        kind="route_guided_repair",
-                        header=header,
-                    )
-                document["best_complete"] = {
-                    "g": current_cost,
-                    "action_count": len(current_actions),
-                    "path_hash16": attempt["path_hash16"],
-                    "search_kind": "route_guided_repair",
-                    "validated": True,
-                    "candidate": attempt.get("candidate"),
-                }
-                _note_outcome(
+                _promote_verified_complete(
                     document,
+                    current_actions,
+                    current_cost,
+                    solution_dir=solution_dir,
                     kind="route_guided_repair",
-                    solved=True,
-                    solution_g=current_cost,
+                    header=header,
                     incumbent=incumbent_g,
+                    attempt=attempt,
                 )
                 record["accepted"] = True
                 attempt["window_results"].append(record)
