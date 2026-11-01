@@ -225,6 +225,8 @@ class GlobalSearchResult:
                         "Incumbent/prefix/suffix assisted optimisation resumes an authenticated own-route prefix. "
                         "It is not an independent cold solve and it is not a checkpoint continuation. "
                         "A matched suffix is a verified completion witness, never an admissible bound. "
+                        "A verified suffix never raises the configured ceiling. "
+                        "A completion above that ceiling is not an in-budget result. "
                         "A table miss or a costly known suffix does not prune. "
                         "Corrected g is measured from the original deal. "
                         "Suit proximity orders the foundation lane and does not drop a successor."
@@ -925,7 +927,7 @@ def search_suit_ordered(
     if suffix_checker is not None:
         out.suffix_stats = suffix_checker.stats()
         witnessed = suffix_checker.best
-        if witnessed is not None and (
+        if witnessed is not None and witnessed.get("in_budget") and (
             not out.solved or int(witnessed["g"]) < int(out.solution_g or 10**9)
         ):
             # The matched state stays a partial kernel node. The completed
@@ -936,6 +938,10 @@ def search_suit_ordered(
             out.replay_g = int(witnessed["g"])
             out.actions = tuple(witnessed["actions"])
             out.census["completion"] = "verified_suffix_witness"
+        elif witnessed is not None and not witnessed.get("in_budget"):
+            out.census["outside_ceiling_g"] = int(witnessed["g"])
+            if not out.solved:
+                out.census["completion"] = "verified_suffix_outside_ceiling"
     for axis, node in leader_nodes.items():
         record = out.leaders.get(axis)
         if record is None:

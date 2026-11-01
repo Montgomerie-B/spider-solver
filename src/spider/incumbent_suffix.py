@@ -421,7 +421,12 @@ def best_published_g(directory: Path) -> Optional[int]:
 
 
 class LiveSuffixChecker:
-    """Match admitted physical packs. Do not prune on a miss or a costly suffix."""
+    """Match admitted physical packs. Do not prune on a miss or a costly suffix.
+
+    A verified completion may lower the live ceiling. It never raises it.
+    A completion above the configured ceiling is kept, and it is not an
+    in-budget solve.
+    """
 
     def __init__(
         self,
@@ -435,6 +440,7 @@ class LiveSuffixChecker:
         self.incumbent = int(incumbent)
         self.solution_dir = None if solution_dir is None else Path(solution_dir)
         self.ceiling_box = None
+        self.configured_ceiling = None
         self.hits = 0
         self.misses = 0
         self.non_improving_hits = 0
@@ -444,8 +450,24 @@ class LiveSuffixChecker:
         self.best = None
         self.publications = []
 
+    def _capture_configured_ceiling(self) -> None:
+        if self.configured_ceiling is not None:
+            return
+        if self.ceiling_box is not None and self.ceiling_box[0] is not None:
+            self.configured_ceiling = int(self.ceiling_box[0])
+
+    def _tighten_ceiling(self, verified: int) -> None:
+        """Lower the live ceiling only. A higher verified cost does not loosen it."""
+
+        if self.ceiling_box is None or self.ceiling_box[0] is None:
+            return
+        tightened = int(verified) - 1
+        if tightened < int(self.ceiling_box[0]):
+            self.ceiling_box[0] = tightened
+
     def observe(self, kr, state, g: int, node: int):
         del state
+        self._capture_configured_ceiling()
         witness = self.table.get(kr.nodes[int(node)].store)
         if witness is None:
             self.misses += 1
@@ -479,11 +501,13 @@ class LiveSuffixChecker:
             )
         self.accepted += 1
         self.incumbent = verified
-        if self.ceiling_box is not None and self.ceiling_box[0] is not None:
-            self.ceiling_box[0] = verified - 1
+        in_budget = self.configured_ceiling is None or verified <= int(self.configured_ceiling)
+        self._tighten_ceiling(verified)
         self.best = {
             "g": verified,
             "actions": full,
+            "in_budget": bool(in_budget),
+            "configured_ceiling": self.configured_ceiling,
             "path_hash16": action_path_hash(full),
             "witness_source": witness.source_label,
             "witness_hash16": witness.source_hash16,
@@ -507,6 +531,9 @@ class LiveSuffixChecker:
             "rejected": self.rejected,
             "incumbent": self.incumbent,
             "best_g": None if self.best is None else int(self.best["g"]),
+            "in_budget": None if self.best is None else bool(self.best["in_budget"]),
+            "configured_ceiling": self.configured_ceiling,
+            "ceiling": None if self.ceiling_box is None else self.ceiling_box[0],
             "publications": list(self.publications),
         }
 
@@ -601,8 +628,27 @@ def improvement_label(best_g: Optional[int]) -> str:
     return "NO_VERIFIED_IMPROVEMENT"
 
 
+def _unavailable_provenance() -> dict:
+    return {"available": False, "reason": "not recorded at launch"}
+
+
+def _freeze_attempt_provenance(attempt: dict) -> None:
+    """Keep a recorded launch identity. Do not fill a missing one from the current process."""
+
+    if not isinstance(attempt, dict):
+        return
+    if not isinstance(attempt.get("source"), dict):
+        attempt["source"] = _unavailable_provenance()
+    if not isinstance(attempt.get("launch"), dict):
+        attempt["launch"] = _unavailable_provenance()
+
+
 def load_attempt_ledger(path: Path, *, fingerprint: dict, machine: dict) -> dict:
-    """Resume the suffix ledger. An unfinished attempt stays recorded as interrupted."""
+    """Resume the suffix ledger. An unfinished attempt stays recorded as interrupted.
+
+    The shared source and machine stay as first written. A later attempt carries
+    its own launch record. An old attempt with neither is marked unavailable.
+    """
 
     document = {
         "schema": SCHEMA,
@@ -619,10 +665,19 @@ def load_attempt_ledger(path: Path, *, fingerprint: dict, machine: dict) -> dict
             document["attempts"] = list(previous.get("attempts") or [])
             if previous.get("best_verified_g") is not None:
                 document["best_verified_g"] = int(previous["best_verified_g"])
+            if isinstance(previous.get("source"), dict):
+                document["source"] = previous["source"]
+            else:
+                document["source"] = _unavailable_provenance()
+            if isinstance(previous.get("machine"), dict):
+                document["machine"] = previous["machine"]
+            else:
+                document["machine"] = _unavailable_provenance()
             for old in document["attempts"]:
                 if isinstance(old, dict) and old.get("status") == "running":
                     old["status"] = "interrupted"
                     old["stop_reason"] = old.get("stop_reason") or "interrupted"
+                _freeze_attempt_provenance(old)
     return document
 
 
@@ -693,6 +748,22 @@ def run_prefix_attempt(
         "distinct_suffix_states": len(table),
         "seed_recorded": 0,
         "seed_wired_into_successor_order": False,
+        "source": fingerprint,
+        "launch": {
+            "available": True,
+            "incumbent": active_incumbent,
+            "ceiling": int(ceiling),
+            "time_limit_s": float(time_limit_s),
+            "max_unique": int(max_unique),
+            "rss_abort_mb": float(applied),
+            "requested_rss_mb": float(memory_mb),
+            "checkpoint_s": float(checkpoint_s),
+            "representation": "compact",
+            "workers": 1,
+            "cpus": os.cpu_count(),
+            "total_bytes": host.get("total_bytes"),
+            "available_bytes": host.get("available_bytes"),
+        },
     }
     document["attempts"].append(attempt)
     atomic_write_json(status_path, document)

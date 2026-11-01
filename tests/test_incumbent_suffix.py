@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from spider.autonomous_solve_campaign import atomic_write_json
-from spider.global_search_experiment import search_suit_ordered
+from spider.global_search_experiment import replay_cost, search_suit_ordered
 from spider.incumbent_suffix import (
     SCHEMA,
     LiveSuffixChecker,
@@ -35,7 +35,7 @@ from spider.incumbent_suffix import (
 )
 from spider.packed_state import pack_state, pack_whole_game_identity, unpack_state
 from spider.research_actions import all_legal_actions, opening_from_deal
-from spider.search_kernel import SearchLimits, run_search
+from spider.search_kernel import SearchLimits, SearchNode, run_search
 
 DEAL = ROOT / "deals" / "4925153.txt"
 
@@ -154,7 +154,6 @@ def test_expensive_known_suffix_does_not_prune(corpus):
     opening = corpus["opening"]
     route = corpus["by_label"]["158"]
     prefix = tuple(route["actions"][:130])
-    from spider.global_search_experiment import replay_cost
 
     state, g = replay_cost(opening, prefix)
     pack = pack_state(state)
@@ -234,7 +233,7 @@ def test_suffix_witness_is_a_full_replay_not_a_partial_terminal(corpus, tmp_path
         rss_abort_mb=1024,
         mode="prefix-improve",
         incumbent_cost=159,
-        cost_ceiling=157,
+        cost_ceiling=158,
         advice_fn=None,
         prefix_actions=prefix,
         representation="compact",
@@ -246,7 +245,11 @@ def test_suffix_witness_is_a_full_replay_not_a_partial_terminal(corpus, tmp_path
     assert result.actions == tuple(route["actions"])
     assert result.max_foundations < 8
     assert result.census["completion"] == "verified_suffix_witness"
+    assert "outside_ceiling_g" not in result.census
     assert result.suffix_stats["accepted"] == 1
+    assert result.suffix_stats["in_budget"] is True
+    assert result.suffix_stats["configured_ceiling"] == 158
+    assert result.suffix_stats["ceiling"] == 157
     published = best_published_g(tmp_path)
     assert published == 158
     again = publish_verified_game(
@@ -257,6 +260,72 @@ def test_suffix_witness_is_a_full_replay_not_a_partial_terminal(corpus, tmp_path
     )
     assert again["rewritten"] is False
     assert best_published_g(tmp_path) == 158
+
+
+def _admitted_prefix_node(opening, prefix):
+    state, g = replay_cost(opening, prefix)
+    pack = pack_state(state)
+    node = SearchNode(pack, pack, int(g), 0, -1, None)
+    kernel = type("Kernel", (), {"nodes": [node]})()
+    return kernel, state, int(g)
+
+
+def test_tighter_ceiling_stays_put_when_the_known_suffix_is_outside_it(corpus, tmp_path):
+    opening = corpus["opening"]
+    route = corpus["by_label"]["158"]
+    prefix = tuple(route["actions"][:100])
+    kernel, state, g = _admitted_prefix_node(opening, prefix)
+
+    tight = LiveSuffixChecker(corpus["table"], prefix, 159, tmp_path / "tight")
+    tight.ceiling_box = [148]
+    assert tight.observe(kernel, state, g, 0)["g"] == 158
+    assert tight.ceiling_box == [148]
+    assert tight.accepted == 1
+    assert tight.incumbent == 158
+    assert tight.best["in_budget"] is False
+    assert tight.best["configured_ceiling"] == 148
+    assert tight.stats()["ceiling"] == 148
+    assert tight.stats()["in_budget"] is False
+    assert best_published_g(tmp_path / "tight") == 158
+    tight.observe(kernel, state, g, 0)
+    assert tight.ceiling_box == [148]
+    assert tight.accepted == 1
+
+    loose = LiveSuffixChecker(corpus["table"], prefix, 159, tmp_path / "loose")
+    loose.ceiling_box = [158]
+    loose.observe(kernel, state, g, 0)
+    assert loose.ceiling_box == [157]
+    assert loose.best["in_budget"] is True
+    assert loose.stats()["configured_ceiling"] == 158
+    assert loose.stats()["ceiling"] == 157
+
+    admitted = search_suit_ordered(
+        opening,
+        time_limit_s=20.0,
+        max_unique=1,
+        rss_abort_mb=1024,
+        mode="prefix-improve",
+        incumbent_cost=159,
+        cost_ceiling=148,
+        advice_fn=None,
+        prefix_actions=prefix,
+        representation="compact",
+        suffix_checker=LiveSuffixChecker(corpus["table"], prefix, 159, tmp_path / "search"),
+    )
+    assert admitted.cost_ceiling == 148
+    assert admitted.solved is False
+    assert admitted.solution_g is None
+    assert admitted.census["completion"] == "verified_suffix_outside_ceiling"
+    assert admitted.census["outside_ceiling_g"] == 158
+    assert admitted.suffix_stats["accepted"] == 1
+    assert admitted.suffix_stats["best_g"] == 158
+    assert admitted.suffix_stats["in_budget"] is False
+    assert admitted.suffix_stats["configured_ceiling"] == 148
+    assert admitted.suffix_stats["ceiling"] == 148
+    assert best_published_g(tmp_path / "search") == 158
+    notes = admitted.to_dict()["notes"]
+    assert "never raises the configured ceiling" in notes
+    assert "not an in-budget result" in notes
 
 
 def test_cold_continuation_keeps_its_guard_and_does_not_install_the_bound(corpus):
@@ -348,7 +417,14 @@ def test_publication_and_interrupted_ledger_survive(corpus, tmp_path):
             ],
         },
     )
+    raw_status = status.read_bytes()
     resumed = load_attempt_ledger(status, fingerprint={"commit": "test"}, machine={"workers": 1})
+    assert status.read_bytes() == raw_status
+    unavailable = {"available": False, "reason": "not recorded at launch"}
+    assert resumed["source"] == unavailable
+    assert resumed["machine"] == unavailable
+    assert resumed["attempts"][0]["source"] == unavailable
+    assert resumed["attempts"][0]["launch"] == unavailable
     assert resumed["attempts"][0]["status"] == "interrupted"
     assert resumed["attempts"][0]["stop_reason"] == "interrupted"
     assert resumed["attempts"][0]["prefix_index"] == 130
@@ -357,6 +433,50 @@ def test_publication_and_interrupted_ledger_survive(corpus, tmp_path):
     assert improvement_label(157) == "VERIFIED_IMPROVEMENT"
     assert improvement_label(158) == "NO_VERIFIED_IMPROVEMENT"
     assert improvement_label(None) == "NO_VERIFIED_IMPROVEMENT"
+
+    original_source = {"commit": "80e1e9d2a8b819bb07e8e49211532e55df1f0d43", "dirty": True}
+    original_machine = {"cpus": 8, "workers": 1, "rss_cap_mb": 3000.0}
+    recorded_launch = {"available": True, "ceiling": 157, "incumbent": 158}
+    atomic_write_json(
+        status,
+        {
+            "schema": SCHEMA,
+            "running": False,
+            "source": original_source,
+            "machine": original_machine,
+            "best_verified_g": 157,
+            "attempts": [
+                {
+                    "id": "p3",
+                    "status": "finished",
+                    "prefix_index": 120,
+                    "unique": 135206,
+                    "source": {"commit": "17b7e9f30731ea9b252045b03f7d38abbf2ce09b"},
+                    "launch": recorded_launch,
+                },
+                {"id": "p0", "status": "finished", "prefix_index": 140, "unique": 1},
+            ],
+        },
+    )
+    preserved = status.read_bytes()
+    reloaded = load_attempt_ledger(
+        status,
+        fingerprint={"commit": "later"},
+        machine={"workers": 99},
+    )
+    assert status.read_bytes() == preserved
+    assert reloaded["source"] == original_source
+    assert reloaded["machine"] == original_machine
+    assert reloaded["best_verified_g"] == 157
+    assert reloaded["attempts"][0]["source"] == {"commit": "17b7e9f30731ea9b252045b03f7d38abbf2ce09b"}
+    assert reloaded["attempts"][0]["launch"] == recorded_launch
+    assert reloaded["attempts"][0]["status"] == "finished"
+    assert reloaded["attempts"][0]["unique"] == 135206
+    assert reloaded["attempts"][1]["source"] == unavailable
+    assert reloaded["attempts"][1]["launch"] == unavailable
+    assert "later" not in json.dumps(reloaded["attempts"][1])
+    assert reloaded["attempts"][1]["prefix_index"] == 140
+    assert reloaded["attempts"][1]["unique"] == 1
 
 
 def test_reference_inputs_are_refused_before_they_are_read(tmp_path):
@@ -388,6 +508,25 @@ def test_prefix_attempt_checkpoints_a_bounded_run(corpus, tmp_path):
     assert attempt["prefix_f"] <= 157
     assert attempt["expanded"] > 0
     assert "suffix" in attempt
+    assert attempt["source"]["commit"]
+    assert attempt["launch"]["available"] is True
+    assert attempt["launch"]["ceiling"] == 157
+    assert attempt["launch"]["incumbent"] == 158
+    assert attempt["launch"]["representation"] == "compact"
+    assert document["source"] == attempt["source"]
     saved = json.loads((tmp_path / "status.json").read_text(encoding="utf-8"))
     assert saved["attempts"][-1]["prefix_index"] == int(eligible)
     assert saved["running"] is False
+    frozen = (tmp_path / "status.json").read_bytes()
+    resumed = load_attempt_ledger(
+        tmp_path / "status.json",
+        fingerprint={"commit": "later", "dirty": False},
+        machine={"workers": 99},
+    )
+    assert (tmp_path / "status.json").read_bytes() == frozen
+    assert resumed["source"] == saved["source"]
+    assert resumed["source"]["commit"] != "later"
+    assert resumed["machine"] == saved["machine"]
+    assert resumed["attempts"][0]["source"] == saved["attempts"][0]["source"]
+    assert resumed["attempts"][0]["launch"] == saved["attempts"][0]["launch"]
+    assert resumed["attempts"][0]["launch"]["ceiling"] == 157
