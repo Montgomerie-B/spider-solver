@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from spider.global_search_experiment import search_suit_ordered, suit_lane_keys
 from spider.packed_state import pack_state, pack_whole_game_identity, unpack_state
 from spider.research_actions import all_legal_actions, opening_from_deal
-from spider.search_kernel import SearchLimits, reconstruct_path, run_search
+from spider.search_kernel import SearchLimits, SearchNode, reconstruct_path, run_search
 from spider.search_memory_profile import account_retained
 from spider.whole_game_anytime import LANES
 
@@ -108,6 +108,10 @@ def test_compact_representation_matches_reference_order_and_uses_less_heap():
     assert plain_report["heap_entries"] == compact_report["heap_entries"]
     assert plain_report["live_heap_entries"] == compact_report["live_heap_entries"]
     assert compact_report["buckets"]["heap_entry"] < plain_report["buckets"]["heap_entry"]
+    assert plain_report["heap_member_objects"] > 0
+    assert plain_report["heap_member_bytes"] > 0
+    assert compact_report["heap_member_objects"] == 0
+    assert compact_report["heap_member_bytes"] == 0
     assert plain_report["ident_same_object_as_store"] == 0
     assert compact_report["ident_same_object_as_store"] > 0
     assert "node_dict" not in compact_report["buckets"]
@@ -161,3 +165,20 @@ def test_compact_keeps_lower_g_reopening_and_proof_equality():
     assert all(node.g + 1 <= 1 for node in plain.nodes)
     assert all(node.g + 1 <= 1 for node in compact.nodes)
     assert plain.nodes[0].g == 0
+
+
+def test_reference_heap_members_are_charged_once_by_identity():
+    big = 10**18
+    other = 10**18 + 1
+    node = SearchNode(ident=b"SPK1fake", store=b"SPK1fake", g=3, origin=0, parent=-1, action=None, depth=0)
+    diagnostics = {
+        "nodes": [node],
+        "best_g": {node.ident: node.g},
+        "heaps": {"cost": [(big, 7, 0), (big, other, 0)]},
+        "seen_expand": {},
+        "pruned_identities": set(),
+    }
+    report = account_retained(diagnostics, ceiling=5)
+    assert report["heap_member_bytes"] == sys.getsizeof(big) + sys.getsizeof(other) + sys.getsizeof(7)
+    assert report["heap_member_objects"] == 3
+    assert report["heap_member_shared_refs"] >= 1

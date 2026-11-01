@@ -117,3 +117,11 @@ After the compact kernel was frozen, the maintained selection was run once: the 
 ## Not established
 
 No shorter solution was found. The best verified cost remains 158. The cold reproduction remains the validated 164. Optimality is unproved. The old 1,200,000-identity tree was not shown to be memory-bound: it stopped on its identity cap at 2,441 MB. This attempt also had RSS headroom. Raising the unique cap on the unchanged reference kernel is not the result. Compact mode is the same frozen suit order with a smaller retained graph. No second campaign was started. The accepted method-capture ledger, recipe, and historical 158 and 164 files were not rewritten.
+
+## Erratum: retained heap members
+
+The historical profile JSON files are unchanged. Their raw RSS comparison and the compact benefit remain as recorded. The accountant that produced them charged each reference heap tuple and did not charge the tuple's separately allocated members, notably key and sequence integers.
+
+A review of a 1,000-identity reference frontier found 11,648 such retained member objects, 326,144 bytes, absent from the charged set. Those bytes were inside the unaccounted working-set difference. That difference is therefore not only allocator slack, the interpreter, and the suit census. The sentence in "Fixed-work results" that assigns the whole difference to those three is corrected here.
+
+The accountant now charges each tuple member once by object identity. A value already counted, including an interned small integer shared by many keys, is a shared reference and is not added again. Compact entries are single integers and have no separate retained members. This erratum does not rerun the profile or the one-hour search.

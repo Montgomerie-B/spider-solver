@@ -166,6 +166,7 @@ def run_search(
     stop_on_first_terminal: bool = False,
     diagnostics: Optional[dict] = None,
     representation: str = "reference",
+    ceiling_box: Optional[list] = None,
 ) -> KernelResult:
     """Exact best-g search. ``roots`` need ordered_digest, symmetry_digest, g.
 
@@ -222,9 +223,15 @@ def run_search(
         lane_stale={n: 0 for n in names},
     )
     peak = rss_mb()
-    ceiling = limits.cost_ceiling
+    if ceiling_box is None:
+        paid_box = [limits.cost_ceiling]
+    else:
+        if len(ceiling_box) != 1 or ceiling_box[0] != limits.cost_ceiling:
+            raise ValueError("ceiling_box holds the paid ceiling")
+        paid_box = ceiling_box
     # Paid cap and proof cap are the same object unless the caller splits them.
-    proof_box = [limits.proof_ceiling if limits.proof_ceiling is not None else ceiling]
+    # A caller that keeps paid_box can lower the ceiling after a verified win.
+    proof_box = [limits.proof_ceiling] if limits.proof_ceiling is not None else paid_box
     incumbent: Optional[int] = None
     slack = limits.harvest_slack
 
@@ -323,7 +330,7 @@ def run_search(
         best_g[ident] = g0
         node_i = len(nodes)
         nodes.append(node_cls(ident, store, g0, origin, -1, None))
-        if ceiling is None or g0 <= ceiling:
+        if paid_box[0] is None or g0 <= paid_box[0]:
             if not proof_dead(st0, g0):
                 push(node_i, st0, g0)
         result.min_g = g0 if result.min_g is None else min(result.min_g, g0)
@@ -355,7 +362,7 @@ def run_search(
         node_i = node_index(rec_t)
         node = nodes[node_i]
         g = node.g
-        if g != best_g.get(node.ident) or (ceiling is not None and g > ceiling):
+        if g != best_g.get(node.ident) or (paid_box[0] is not None and g > paid_box[0]):
             result.stale_skips += 1
             result.lane_stale[name] += 1
             empty_streak = 0
@@ -388,7 +395,7 @@ def run_search(
             if cost == 0:
                 result.zero_cost_actions += 1
             child_g = g + cost
-            if ceiling is not None and child_g > ceiling:
+            if paid_box[0] is not None and child_g > paid_box[0]:
                 result.ceiling_prunes += 1
                 continue
             cap = capture_state(state, action)
@@ -460,10 +467,10 @@ def run_search(
                     if incumbent is None or child_g < incumbent:
                         incumbent = child_g
                         result.incumbent_g = child_g
-                        if slack is not None and ceiling is not None:
-                            ceiling = min(ceiling, incumbent + slack)
+                        if slack is not None and paid_box[0] is not None:
+                            paid_box[0] = min(int(paid_box[0]), incumbent + slack)
                             if limits.proof_ceiling is None:
-                                proof_box[0] = ceiling
+                                proof_box[0] = paid_box[0]
                     if stop_on_first_terminal:
                         result.stop_reason = "solved"
                         break
@@ -499,7 +506,7 @@ def run_search(
     elif incumbent is not None and slack is not None:
         result.closed_g = incumbent + slack
     else:
-        result.closed_g = ceiling
+        result.closed_g = paid_box[0]
     note_rss()
     result.nodes = nodes
     result.lane_remaining = {name: len(heaps[name]) for name in names}
@@ -515,7 +522,7 @@ def run_search(
         diagnostics["terminals"] = result.terminals
         diagnostics["expanded_by_g"] = result.expanded_by_g
         diagnostics["generated_by_g"] = result.generated_by_g
-        diagnostics["ceiling"] = ceiling
+        diagnostics["ceiling"] = paid_box[0]
         diagnostics["representation"] = representation
         diagnostics["entry_nodes"] = entry_nodes
         diagnostics["seq_mask"] = SEQ_MASK if compact else None

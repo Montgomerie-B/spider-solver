@@ -154,6 +154,8 @@ class GlobalSearchResult:
     checkpoint_id: Optional[str] = None
     checkpoint_g: Optional[int] = None
     prefix_len: int = 0
+    search_kind_label: str = ""
+    suffix_stats: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         partial = None if self.best_partial is None else dict(self.best_partial)
@@ -215,15 +217,27 @@ class GlobalSearchResult:
                 payload["checkpoint_id"] = self.checkpoint_id
                 payload["checkpoint_g"] = self.checkpoint_g
                 payload["prefix_actions"] = self.prefix_len
-                payload["search_kind"] = "checkpoint_continuation"
-                payload["notes"] = (
-                    "Checkpoint continuation resumes a saved partial trajectory. "
-                    "It is not an independent cold solve. "
-                    "Corrected g is measured from the original deal. "
-                    "A finished game is checkpoint_assisted_complete only when "
-                    "the saved prefix plus the new suffix replay from that deal. "
-                    "Suit proximity orders the foundation lane and does not drop a successor."
-                )
+                payload["search_kind"] = self.search_kind_label or "checkpoint_continuation"
+            if self.suffix_stats:
+                payload["suffix_stats"] = dict(self.suffix_stats)
+                if self.mode == "prefix-improve":
+                    payload["notes"] = (
+                        "Incumbent/prefix/suffix assisted optimisation resumes an authenticated own-route prefix. "
+                        "It is not an independent cold solve and it is not a checkpoint continuation. "
+                        "A matched suffix is a verified completion witness, never an admissible bound. "
+                        "A table miss or a costly known suffix does not prune. "
+                        "Corrected g is measured from the original deal. "
+                        "Suit proximity orders the foundation lane and does not drop a successor."
+                    )
+                else:
+                    payload["notes"] = (
+                        "Checkpoint continuation resumes a saved partial trajectory. "
+                        "It is not an independent cold solve. "
+                        "Corrected g is measured from the original deal. "
+                        "A finished game is checkpoint_assisted_complete only when "
+                        "the saved prefix plus the new suffix replay from that deal. "
+                        "Suit proximity orders the foundation lane and does not drop a successor."
+                    )
             else:
                 payload["notes"] = (
                     "Suit-completion proximity reorders the foundation lane only. "
@@ -592,6 +606,7 @@ def search_suit_ordered(
     expand_hook=None,
     kernel_diagnostics: Optional[dict] = None,
     representation: str = "reference",
+    suffix_checker=None,
 ) -> GlobalSearchResult:
     """Whole-game kernel with suit proximity on the foundation lane only.
 
@@ -608,15 +623,24 @@ def search_suit_ordered(
 
     ``representation`` defaults to ``reference``. ``compact`` is the opt-in
     slots node and packed heap. It is not a different schedule.
+
+    ``prefix-improve`` is incumbent-assisted optimisation from an authenticated
+    prefix. It is not a cold continuation and it does not weaken that guard.
+    A suffix checker may complete a reached state. Its cost is not a bound.
     """
 
-    if mode not in {"cold", "optimise"}:
+    if mode not in {"cold", "optimise", "prefix-improve"}:
         raise ValueError(f"unknown mode {mode!r}")
     if mode == "cold" and incumbent_cost is not None:
         raise ValueError("cold search refuses an incumbent cost")
     if mode == "optimise" and incumbent_cost is None:
         raise ValueError("optimise search requires an incumbent cost")
-    if mode == "optimise":
+    if mode == "prefix-improve":
+        if incumbent_cost is None:
+            raise ValueError("prefix-improve requires an incumbent cost")
+        if not prefix_actions:
+            raise ValueError("prefix-improve requires an authenticated prefix")
+    if mode in {"optimise", "prefix-improve"}:
         ceiling: Optional[int] = int(incumbent_cost) - 1
         if cost_ceiling is not None:
             ceiling = min(ceiling, int(cost_ceiling))
@@ -632,6 +656,8 @@ def search_suit_ordered(
         bound = None
     if mode == "cold":
         provenance = "unsuccessful_bounded_search"
+    elif mode == "prefix-improve":
+        provenance = "incumbent_prefix_suffix_assisted"
     else:
         provenance = "imported_verified_complete"
     out = GlobalSearchResult(
@@ -640,24 +666,30 @@ def search_suit_ordered(
         mode=mode,
         seed=int(seed),
         incumbent_cost=None if incumbent_cost is None else int(incumbent_cost),
-        imported_incumbent=mode == "optimise",
+        imported_incumbent=mode in {"optimise", "prefix-improve"},
         cost_ceiling=ceiling,
         ceiling_kind=ceiling_kind,
         provenance=provenance,
+        search_kind_label="incumbent_prefix_suffix_assisted" if mode == "prefix-improve" else "",
     )
     prefix = tuple(prefix_actions)
-    if prefix and mode != "cold":
+    if prefix and mode not in {"cold", "prefix-improve"}:
         raise ValueError("checkpoint continuation refuses an incumbent")
     search_state = opening
     root_g = 0
     if prefix:
         search_state, root_g = replay_cost(opening, prefix)
-        out.schema = COMPLETION_SCHEMA
         out.known_prefix = True
         out.prefix_len = len(prefix)
         out.checkpoint_g = int(root_g)
         out.checkpoint_id = pack_state(search_state).hex()
-        out.provenance = "checkpoint_continuation"
+        if mode == "cold":
+            out.schema = COMPLETION_SCHEMA
+            out.provenance = "checkpoint_continuation"
+            out.search_kind_label = "checkpoint_continuation"
+        else:
+            out.provenance = "incumbent_prefix_suffix_assisted"
+            out.search_kind_label = "incumbent_prefix_suffix_assisted"
     keys_fn = suit_lane_keys if lane_keys_fn is None else lane_keys_fn
     root_face_down = face_down_count(search_state)
     started = time.perf_counter()
@@ -789,6 +821,8 @@ def search_suit_ordered(
                     census["max_proximity_legal"] = record["legal_moves"]
         if _better_partial(record, out.best_partial):
             out.best_partial = record
+        if suffix_checker is not None:
+            suffix_checker.observe(kr, state, g, node)
         if progress_hook is not None:
             progress_hook(kr, state, g, node)
 
@@ -796,6 +830,10 @@ def search_suit_ordered(
         assert advice is not None
         return order_with_advice(actions, advice.suggest(state, advice_fn))
 
+    paid_box = [ceiling]
+    share_ceiling = mode == "prefix-improve" or suffix_checker is not None
+    if suffix_checker is not None:
+        suffix_checker.ceiling_box = paid_box
     kr = run_search(
         [_search_root(search_state, root_g)],
         limits=SearchLimits(
@@ -804,6 +842,7 @@ def search_suit_ordered(
             rss_abort_mb=float(rss_abort_mb),
             cost_ceiling=ceiling,
         ),
+        ceiling_box=paid_box if share_ceiling else None,
         identity_fn=pack_whole_game_identity,
         store_fn=pack_state,
         unpack_fn=unpack_state,
@@ -868,17 +907,35 @@ def search_suit_ordered(
                 out.best_partial["replay_g"] = cost
                 if prefix:
                     out.best_partial["suffix_len"] = len(path)
-    if prefix:
+    if prefix and mode == "cold":
         if out.solved and out.replay_ok:
             out.provenance = "checkpoint_assisted_complete"
         else:
             out.provenance = "checkpoint_continuation"
             out.census["bounded_result"] = "checkpoint_continuation"
+    elif mode == "prefix-improve":
+        out.provenance = "incumbent_prefix_suffix_assisted"
+        out.search_kind_label = "incumbent_prefix_suffix_assisted"
+        out.census["bounded_result"] = "incumbent_prefix_suffix_assisted"
     elif out.solved and out.replay_ok and mode == "cold":
         out.provenance = "independent_cold_complete"
     elif not out.solved and path and mode == "cold":
         out.provenance = "partial_legal_search"
         out.census["bounded_result"] = "unsuccessful_bounded_search"
+    if suffix_checker is not None:
+        out.suffix_stats = suffix_checker.stats()
+        witnessed = suffix_checker.best
+        if witnessed is not None and (
+            not out.solved or int(witnessed["g"]) < int(out.solution_g or 10**9)
+        ):
+            # The matched state stays a partial kernel node. The completed
+            # candidate is the full original-opening replay, recorded here.
+            out.solved = True
+            out.replay_ok = True
+            out.solution_g = int(witnessed["g"])
+            out.replay_g = int(witnessed["g"])
+            out.actions = tuple(witnessed["actions"])
+            out.census["completion"] = "verified_suffix_witness"
     for axis, node in leader_nodes.items():
         record = out.leaders.get(axis)
         if record is None:

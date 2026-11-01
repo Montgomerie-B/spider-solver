@@ -143,6 +143,10 @@ def account_retained(diagnostics: dict, *, ceiling: Optional[int]) -> dict:
                 key_parts = entry[:-2]
                 seq = int(entry[-2])
                 node_i = entry[-1]
+                # The tuple header is heap_entry. Its key, ticket and node
+                # index are separate objects and are charged once each.
+                for member in entry:
+                    _charge(member, "heap_member", seen, buckets)
             elif isinstance(entry, int) and entry_nodes is not None and seq_mask is not None:
                 seq = int(entry) & int(seq_mask)
                 node_i = int(entry_nodes[seq])
@@ -197,6 +201,9 @@ def account_retained(diagnostics: dict, *, ceiling: Optional[int]) -> dict:
     return {
         "schema": "spider-search-memory-profile-27",
         "accounting": "exclusive_getsizeof_by_object_id",
+        "heap_member_bytes": int(buckets.get("heap_member", 0)),
+        "heap_member_objects": int(buckets.get("heap_member_objects", 0)),
+        "heap_member_shared_refs": int(buckets.get("heap_member_shared_refs", 0)),
         "node_count": node_count,
         "ident_same_object_as_store": same_object,
         "ident_equal_payload_distinct_object": equal_payload,
