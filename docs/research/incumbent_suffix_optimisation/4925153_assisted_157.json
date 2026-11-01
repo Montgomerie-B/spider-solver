@@ -1,0 +1,15 @@
+{
+  "action_count": 157,
+  "g": 157,
+  "hashes": {
+    "bytes": 1980,
+    "crlf_sha256": "78BB38022565792BFE6A30813172667E2C8FDB15BC609BCE7899B50F22CF60CD",
+    "lf_sha256": "08F57DBB7BABA8899EC1D7F01267D9816526E55316431CC0AB14E5D549F8BB6B",
+    "newline": "crlf",
+    "raw_sha256": "78BB38022565792BFE6A30813172667E2C8FDB15BC609BCE7899B50F22CF60CD"
+  },
+  "moves": "4925153_assisted_157.moves",
+  "path_hash16": "89c75b02b80f1271",
+  "schema": "spider-incumbent-suffix-28",
+  "validated": true
+}

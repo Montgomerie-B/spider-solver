@@ -1,0 +1,156 @@
+{
+  "bounds_on_158": {
+    "120": {
+      "f": 148,
+      "face_down": 10,
+      "foundations": 3,
+      "g": 120,
+      "h": 28,
+      "index": 120,
+      "pack": "53504b3101030000040b3a2c3608350413120d322928370605030115191b1100033d3c3b030d31122d1a071d1c1b1a1918171615141300040c0b0a0900011400071817161103020100061d1c2b2a3938000234330007272625242322210d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "130": {
+      "f": 153,
+      "face_down": 10,
+      "foundations": 3,
+      "g": 130,
+      "h": 23,
+      "index": 130,
+      "pack": "53504b310103000004093a2c3608350413120d0c0b0a09030115191b1100033d3c3b030d31122d1a071d1c1b1a1918171615141300000003393837000718171611030201000d1d1c2b2a292827262524232221000334333200030605140d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "140": {
+      "f": 157,
+      "face_down": 9,
+      "foundations": 4,
+      "g": 140,
+      "h": 17,
+      "index": 140,
+      "pack": "53504b310104000004043a2c360835343332020115191b00033d3c3b030831122d1a07060504030201000214130003393837000418171611000d1d1c2b2a292827262524232221000000050d0c0b0a090d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "142": {
+      "f": 158,
+      "face_down": 7,
+      "foundations": 4,
+      "g": 142,
+      "h": 16,
+      "index": 142,
+      "pack": "53504b310104000002013a2c36020115191b00033d3c3b030831122d1a07060504030201000214130003393837000418171611000d1d1c2b2a29282726252423222100043534333200060d0c0b0a09080d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "143": {
+      "f": 158,
+      "face_down": 7,
+      "foundations": 5,
+      "g": 143,
+      "h": 15,
+      "index": 143,
+      "pack": "53504b310105000002013a2c36020115191b00033d3c3b030131122d1a000214130003393837000418171611000d1d1c2b2a29282726252423222100043534333200000d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a0908070605040302010d0d0c0b0a090807060504030201",
+      "stock_cards": 0
+    },
+    "58": {
+      "f": 117,
+      "face_down": 14,
+      "foundations": 0,
+      "g": 58,
+      "h": 59,
+      "index": 58,
+      "pack": "53504b310100000004083a2c3608350413120d322913050c15191b11282d0c2b2a29282726010a0b1a010c3b2706151424233231162c1c22030531122d1a071d22330110260d0c0b0a09080706050403022118341900050221393837000818171611033d3c1700041d1c0501000d3d3c3b3a393837363534251b33000724232b2a140925",
+      "stock_cards": 0
+    }
+  },
+  "deal_id": "4925153",
+  "distinct_physical_states": 220,
+  "last_eligible_bound": {
+    "f": 157,
+    "face_down": 9,
+    "foundations": 4,
+    "g": 140,
+    "h": 17,
+    "index": 140,
+    "pack": "53504b310104000004043a2c360835343332020115191b00033d3c3b030831122d1a07060504030201000214130003393837000418171611000d1d1c2b2a292827262524232221000000050d0c0b0a090d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+    "stock_cards": 0
+  },
+  "last_eligible_index": 140,
+  "note": "Suffix costs are completion witnesses. They are not admissible bounds. The splice check does not search and does not prove an unseen prefix is impossible.",
+  "route_158_hash16": "9145868d32e42008",
+  "routes": [
+    {
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 164,
+      "foundations": 8,
+      "g": 164,
+      "label": "164",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_164.moves",
+      "path_hash16": "e56a441f03423876",
+      "stock_deals": 5,
+      "tableau_moves": 159
+    },
+    {
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 162,
+      "foundations": 8,
+      "g": 162,
+      "label": "162",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_162.moves",
+      "path_hash16": "f5c01d7af0713b15",
+      "stock_deals": 5,
+      "tableau_moves": 157
+    },
+    {
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 160,
+      "foundations": 8,
+      "g": 160,
+      "label": "160",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_160.moves",
+      "path_hash16": "c521042076b473dc",
+      "stock_deals": 5,
+      "tableau_moves": 155
+    },
+    {
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 158,
+      "foundations": 8,
+      "g": 158,
+      "label": "158",
+      "path": "docs/research/autonomous_solve_campaign/4925153_cold_158.moves",
+      "path_hash16": "9145868d32e42008",
+      "stock_deals": 5,
+      "tableau_moves": 153
+    }
+  ],
+  "saved_branch_records": 87,
+  "schema": "spider-incumbent-suffix-28",
+  "shared_prefix_actions": 130,
+  "source": {
+    "commit": "17b7e9f30731ea9b252045b03f7d38abbf2ce09b",
+    "dirty": false,
+    "files_sha256": {
+      "src/spider/global_search_experiment.py": "e763db606f53a5fe542e149eb1f97afb1edd346bac9308d9e3a330cb83ab4876",
+      "src/spider/incumbent_suffix.py": "dc55aaeef13c0ffa9dbcd98669b1b3549f589491b68bd60a2f6ba4cf528b5a76",
+      "src/spider/packed_heap.py": "4cfa5ce974df3ea1c159a858f4c64d39266ab3929d25cc7923a73b05a4ace264",
+      "src/spider/search_kernel.py": "f0780438f40578edf6581e51d2170c0a1425ed196fc20c3be68f052597854c1a",
+      "src/spider/search_memory_profile.py": "43139a1f68376142e3e2721ad7aae96c0532fdadb7e5491dc3a1135a28c8ca51"
+    }
+  },
+  "splice": {
+    "best": {
+      "prefix_g": 0,
+      "prefix_source": "route:164:0",
+      "suffix_cost": 158,
+      "suffix_index": 0,
+      "suffix_source": "158",
+      "total": 158
+    },
+    "best_total": 158,
+    "claim": "saved_path_splice_not_a_search",
+    "exact_matches": 664,
+    "improving_combinations": 0,
+    "prefix_records": 735,
+    "record_definition": "One record per route state, including the opening and the solved end, plus one end state for each distinct replay_ok action list in each saved ledger."
+  },
+  "verified_improving_splices": []
+}
