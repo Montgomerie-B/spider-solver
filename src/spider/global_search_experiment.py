@@ -590,6 +590,7 @@ def search_suit_ordered(
     lane_keys_fn=None,
     progress_hook=None,
     expand_hook=None,
+    kernel_diagnostics: Optional[dict] = None,
 ) -> GlobalSearchResult:
     """Whole-game kernel with suit proximity on the foundation lane only.
 
@@ -811,6 +812,7 @@ def search_suit_ordered(
         on_expand=expand_hook,
         lower_bound_fn=bound,
         stop_on_first_terminal=False,
+        diagnostics=kernel_diagnostics,
     )
     out.unique = kr.unique
     out.expanded = kr.expanded

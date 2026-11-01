@@ -149,6 +149,7 @@ def run_search(
     on_expand: Optional[Callable[[SpiderState, int, int], None]] = None,
     lower_bound_fn: Optional[Callable[[SpiderState, int], int]] = None,
     stop_on_first_terminal: bool = False,
+    diagnostics: Optional[dict] = None,
 ) -> KernelResult:
     """Exact best-g search. ``roots`` need ordered_digest, symmetry_digest, g.
 
@@ -168,6 +169,10 @@ def run_search(
 
     ``on_expand`` is optional telemetry. It runs after a node is counted as
     expanded and does not change admission, order, or pruning.
+
+    ``diagnostics`` is optional. When a dict is passed, the kernel stores
+    references to the retained maps and heaps after the search stops. It
+    does not change admission, order, or pruning. The default is None.
     """
 
     started = time.perf_counter()
@@ -462,4 +467,19 @@ def run_search(
     result.lane_remaining = {name: len(heaps[name]) for name in names}
     result.elapsed_s = time.perf_counter() - started
     result.peak_rss_mb = peak
+    if diagnostics is not None:
+        # References only. The caller accounts them in place and then drops them.
+        diagnostics["best_g"] = best_g
+        diagnostics["heaps"] = heaps
+        diagnostics["seen_expand"] = seen_expand
+        diagnostics["pruned_identities"] = pruned_identities
+        diagnostics["nodes"] = nodes
+        diagnostics["terminals"] = result.terminals
+        diagnostics["expanded_by_g"] = result.expanded_by_g
+        diagnostics["generated_by_g"] = result.generated_by_g
+        diagnostics["ceiling"] = ceiling
+        diagnostics["proof_prune_identities"] = result.proof_prune_identities
+        diagnostics["proof_prune_unretained"] = result.proof_prune_unretained
+        diagnostics["ceiling_prunes"] = result.ceiling_prunes
+        diagnostics["lower_bound_prunes"] = result.lower_bound_prunes
     return result

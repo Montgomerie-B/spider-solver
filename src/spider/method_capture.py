@@ -881,6 +881,7 @@ class _Observer:
                 kind=self.kind or str(self.attempt.get("search_kind") or ""),
                 header=self.header,
                 incumbent=self.incumbent,
+                attempt=self.attempt,
             )
             _publish_samples(self.document, branches)
             self.document["running"] = bool(running)
@@ -1031,6 +1032,17 @@ def _promote_verified_complete(
         and current.get("path_hash16") == digest
         and int(current.get("g") or -1) == int(g)
     ):
+        # The checkpoint already verified this path. Copy that result onto the
+        # attempt and do not write the candidate again.
+        if attempt is not None:
+            attempt["validated"] = True
+            attempt["validation_g"] = int(current["g"])
+            attempt["validation_failure"] = ""
+            attempt["contract_failure"] = False
+            attempt["action_count"] = int(current.get("action_count") or len(played))
+            attempt["path_hash16"] = digest
+            if current.get("candidate") is not None:
+                attempt["candidate"] = current["candidate"]
         return False
     report = validate_solution(
         DEAL_ID,

@@ -678,6 +678,52 @@ def test_terminal_discovery_publishes_before_the_search_returns(tmp_path):
     assert list(tmp_path.glob("*.moves")) == published
 
 
+def test_checkpoint_then_return_syncs_attempt_validation_without_rewriting(tmp_path):
+    actions = parse_moves_file(COLD_164)
+    document = _method_document([])
+    attempt = {
+        "id": "a-return",
+        "search_kind": "cold_feasibility",
+        "validated": False,
+        "branches": [],
+    }
+    document["attempts"].append(attempt)
+    published = _promote_verified_complete(
+        document,
+        actions,
+        164,
+        solution_dir=tmp_path,
+        kind="cold_feasibility",
+        header="Checkpoint before return.",
+        incumbent=158,
+        attempt=None,
+    )
+    assert published is True
+    assert attempt["validated"] is False
+    moves = list(tmp_path.glob("*.moves"))
+    assert len(moves) == 1
+    stamp = moves[0].stat().st_mtime_ns
+    again = _promote_verified_complete(
+        document,
+        actions,
+        164,
+        solution_dir=tmp_path,
+        kind="cold_feasibility",
+        header="Search return.",
+        incumbent=158,
+        attempt=attempt,
+    )
+    assert again is False
+    assert attempt["validated"] is True
+    assert attempt["validation_g"] == 164
+    assert attempt["validation_failure"] == ""
+    assert attempt["contract_failure"] is False
+    assert attempt["path_hash16"] == document["best_complete"]["path_hash16"]
+    assert attempt["candidate"]["path"] == document["best_complete"]["candidate"]["path"]
+    assert moves[0].stat().st_mtime_ns == stamp
+    assert list(tmp_path.glob("*.moves")) == moves
+
+
 def test_saved_terminal_is_promoted_before_continuation(tmp_path, monkeypatch):
     opening = _opening()
     legal = [action for action in all_legal_actions(opening) if not is_deal(action)]
