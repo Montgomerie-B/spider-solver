@@ -72,9 +72,9 @@
       "stock_cards": 0
     }
   },
-  "ceiling": 156,
+  "ceiling": 145,
   "deal_id": "4925153",
-  "distinct_physical_states": 248,
+  "distinct_physical_states": 394,
   "historical": {
     "distinct_physical_states": 220,
     "labels": [
@@ -89,18 +89,18 @@
     "splice_improving_combinations": 0,
     "splice_prefix_records": 735
   },
-  "incumbent": 157,
+  "incumbent": 146,
   "last_eligible_bound": {
-    "f": 156,
-    "face_down": 9,
-    "foundations": 4,
-    "g": 139,
-    "h": 17,
-    "index": 139,
-    "pack": "53504b310104000004043a2c360835343332020115191b00033d3c3b030831122d1a0706050403020100050d0c0b0a090003393837000418171611000d1d1c2b2a2928272625242322210000000214130d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d1d1c1b1a1918171615141312110d0d0c0b0a090807060504030201",
+    "f": 145,
+    "face_down": 10,
+    "foundations": 3,
+    "g": 117,
+    "h": 28,
+    "index": 117,
+    "pack": "53504b3101030000040d3a2c3608350413120d3229283706053433030115191b1100033d3c3b030d31122d1a071d1c1b1a1918171615141300040c0b0a0900011400071817161103020100041d1c2b2a000939382726252423222100000d3d3c3b3a3938373635343332310d2d2c2b2a2928272625242322210d0d0c0b0a090807060504030201",
     "stock_cards": 0
   },
-  "last_eligible_index": 139,
+  "last_eligible_index": 117,
   "note": "Suffix costs are completion witnesses. They are not admissible bounds. The historical four-route fixture is unchanged. The splice check does not search and does not prove an unseen prefix is impossible. A closed action-120 component says nothing about a departure before that prefix.",
   "route_157": {
     "adopted": false,
@@ -178,15 +178,106 @@
       "path_hash16": "89c75b02b80f1271",
       "stock_deals": 5,
       "tableau_moves": 152
+    },
+    {
+      "adopted": true,
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 146,
+      "foundations": 8,
+      "g": 146,
+      "label": "146",
+      "path": "docs/research/pre120_optimisation/4925153_assisted_146.moves",
+      "path_hash16": "0098156ecf32e95d",
+      "sidecar_agreed": true,
+      "stock_deals": 5,
+      "tableau_moves": 141
+    },
+    {
+      "adopted": true,
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 147,
+      "foundations": 8,
+      "g": 147,
+      "label": "147",
+      "path": "docs/research/pre120_optimisation/4925153_assisted_147.moves",
+      "path_hash16": "27f1a9102210c67c",
+      "sidecar_agreed": true,
+      "stock_deals": 5,
+      "tableau_moves": 142
+    },
+    {
+      "adopted": true,
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 148,
+      "foundations": 8,
+      "g": 148,
+      "label": "148",
+      "path": "docs/research/pre120_optimisation/4925153_assisted_148.moves",
+      "path_hash16": "c1b2a42d3974b207",
+      "sidecar_agreed": true,
+      "stock_deals": 5,
+      "tableau_moves": 143
+    },
+    {
+      "adopted": true,
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 149,
+      "foundations": 8,
+      "g": 149,
+      "label": "149",
+      "path": "docs/research/pre120_optimisation/4925153_assisted_149.moves",
+      "path_hash16": "227cce1e69114f63",
+      "sidecar_agreed": true,
+      "stock_deals": 5,
+      "tableau_moves": 144
+    },
+    {
+      "adopted": true,
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 150,
+      "foundations": 8,
+      "g": 150,
+      "label": "150",
+      "path": "docs/research/pre120_optimisation/4925153_assisted_150.moves",
+      "path_hash16": "b79fc5b356653898",
+      "sidecar_agreed": true,
+      "stock_deals": 5,
+      "tableau_moves": 145
+    },
+    {
+      "adopted": true,
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 151,
+      "foundations": 8,
+      "g": 151,
+      "label": "151",
+      "path": "docs/research/pre120_optimisation/4925153_assisted_151.moves",
+      "path_hash16": "aaf48d4d02aeb07a",
+      "sidecar_agreed": true,
+      "stock_deals": 5,
+      "tableau_moves": 146
+    },
+    {
+      "adopted": true,
+      "automatic_foundation_removals": 8,
+      "explicit_commands": 156,
+      "foundations": 8,
+      "g": 156,
+      "label": "156",
+      "path": "docs/research/pre120_optimisation/4925153_assisted_156.moves",
+      "path_hash16": "bc0d3bd048a16c9d",
+      "sidecar_agreed": true,
+      "stock_deals": 5,
+      "tableau_moves": 151
     }
   ],
   "saved_branch_records": 87,
   "schema": "spider-pre120-optimisation",
   "shared_prefix_157_158": 121,
-  "shared_prefix_all_routes": 121,
+  "shared_prefix_all_routes": 90,
   "source": {
-    "commit": "8e883ed137648bf076e245e3b9b9fed8769fb711",
-    "dirty": false,
+    "commit": "e85ad7c61e4fc92831dfb92ad4b44912f6ee8d30",
+    "dirty": true,
     "files_sha256": {
       "src/spider/global_search_experiment.py": "dadd76e38500c7180fc0b588de9c79068743899092f531070ca550a8b26736a7",
       "src/spider/incumbent_suffix.py": "ba73afd2abeda352f663c25deea096d9c18e1cc1d63e0e76326d64c68048763d",
@@ -200,16 +291,16 @@
     "best": {
       "prefix_g": 0,
       "prefix_source": "route:164:0",
-      "suffix_cost": 157,
+      "suffix_cost": 146,
       "suffix_index": 0,
-      "suffix_source": "157",
-      "total": 157
+      "suffix_source": "146",
+      "total": 146
     },
-    "best_total": 157,
+    "best_total": 146,
     "claim": "saved_path_splice_not_a_search",
-    "exact_matches": 822,
+    "exact_matches": 1876,
     "improving_combinations": 0,
-    "prefix_records": 893,
+    "prefix_records": 1947,
     "record_definition": "One record per route state, including the opening and the solved end, plus one end state for each distinct replay_ok action list in each saved ledger."
   },
   "splice_publication": null
