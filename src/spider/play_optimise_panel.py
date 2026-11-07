@@ -10,14 +10,31 @@ from pathlib import Path
 
 from spider.app_paths import repo_root
 from spider.autonomous_solve_campaign import atomic_write_json
-from spider.packaged_runtime import load_manifest, resource_report
+from spider.packaged_runtime import ABSOLUTE_IDENTITY_CAP, load_manifest, resource_report
 from spider.unattended_optimiser import (
     best_moves_path,
+    coerce_run_start,
     default_optimiser_dir,
     open_verified_route,
     read_json,
     recover_campaign,
 )
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return float(default)
+    return float(raw)
+
+
+def _campaign_directory(directory: Path | None) -> Path:
+    if directory is not None:
+        return Path(directory)
+    override = os.environ.get("SPIDER_PLAY_LAB_OPTIMISER_DIR")
+    if override:
+        return Path(override)
+    return default_optimiser_dir()
 
 
 def _alive(pid: int) -> bool:
@@ -69,15 +86,16 @@ class OptimisePanel:
         from tkinter import ttk
 
         self.app = app
-        self.directory = Path(directory) if directory is not None else default_optimiser_dir()
+        self.directory = _campaign_directory(directory)
         self._poll_id = None
         self._closed = False
+        self._stopping = False
         self._log_handle = None
         self._process = None
-        self.duration_min = tk.DoubleVar(value=20)
-        self.attempt_s = tk.DoubleVar(value=180)
-        self.max_unique = tk.IntVar(value=2_000_000)
-        self.requested_rss = tk.DoubleVar(value=3000)
+        self.duration_min = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_DURATION_MIN", 20))
+        self.attempt_s = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_ATTEMPT_S", 180))
+        self.max_unique = tk.IntVar(value=int(_env_float("SPIDER_PLAY_LAB_MAX_UNIQUE", 2_000_000)))
+        self.requested_rss = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_RSS_MB", 3000))
         self.status = tk.StringVar(value="Idle. Deal 4925153 only. One worker.")
         self.best = tk.StringVar(value="Best 140 · target 139")
         self.job = tk.StringVar(value="No job yet")
@@ -98,7 +116,10 @@ class OptimisePanel:
         ttk.Label(form, text="Attempt s").grid(row=0, column=2, sticky="w", padx=(6, 0))
         ttk.Spinbox(form, from_=1, to=7200, increment=10, textvariable=self.attempt_s, width=7).grid(row=0, column=3)
         ttk.Label(form, text="Unique").grid(row=1, column=0, sticky="w")
-        ttk.Spinbox(form, from_=1, to=2_000_000, increment=1000, textvariable=self.max_unique, width=10).grid(row=1, column=1)
+        ttk.Spinbox(
+            form, from_=1, to=ABSOLUTE_IDENTITY_CAP, increment=1000,
+            textvariable=self.max_unique, width=10,
+        ).grid(row=1, column=1)
         ttk.Label(form, text="RSS MB").grid(row=1, column=2, sticky="w", padx=(6, 0))
         ttk.Spinbox(form, from_=256, to=8192, increment=128, textvariable=self.requested_rss, width=7).grid(row=1, column=3)
         ttk.Label(frame, textvariable=self.resources, wraplength=400, justify="left").pack(anchor="w", pady=(4, 0))
@@ -139,11 +160,15 @@ class OptimisePanel:
 
     def _show_resources(self, report: dict) -> None:
         available = int(report.get("available_bytes") or 0) / (1024 ** 3)
+        limit = int(report.get("identity_limit") or report["effective_max_unique"])
+        default = int(report.get("identity_default") or 2_000_000)
         self.resources.set(
             f"Workers 1. Requested {report['requested_rss_mb']:.0f} MB, "
             f"effective {report['effective_rss_mb']:.0f} MB. "
             f"Available RAM {available:.1f} GB. "
-            f"Unique {report['effective_max_unique']:,} at {report['retained_state_bytes']} B each."
+            f"Unique {report['effective_max_unique']:,} "
+            f"(default {default:,}, RSS limit {limit:,}) "
+            f"at {report['retained_state_bytes']} B each."
         )
 
     def _control_path(self) -> Path:
@@ -207,7 +232,9 @@ class OptimisePanel:
         self.status.set("Pause requested. The current attempt will finish, then the queue waits.")
 
     def resume(self) -> None:
-        self._write_control("run")
+        current = read_json(self._control_path())
+        started = coerce_run_start(current, time.time())
+        self._write_control("run", started=started)
         if not self._running():
             self._spawn()
             self.status.set("Worker resumed.")
@@ -221,20 +248,40 @@ class OptimisePanel:
         return bool(self._pid()) and _alive(self._pid())
 
     def stop(self) -> None:
-        self._write_control("stop")
-        deadline = time.time() + 2
-        while self._running() and time.time() < deadline:
-            time.sleep(0.1)
-        if self._running():
-            if self._process is not None and self._process.poll() is None:
-                self._process.kill()
-            _kill_tree(self._pid())
-            deadline = time.time() + 3
-            while self._running() and time.time() < deadline:
-                time.sleep(0.1)
-        recover_campaign(self.directory, requested_stop=True)
-        self._refresh_from_disk()
-        self.status.set("Stopped. An unfinished attempt is not an exhaustion claim.")
+        if self._stopping:
+            return
+        self._stopping = True
+        try:
+            self._write_control("stop")
+            self.status.set("Stopping. The window stays responsive.")
+            self._await_worker(2.0)
+            if self._running():
+                if self._process is not None and self._process.poll() is None:
+                    self._process.kill()
+                _kill_tree(self._pid())
+                self._await_worker(3.0)
+            recover_campaign(self.directory, requested_stop=True)
+            self._refresh_from_disk()
+            self.status.set("Stopped. An unfinished attempt is not an exhaustion claim.")
+        finally:
+            self._stopping = False
+
+    def _await_worker(self, timeout: float) -> None:
+        """Wait without freezing the Tk window."""
+
+        deadline = time.time() + float(timeout)
+        while time.time() < deadline:
+            try:
+                self.app.update()
+            except Exception:
+                return
+            if not self._running():
+                try:
+                    self.app.update()
+                except Exception:
+                    return
+                return
+            time.sleep(0.05)
 
     def open_best(self) -> None:
         path = self._best_path()

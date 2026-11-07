@@ -17,26 +17,40 @@
   },
   "files": {
     "deals/4925153.txt": {
-      "sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df"
+      "sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df",
+      "lf_sha256": "1f99dd116590757e607a7112f09a2247bca4b34d3ae91659e55646bce370c943",
+      "crlf_sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df"
     },
     "docs/research/autonomous_solve_campaign/4925153_cold_164.moves": {
-      "sha256": "5bc761fdb750a9fcdb9236706e4dd25ea8b8c83a91c75c564898695ff4488be6"
+      "sha256": "5bc761fdb750a9fcdb9236706e4dd25ea8b8c83a91c75c564898695ff4488be6",
+      "lf_sha256": "8640f4312e7376db2a0f204033f96430a62856472c50fefc79ef36dfa0fb155d",
+      "crlf_sha256": "5bc761fdb750a9fcdb9236706e4dd25ea8b8c83a91c75c564898695ff4488be6"
     },
     "docs/research/autonomous_solve_campaign/4925153_cold_162.moves": {
-      "sha256": "3bd1308c5953c0f970035dfe69acdaf7b8c423893842004bf1253d0417e10f94"
+      "sha256": "3bd1308c5953c0f970035dfe69acdaf7b8c423893842004bf1253d0417e10f94",
+      "lf_sha256": "382f47aed46a8bb2032955ab11723c1c121de70a92b45093b9a8c5b696bc6aab",
+      "crlf_sha256": "3bd1308c5953c0f970035dfe69acdaf7b8c423893842004bf1253d0417e10f94"
     },
     "docs/research/autonomous_solve_campaign/4925153_cold_160.moves": {
-      "sha256": "46c98ea85c3749ed5e30173f49425cd596af1cab3dd28fb3ab356fefd936c00e"
+      "sha256": "46c98ea85c3749ed5e30173f49425cd596af1cab3dd28fb3ab356fefd936c00e",
+      "lf_sha256": "0c094f4e8183bd24c9b18c86eaf54c8d052b234c323faa8a3119db34d627cb79",
+      "crlf_sha256": "46c98ea85c3749ed5e30173f49425cd596af1cab3dd28fb3ab356fefd936c00e"
     },
     "docs/research/autonomous_solve_campaign/4925153_cold_158.moves": {
-      "sha256": "c5f4059e8288a8160449f5acf2e8f8b3848368a63a1a99fae8132e0358492cc1"
+      "sha256": "c5f4059e8288a8160449f5acf2e8f8b3848368a63a1a99fae8132e0358492cc1",
+      "lf_sha256": "d1cbe17bedca6625dd48223685908eb07c46990a70e0638a57f7e7c4af19bd21",
+      "crlf_sha256": "c5f4059e8288a8160449f5acf2e8f8b3848368a63a1a99fae8132e0358492cc1"
     },
     "docs/research/incumbent_suffix_optimisation/4925153_assisted_157.moves": {
-      "sha256": "78bb38022565792bfe6a30813172667e2c8fdb15bc609bce7899b50f22cf60cd"
+      "sha256": "78bb38022565792bfe6a30813172667e2c8fdb15bc609bce7899b50f22cf60cd",
+      "lf_sha256": "08f57dbb7baba8899ec1d7f01267d9816526e55316431cc0ab14e5d549f8bb6b",
+      "crlf_sha256": "78bb38022565792bfe6a30813172667e2c8fdb15bc609bce7899b50f22cf60cd"
     },
     "docs/research/pre120_optimisation/4925153_assisted_140.moves": {
-      "sha256": "46af376903b04a1aeb67eccf24edde3bad6bf54b8d5386517abd99f51c66949d"
+      "sha256": "46af376903b04a1aeb67eccf24edde3bad6bf54b8d5386517abd99f51c66949d",
+      "lf_sha256": "57dc0ffa2a1b21846811dd9a1da1622d422811b739975b645a63a21655772300",
+      "crlf_sha256": "46af376903b04a1aeb67eccf24edde3bad6bf54b8d5386517abd99f51c66949d"
     }
   },
-  "authentication": "Packaged runs compare these digests and replay every route. They do not call git. Source runs keep the git blob checks for the pinned 157 game and the 140 seed."
+  "authentication": "Packaged runs compare the LF and CRLF digests and replay every route. They do not call git. Source runs accept either line ending and keep the git blob checks for the pinned 157 game and the 140 seed."
 }

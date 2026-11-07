@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Spider Play Lab v0.105 — play, replay, and unattended optimisation."""
+"""Spider Play Lab v0.106 — play, replay, and unattended optimisation."""
 from __future__ import annotations
 
 import argparse
@@ -22,7 +22,7 @@ from spider.play_controller import PlayController, SPEEDS
 class PlayLab(tk.Tk):
     def __init__(self, session=None):
         super().__init__()
-        self.title("Spider Play Lab · v0.105")
+        self.title("Spider Play Lab · v0.106")
         self.geometry("1420x900")
         self.minsize(1120, 680)
         self.configure(bg="#eef1e9")
@@ -60,7 +60,7 @@ class PlayLab(tk.Tk):
         header = ttk.Frame(self, padding=(18, 12))
         header.pack(fill="x")
         ttk.Label(header, text="SPIDER  /  PLAY LAB", font=("Segoe UI", 17, "bold")).pack(side="left")
-        ttk.Label(header, text="v0.105   •   Every move preserved", foreground="#60776c").pack(side="right")
+        ttk.Label(header, text="v0.106   •   Every move preserved", foreground="#60776c").pack(side="right")
         toolbar = ttk.Frame(self, padding=(14, 0, 14, 10))
         toolbar.pack(fill="x")
         for label, callback in (("New deal", self.new_deal), ("Open session", self.open_session),

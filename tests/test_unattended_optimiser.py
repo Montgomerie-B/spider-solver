@@ -13,9 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-from spider.incumbent_suffix import load_authenticated_route
-from spider.method_capture import probe_host_memory
-from spider.packaged_runtime import resource_report, verify_manifest_files, verify_packaged_seed
+from spider.incumbent_suffix import SOURCE_FILES, authenticate_moves_path, load_authenticated_route, select_campaign_route
+from spider.packaged_runtime import load_manifest, resource_digest_matches, resource_report, verify_manifest_files, verify_packaged_seed
 from spider.play_session import PlaySession
 from spider.research_actions import opening_from_deal
 from spider.unattended_optimiser import (
@@ -24,11 +23,13 @@ from spider.unattended_optimiser import (
     SEED_HASH,
     OptimiserCampaign,
     assert_campaign_dir,
+    attempt_budget,
     classify_stop,
     covered_by_exhaustion,
     normalise_settings,
     open_verified_route,
     plan_jobs,
+    qualify_saved_exhaustion,
     work_key,
 )
 
@@ -126,6 +127,8 @@ def test_only_a_finished_frontier_is_exhaustion(seed_route):
     done = deepcopy(jobs[0])
     done["state"] = "complete"
     done["exhausted"] = True
+    done["effective_ceiling"] = done["identity"]["ceiling"]
+    done["exhaustion_ceiling_known"] = True
     assert covered_by_exhaustion(identity, [done])
     tighter = deepcopy(identity)
     tighter["ceiling"] = 120
@@ -137,16 +140,25 @@ def test_only_a_finished_frontier_is_exhaustion(seed_route):
 
 def test_resource_clamp_uses_available_ram_and_keeps_one_worker():
     report = resource_report(100_000, 5_000_000)
-    host = probe_host_memory()
     assert report["workers_requested"] == 1
     assert report["workers_effective"] == 1
     assert report["requested_rss_mb"] == 100_000
     assert report["effective_rss_mb"] < report["requested_rss_mb"]
     assert report["effective_rss_mb"] <= 8 * 1024
-    assert report["effective_max_unique"] <= 2_000_000
-    assert report["effective_max_unique"] < report["requested_max_unique"]
-    if int(host["available_bytes"]) > 0:
-        cap = 0.40 * int(host["available_bytes"]) / (1024 * 1024)
+    assert report["identity_default"] == 2_000_000
+    assert report["effective_max_unique"] == min(5_000_000, int(report["identity_limit"]))
+    assert report["effective_max_unique"] <= int(report["absolute_identity_cap"])
+    fit = int((float(report["effective_rss_mb"]) * 1024 * 1024) / int(report["retained_state_bytes"]))
+    assert int(report["identity_limit"]) == min(int(report["absolute_identity_cap"]), max(1, fit))
+    if int(report["identity_limit"]) > 2_000_000:
+        assert report["effective_max_unique"] > 2_000_000
+    modest = resource_report(512, None)
+    assert modest["requested_max_unique"] == 2_000_000
+    assert modest["effective_max_unique"] <= 2_000_000
+    # Compare with the reading that produced the clamp. A later probe can move.
+    recorded = int(report.get("available_bytes") or 0)
+    if recorded > 0:
+        cap = 0.40 * recorded / (1024 * 1024)
         assert report["effective_rss_mb"] <= cap + 0.01
 
 
@@ -154,6 +166,28 @@ def test_manifest_replay_accepts_the_140_seed():
     manifest = verify_manifest_files(ROOT)
     assert manifest["seed"]["action_hash16"] == SEED_HASH
     assert verify_packaged_seed(ROOT) == 0
+
+
+def test_manifest_accepts_lf_and_crlf_for_the_same_route():
+    item = load_manifest(ROOT)["files"][SEED]
+    raw = (ROOT / SEED).read_bytes()
+    lf = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    crlf = lf.replace(b"\n", b"\r\n")
+    assert lf != crlf
+    assert resource_digest_matches(lf, item)
+    assert resource_digest_matches(crlf, item)
+    assert resource_digest_matches(lf + b"move 9 9 9\n", item) is False
+
+
+def test_controller_sources_are_part_of_the_packaged_identity():
+    for relative in (
+        "src/spider/unattended_optimiser.py",
+        "src/spider/packaged_runtime.py",
+        "src/spider/play_optimise_panel.py",
+        "tools/play_lab.py",
+    ):
+        assert relative in SOURCE_FILES
+        assert (ROOT / relative).is_file()
 
 
 def test_campaign_directory_refuses_research_and_solutions():
@@ -184,6 +218,164 @@ def test_adoption_replays_and_lowers_the_target(tmp_path):
     campaign.campaign["incumbent_g"] = 141
     campaign.adopt_files()
     assert campaign.campaign["incumbent_g"] == 140
+
+
+def test_restart_restores_saved_140_and_drops_an_unsupported_best(tmp_path):
+    opening = opening_from_deal(DEAL)
+    route_146 = authenticate_moves_path(
+        opening,
+        ROOT / "docs/research/pre120_optimisation/4925153_assisted_146.moves",
+        label="146",
+        root=ROOT,
+        expected_g=146,
+    )
+    route_142 = authenticate_moves_path(
+        opening,
+        ROOT / "docs/research/pre120_optimisation/4925153_assisted_142.moves",
+        label="142",
+        root=ROOT,
+        expected_g=142,
+    )
+    campaign = OptimiserCampaign(tmp_path / "camp", root=ROOT)
+    campaign.load()
+    campaign.opening = opening
+    campaign.routes = [route_146]
+    verified = tmp_path / "camp" / "verified"
+    verified.mkdir(parents=True)
+    shutil.copyfile(ROOT / SEED, verified / "4925153_assisted_140.moves")
+    shutil.copyfile(
+        ROOT / "docs/research/pre120_optimisation/4925153_assisted_142.moves",
+        verified / "4925153_assisted_142.moves",
+    )
+    campaign.campaign["incumbent_g"] = 140
+    campaign.campaign["ceiling"] = 139
+    campaign.campaign["best"] = {
+        "g": 140,
+        "path": str(verified / "4925153_assisted_140.moves"),
+        "path_hash16": SEED_HASH,
+        "verified": True,
+        "source": "replay",
+    }
+    campaign.adopt_files()
+    chosen = select_campaign_route(campaign.routes, "best")
+    assert chosen["g"] == 140
+    assert chosen["path_hash16"] == SEED_HASH
+    assert any(route["path_hash16"] == route_146["path_hash16"] for route in campaign.routes)
+    assert any(route["path_hash16"] == route_142["path_hash16"] for route in campaign.routes)
+    assert campaign.campaign["best"]["verified"] is True
+    assert campaign.campaign["incumbent_g"] == 140
+    assert campaign.campaign["ceiling"] == 139
+
+    for name in ("4925153_assisted_140.moves", "4925153_assisted_142.moves"):
+        (verified / name).unlink()
+    campaign.routes = [route_146]
+    campaign.campaign["jobs"] = [{"id": "j-old", "state": "queued"}]
+    campaign.campaign["incumbent_g"] = 130
+    campaign.campaign["ceiling"] = 129
+    campaign.campaign["best"] = {
+        "g": 130,
+        "path": str(verified / "missing.moves"),
+        "path_hash16": "0123456789abcdef",
+        "verified": True,
+    }
+    campaign.adopt_files()
+    assert campaign.campaign["best"]["verified"] is True
+    assert campaign.campaign["best"]["path_hash16"] == route_146["path_hash16"]
+    assert campaign.campaign["incumbent_g"] == 146
+    assert campaign.campaign["jobs"] == []
+
+
+def test_final_live_ceiling_limits_the_exhaustion_claim(tmp_path, seed_route):
+    opening, route = seed_route
+    campaign = OptimiserCampaign(tmp_path / "camp", root=ROOT)
+    campaign.load()
+    campaign.opening = opening
+    campaign.routes = [route]
+    campaign.campaign["incumbent_g"] = 140
+    jobs, _notes = plan_jobs(
+        route, opening, ceiling=139, settings=_settings(), resources=_resources(), jobs=[],
+    )
+    job = jobs[0]
+    job["id"] = "j1"
+    job["state"] = "running"
+    campaign.campaign["jobs"] = [job]
+    campaign.finish(job, {"attempts": [{
+        "stop_reason": "complete",
+        "unique": 21,
+        "elapsed_s": 1,
+        "peak_rss_mb": 40,
+        "wall_s": 1,
+        "suffix": {"ceiling": 138, "configured_ceiling": 139},
+    }]}, None)
+    assert job["identity"]["ceiling"] == 139
+    assert job["launch_ceiling"] == 139
+    assert job["effective_ceiling"] == 138
+    assert job["exhausted"] is True
+    assert "launch ceiling 139" in job["exhaustion_scope"]
+    assert "final live ceiling 138" in job["exhaustion_scope"]
+    assert covered_by_exhaustion(job["identity"], [job]) is False
+    tighter = deepcopy(job["identity"])
+    tighter["ceiling"] = 138
+    assert covered_by_exhaustion(tighter, [job]) is True
+
+    old = deepcopy(jobs[1])
+    old["exhausted"] = True
+    old["state"] = "complete"
+    old["exhaustion_scope"] = "original evidence"
+    qualify_saved_exhaustion(old)
+    assert old["exhaustion_scope"] == "original evidence"
+    assert old["identity"]["ceiling"] == 139
+    assert old["exhausted"] is True
+    assert old["exhaustion_ceiling_known"] is False
+    assert covered_by_exhaustion(old["identity"], [old]) is False
+
+
+def test_campaign_deadline_does_not_become_exhaustion(tmp_path, seed_route):
+    now = 1_000.0
+    budget = attempt_budget(
+        {
+            "command": "run",
+            "run_started_at": 900.0,
+            "settings": {"campaign_duration_s": 120, "attempt_time_limit_s": 180},
+        },
+        180,
+        now=now,
+    )
+    assert budget["planned_time_limit_s"] == 180
+    assert budget["applied_time_limit_s"] == 20
+    assert budget["deadline_limited"] is True
+    fresh = attempt_budget({"settings": {"campaign_duration_s": 60}}, 30, now=now)
+    assert fresh["applied_time_limit_s"] == 30
+    assert fresh["deadline_limited"] is False
+
+    opening, route = seed_route
+    campaign = OptimiserCampaign(tmp_path / "camp", root=ROOT)
+    campaign.load()
+    campaign.opening = opening
+    campaign.routes = [route]
+    campaign.campaign["incumbent_g"] = 140
+    jobs, _notes = plan_jobs(
+        route, opening, ceiling=139, settings=_settings(), resources=_resources(), jobs=[],
+    )
+    job = jobs[0]
+    job["id"] = "j9"
+    job["deadline_limited"] = True
+    job["planned_time_limit_s"] = 180
+    job["applied_time_limit_s"] = 20
+    campaign.campaign["jobs"] = [job]
+    campaign.finish(job, {"attempts": [{
+        "stop_reason": "time limit",
+        "unique": 4,
+        "elapsed_s": 20,
+        "peak_rss_mb": 30,
+        "wall_s": 20,
+    }]}, None)
+    assert job["exhausted"] is False
+    assert job["state"] == "interrupted"
+    assert job["stop_reason"] == "deadline"
+    assert job["planned_time_limit_s"] == 180
+    assert job["applied_time_limit_s"] == 20
+    assert "not an exhaustion claim" in job["recovery"]
 
 
 def test_open_verified_best_preserves_session_history(tmp_path):

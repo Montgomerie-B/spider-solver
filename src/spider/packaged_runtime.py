@@ -18,7 +18,10 @@ DEAL_ID = "4925153"
 
 # Compact-kernel peak on this host was 2341.6 MB at 2,000,000 identities.
 RETAINED_STATE_BYTES = 1300
-IDENTITY_CAP = 2_000_000
+DEFAULT_IDENTITY_CAP = 2_000_000
+IDENTITY_CAP = DEFAULT_IDENTITY_CAP
+# Finite ceiling: states that fit in the 8 GiB aggregate RSS cap.
+ABSOLUTE_IDENTITY_CAP = int((8 * 1024 * 1024 * 1024) / RETAINED_STATE_BYTES)
 MEASURED_PEAK_RSS_MB = 2341.6
 
 
@@ -40,6 +43,36 @@ def manifest_sha256(root: Path) -> str:
     return hashlib.sha256(manifest_path(root).read_bytes()).hexdigest()
 
 
+def _normalised_hashes(raw: bytes) -> dict:
+    lf = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    crlf = lf.replace(b"\n", b"\r\n")
+    newline = "crlf" if b"\r\n" in raw else "lf"
+    return {
+        "newline": newline,
+        "raw_sha256": hashlib.sha256(raw).hexdigest(),
+        "lf_sha256": hashlib.sha256(lf).hexdigest(),
+        "crlf_sha256": hashlib.sha256(crlf).hexdigest(),
+    }
+
+
+def resource_digest_matches(raw: bytes, item: dict) -> bool:
+    """Accept the authenticated LF or CRLF bytes. Other content is rejected."""
+
+    hashes = _normalised_hashes(raw)
+    if hashes["newline"] not in {"lf", "crlf"}:
+        return False
+    expected_lf = str(item.get("lf_sha256") or "").lower()
+    expected_crlf = str(item.get("crlf_sha256") or "").lower()
+    expected_raw = str(item.get("sha256") or "").lower()
+    if expected_lf and hashes["lf_sha256"] == expected_lf:
+        if expected_crlf and hashes["crlf_sha256"] != expected_crlf:
+            return False
+        return True
+    if expected_raw and hashes["raw_sha256"] == expected_raw:
+        return True
+    return False
+
+
 def verify_manifest_files(root: Path) -> dict:
     """Reject a package whose bundled deal or routes do not match the manifest."""
 
@@ -51,9 +84,7 @@ def verify_manifest_files(root: Path) -> dict:
         path = Path(root) / relative
         if not path.is_file():
             raise ValueError(f"bundled resource missing: {relative}")
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        expected = str(item.get("sha256") or "")
-        if digest != expected:
+        if not resource_digest_matches(path.read_bytes(), item):
             raise ValueError(f"resource hash mismatch: {relative}")
     return manifest
 
@@ -199,10 +230,11 @@ def resource_report(requested_rss_mb: float, max_unique: Optional[int] = None) -
     requested = float(requested_rss_mb)
     effective = clamp_rss_mb(requested, int(host.get("available_bytes") or 0), workers=1)
     fit = int((effective * 1024 * 1024) / RETAINED_STATE_BYTES) if effective > 0 else 1
-    requested_unique = IDENTITY_CAP if max_unique is None else int(max_unique)
+    identity_limit = max(1, min(ABSOLUTE_IDENTITY_CAP, max(1, fit)))
+    requested_unique = DEFAULT_IDENTITY_CAP if max_unique is None else int(max_unique)
     if requested_unique < 1:
         raise ValueError("max unique must be positive")
-    effective_unique = max(1, min(requested_unique, IDENTITY_CAP, max(1, fit)))
+    effective_unique = max(1, min(requested_unique, identity_limit))
     return {
         "workers_requested": 1,
         "workers_effective": 1,
@@ -215,10 +247,14 @@ def resource_report(requested_rss_mb: float, max_unique: Optional[int] = None) -
         "retained_state_bytes": RETAINED_STATE_BYTES,
         "retained_state_note": (
             "Measured compact-kernel peak was 2341.6 MB at 2,000,000 identities. "
-            "The budget uses 1300 bytes per retained state and does not raise that cap."
+            "The default identity budget is 2,000,000. A larger finite request is "
+            "accepted only when it fits in the enforced RSS at 1300 bytes per state."
         ),
         "requested_max_unique": requested_unique,
         "effective_max_unique": int(effective_unique),
-        "identity_cap": IDENTITY_CAP,
+        "identity_default": DEFAULT_IDENTITY_CAP,
+        "identity_cap": DEFAULT_IDENTITY_CAP,
+        "identity_limit": int(identity_limit),
+        "absolute_identity_cap": ABSOLUTE_IDENTITY_CAP,
         "recommendation_notes": recommended.notes,
     }

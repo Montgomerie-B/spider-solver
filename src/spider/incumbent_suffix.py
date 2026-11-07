@@ -61,6 +61,10 @@ SOURCE_FILES = (
     "src/spider/global_search_experiment.py",
     "src/spider/search_memory_profile.py",
     "tools/pre120_optimisation.py",
+    "src/spider/unattended_optimiser.py",
+    "src/spider/packaged_runtime.py",
+    "src/spider/play_optimise_panel.py",
+    "tools/play_lab.py",
 )
 
 

@@ -332,6 +332,44 @@ def test_optimise_tab_stays_responsive_and_stop_is_not_exhaustion(tk_app, tmp_pa
     assert not app.optimise._running()
 
 
+def test_resume_on_a_fresh_campaign_starts_the_clock(tk_app, tmp_path):
+    app = tk_app
+    app.optimise.directory = tmp_path / "fresh"
+    app.optimise.duration_min.set(1)
+    app.optimise.attempt_s.set(30)
+    app.optimise.max_unique.set(20)
+    app.optimise.requested_rss.set(512)
+    app.optimise.resume()
+    try:
+        payload = json.loads((tmp_path / "fresh" / "control.json").read_text(encoding="utf-8"))
+        assert payload["command"] == "run"
+        assert payload["run_started_at"]
+        assert abs(float(payload["run_started_at"]) - time.time()) < 30
+    finally:
+        app.optimise.stop()
+    assert not app.optimise._running()
+
+
+def test_stop_keeps_the_window_responsive_while_the_worker_exits(tk_app, tmp_path):
+    app = tk_app
+    app.optimise.directory = tmp_path / "responsive"
+    app.optimise.duration_min.set(1)
+    app.optimise.attempt_s.set(8)
+    app.optimise.max_unique.set(20)
+    app.optimise.requested_rss.set(512)
+    seen = []
+    app.optimise.start()
+    app.after(150, lambda: seen.append("tick"))
+    try:
+        app.optimise.stop()
+        assert seen == ["tick"]
+        assert "Stopped" in app.optimise.status.get()
+    finally:
+        if app.optimise._running():
+            app.optimise.stop()
+    assert not app.optimise._running()
+
+
 def test_live_recorder_refreshes_from_lineage(session, tk_app):
     app = tk_app
     app.session = session

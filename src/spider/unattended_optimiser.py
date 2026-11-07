@@ -142,18 +142,77 @@ def classify_stop(stop_reason: Optional[str], *, terminated: bool, requested_sto
     return {"state": "failed", "exhausted": False, "stop_reason": reason, "recovery": None}
 
 
+UNKNOWN_CEILING_NOTE = (
+    "The final live ceiling was not recorded. "
+    "This evidence does not establish exhaustion at the launch ceiling."
+)
+
+
 def exhaustion_scope(job: dict) -> str:
     identity = job["identity"]
     ancestry = identity["ancestry"]
+    launch = int(identity["ceiling"])
+    final = job.get("effective_ceiling")
+    final_text = "unrecorded" if final is None else str(int(final))
     return (
         f"exact authenticated prefix {ancestry['prefix_hash16']} "
         f"after action {ancestry['prefix_index']} of route {ancestry['route_hash16']}, "
         f"physical pack {identity['physical_pack']}, "
         f"accumulated g={identity['accumulated_g']}, "
         f"deal {DEAL_ID}, rules {identity['rules']}, "
-        f"absolute ceiling {identity['ceiling']}, "
+        f"launch ceiling {launch}, final live ceiling {final_text}, "
         f"compact suffix-assisted configuration"
     )
+
+
+def qualify_saved_exhaustion(job: dict) -> None:
+    """Mark an older exhaustion record whose live ceiling was not stored.
+
+    The launch ceiling, the exhausted flag, and the original scope text stay.
+    Coverage does not treat that record as exhaustion through the launch ceiling.
+    """
+
+    if not job.get("exhausted"):
+        return
+    if job.get("effective_ceiling") is not None:
+        job["exhaustion_ceiling_known"] = True
+        return
+    job["exhaustion_ceiling_known"] = False
+    if not job.get("exhaustion_ceiling_note"):
+        job["exhaustion_ceiling_note"] = UNKNOWN_CEILING_NOTE
+
+
+def attempt_budget(control: dict, planned_s: float, *, now: Optional[float] = None) -> dict:
+    """Cap a new attempt at the campaign time still remaining."""
+
+    planned = float(planned_s)
+    if planned <= 0:
+        raise ValueError("attempt time must be positive")
+    moment = time.time() if now is None else float(now)
+    settings = control.get("settings") or {}
+    duration = float(settings.get("campaign_duration_s") or 0)
+    started = control.get("run_started_at")
+    if not started or duration <= 0:
+        applied = planned
+    else:
+        remaining = float(duration) - (moment - float(started))
+        applied = min(planned, remaining)
+    if applied < 0:
+        applied = 0.0
+    return {
+        "planned_time_limit_s": round(planned, 3),
+        "applied_time_limit_s": round(applied, 3),
+        "deadline_limited": planned - applied > 0.05,
+    }
+
+
+def coerce_run_start(control: dict, now: float) -> float:
+    """Keep an existing campaign clock. A fresh Resume starts one."""
+
+    started = control.get("run_started_at")
+    if started:
+        return float(started)
+    return float(now)
 
 
 def _terminal(job: dict) -> bool:
@@ -164,6 +223,8 @@ def covered_by_exhaustion(identity: dict, jobs: list) -> bool:
     for job in jobs:
         if not job.get("exhausted"):
             continue
+        if job.get("exhaustion_ceiling_known") is False or job.get("effective_ceiling") is None:
+            continue
         previous = job["identity"]
         if previous["physical_pack"] != identity["physical_pack"]:
             continue
@@ -173,7 +234,8 @@ def covered_by_exhaustion(identity: dict, jobs: list) -> bool:
             continue
         if previous["rules"] != identity["rules"]:
             continue
-        if int(identity["ceiling"]) <= int(previous["ceiling"]):
+        # The live ceiling at completion, not the ceiling used to launch the job.
+        if int(identity["ceiling"]) <= int(job["effective_ceiling"]):
             return True
     return False
 
@@ -182,6 +244,9 @@ def identical_terminal(identity: dict, jobs: list) -> bool:
     key = work_key(identity)
     for job in jobs:
         if not _terminal(job):
+            continue
+        # A campaign deadline did not finish the planned attempt.
+        if str(job.get("stop_reason") or "") == "deadline":
             continue
         if work_key(job["identity"]) == key:
             return True
@@ -314,6 +379,9 @@ class OptimiserCampaign:
             self.campaign.setdefault("jobs", [])
             self.campaign.setdefault("activity", [])
             self.campaign.setdefault("skips", [])
+            for job in self.campaign["jobs"]:
+                if isinstance(job, dict):
+                    qualify_saved_exhaustion(job)
         return self.campaign
 
     def save(self) -> None:
@@ -344,23 +412,24 @@ class OptimiserCampaign:
             "best": self.campaign.get("best"),
             "resources": resources,
             "current_job": None if current is None else {
-                "id": current["id"],
-                "index": current["index"],
-                "route_label": current["route_label"],
+                "id": current.get("id"),
+                "index": current.get("index"),
+                "route_label": current.get("route_label"),
                 "bound": current.get("bound"),
-                "state": current["state"],
+                "state": current.get("state"),
             },
             "jobs": [
                 {
-                    "id": job["id"],
-                    "state": job["state"],
-                    "index": job["index"],
+                    "id": job.get("id"),
+                    "state": job.get("state"),
+                    "index": job.get("index"),
                     "exhausted": bool(job.get("exhausted")),
                     "stop_reason": job.get("stop_reason"),
                     "recovery": job.get("recovery"),
                     "bound": job.get("bound"),
                 }
                 for job in self.campaign.get("jobs") or []
+                if isinstance(job, dict)
             ],
             "activity": list(self.campaign.get("activity") or [])[-40:],
             "queue_remaining": sum(1 for job in self.campaign.get("jobs") or [] if job.get("state") == "queued"),
@@ -423,45 +492,100 @@ class OptimiserCampaign:
         )
 
     def adopt_files(self) -> list:
-        """Replay every published game under this campaign and keep a strictly cheaper one."""
+        """Replay saved games and put every verified route back into the search sources.
 
-        adopted = []
+        A route whose cost equals the persisted incumbent is still a source.
+        Intermediate improvements are sources too. The best claim is then
+        reconciled with the files that actually replayed.
+        """
+
+        restored = []
+        if self.opening is None:
+            self._reconcile_best(restored)
+            return []
         for path in self._published_files():
             try:
                 route = authenticate_moves_path(self.opening, path, label="published", root=self.root)
             except (OSError, ValueError) as exc:
                 self.log(f"Rejected {path.name}: {exc}")
                 continue
-            if int(route["g"]) >= int(self.campaign["incumbent_g"]):
-                continue
-            if any(item["path_hash16"] == route["path_hash16"] for item in self.routes):
-                self._remember_best(route, path)
-                continue
-            route["label"] = _adopted_label(self.routes, int(route["g"]), route["path_hash16"])
-            route["adopted"] = True
-            self.routes.append(route)
-            destination = self.directory / "verified" / path.name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            if not destination.is_file():
-                destination.write_bytes(path.read_bytes())
-            self._remember_best(route, destination)
-            adopted.append(route)
-            self.log(
-                f"Adopted verified {route['g']} ({route['path_hash16']}) after a full opening replay. "
-                f"Ceiling is now {self.campaign['ceiling']}."
-            )
-        return adopted
+            self._ensure_route(route, path)
+            restored.append((route, path))
+        self._reconcile_best(restored)
+        return [route for route, _path in restored]
 
-    def _remember_best(self, route: dict, path: Path) -> None:
-        self.campaign["incumbent_g"] = int(route["g"])
-        self.campaign["ceiling"] = int(route["g"]) - 1
+    def _ensure_route(self, route: dict, path: Path) -> bool:
+        digest = str(route["path_hash16"])
+        if any(item["path_hash16"] == digest for item in self.routes):
+            return False
+        stored = dict(route)
+        stored["label"] = _adopted_label(self.routes, int(route["g"]), digest)
+        stored["adopted"] = True
+        self.routes.append(stored)
+        destination = self.directory / "verified" / path.name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if path.resolve() != destination.resolve() and not destination.is_file():
+            destination.write_bytes(path.read_bytes())
+        self.log(
+            f"Restored verified {stored['g']} ({digest}) into the search and suffix sources."
+        )
+        return True
+
+    def _reconcile_best(self, restored: list) -> None:
+        by_hash = {str(route["path_hash16"]): path for route, path in restored}
+        playable = [
+            route for route in self.routes
+            if route.get("label") not in HISTORICAL_LABELS and route.get("actions") is not None
+        ]
+        supported = {str(route["path_hash16"]) for route in playable}
+        persisted = dict(self.campaign.get("best") or {})
+        claimed = str(persisted.get("path_hash16") or "")
+        if claimed and claimed not in supported:
+            self.log(f"Withdrew persisted best {claimed}: no replayed file supports it.")
+        if not playable:
+            self.campaign["best"] = {
+                "g": persisted.get("g"),
+                "path": persisted.get("path"),
+                "path_hash16": claimed or None,
+                "verified": False,
+                "source": "withdrawn",
+            }
+            if claimed:
+                self.log("No replayed route supports a verified best.")
+            return
+        best_route = min(playable, key=lambda route: (int(route["g"]), str(route["label"])))
+        path = by_hash.get(str(best_route["path_hash16"]))
+        if path is None:
+            raw = best_route.get("path")
+            if raw:
+                candidate = Path(str(raw))
+                if not candidate.is_file():
+                    rooted = self.root / str(raw)
+                    candidate = rooted if rooted.is_file() else candidate
+                path = candidate
+        previous = int(self.campaign.get("incumbent_g") or best_route["g"])
+        self.campaign["incumbent_g"] = int(best_route["g"])
+        self.campaign["ceiling"] = int(best_route["g"]) - 1
         self.campaign["best"] = {
-            "g": int(route["g"]),
-            "path": str(path),
-            "path_hash16": route["path_hash16"],
+            "g": int(best_route["g"]),
+            "path": "" if path is None else str(path),
+            "path_hash16": best_route["path_hash16"],
             "verified": True,
             "source": "replay",
         }
+        if int(best_route["g"]) < previous:
+            self.log(
+                f"Adopted verified {best_route['g']} ({best_route['path_hash16']}) "
+                f"after a full opening replay. Ceiling is now {self.campaign['ceiling']}."
+            )
+        elif int(best_route["g"]) != previous:
+            self.campaign["jobs"] = [
+                job for job in self.campaign.get("jobs") or [] if job.get("state") != "queued"
+            ]
+            self.log(
+                f"Verified best is {best_route['g']} ({best_route['path_hash16']}). "
+                "Queued jobs were dropped because the persisted incumbent was not replayed."
+            )
 
     def _published_files(self) -> list[Path]:
         found = []
@@ -540,6 +664,10 @@ class OptimiserCampaign:
         search_dir = self.directory / "jobs" / job["id"] / "search"
         search_dir.mkdir(parents=True, exist_ok=True)
         cfg = job["identity"]["configuration"]
+        budget = attempt_budget(read_control(self.directory), cfg["time_limit_s"])
+        job["planned_time_limit_s"] = budget["planned_time_limit_s"]
+        job["applied_time_limit_s"] = budget["applied_time_limit_s"]
+        job["deadline_limited"] = bool(budget["deadline_limited"])
         self.campaign["phase"] = "running"
         job["state"] = "running"
         job["started_at"] = time.time()
@@ -547,15 +675,20 @@ class OptimiserCampaign:
             f"Started {job['id']} on action {job['index']} of route {job['route_label']}. "
             f"g={job['bound']['g']} h={job['bound']['h']} f={job['bound']['f']}. "
             f"Requested RSS {cfg['requested_rss_mb']:.2f} MB, "
-            f"effective {cfg['effective_rss_mb']:.2f} MB."
+            f"effective {cfg['effective_rss_mb']:.2f} MB. "
+            f"Planned attempt {budget['planned_time_limit_s']:.2f}s, "
+            f"applied {budget['applied_time_limit_s']:.2f}s."
         )
+        if float(budget["applied_time_limit_s"]) <= 0:
+            self.log("Campaign allowance is exhausted. This attempt was not started.")
+            return {"attempts": [{"stop_reason": "time limit"}]}
 
         def progress(line: str) -> None:
             self.log(line, persist=False)
 
         return run_prefix_attempt(
             action_index=int(job["index"]),
-            time_limit_s=float(cfg["time_limit_s"]),
+            time_limit_s=float(budget["applied_time_limit_s"]),
             max_unique=int(cfg["max_unique"]),
             memory_mb=float(cfg["requested_rss_mb"]),
             checkpoint_s=float(cfg["checkpoint_s"]),
@@ -578,7 +711,15 @@ class OptimiserCampaign:
             self.log(f"{job['id']} failed: {job['error']}")
         else:
             attempt = (document or {}).get("attempts", [{}])[-1]
-            outcome = classify_stop(attempt.get("stop_reason"), terminated=False, requested_stop=False)
+            if job.get("deadline_limited") and str(attempt.get("stop_reason") or "") == "time limit":
+                outcome = {
+                    "state": "interrupted",
+                    "exhausted": False,
+                    "stop_reason": "deadline",
+                    "recovery": RECOVERY_TEXT,
+                }
+            else:
+                outcome = classify_stop(attempt.get("stop_reason"), terminated=False, requested_stop=False)
             job["unique"] = attempt.get("unique")
             job["elapsed_s"] = attempt.get("elapsed_s")
             job["peak_rss_mb"] = attempt.get("peak_rss_mb")
@@ -597,13 +738,27 @@ class OptimiserCampaign:
         job["exhausted"] = bool(outcome["exhausted"])
         job["stop_reason"] = outcome["stop_reason"]
         job["recovery"] = outcome["recovery"]
-        job["exhaustion_scope"] = exhaustion_scope(job) if job["exhausted"] else None
         job["finished_at"] = time.time()
         if job["exhausted"]:
-            self.log(f"Exhaustion scope: {job['exhaustion_scope']}")
+            suffix = ((document or {}).get("attempts") or [{}])[-1].get("suffix") or {}
+            job["launch_ceiling"] = int(job["identity"]["ceiling"])
+            if suffix.get("ceiling") is None:
+                job["exhausted"] = False
+                job["effective_ceiling"] = None
+                job["exhaustion_ceiling_known"] = False
+                job["exhaustion_scope"] = None
+                job["exhaustion_ceiling_note"] = UNKNOWN_CEILING_NOTE
+                self.log(UNKNOWN_CEILING_NOTE)
+            else:
+                job["effective_ceiling"] = int(suffix["ceiling"])
+                job["exhaustion_ceiling_known"] = True
+                job["exhaustion_scope"] = exhaustion_scope(job)
+                self.log(f"Exhaustion scope: {job['exhaustion_scope']}")
+        else:
+            job["exhaustion_scope"] = None
         before = int(self.campaign["incumbent_g"])
         self.adopt_files()
-        if int(self.campaign["incumbent_g"]) < before:
+        if int(self.campaign["incumbent_g"]) != before:
             self.campaign["jobs"] = [item for item in self.campaign["jobs"] if item.get("state") != "queued"]
             self.log(
                 f"Incumbent is now {self.campaign['incumbent_g']}. "
@@ -649,6 +804,10 @@ def supervise(directory: Path) -> int:
                 campaign.campaign["phase"] = "stopped"
                 campaign.log("Stop requested. No further job will start.")
                 return 0
+            if command == "run" and not control.get("run_started_at"):
+                control["run_started_at"] = time.time()
+                atomic_write_json(campaign.directory / "control.json", control)
+                campaign.log("Started the campaign clock.")
             if command == "pause":
                 if campaign.campaign.get("phase") != "paused":
                     campaign.campaign["phase"] = "paused"

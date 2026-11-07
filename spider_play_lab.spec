@@ -16,6 +16,10 @@ datas = [
     ('src/spider/global_search_experiment.py', 'src/spider'),
     ('src/spider/search_memory_profile.py', 'src/spider'),
     ('tools/pre120_optimisation.py', 'tools'),
+    ('src/spider/unattended_optimiser.py', 'src/spider'),
+    ('src/spider/packaged_runtime.py', 'src/spider'),
+    ('src/spider/play_optimise_panel.py', 'src/spider'),
+    ('tools/play_lab.py', 'tools'),
 ]
 a = Analysis(['tools/play_lab.py'], pathex=['src'], binaries=[], datas=datas,
              hiddenimports=[
