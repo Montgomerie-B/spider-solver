@@ -304,6 +304,34 @@ def test_canvas_stock_animation_and_future_hit_testing(session, board):
     assert canvas._display_state is None
 
 
+def test_optimise_tab_stays_responsive_and_stop_is_not_exhaustion(tk_app, tmp_path):
+    app = tk_app
+    app.optimise.directory = tmp_path / "camp"
+    app.optimise.duration_min.set(1)
+    app.optimise.attempt_s.set(3)
+    app.optimise.max_unique.set(20)
+    app.optimise.requested_rss.set(512)
+    app.update_idletasks()
+    try:
+        app.optimise.start()
+        started = time.perf_counter()
+        for _ in range(6):
+            app.update()
+            app.feedback("optimiser is running and the window is responsive")
+        assert time.perf_counter() - started < 2
+        assert "responsive" in app.message.get()
+        app.optimise.stop()
+        assert "Stopped" in app.optimise.status.get()
+    finally:
+        if app.optimise._pid():
+            app.optimise.stop()
+    campaign_path = tmp_path / "camp" / "campaign.json"
+    if campaign_path.is_file():
+        payload = json.loads(campaign_path.read_text(encoding="utf-8"))
+        assert all(not job.get("exhausted") for job in payload.get("jobs") or [])
+    assert not app.optimise._running()
+
+
 def test_live_recorder_refreshes_from_lineage(session, tk_app):
     app = tk_app
     app.session = session

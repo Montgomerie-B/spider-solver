@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Spider Play Lab v0.104 — independent desktop play/replay/research application."""
+"""Spider Play Lab v0.105 — play, replay, and unattended optimisation."""
 from __future__ import annotations
 
 import argparse
@@ -22,7 +22,7 @@ from spider.play_controller import PlayController, SPEEDS
 class PlayLab(tk.Tk):
     def __init__(self, session=None):
         super().__init__()
-        self.title("Spider Play Lab · v0.104")
+        self.title("Spider Play Lab · v0.105")
         self.geometry("1420x900")
         self.minsize(1120, 680)
         self.configure(bg="#eef1e9")
@@ -60,7 +60,7 @@ class PlayLab(tk.Tk):
         header = ttk.Frame(self, padding=(18, 12))
         header.pack(fill="x")
         ttk.Label(header, text="SPIDER  /  PLAY LAB", font=("Segoe UI", 17, "bold")).pack(side="left")
-        ttk.Label(header, text="v0.104   •   Every move preserved", foreground="#60776c").pack(side="right")
+        ttk.Label(header, text="v0.105   •   Every move preserved", foreground="#60776c").pack(side="right")
         toolbar = ttk.Frame(self, padding=(14, 0, 14, 10))
         toolbar.pack(fill="x")
         for label, callback in (("New deal", self.new_deal), ("Open session", self.open_session),
@@ -81,7 +81,7 @@ class PlayLab(tk.Tk):
         ttk.Label(research, text="Motion", padding=(8, 0)).pack(side="right")
         middle = ttk.Frame(self)
         middle.pack(fill="both", expand=True)
-        side = ttk.Frame(middle, padding=(12, 10), width=310)
+        side = ttk.Frame(middle, padding=(12, 10), width=430)
         side.pack(side="right", fill="y")
         side.pack_propagate(False)
         ttk.Label(side, text="SESSION", font=("Segoe UI", 10, "bold")).pack(anchor="w")
@@ -102,6 +102,10 @@ class PlayLab(tk.Tk):
         history_frame = ttk.Frame(self.tabs)
         self.tabs.add(record_frame, text="Clean move record")
         self.tabs.add(history_frame, text="All history")
+        optimise_frame = ttk.Frame(self.tabs)
+        self.tabs.add(optimise_frame, text="Optimise")
+        from spider.play_optimise_panel import OptimisePanel
+        self.optimise = OptimisePanel(self, optimise_frame)
         self.recorder = ttk.Treeview(record_frame, columns=("n", "g", "move"), show="headings", height=5)
         for key, label, width in (("n", "#", 37), ("g", "g", 36), ("move", "Current route", 178)):
             self.recorder.heading(key, text=label)
@@ -420,6 +424,8 @@ class PlayLab(tk.Tk):
 
     def close(self):
         self.board.cancel_transition()
+        if getattr(self, "optimise", None) is not None:
+            self.optimise.shutdown()
         if self.session:
             try:
                 self.session.save()
@@ -430,19 +436,42 @@ class PlayLab(tk.Tk):
         self.destroy()
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--deal", type=Path, help="Start a new session from this deal")
     parser.add_argument("--session", type=Path, help="Restore an existing session")
     parser.add_argument("--solution", type=Path, help="Validate and load a replay route")
-    args = parser.parse_args()
+    parser.add_argument("--optimiser-supervisor", action="store_true")
+    parser.add_argument("--campaign", type=Path, help="Mutable unattended campaign directory")
+    parser.add_argument("--verify-packaged", action="store_true",
+                        help="Replay the bundled 140 solution and exit")
+    args = parser.parse_args(argv)
+    if args.verify_packaged:
+        from spider.packaged_runtime import verify_packaged_seed
+        try:
+            return verify_packaged_seed()
+        except Exception as exc:
+            stream = sys.stderr
+            if stream is not None:
+                try:
+                    stream.write(f"PACKAGED_SEED_FAILED {type(exc).__name__}: {exc}\n")
+                    stream.flush()
+                except Exception:
+                    pass
+            return 1
+    if args.optimiser_supervisor:
+        if args.campaign is None:
+            raise SystemExit("the optimiser supervisor requires --campaign")
+        from spider.unattended_optimiser import supervise
+        return supervise(args.campaign)
     session = PlaySession.load(args.session) if args.session else (
         PlaySession.from_deal(args.deal) if args.deal else None)
     if args.solution:
         session = session or PlaySession.from_deal(repo_root() / "deals" / "4925153.txt")
         session.load_solution(args.solution)
     PlayLab(session).mainloop()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

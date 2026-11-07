@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -114,6 +115,10 @@ class SuffixTable:
 
 
 def _repo_root() -> Path:
+    """Checkout root. A frozen build uses the bundle directory, not ``__file__``."""
+
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
     return Path(__file__).resolve().parents[2]
 
 
@@ -738,6 +743,12 @@ class LiveSuffixChecker:
 
 
 def source_fingerprint(root: Path) -> dict:
+    """Hash the solver sources. A packaged build records the manifest and does not call git."""
+
+    if getattr(sys, "frozen", False):
+        from spider.packaged_runtime import packaged_source_fingerprint
+
+        return packaged_source_fingerprint(root)
     files = {}
     for relative in SOURCE_FILES:
         path = root / relative
@@ -1130,6 +1141,22 @@ def run_prefix_attempt(
         suffix_checker=checker,
         progress_hook=progress,
     )
+    if result.solved and result.replay_ok and result.solution_g is not None and result.actions:
+        # A suffix hit is already on disk. A direct terminal is replayed again
+        # here and written before the attempt ledger, so a crash cannot drop it.
+        report = validate_solution(DEAL_ID, list(result.actions), expected_deal_id=DEAL_ID)
+        if report.valid and int(report.mobilityware_moves) == int(result.solution_g):
+            verified_now = int(report.mobilityware_moves)
+            if verified_now < int(active_incumbent):
+                publish_verified_game(
+                    output,
+                    list(result.actions),
+                    verified_now,
+                    header=(
+                        f"Suffix-assisted solution for deal {DEAL_ID}. "
+                        f"Corrected MW={verified_now}. Full original-opening replay."
+                    ),
+                )
     branches = []
     for name, record in result.leaders.items():
         item = _compact_branch(record)

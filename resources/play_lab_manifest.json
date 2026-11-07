@@ -1,0 +1,42 @@
+{
+  "schema": "spider-play-lab-resources-1",
+  "deal_id": "4925153",
+  "seed": {
+    "relative": "docs/research/pre120_optimisation/4925153_assisted_140.moves",
+    "label": "140",
+    "g": 140,
+    "action_hash16": "34a94de8e6edfa4b",
+    "git_blob": "70b27fd6cc5764851a29a090a292f1c9ca03ccde"
+  },
+  "pinned_157": {
+    "relative": "docs/research/incumbent_suffix_optimisation/4925153_assisted_157.moves",
+    "label": "157",
+    "g": 157,
+    "action_hash16": "89c75b02b80f1271",
+    "git_blob": "34c4510cab64a5cb243e66e87faeef2a7751f6a9"
+  },
+  "files": {
+    "deals/4925153.txt": {
+      "sha256": "c0b70979b3e6b90e266691df956026629c890f49c12ed519801d6779434734df"
+    },
+    "docs/research/autonomous_solve_campaign/4925153_cold_164.moves": {
+      "sha256": "5bc761fdb750a9fcdb9236706e4dd25ea8b8c83a91c75c564898695ff4488be6"
+    },
+    "docs/research/autonomous_solve_campaign/4925153_cold_162.moves": {
+      "sha256": "3bd1308c5953c0f970035dfe69acdaf7b8c423893842004bf1253d0417e10f94"
+    },
+    "docs/research/autonomous_solve_campaign/4925153_cold_160.moves": {
+      "sha256": "46c98ea85c3749ed5e30173f49425cd596af1cab3dd28fb3ab356fefd936c00e"
+    },
+    "docs/research/autonomous_solve_campaign/4925153_cold_158.moves": {
+      "sha256": "c5f4059e8288a8160449f5acf2e8f8b3848368a63a1a99fae8132e0358492cc1"
+    },
+    "docs/research/incumbent_suffix_optimisation/4925153_assisted_157.moves": {
+      "sha256": "78bb38022565792bfe6a30813172667e2c8fdb15bc609bce7899b50f22cf60cd"
+    },
+    "docs/research/pre120_optimisation/4925153_assisted_140.moves": {
+      "sha256": "46af376903b04a1aeb67eccf24edde3bad6bf54b8d5386517abd99f51c66949d"
+    }
+  },
+  "authentication": "Packaged runs compare these digests and replay every route. They do not call git. Source runs keep the git blob checks for the pinned 157 game and the 140 seed."
+}

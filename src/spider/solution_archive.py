@@ -44,7 +44,20 @@ ENV_ARCHIVE_ROOT = "SPIDER_SOLUTION_ARCHIVE_ROOT"
 VALIDATOR_VERSION = "solution_archive_v1"
 METRIC_VERSION = "mobilityware_moves_corrected_v1"
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+def _package_root() -> Path:
+    """Checkout root, or the PyInstaller bundle when the app is frozen.
+
+    A windowed onedir build keeps datas in ``_MEIPASS`` (``_internal``).
+    ``Path(__file__).parents[2]`` stops one directory higher, beside the
+    executable, where the bundled deal is not present.
+    """
+
+    from spider.app_paths import repo_root
+
+    return repo_root()
+
+
+REPO_ROOT = _package_root()
 DEFAULT_DEAL_PATH = REPO_ROOT / "deals" / "4925153.txt"
 DEFAULT_CANONICAL = REPO_ROOT / "solutions" / "4925153_canonical.moves"
 EMERGENCY_RECOVERY = REPO_ROOT / "artifacts" / "solution_recovery"
