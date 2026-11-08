@@ -1,5 +1,22 @@
 # Reference solutions
 
+## Deal 4925153 verified games
+
+Play Lab's "Load canonical solution or partial route" dialog opens this folder. These copies are the same bytes as the research files.
+
+| File | Source |
+|------|--------|
+| `4925153_canonical.moves` | Canonical 172 |
+| `4925153_autonomous_185.moves` | Autonomous 185 |
+| `4925153_cold_164.moves` | Cold campaign 164 |
+| `4925153_cold_162.moves` | Cold campaign 162 |
+| `4925153_cold_160.moves` | Cold campaign 160 |
+| `4925153_cold_158.moves` | Cold campaign 158 |
+| `4925153_cold_feasibility_164.moves` | Method-capture feasibility 164 |
+| `4925153_assisted_157.moves` | Suffix-assisted 157 |
+| `4925153_assisted_156.moves` | Pre-120 assisted 156 |
+| `4925153_assisted_151.moves` through `4925153_assisted_140.moves` | Pre-120 assisted 151–140 |
+
 ## Deal 4925153
 
 | File | Description |
