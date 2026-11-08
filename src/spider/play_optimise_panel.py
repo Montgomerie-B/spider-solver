@@ -21,6 +21,13 @@ from spider.unattended_optimiser import (
 )
 
 
+# The spinboxes open at the top of each control. An environment value still wins.
+# A library call that omits max_unique stays at the 2,000,000 identity default.
+DEFAULT_DURATION_MIN = 360.0
+DEFAULT_ATTEMPT_S = 7200.0
+DEFAULT_RSS_MB = 8192.0
+
+
 def _env_float(name: str, default: float) -> float:
     raw = os.environ.get(name)
     if raw is None or raw == "":
@@ -92,10 +99,10 @@ class OptimisePanel:
         self._stopping = False
         self._log_handle = None
         self._process = None
-        self.duration_min = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_DURATION_MIN", 20))
-        self.attempt_s = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_ATTEMPT_S", 180))
-        self.max_unique = tk.IntVar(value=int(_env_float("SPIDER_PLAY_LAB_MAX_UNIQUE", 2_000_000)))
-        self.requested_rss = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_RSS_MB", 3000))
+        self.duration_min = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_DURATION_MIN", DEFAULT_DURATION_MIN))
+        self.attempt_s = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_ATTEMPT_S", DEFAULT_ATTEMPT_S))
+        self.max_unique = tk.IntVar(value=int(_env_float("SPIDER_PLAY_LAB_MAX_UNIQUE", ABSOLUTE_IDENTITY_CAP)))
+        self.requested_rss = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_RSS_MB", DEFAULT_RSS_MB))
         self.status = tk.StringVar(value="Idle. Deal 4925153 only. One worker.")
         self.best = tk.StringVar(value="Best 140 · target 139")
         self.job = tk.StringVar(value="No job yet")

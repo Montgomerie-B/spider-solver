@@ -18,9 +18,9 @@ On this machine the built executable is:
 C:\Users\Codex\Documents\Grok Build\spider-play-lab-v0-103\dist\v0.106\SpiderPlayLab\SpiderPlayLab.exe
 ```
 
-Open the Optimise tab. The release uses one worker. The default identity budget remains 2,000,000. A larger finite request is accepted only when it fits in the enforced RSS at 1,300 bytes per retained state. The spinbox stops at the absolute cap, 6,607,641 identities, which is the number of those states that fit in the 8 GiB aggregate RSS cap. The effective cap is the smaller of the request, that absolute cap, and the states that fit in the clamped RSS. The RSS clamp is still the request, 8 GiB, and 40 percent of available RAM. The tab shows the requested RSS, the effective RSS, available RAM, the effective identity count, the 2,000,000 default, and the RSS identity limit.
+Open the Optimise tab. The four controls open at their maxima: 360 minutes, 7,200 seconds, 6,607,641 identities, and 8,192 MB. The release uses one worker. When a caller omits the identity count, the library budget remains 2,000,000. A larger finite request is accepted only when it fits in the enforced RSS at 1,300 bytes per retained state. The spinbox stops at the absolute cap, 6,607,641 identities, which is the number of those states that fit in the 8 GiB aggregate RSS cap. The effective cap is the smaller of the request, that absolute cap, and the states that fit in the clamped RSS. The RSS clamp is still the request, 8 GiB, and 40 percent of available RAM. The tab shows the requested RSS, the effective RSS, available RAM, the effective identity count, the 2,000,000 default, and the RSS identity limit.
 
-Campaign files stay in `%LOCALAPPDATA%\SpiderSolver\PlayLab\Optimiser\4925153` unless `SPIDER_PLAY_LAB_OPTIMISER_DIR` is set. Optional overrides for a bounded run are `SPIDER_PLAY_LAB_DURATION_MIN`, `SPIDER_PLAY_LAB_ATTEMPT_S`, `SPIDER_PLAY_LAB_MAX_UNIQUE`, and `SPIDER_PLAY_LAB_RSS_MB`. Unset values stay at 20 minutes, 180 seconds, 2,000,000 identities, and 3,000 MB.
+Campaign files stay in `%LOCALAPPDATA%\SpiderSolver\PlayLab\Optimiser\4925153` unless `SPIDER_PLAY_LAB_OPTIMISER_DIR` is set. Optional overrides for a bounded run are `SPIDER_PLAY_LAB_DURATION_MIN`, `SPIDER_PLAY_LAB_ATTEMPT_S`, `SPIDER_PLAY_LAB_MAX_UNIQUE`, and `SPIDER_PLAY_LAB_RSS_MB`. Unset values stay at 360 minutes, 7,200 seconds, 6,607,641 identities, and 8,192 MB. A maxed request can still be reduced by the RAM clamp. The resource line shows that effective count.
 
 ## What changed in the controller
 
@@ -70,3 +70,11 @@ A 50-second campaign requested 5,000,000 identities and 512 MB. The recorded cla
 A second campaign used a 12-second budget and a planned attempt of 60 seconds, again at 512 MB and a 5,000,000 request. Action 100 was stored as planned 60 seconds and applied 11.58 seconds, `deadline_limited` true. The time limit was recorded as `interrupted` / `deadline`, not exhausted, and the campaign then stopped because the duration had elapsed. No second job started.
 
 Opening a verified line through `open_verified_route` is covered by `test_open_verified_best_preserves_session_history`: the existing nodes and the named branch remain, and the route is appended. That test ran in the 135 above. The frozen Open verified best button was not clicked.
+
+## Load dialog and control maxima
+
+The Load dialog opens `solutions` under the source checkout, or `_internal\solutions` in the frozen folder. A campaign writes its games under `%LOCALAPPDATA%\SpiderSolver\PlayLab\Optimiser\4925153`. After a moves file replays, the campaign also copies that file into the Load dialog folder. An existing file with different bytes is left unchanged. A folder that cannot be written does not stop the campaign. The copy is not a search root.
+
+The Play Lab campaign found `4925153_assisted_139.moves`, corrected cost 139, action hash `9f954355f8040751`. The campaign bytes are CRLF, raw SHA-256 `f53ca25fe4b3e255ccd29045e31da806fbe1533d158ad132281efadb0aa14b41`. The LF digest is `8ec28b738da5c29934a4d0aa9ff48b27cdcb2ddc09441ea8ced3ea0ca847c8e9`. That file is in the checkout `solutions` folder and in each packaged `solutions` folder. The header is `Corrected MW=139. Witness 157 at action 153.`
+
+The same six test modules, with the new dialog, 139 replay, and maximum-control cases, passed 138 tests. The known baseline failures were not re-run.

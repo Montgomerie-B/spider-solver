@@ -1,4 +1,5 @@
 """Scheduler, exhaustion, resources, and packaged authentication for the Optimise tab."""
+import hashlib
 import json
 import shutil
 import subprocess
@@ -473,6 +474,54 @@ def test_supervisor_runs_successive_jobs_pause_and_interruption(tmp_path):
             process.wait(timeout=20)
         log_handle.close()
     assert RESEARCH_STATUS.read_bytes() == before
+
+
+def test_assisted_139_replays_from_the_load_dialog_copy(tmp_path):
+    source = ROOT / "solutions" / "4925153_assisted_139.moves"
+    raw = source.read_bytes()
+    # Windows checkout keeps the campaign CRLF bytes. A LF checkout stores the same text.
+    assert hashlib.sha256(raw).hexdigest() in {
+        "f53ca25fe4b3e255ccd29045e31da806fbe1533d158ad132281efadb0aa14b41",
+        "8ec28b738da5c29934a4d0aa9ff48b27cdcb2ddc09441ea8ced3ea0ca847c8e9",
+    }
+    assert b"Corrected MW=139" in raw.splitlines()[0]
+    staged = tmp_path / "4925153_assisted_139.moves"
+    staged.write_bytes(raw)
+    opening = opening_from_deal(DEAL)
+    route = authenticate_moves_path(
+        opening, staged, label="139", root=ROOT, expected_g=139,
+        expected_hash16="9f954355f8040751",
+    )
+    assert route["g"] == 139
+    assert route["path_hash16"] == "9f954355f8040751"
+    spec = (ROOT / "spider_play_lab.spec").read_text(encoding="utf-8")
+    assert "solutions/4925153_assisted_139.moves" in spec
+
+
+def test_verified_route_is_copied_into_the_load_dialog(tmp_path):
+    dialog = tmp_path / "solutions"
+    campaign = OptimiserCampaign(tmp_path / "camp", root=ROOT, dialog_directory=dialog)
+    campaign.load()
+    campaign.authenticate()
+    verified = tmp_path / "camp" / "verified"
+    verified.mkdir(parents=True)
+    shutil.copyfile(ROOT / SEED, verified / "4925153_assisted_140.moves")
+    campaign.adopt_files()
+    copied = dialog / "4925153_assisted_140.moves"
+    assert copied.read_bytes() == (ROOT / SEED).read_bytes()
+    assert any("load dialog" in line for line in campaign.campaign["activity"])
+
+    copied.write_bytes(b"different\n")
+    campaign.adopt_files()
+    assert copied.read_bytes() == b"different\n"
+    assert any("bytes differ" in line for line in campaign.campaign["activity"])
+
+    blocked = tmp_path / "blocked"
+    blocked.write_text("not a directory", encoding="utf-8")
+    campaign.dialog_directory = blocked
+    campaign.adopt_files()
+    assert campaign.campaign["incumbent_g"] == 140
+    assert campaign.campaign["best"]["verified"] is True
 
 
 def _campaign(directory: Path) -> dict:

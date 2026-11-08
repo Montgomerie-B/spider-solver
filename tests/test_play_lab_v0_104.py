@@ -350,6 +350,52 @@ def test_resume_on_a_fresh_campaign_starts_the_clock(tk_app, tmp_path):
     assert not app.optimise._running()
 
 
+def test_optimise_controls_open_at_their_maxima(tk_app, tmp_path, monkeypatch):
+    for name in (
+        "SPIDER_PLAY_LAB_DURATION_MIN",
+        "SPIDER_PLAY_LAB_ATTEMPT_S",
+        "SPIDER_PLAY_LAB_MAX_UNIQUE",
+        "SPIDER_PLAY_LAB_RSS_MB",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    import tkinter as tk
+    from spider.packaged_runtime import ABSOLUTE_IDENTITY_CAP
+    from spider.play_optimise_panel import (
+        DEFAULT_ATTEMPT_S,
+        DEFAULT_DURATION_MIN,
+        DEFAULT_RSS_MB,
+        OptimisePanel,
+    )
+    parent = tk.Toplevel(tk_app)
+    panel = OptimisePanel(tk_app, parent, directory=tmp_path / "max")
+    try:
+        assert panel.duration_min.get() == DEFAULT_DURATION_MIN == 360
+        assert panel.attempt_s.get() == DEFAULT_ATTEMPT_S == 7200
+        assert panel.max_unique.get() == ABSOLUTE_IDENTITY_CAP == 6_607_641
+        assert panel.requested_rss.get() == DEFAULT_RSS_MB == 8192
+        text = panel.resources.get()
+        assert "Requested 8192" in text
+        assert "default 2,000,000" in text
+        assert "Unique " in text
+    finally:
+        panel.shutdown()
+        parent.destroy()
+    monkeypatch.setenv("SPIDER_PLAY_LAB_DURATION_MIN", "1.5")
+    monkeypatch.setenv("SPIDER_PLAY_LAB_ATTEMPT_S", "12")
+    monkeypatch.setenv("SPIDER_PLAY_LAB_MAX_UNIQUE", "20")
+    monkeypatch.setenv("SPIDER_PLAY_LAB_RSS_MB", "512")
+    parent = tk.Toplevel(tk_app)
+    panel = OptimisePanel(tk_app, parent, directory=tmp_path / "override")
+    try:
+        assert panel.duration_min.get() == 1.5
+        assert panel.attempt_s.get() == 12
+        assert panel.max_unique.get() == 20
+        assert panel.requested_rss.get() == 512
+    finally:
+        panel.shutdown()
+        parent.destroy()
+
+
 def test_stop_keeps_the_window_responsive_while_the_worker_exits(tk_app, tmp_path):
     app = tk_app
     app.optimise.directory = tmp_path / "responsive"

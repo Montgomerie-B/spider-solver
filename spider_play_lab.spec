@@ -23,6 +23,7 @@ datas = [
     ('solutions/4925153_assisted_142.moves', 'solutions'),
     ('solutions/4925153_assisted_141.moves', 'solutions'),
     ('solutions/4925153_assisted_140.moves', 'solutions'),
+    ('solutions/4925153_assisted_139.moves', 'solutions'),
     ('resources/play_lab_manifest.json', 'resources'),
     ('docs/research/autonomous_solve_campaign/4925153_cold_164.moves', 'docs/research/autonomous_solve_campaign'),
     ('docs/research/autonomous_solve_campaign/4925153_cold_162.moves', 'docs/research/autonomous_solve_campaign'),

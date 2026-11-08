@@ -2,7 +2,7 @@
 
 ## Deal 4925153 verified games
 
-Play Lab's "Load canonical solution or partial route" dialog opens this folder. These copies are the same bytes as the research files.
+Play Lab's "Load canonical solution or partial route" dialog opens this folder. These copies match their source bytes. The 139 game comes from the Play Lab optimiser campaign. The others match the research files.
 
 | File | Source |
 |------|--------|
@@ -16,6 +16,7 @@ Play Lab's "Load canonical solution or partial route" dialog opens this folder. 
 | `4925153_assisted_157.moves` | Suffix-assisted 157 |
 | `4925153_assisted_156.moves` | Pre-120 assisted 156 |
 | `4925153_assisted_151.moves` through `4925153_assisted_140.moves` | Pre-120 assisted 151–140 |
+| `4925153_assisted_139.moves` | Play Lab optimiser 139, hash `9f954355f8040751` |
 
 ## Deal 4925153
 

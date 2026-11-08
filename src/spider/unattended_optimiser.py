@@ -47,6 +47,37 @@ def default_optimiser_dir() -> Path:
     return local_app_root() / "PlayLab" / "Optimiser" / DEAL_ID
 
 
+def publish_verified_moves(path: Path, directory: Path) -> str:
+    """Copy one replayed assisted game into the Load dialog folder.
+
+    The campaign directory stays outside that folder. Identical bytes are
+    left alone. Different bytes are left alone. A folder that cannot be
+    written does not fail the campaign.
+    """
+
+    try:
+        source = Path(path)
+        name = source.name
+        if not name.startswith("4925153_assisted_") or not name.endswith(".moves"):
+            return "skipped"
+        if not source.is_file():
+            return "skipped"
+        destination_dir = Path(directory)
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        destination = destination_dir / name
+        if destination.exists() and source.resolve() == destination.resolve():
+            return "identical"
+        payload = source.read_bytes()
+        if destination.is_file():
+            if destination.read_bytes() == payload:
+                return "identical"
+            return "different"
+        destination.write_bytes(payload)
+        return "written"
+    except OSError:
+        return "skipped"
+
+
 def assert_campaign_dir(path: Path) -> Path:
     resolved = Path(path).resolve()
     parts = {part.lower() for part in resolved.parts}
@@ -342,11 +373,19 @@ def plan_jobs(route: dict, opening, *, ceiling: int, settings: dict, resources: 
 
 
 class OptimiserCampaign:
-    def __init__(self, directory: Path, root: Optional[Path] = None):
+    def __init__(
+        self,
+        directory: Path,
+        root: Optional[Path] = None,
+        dialog_directory: Optional[Path] = None,
+    ):
         from spider.app_paths import repo_root
 
         self.directory = assert_campaign_dir(directory)
         self.root = Path(root) if root is not None else repo_root()
+        self.dialog_directory = (
+            Path(dialog_directory) if dialog_directory is not None else self.root / "solutions"
+        )
         self.campaign_path = self.directory / "campaign.json"
         self.state_path = self.directory / "state.json"
         self.campaign = self._fresh()
@@ -514,8 +553,16 @@ class OptimiserCampaign:
         self._reconcile_best(restored)
         return [route for route, _path in restored]
 
+    def _publish_dialog_copy(self, route: dict, path: Path) -> None:
+        status = publish_verified_moves(path, self.dialog_directory)
+        if status == "written":
+            self.log(f"Copied verified {route['g']} into the load dialog as {path.name}.")
+        elif status == "different":
+            self.log(f"Left the load-dialog copy of {path.name} unchanged. Its bytes differ.")
+
     def _ensure_route(self, route: dict, path: Path) -> bool:
         digest = str(route["path_hash16"])
+        self._publish_dialog_copy(route, path)
         if any(item["path_hash16"] == digest for item in self.routes):
             return False
         stored = dict(route)
