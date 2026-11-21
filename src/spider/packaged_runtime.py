@@ -215,7 +215,12 @@ def verify_packaged_seed(root: Optional[Path] = None) -> int:
     return 0
 
 
-def resource_report(requested_rss_mb: float, max_unique: Optional[int] = None) -> dict:
+def resource_report(
+    requested_rss_mb: float,
+    max_unique: Optional[int] = None,
+    *,
+    fit_to_rss: bool = False,
+) -> dict:
     """Requested limits, the clamp this machine will enforce, and retained-state budget."""
 
     from spider.hardware import detect_hardware
@@ -231,7 +236,12 @@ def resource_report(requested_rss_mb: float, max_unique: Optional[int] = None) -
     effective = clamp_rss_mb(requested, int(host.get("available_bytes") or 0), workers=1)
     fit = int((effective * 1024 * 1024) / RETAINED_STATE_BYTES) if effective > 0 else 1
     identity_limit = max(1, min(ABSOLUTE_IDENTITY_CAP, max(1, fit)))
-    requested_unique = DEFAULT_IDENTITY_CAP if max_unique is None else int(max_unique)
+    if max_unique is None and fit_to_rss:
+        requested_unique = int(identity_limit)
+    elif max_unique is None:
+        requested_unique = DEFAULT_IDENTITY_CAP
+    else:
+        requested_unique = int(max_unique)
     if requested_unique < 1:
         raise ValueError("max unique must be positive")
     effective_unique = max(1, min(requested_unique, identity_limit))

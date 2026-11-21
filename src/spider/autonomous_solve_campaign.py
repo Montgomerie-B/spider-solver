@@ -37,14 +37,83 @@ COLD_PROVENANCE = {"cold_opening", "cold_descendant"}
 LogFn = Optional[Callable[[str], None]]
 
 
-def atomic_write_json(path: Path, payload: dict) -> None:
-    """Write JSON and replace the destination. Readers never see a partial file."""
+def read_text_shared(path: Path) -> str:
+    """Read text without blocking a later replace of the same file.
 
+    A Windows reader opened without delete sharing makes ``os.replace`` fail
+    with access denied. The Play Lab window reads the campaign snapshot while
+    the supervisor replaces it.
+    """
+
+    path = Path(path)
+    if os.name != "nt":
+        return path.read_text(encoding="utf-8")
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateFileW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    ]
+    kernel32.CreateFileW.restype = wintypes.HANDLE
+    kernel32.ReadFile.argtypes = [
+        wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID,
+    ]
+    kernel32.ReadFile.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    handle = kernel32.CreateFileW(
+        str(path), 0x80000000, 0x1 | 0x2 | 0x4, None, 3, 0x80, None,
+    )
+    invalid = wintypes.HANDLE(-1).value
+    if handle == invalid or not handle:
+        raise OSError(ctypes.get_last_error(), f"cannot read {path}")
+    try:
+        pieces = []
+        buf = ctypes.create_string_buffer(1 << 16)
+        got = wintypes.DWORD()
+        while True:
+            if not kernel32.ReadFile(handle, buf, len(buf), ctypes.byref(got), None):
+                raise OSError(ctypes.get_last_error(), f"cannot read {path}")
+            if got.value == 0:
+                break
+            pieces.append(buf.raw[: got.value])
+    finally:
+        kernel32.CloseHandle(handle)
+    return b"".join(pieces).decode("utf-8")
+
+
+def atomic_write_json(path: Path, payload: dict) -> None:
+    """Write JSON and replace the destination. Readers never see a partial file.
+
+    Windows can refuse the replace while another process is reading the
+    destination. Retry that refusal. A search checkpoint must not die on it.
+    """
+
+    path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     temporary.write_text(text, encoding="utf-8", newline="\n")
-    os.replace(temporary, path)
+    delay = 0.02
+    last: Optional[Exception] = None
+    for _ in range(30):
+        try:
+            os.replace(temporary, path)
+            return
+        except PermissionError as exc:
+            last = exc
+            time.sleep(delay)
+            delay = min(delay * 1.4, 0.2)
+    try:
+        temporary.unlink(missing_ok=True)
+    except OSError:
+        pass
+    if last is not None:
+        raise last
+    raise OSError(f"could not replace {path}")
 
 
 def parse_action_text(text: str) -> Action:

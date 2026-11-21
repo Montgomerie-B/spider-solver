@@ -14,13 +14,12 @@ from pathlib import Path
 from typing import Optional
 
 from spider.app_paths import local_app_root
-from spider.autonomous_solve_campaign import atomic_write_json
+from spider.autonomous_solve_campaign import atomic_write_json, read_text_shared
 from spider.incumbent_suffix import (
     HISTORICAL_LABELS,
     _adopted_label,
     authenticate_moves_path,
     bound_at,
-    require_pre120_index,
     run_prefix_attempt,
     select_campaign_route,
 )
@@ -34,7 +33,6 @@ SEED_G = 140
 SEED_HASH = "34a94de8e6edfa4b"
 INITIAL_CEILING = 139
 PRIORITY_INDEXES = (100, 90)
-EXTRA_INDEXES = (119, 116, 110, 80, 58)
 RECOVERY_TEXT = (
     "Interrupted before a clean finish. The exact search frontier was not retained. "
     "A later attempt starts again from the saved authenticated prefix. "
@@ -93,20 +91,33 @@ def read_json(path: Path, default: Optional[dict] = None) -> dict:
     if not path.is_file():
         return {} if default is None else dict(default)
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(read_text_shared(path))
     except (OSError, json.JSONDecodeError):
         return {} if default is None else dict(default)
     return payload if isinstance(payload, dict) else {}
 
 
 def normalise_settings(settings: dict) -> dict:
-    duration = float(settings.get("campaign_duration_s") or 20 * 60)
-    attempt = float(settings.get("attempt_time_limit_s") or 180)
+    unlimited = bool(settings.get("unlimited"))
     requested = float(settings.get("requested_rss_mb") or 3000)
     unique = settings.get("max_unique")
-    if duration <= 0 or attempt <= 0 or requested <= 0:
+    if requested <= 0:
+        raise ValueError("duration, attempt time and memory must be positive")
+    if unlimited:
+        return {
+            "unlimited": True,
+            "campaign_duration_s": 0.0,
+            "attempt_time_limit_s": 0.0,
+            "requested_rss_mb": requested,
+            "max_unique": None if unique in (None, "") else int(unique),
+            "workers": 1,
+        }
+    duration = float(settings.get("campaign_duration_s") or 20 * 60)
+    attempt = float(settings.get("attempt_time_limit_s") or 180)
+    if duration <= 0 or attempt <= 0:
         raise ValueError("duration, attempt time and memory must be positive")
     return {
+        "unlimited": False,
         "campaign_duration_s": duration,
         "attempt_time_limit_s": attempt,
         "requested_rss_mb": requested,
@@ -214,11 +225,19 @@ def qualify_saved_exhaustion(job: dict) -> None:
 
 
 def attempt_budget(control: dict, planned_s: float, *, now: Optional[float] = None) -> dict:
-    """Cap a new attempt at the campaign time still remaining."""
+    """Cap a new attempt at the campaign time still remaining.
+
+    A non-positive plan is an unlimited attempt. It is not a deadline.
+    """
 
     planned = float(planned_s)
     if planned <= 0:
-        raise ValueError("attempt time must be positive")
+        return {
+            "planned_time_limit_s": 0.0,
+            "applied_time_limit_s": 0.0,
+            "deadline_limited": False,
+            "unlimited": True,
+        }
     moment = time.time() if now is None else float(now)
     settings = control.get("settings") or {}
     duration = float(settings.get("campaign_duration_s") or 0)
@@ -234,6 +253,7 @@ def attempt_budget(control: dict, planned_s: float, *, now: Optional[float] = No
         "planned_time_limit_s": round(planned, 3),
         "applied_time_limit_s": round(applied, 3),
         "deadline_limited": planned - applied > 0.05,
+        "unlimited": False,
     }
 
 
@@ -294,32 +314,35 @@ def prefix_was_interrupted(prefix_hash: str, jobs: list) -> bool:
 
 
 def plan_jobs(route: dict, opening, *, ceiling: int, settings: dict, resources: dict, jobs: list) -> tuple[list, list]:
-    """Queue eligible roots. Actions 100 and 90 are first when they are still useful."""
+    """Queue prefixes of the best route that stay inside its cost.
+
+    Actions 100 and 90 stay first. Every other prefix of this route follows,
+    tightest admissible f first, so the analysis widens down from the ceiling.
+    A prefix is not rejected for being at action 120 or later. The ceiling and
+    an exhausted pack are the boundary.
+    """
 
     cfg = configuration(settings, resources)
     notes = []
     created = []
     extras = []
-    ordered = list(PRIORITY_INDEXES) + [index for index in EXTRA_INDEXES if index not in PRIORITY_INDEXES]
     actions = list(route["actions"])
+    priority_rank = {index: pos for pos, index in enumerate(PRIORITY_INDEXES)}
+    ordered = [index for index in PRIORITY_INDEXES if 0 < index < len(actions)]
+    ordered.extend(index for index in range(1, len(actions)) if index not in priority_rank)
     for index in ordered:
-        try:
-            checked = require_pre120_index(index)
-        except ValueError as exc:
-            notes.append(f"Skipped action {index}: {exc}")
-            continue
-        if checked > len(actions):
+        if index > len(actions):
             notes.append(f"Skipped action {index}: past the end of route {route['label']}.")
             continue
-        bound = bound_at(opening, actions, checked)
-        prefix = tuple(actions[:checked])
+        bound = bound_at(opening, actions, index)
+        prefix = tuple(actions[:index])
         identity = {
             "physical_pack": bound["pack"],
             "accumulated_g": int(bound["g"]),
             "ancestry": {
                 "route_label": str(route["label"]),
                 "route_hash16": str(route["path_hash16"]),
-                "prefix_index": checked,
+                "prefix_index": index,
                 "prefix_hash16": action_path_hash(prefix),
             },
             "rules": RULES,
@@ -328,15 +351,15 @@ def plan_jobs(route: dict, opening, *, ceiling: int, settings: dict, resources: 
         }
         if int(bound["f"]) > int(ceiling):
             notes.append(
-                f"Skipped action {checked}: admissible f={bound['f']} is above ceiling {ceiling}."
+                f"Skipped action {index}: admissible f={bound['f']} is above ceiling {ceiling}."
             )
             continue
         already = jobs + created + extras
         if covered_by_exhaustion(identity, already):
-            notes.append(f"Skipped action {checked}: already exhausted at this ceiling or a higher one.")
+            notes.append(f"Skipped action {index}: already exhausted at this ceiling or a higher one.")
             continue
         if identical_terminal(identity, already):
-            notes.append(f"Skipped action {checked}: an identical capped or finished job is already recorded.")
+            notes.append(f"Skipped action {index}: an identical capped or finished job is already recorded.")
             continue
         if any(work_key(item["identity"]) == work_key(identity) for item in already):
             continue
@@ -346,7 +369,7 @@ def plan_jobs(route: dict, opening, *, ceiling: int, settings: dict, resources: 
         job = {
             "id": "",
             "state": "queued",
-            "index": checked,
+            "index": index,
             "route_label": str(route["label"]),
             "route_hash16": str(route["path_hash16"]),
             "bound": {"g": int(bound["g"]), "h": int(bound["h"]), "f": int(bound["f"])},
@@ -355,13 +378,14 @@ def plan_jobs(route: dict, opening, *, ceiling: int, settings: dict, resources: 
             "exhaustion_scope": None,
             "stop_reason": None,
             "recovery": recovery,
-            "priority": index in PRIORITY_INDEXES,
+            "priority": index in priority_rank,
         }
-        if index in PRIORITY_INDEXES:
+        if index in priority_rank:
             created.append(job)
         else:
             extras.append(job)
-    extras.sort(key=lambda item: (int(item["bound"]["f"]), -int(item["index"])))
+    created.sort(key=lambda item: priority_rank[int(item["index"])])
+    extras.sort(key=lambda item: (-int(item["bound"]["f"]), -int(item["index"])))
     chosen = created + extras
     next_number = 1 + max(
         [int(str(job["id"])[1:]) for job in jobs if str(job.get("id", "")).startswith("j")] or [0]
@@ -431,7 +455,14 @@ class OptimiserCampaign:
         self.campaign["activity"] = (list(self.campaign.get("activity") or []) + [f"{stamp}  {line}"])[-200:]
         if persist:
             self.save()
-        self.write_state()
+        try:
+            self.write_state()
+        except OSError as exc:
+            # A locked snapshot is stale for one checkpoint. The search continues.
+            self.campaign["activity"] = (
+                list(self.campaign.get("activity") or [])
+                + [f"{stamp}  Snapshot skipped: {type(exc).__name__}: {exc}"]
+            )[-200:]
 
     def write_state(self, **extra) -> None:
         current = next((job for job in self.campaign.get("jobs") or [] if job.get("state") == "running"), None)
@@ -654,7 +685,8 @@ class OptimiserCampaign:
         )
         if signature == getattr(self, "_settings_signature", None) and self.campaign.get("resources"):
             return
-        resources = resource_report(chosen["requested_rss_mb"], chosen["max_unique"])
+        fit = bool(chosen.get("unlimited") and chosen.get("max_unique") is None)
+        resources = resource_report(chosen["requested_rss_mb"], chosen["max_unique"], fit_to_rss=fit)
         chosen["max_unique"] = int(resources["effective_max_unique"])
         self._settings_signature = signature
         self.campaign["settings"] = chosen
@@ -688,9 +720,13 @@ class OptimiserCampaign:
         if new_jobs:
             self.campaign["jobs"].extend(new_jobs)
             described = ", ".join(
-                f"{job['index']} (f={job['bound']['f']})" for job in new_jobs
+                f"{job['index']} (f={job['bound']['f']})" for job in new_jobs[:6]
             )
-            self.log(f"Queued {described}.")
+            more = "" if len(new_jobs) <= 6 else f" and {len(new_jobs) - 6} later prefixes"
+            self.log(
+                f"Queued {described}{more} along route {route['label']} "
+                f"under ceiling {self.campaign['ceiling']}."
+            )
         else:
             self.save()
 
@@ -726,7 +762,12 @@ class OptimiserCampaign:
             f"Planned attempt {budget['planned_time_limit_s']:.2f}s, "
             f"applied {budget['applied_time_limit_s']:.2f}s."
         )
-        if float(budget["applied_time_limit_s"]) <= 0:
+        if budget.get("unlimited"):
+            self.log(
+                "No time limit. This prefix stays inside the best-route ceiling "
+                "until its frontier finishes or memory stops it. The next prefix widens from there."
+            )
+        elif float(budget["applied_time_limit_s"]) <= 0:
             self.log("Campaign allowance is exhausted. This attempt was not started.")
             return {"attempts": [{"stop_reason": "time limit"}]}
 
@@ -883,7 +924,10 @@ def supervise(directory: Path) -> int:
             campaign.finish(job, document, None)
     except Exception:
         campaign.campaign["phase"] = "failed"
-        campaign.log("Supervisor failed.\n" + traceback.format_exc())
+        try:
+            campaign.log("Supervisor failed.\n" + traceback.format_exc())
+        except OSError:
+            return 1
         return 1
 
 

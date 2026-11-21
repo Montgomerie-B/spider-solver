@@ -205,7 +205,8 @@ def run_search(
     node_cls = CompactSearchNode if compact else SearchNode
     entry_nodes = array.array("I") if compact else None
     started = time.perf_counter()
-    deadline = started + limits.time_limit_s
+    # A non-positive limit is an unlimited run. Positive limits stay deadlines.
+    deadline = None if float(limits.time_limit_s) <= 0 else started + float(limits.time_limit_s)
     names = list(lane_names)
     if origin_lane_keys_fn is None and lane_keys_fn is None and lane_key_fns is None:
         lane_key_fns = [lambda st, g: (g,)]
@@ -345,7 +346,7 @@ def run_search(
     empty_streak = 0
     while empty_streak < len(names):
         now = time.perf_counter()
-        if now >= deadline:
+        if deadline is not None and now >= deadline:
             result.stop_reason = "time limit"
             break
         if (result.expanded & 2047) == 0 and note_rss():

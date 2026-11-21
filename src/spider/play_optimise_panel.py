@@ -35,6 +35,13 @@ def _env_float(name: str, default: float) -> float:
     return float(raw)
 
 
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return bool(default)
+    return raw.strip().lower() not in {"0", "false", "no", "off"}
+
+
 def _campaign_directory(directory: Path | None) -> Path:
     if directory is not None:
         return Path(directory)
@@ -99,11 +106,15 @@ class OptimisePanel:
         self._stopping = False
         self._log_handle = None
         self._process = None
+        self.unlimited = tk.BooleanVar(value=_env_flag("SPIDER_PLAY_LAB_UNLIMITED", True))
         self.duration_min = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_DURATION_MIN", DEFAULT_DURATION_MIN))
         self.attempt_s = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_ATTEMPT_S", DEFAULT_ATTEMPT_S))
         self.max_unique = tk.IntVar(value=int(_env_float("SPIDER_PLAY_LAB_MAX_UNIQUE", ABSOLUTE_IDENTITY_CAP)))
         self.requested_rss = tk.DoubleVar(value=_env_float("SPIDER_PLAY_LAB_RSS_MB", DEFAULT_RSS_MB))
-        self.status = tk.StringVar(value="Idle. Deal 4925153 only. One worker.")
+        self.status = tk.StringVar(
+            value="Idle. Unlimited widening inside the best route. One worker."
+            if self.unlimited.get() else "Idle. Deal 4925153 only. One worker."
+        )
         self.best = tk.StringVar(value="Best 140 · target 139")
         self.job = tk.StringVar(value="No job yet")
         self.resources = tk.StringVar(value="")
@@ -119,16 +130,24 @@ class OptimisePanel:
         form = ttk.Frame(frame)
         form.pack(fill="x")
         ttk.Label(form, text="Minutes").grid(row=0, column=0, sticky="w")
-        ttk.Spinbox(form, from_=0.1, to=360, increment=1, textvariable=self.duration_min, width=7).grid(row=0, column=1)
+        self._duration_box = ttk.Spinbox(form, from_=0.1, to=360, increment=1, textvariable=self.duration_min, width=7)
+        self._duration_box.grid(row=0, column=1)
         ttk.Label(form, text="Attempt s").grid(row=0, column=2, sticky="w", padx=(6, 0))
-        ttk.Spinbox(form, from_=1, to=7200, increment=10, textvariable=self.attempt_s, width=7).grid(row=0, column=3)
+        self._attempt_box = ttk.Spinbox(form, from_=1, to=7200, increment=10, textvariable=self.attempt_s, width=7)
+        self._attempt_box.grid(row=0, column=3)
         ttk.Label(form, text="Unique").grid(row=1, column=0, sticky="w")
-        ttk.Spinbox(
+        self._unique_box = ttk.Spinbox(
             form, from_=1, to=ABSOLUTE_IDENTITY_CAP, increment=1000,
             textvariable=self.max_unique, width=10,
-        ).grid(row=1, column=1)
+        )
+        self._unique_box.grid(row=1, column=1)
         ttk.Label(form, text="RSS MB").grid(row=1, column=2, sticky="w", padx=(6, 0))
         ttk.Spinbox(form, from_=256, to=8192, increment=128, textvariable=self.requested_rss, width=7).grid(row=1, column=3)
+        ttk.Checkbutton(
+            form, text="Unlimited widening inside the best route",
+            variable=self.unlimited, command=self._apply_unlimited,
+        ).grid(row=2, column=0, columnspan=4, sticky="w", pady=(4, 0))
+        self._apply_unlimited()
         ttk.Label(frame, textvariable=self.resources, wraplength=400, justify="left").pack(anchor="w", pady=(4, 0))
         ttk.Label(frame, textvariable=self.best, wraplength=400, justify="left").pack(anchor="w")
         ttk.Label(frame, textvariable=self.job, wraplength=400, justify="left").pack(anchor="w")
@@ -136,11 +155,22 @@ class OptimisePanel:
         self.log = tk.Text(frame, height=8, wrap="word", font=("Segoe UI", 8), borderwidth=0)
         self.log.pack(fill="both", expand=True)
         self.log.configure(state="disabled")
+        self._refresh_from_disk()
+
+    def _apply_unlimited(self) -> None:
+        state = "disabled" if self.unlimited.get() else "normal"
+        for box in (self._duration_box, self._attempt_box, self._unique_box):
+            box.configure(state=state)
         try:
-            self._show_resources(resource_report(float(self.requested_rss.get()), int(self.max_unique.get())))
+            self._show_resources(self._resource_probe())
         except (OSError, ValueError, TypeError) as exc:
             self.resources.set(f"Resource probe unavailable: {exc}")
-        self._refresh_from_disk()
+
+    def _resource_probe(self) -> dict:
+        rss = float(self.requested_rss.get())
+        if self.unlimited.get():
+            return resource_report(rss, None, fit_to_rss=True)
+        return resource_report(rss, int(self.max_unique.get()))
 
     def shutdown(self) -> None:
         self._closed = True
@@ -157,7 +187,17 @@ class OptimisePanel:
             self._log_handle = None
 
     def _settings(self) -> dict:
+        if self.unlimited.get():
+            return {
+                "unlimited": True,
+                "campaign_duration_s": 0.0,
+                "attempt_time_limit_s": 0.0,
+                "max_unique": None,
+                "requested_rss_mb": float(self.requested_rss.get()),
+                "workers": 1,
+            }
         return {
+            "unlimited": False,
             "campaign_duration_s": float(self.duration_min.get()) * 60.0,
             "attempt_time_limit_s": float(self.attempt_s.get()),
             "max_unique": int(self.max_unique.get()),
@@ -169,6 +209,16 @@ class OptimisePanel:
         available = int(report.get("available_bytes") or 0) / (1024 ** 3)
         limit = int(report.get("identity_limit") or report["effective_max_unique"])
         default = int(report.get("identity_default") or 2_000_000)
+        if self.unlimited.get():
+            self.resources.set(
+                f"Unlimited time. Widens along the best route under its cost. "
+                f"Workers 1. RSS safety {report['effective_rss_mb']:.0f} MB "
+                f"of {report['requested_rss_mb']:.0f} MB requested. "
+                f"Available RAM {available:.1f} GB. "
+                f"A prefix stops at {report['effective_max_unique']:,} states, "
+                f"then the next prefix starts."
+            )
+            return
         self.resources.set(
             f"Workers 1. Requested {report['requested_rss_mb']:.0f} MB, "
             f"effective {report['effective_rss_mb']:.0f} MB. "

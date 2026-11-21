@@ -74,6 +74,14 @@ def test_initial_queue_starts_with_actions_100_and_90(seed_route):
     assert all(job["bound"]["f"] <= 139 for job in jobs)
     assert not any("action 100" in note and "above ceiling" in note for note in notes)
     assert not any("action 90" in note and "above ceiling" in note for note in notes)
+    fixed = {100, 90, 119, 116, 110, 80, 58}
+    assert any(job["index"] not in fixed for job in jobs)
+    widened = [int(job["bound"]["f"]) for job in jobs[2:]]
+    assert widened == sorted(widened, reverse=True)
+    assert not any("prefixes are closed" in note for note in notes)
+    late = [note for note in notes if note.startswith("Skipped action 12")]
+    assert late
+    assert all("above ceiling" in note for note in late)
 
 
 def test_identical_capped_jobs_are_not_repeated(seed_route):
@@ -476,6 +484,53 @@ def test_supervisor_runs_successive_jobs_pause_and_interruption(tmp_path):
     assert RESEARCH_STATUS.read_bytes() == before
 
 
+def test_unlimited_run_has_no_time_boundary_and_uses_the_rss_fit():
+    chosen = normalise_settings({"unlimited": True, "requested_rss_mb": 8192})
+    assert chosen["unlimited"] is True
+    assert chosen["campaign_duration_s"] == 0
+    assert chosen["attempt_time_limit_s"] == 0
+    budget = attempt_budget({"settings": chosen}, chosen["attempt_time_limit_s"])
+    assert budget["unlimited"] is True
+    assert budget["deadline_limited"] is False
+    wide = resource_report(512, None, fit_to_rss=True)
+    plain = resource_report(512, None)
+    assert plain["requested_max_unique"] == 2_000_000
+    assert wide["requested_max_unique"] == int(wide["identity_limit"])
+    assert wide["effective_max_unique"] == int(wide["identity_limit"])
+    campaign_clock = {"run_started_at": time.time() - 10_000, "settings": chosen}
+    from spider.unattended_optimiser import OptimiserCampaign as _Campaign
+    assert _Campaign.run_expired(None, campaign_clock) is False
+
+
+def test_a_locked_snapshot_is_retried_and_does_not_fail_the_campaign(tmp_path, monkeypatch):
+    import spider.autonomous_solve_campaign as campaign_io
+    path = tmp_path / "state.json"
+    calls = {"n": 0}
+    real = campaign_io.os.replace
+
+    def flaky(src, dst):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise PermissionError(5, "Access is denied")
+        real(src, dst)
+
+    monkeypatch.setattr(campaign_io.os, "replace", flaky)
+    from spider.autonomous_solve_campaign import atomic_write_json
+    atomic_write_json(path, {"ok": True})
+    assert json.loads(path.read_text(encoding="utf-8"))["ok"] is True
+    assert calls["n"] == 2
+
+    campaign = OptimiserCampaign(tmp_path / "camp", root=ROOT, dialog_directory=tmp_path / "dialog")
+    campaign.load()
+
+    def locked(*_args, **_kwargs):
+        raise PermissionError(5, "Access is denied")
+
+    monkeypatch.setattr("spider.unattended_optimiser.atomic_write_json", locked)
+    campaign.log("CHECKPOINT unique=1", persist=False)
+    assert any("Snapshot skipped" in line for line in campaign.campaign["activity"])
+
+
 def test_assisted_139_replays_from_the_load_dialog_copy(tmp_path):
     source = ROOT / "solutions" / "4925153_assisted_139.moves"
     raw = source.read_bytes()
@@ -496,6 +551,12 @@ def test_assisted_139_replays_from_the_load_dialog_copy(tmp_path):
     assert route["path_hash16"] == "9f954355f8040751"
     spec = (ROOT / "spider_play_lab.spec").read_text(encoding="utf-8")
     assert "solutions/4925153_assisted_139.moves" in spec
+    widened, widen_notes = plan_jobs(
+        route, opening, ceiling=138, settings=_settings(), resources=_resources(), jobs=[],
+    )
+    assert [job["index"] for job in widened[:2]] == [100, 90]
+    assert all(int(job["bound"]["f"]) <= 138 for job in widened)
+    assert not any("prefixes are closed" in note for note in widen_notes)
 
 
 def test_verified_route_is_copied_into_the_load_dialog(tmp_path):

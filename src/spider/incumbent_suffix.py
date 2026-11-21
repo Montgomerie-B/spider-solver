@@ -1116,13 +1116,16 @@ def run_prefix_attempt(
         attempt["suffix"] = checker.stats()
         attempt["status"] = "running"
         document["running"] = True
-        atomic_write_json(status_path, document)
-        if log is not None:
-            log(
-                "CHECKPOINT "
-                f"unique={kr.unique} expanded={kr.expanded} "
-                f"suffix_hits={checker.hits} best={checker.incumbent}"
-            )
+        try:
+            atomic_write_json(status_path, document)
+            if log is not None:
+                log(
+                    "CHECKPOINT "
+                    f"unique={kr.unique} expanded={kr.expanded} "
+                    f"suffix_hits={checker.hits} best={checker.incumbent}"
+                )
+        except OSError:
+            return
 
     if log is not None:
         log(

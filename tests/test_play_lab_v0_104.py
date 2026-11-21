@@ -307,6 +307,7 @@ def test_canvas_stock_animation_and_future_hit_testing(session, board):
 def test_optimise_tab_stays_responsive_and_stop_is_not_exhaustion(tk_app, tmp_path):
     app = tk_app
     app.optimise.directory = tmp_path / "camp"
+    app.optimise.unlimited.set(False)
     app.optimise.duration_min.set(1)
     app.optimise.attempt_s.set(3)
     app.optimise.max_unique.set(20)
@@ -335,6 +336,7 @@ def test_optimise_tab_stays_responsive_and_stop_is_not_exhaustion(tk_app, tmp_pa
 def test_resume_on_a_fresh_campaign_starts_the_clock(tk_app, tmp_path):
     app = tk_app
     app.optimise.directory = tmp_path / "fresh"
+    app.optimise.unlimited.set(False)
     app.optimise.duration_min.set(1)
     app.optimise.attempt_s.set(30)
     app.optimise.max_unique.set(20)
@@ -369,14 +371,17 @@ def test_optimise_controls_open_at_their_maxima(tk_app, tmp_path, monkeypatch):
     parent = tk.Toplevel(tk_app)
     panel = OptimisePanel(tk_app, parent, directory=tmp_path / "max")
     try:
+        assert panel.unlimited.get() is True
+        assert str(panel._duration_box.cget("state")) == "disabled"
+        assert panel.requested_rss.get() == DEFAULT_RSS_MB == 8192
         assert panel.duration_min.get() == DEFAULT_DURATION_MIN == 360
         assert panel.attempt_s.get() == DEFAULT_ATTEMPT_S == 7200
         assert panel.max_unique.get() == ABSOLUTE_IDENTITY_CAP == 6_607_641
-        assert panel.requested_rss.get() == DEFAULT_RSS_MB == 8192
         text = panel.resources.get()
-        assert "Requested 8192" in text
-        assert "default 2,000,000" in text
-        assert "Unique " in text
+        assert "Unlimited time" in text
+        assert "best route" in text
+        assert panel._settings()["unlimited"] is True
+        assert panel._settings()["attempt_time_limit_s"] == 0
     finally:
         panel.shutdown()
         parent.destroy()
@@ -399,6 +404,7 @@ def test_optimise_controls_open_at_their_maxima(tk_app, tmp_path, monkeypatch):
 def test_stop_keeps_the_window_responsive_while_the_worker_exits(tk_app, tmp_path):
     app = tk_app
     app.optimise.directory = tmp_path / "responsive"
+    app.optimise.unlimited.set(False)
     app.optimise.duration_min.set(1)
     app.optimise.attempt_s.set(8)
     app.optimise.max_unique.set(20)
