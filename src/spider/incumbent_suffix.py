@@ -1024,6 +1024,7 @@ def run_prefix_attempt(
     routes: Optional[Sequence[dict]] = None,
     verify_published: bool = False,
     improvement_below: int = 158,
+    spill_dir: Optional[str] = None,
 ) -> dict:
     """Compact prefix-improve search from one authenticated own-route prefix."""
 
@@ -1133,6 +1134,13 @@ def run_prefix_attempt(
             f"index={action_index} g={bound['g']} h={bound['h']} f={bound['f']} "
             f"rss_cap_mb={applied:.2f} incumbent={active_incumbent}"
         )
+    resume_from_unique = None
+    if spill_dir:
+        from spider.search_spill import FrontierSpill
+
+        prior = FrontierSpill.peek(spill_dir)
+        if prior and prior.get("resumable"):
+            resume_from_unique = int(prior["unique"])
     result = search_suit_ordered(
         opening,
         time_limit_s=float(time_limit_s),
@@ -1147,6 +1155,7 @@ def run_prefix_attempt(
         representation="compact",
         suffix_checker=checker,
         progress_hook=progress,
+        spill_dir=spill_dir,
     )
     if result.solved and result.replay_ok and result.solution_g is not None and result.actions:
         # A suffix hit is already on disk. A direct terminal is replayed again
@@ -1173,6 +1182,12 @@ def run_prefix_attempt(
         item = _compact_branch(result.best_partial)
         item["role"] = "best_partial"
         branches.append(item)
+    frontier_retained = False
+    if spill_dir and result.stop_reason != "complete":
+        from spider.search_spill import FrontierSpill
+
+        stored = FrontierSpill.peek(spill_dir)
+        frontier_retained = bool(stored and stored.get("resumable"))
     attempt.update(
         {
             "status": "finished",
@@ -1195,6 +1210,9 @@ def run_prefix_attempt(
             "branches": branches,
             "sampled_reseeds": 0,
             "retained_frontier": "leaders_not_full_frontier",
+            "frontier_path": None if spill_dir is None else str(spill_dir),
+            "frontier_retained": frontier_retained,
+            "resume_from_unique": resume_from_unique,
             "exhaustion_scope": (
                 "exact authenticated prefix, physical root, absolute g, "
                 "deal 4925153, MW rules, and the compatible absolute ceiling"

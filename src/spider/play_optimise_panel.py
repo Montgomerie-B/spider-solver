@@ -211,12 +211,12 @@ class OptimisePanel:
         default = int(report.get("identity_default") or 2_000_000)
         if self.unlimited.get():
             self.resources.set(
-                f"Unlimited time. Widens along the best route under its cost. "
+                f"Unlimited time. Widens along the best route under its cost "
+                f"until that route is exhausted. "
                 f"Workers 1. RSS safety {report['effective_rss_mb']:.0f} MB "
                 f"of {report['requested_rss_mb']:.0f} MB requested. "
                 f"Available RAM {available:.1f} GB. "
-                f"A prefix stops at {report['effective_max_unique']:,} states, "
-                f"then the next prefix starts."
+                f"When memory fills, the frontier is stored on disk and the same prefix continues."
             )
             return
         self.resources.set(

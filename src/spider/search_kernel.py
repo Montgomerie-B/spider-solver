@@ -45,6 +45,10 @@ class SearchLimits:
     # including harvest tightening. A separate value prunes only on that proof
     # ceiling and does not change the paid-move cap.
     proof_ceiling: Optional[int] = None
+    # None keeps the frontier in RAM. A directory stores a resumable snapshot
+    # when the working set crosses spill_rss_fraction of the RSS abort.
+    spill_dir: Optional[str] = None
+    spill_rss_fraction: float = 0.50
 
 
 @dataclass
@@ -244,12 +248,58 @@ def run_search(
     heaps: Dict[str, list] = {n: [] for n in names}
     seq = 0
     seen_expand: Dict[bytes, int] = {}
+    spill = None
+    resumed = False
+    if limits.spill_dir:
+        from spider.search_spill import FrontierSpill
+
+        spill = FrontierSpill(limits.spill_dir)
+        if spill.resumable:
+            best_g = spill.best_view()
+            nodes = spill.node_view()
+            seen_expand = spill.expand_view()
+            pruned_identities = spill.pruned_view()
+            result.nodes = nodes
+            loaded, entry_nodes = spill.load_heaps(names)
+            heaps = loaded
+            counters = spill.load_counters()
+            result.unique = int(counters["unique"])
+            result.expanded = int(counters["expanded"])
+            result.generated = int(counters["generated"])
+            result.duplicate_skips = int(counters["duplicate_skips"])
+            result.stale_skips = int(counters["stale_skips"])
+            result.lower_bound_prunes = int(counters["lower_bound_prunes"])
+            result.proof_prune_identities = int(counters["proof_prune_identities"])
+            resumed = True
 
     def note_rss() -> bool:
-        nonlocal peak
+        nonlocal peak, best_g, nodes, seen_expand, pruned_identities, spill
         rss = rss_mb()
         if rss is not None and (peak is None or rss > peak):
             peak = rss
+        fraction = float(limits.spill_rss_fraction)
+        if spill is not None:
+            crossed = fraction <= 0 or (rss is not None and rss >= float(limits.rss_abort_mb) * fraction)
+            if crossed and not spill.active:
+                best_g, nodes, seen_expand, pruned_identities = spill.activate(
+                    best_g, nodes, seen_expand, pruned_identities,
+                )
+                result.nodes = nodes
+                spill.checkpoint(heaps, entry_nodes, result)
+                import gc
+                gc.collect()
+                rss = rss_mb()
+                if rss is not None and (peak is None or rss > peak):
+                    peak = rss
+            elif crossed and spill.active:
+                if spill.due(result.expanded):
+                    spill.checkpoint(heaps, entry_nodes, result)
+                spill.shrink()
+                import gc
+                gc.collect()
+                rss = rss_mb()
+                if rss is not None and (peak is None or rss > peak):
+                    peak = rss
         return rss is not None and rss >= limits.rss_abort_mb
 
     def bound_h(state: SpiderState, g: int) -> int:
@@ -284,6 +334,9 @@ def run_search(
         if compact:
             assert entry_nodes is not None
             ticket = len(entry_nodes)
+            if ticket > SEQ_MASK:
+                result.stop_reason = "frontier key limit"
+                return
             entry_nodes.append(node_i)
             heapq.heappush(heaps[name], pack_lane_key(name, key, ticket))
             return
@@ -311,7 +364,10 @@ def run_search(
         for name, keyfn in zip(names, lane_key_fns):
             remember(name, keyfn(state, g), node_i)
 
-    order = sorted(range(len(roots)), key=lambda i: (int(roots[i]["g"]), roots[i].get("ordered_digest", "")))
+    order = [] if resumed else sorted(
+        range(len(roots)),
+        key=lambda i: (int(roots[i]["g"]), roots[i].get("ordered_digest", "")),
+    )
     for origin in order:
         rec = roots[origin]
         store = bytes.fromhex(rec["ordered_digest"])
@@ -485,7 +541,7 @@ def run_search(
                     break
             finally:
                 restore_state(state, cap)
-        if result.stop_reason in ("unique limit", "time limit", "rss abort", "abort", "solved"):
+        if result.stop_reason in ("unique limit", "time limit", "rss abort", "abort", "solved", "frontier key limit"):
             break
         if incumbent is not None and slack is not None:
             live = []
@@ -509,6 +565,11 @@ def run_search(
     else:
         result.closed_g = paid_box[0]
     note_rss()
+    if spill is not None and spill.active:
+        try:
+            spill.checkpoint(heaps, entry_nodes, result)
+        except OSError:
+            pass
     result.nodes = nodes
     result.lane_remaining = {name: len(heaps[name]) for name in names}
     result.elapsed_s = time.perf_counter() - started

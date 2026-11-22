@@ -19,6 +19,7 @@ from spider.packaged_runtime import load_manifest, resource_digest_matches, reso
 from spider.play_session import PlaySession
 from spider.research_actions import opening_from_deal
 from spider.unattended_optimiser import (
+    EXHAUSTED_ROUTE_TEXT,
     INITIAL_CEILING,
     RECOVERY_TEXT,
     SEED_HASH,
@@ -31,6 +32,7 @@ from spider.unattended_optimiser import (
     open_verified_route,
     plan_jobs,
     qualify_saved_exhaustion,
+    route_boundary_exhausted,
     work_key,
 )
 
@@ -482,6 +484,84 @@ def test_supervisor_runs_successive_jobs_pause_and_interruption(tmp_path):
             process.wait(timeout=20)
         log_handle.close()
     assert RESEARCH_STATUS.read_bytes() == before
+
+
+def _unlimited():
+    return normalise_settings({"unlimited": True, "requested_rss_mb": 3000})
+
+
+def test_unlimited_widening_continues_until_the_route_is_exhausted(seed_route):
+    opening, route = seed_route
+    settings = _unlimited()
+    resources = resource_report(3000, None, fit_to_rss=True)
+    jobs, notes = plan_jobs(
+        route, opening, ceiling=139, settings=settings, resources=resources, jobs=[],
+    )
+    assert [job["index"] for job in jobs[:2]] == [100, 90]
+    assert jobs[0]["identity"]["configuration"]["frontier_generation"] == 0
+    assert route_boundary_exhausted(route, opening, 139, jobs) is False
+    assert not any("held" in note for note in notes)
+    capped = deepcopy(jobs[0])
+    capped["state"] = "rss abort"
+    capped["exhausted"] = False
+    capped["stop_reason"] = "rss abort"
+    capped["frontier_retained"] = False
+    capped["frontier_stuck"] = False
+    capped["finished_at"] = 1
+    again, again_notes = plan_jobs(
+        route, opening, ceiling=139, settings=settings, resources=resources, jobs=[capped],
+    )
+    resumed = [job for job in again if job["index"] == capped["index"]]
+    assert resumed
+    assert resumed[0]["identity"]["configuration"]["frontier_generation"] == 1
+    assert "resume_frontier" not in resumed[0]["identity"]["configuration"]
+    assert route_boundary_exhausted(route, opening, 139, [capped]) is False
+    stored = deepcopy(capped)
+    stored["frontier_retained"] = True
+    stored["frontier_stuck"] = False
+    stored["frontier_path"] = str(ROOT / "frontier.sqlite")
+    continued, _notes = plan_jobs(
+        route, opening, ceiling=139, settings=settings, resources=resources, jobs=[stored],
+    )
+    resume = next(job for job in continued if job["index"] == stored["index"])
+    assert resume["identity"]["configuration"]["frontier_generation"] == 1
+    assert resume["identity"]["configuration"]["resume_frontier"] == stored["frontier_path"]
+    stuck = deepcopy(stored)
+    stuck["frontier_stuck"] = True
+    band_jobs, band_notes = plan_jobs(
+        route, opening, ceiling=139, settings=settings, resources=resources, jobs=[stuck],
+    )
+    band = next(job for job in band_jobs if job["index"] == stuck["index"])
+    assert int(band["identity"]["ceiling"]) == int(stuck["bound"]["f"])
+    assert int(band["identity"]["ceiling"]) < 139
+    held_band = deepcopy(band)
+    held_band["state"] = "rss abort"
+    held_band["exhausted"] = False
+    held_band["frontier_retained"] = True
+    held_band["frontier_stuck"] = True
+    held_band["frontier_path"] = stored["frontier_path"]
+    held_band["finished_at"] = 2
+    _held, held_notes = plan_jobs(
+        route, opening, ceiling=139, settings=settings, resources=resources,
+        jobs=[stuck, held_band],
+    )
+    assert any(f"Action {stuck['index']} is held" in note for note in held_notes)
+    assert all(job["index"] != stuck["index"] for job in _held)
+    done = []
+    for job in jobs:
+        finished = deepcopy(job)
+        finished["state"] = "complete"
+        finished["exhausted"] = True
+        finished["effective_ceiling"] = 139
+        finished["exhaustion_ceiling_known"] = True
+        done.append(finished)
+    empty, _done_notes = plan_jobs(
+        route, opening, ceiling=139, settings=settings, resources=resources, jobs=done,
+    )
+    assert empty == []
+    assert route_boundary_exhausted(route, opening, 139, done) is True
+    assert "exhausted" in EXHAUSTED_ROUTE_TEXT
+    assert again_notes is not None
 
 
 def test_unlimited_run_has_no_time_boundary_and_uses_the_rss_fit():

@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from typing import Sequence, Tuple
 
-# 67,108,864 pushes. The 100k opening used about 710,000.
-SEQ_BITS = 26
+# 4,294,967,296 pushes. The 100k opening used about 710,000.
+# A spilled frontier keeps this tie sequence past the old 26-bit wall.
+SEQ_BITS = 32
 SEQ_MASK = (1 << SEQ_BITS) - 1
 
 # Inclusive bounds with headroom over the 100,000-identity opening sample.

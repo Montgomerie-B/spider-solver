@@ -609,6 +609,8 @@ def search_suit_ordered(
     kernel_diagnostics: Optional[dict] = None,
     representation: str = "reference",
     suffix_checker=None,
+    spill_dir: Optional[str] = None,
+    spill_rss_fraction: float = 0.50,
 ) -> GlobalSearchResult:
     """Whole-game kernel with suit proximity on the foundation lane only.
 
@@ -843,6 +845,8 @@ def search_suit_ordered(
             time_limit_s=float(time_limit_s),
             rss_abort_mb=float(rss_abort_mb),
             cost_ceiling=ceiling,
+            spill_dir=spill_dir,
+            spill_rss_fraction=float(spill_rss_fraction),
         ),
         ceiling_box=paid_box if share_ceiling else None,
         identity_fn=pack_whole_game_identity,

@@ -1,8 +1,9 @@
 """Unattended suffix-assisted campaign for deal 4925153.
 
-One worker selects bounded jobs from the accepted 140-move route. A finished
-frontier is an exhaustion claim only for that prefix, physical state, cost,
-rules and ceiling. A stop, a crash, or a cap is not.
+One worker selects jobs from the verified best route. A finished frontier is
+an exhaustion claim only for that prefix, physical state, cost, rules and
+ceiling. A stop, a crash, or a cap is not. An unlimited run keeps going until
+every prefix inside the ceiling has that finished frontier.
 """
 
 from __future__ import annotations
@@ -38,7 +39,30 @@ RECOVERY_TEXT = (
     "A later attempt starts again from the saved authenticated prefix. "
     "This is not an exhaustion claim."
 )
-CAP_STOPS = frozenset({"time limit", "unique limit", "rss abort", "depth limit", "harvested", "solved"})
+CAP_STOPS = frozenset({
+    "time limit",
+    "unique limit",
+    "rss abort",
+    "depth limit",
+    "harvested",
+    "solved",
+    "frontier key limit",
+})
+# Identities the disk frontier may retain. The RSS cap still bounds RAM.
+DISK_IDENTITY_CAP = 2_000_000_000
+EXHAUSTED_ROUTE_TEXT = (
+    "The best route is exhausted under the current ceiling. "
+    "No cheaper game remains inside that boundary."
+)
+HELD_ROUTE_TEXT = (
+    "The best route is not optimised. Unfinished prefixes remain inside the ceiling. "
+    "Their stored frontiers do not fit in the memory safety cap. "
+    "Waiting, then continuing one of them."
+)
+RETAINED_FRONTIER_TEXT = (
+    "The search frontier is stored on disk. A later attempt continues from that frontier. "
+    "This is not an exhaustion claim."
+)
 
 
 def default_optimiser_dir() -> Path:
@@ -140,6 +164,7 @@ def configuration(settings: dict, resources: dict) -> dict:
         "requested_max_unique": int(resources["requested_max_unique"]),
         "max_unique": int(resources["effective_max_unique"]),
         "checkpoint_s": 2.0,
+        "frontier_generation": 0,
     }
 
 
@@ -152,6 +177,7 @@ def configuration_key(cfg: dict) -> tuple:
         str(cfg["advice"]),
         int(cfg["workers"]),
         int(cfg["seed"]),
+        int(cfg.get("frontier_generation") or 0),
     )
 
 
@@ -313,23 +339,267 @@ def prefix_was_interrupted(prefix_hash: str, jobs: list) -> bool:
     return False
 
 
+def eligible_indexes(actions) -> list:
+    """Prefix lengths the widener searches. The empty opening is not a root."""
+
+    priority_rank = {index: pos for pos, index in enumerate(PRIORITY_INDEXES)}
+    ordered = [index for index in PRIORITY_INDEXES if 0 < index < len(actions)]
+    ordered.extend(index for index in range(1, len(actions)) if index not in priority_rank)
+    return ordered
+
+
+def _prefix_identity(route, index, bound, prefix_hash, ceiling, cfg) -> dict:
+    return {
+        "physical_pack": bound["pack"],
+        "accumulated_g": int(bound["g"]),
+        "ancestry": {
+            "route_label": str(route["label"]),
+            "route_hash16": str(route["path_hash16"]),
+            "prefix_index": index,
+            "prefix_hash16": prefix_hash,
+        },
+        "rules": RULES,
+        "ceiling": int(ceiling),
+        "configuration": dict(cfg),
+    }
+
+
+def _same_prefix(job: dict, identity: dict) -> bool:
+    previous = job.get("identity") or {}
+    ancestry = previous.get("ancestry") or {}
+    wanted = identity["ancestry"]
+    if previous.get("physical_pack") != identity["physical_pack"]:
+        return False
+    if int(previous.get("accumulated_g") or -1) != int(identity["accumulated_g"]):
+        return False
+    if ancestry.get("prefix_hash16") != wanted["prefix_hash16"]:
+        return False
+    return previous.get("rules") == identity["rules"]
+
+
+def _generation(job: dict) -> int:
+    cfg = (job.get("identity") or {}).get("configuration") or {}
+    return int(cfg.get("frontier_generation") or 0)
+
+
+def _latest_at_ceiling(jobs: list, identity: dict, ceiling: int) -> Optional[dict]:
+    matched = [
+        job for job in jobs
+        if _terminal(job)
+        and _same_prefix(job, identity)
+        and int((job.get("identity") or {}).get("ceiling") or -1) == int(ceiling)
+    ]
+    if not matched:
+        return None
+    return max(matched, key=lambda job: (_generation(job), float(job.get("finished_at") or 0)))
+
+
+def _proven_ceiling(jobs: list, identity: dict) -> Optional[int]:
+    best = None
+    for job in jobs:
+        if not job.get("exhausted"):
+            continue
+        if job.get("exhaustion_ceiling_known") is False or job.get("effective_ceiling") is None:
+            continue
+        if not _same_prefix(job, identity):
+            continue
+        value = int(job["effective_ceiling"])
+        best = value if best is None else max(best, value)
+    return best
+
+
+def _prefix_is_open(jobs: list, identity: dict) -> bool:
+    return any(not _terminal(job) and _same_prefix(job, identity) for job in jobs)
+
+
+def route_boundary_exhausted(route: dict, opening, ceiling: int, jobs: list) -> bool:
+    """True when every in-ceiling prefix has a finished frontier at that ceiling."""
+
+    actions = list(route["actions"])
+    for index in eligible_indexes(actions):
+        bound = bound_at(opening, actions, index)
+        if int(bound["f"]) > int(ceiling):
+            continue
+        identity = _prefix_identity(
+            route,
+            index,
+            bound,
+            action_path_hash(tuple(actions[:index])),
+            ceiling,
+            {"frontier_generation": 0},
+        )
+        if not covered_by_exhaustion(identity, jobs):
+            return False
+    return True
+
+
+def _slice_job(route, index, bound, prefix_hash, target, cfg, priority_rank, jobs) -> Optional[dict]:
+    identity = _prefix_identity(route, index, bound, prefix_hash, target, cfg)
+    if any(work_key(item["identity"]) == work_key(identity) for item in jobs):
+        return None
+    recovery = RETAINED_FRONTIER_TEXT if cfg.get("resume_frontier") else None
+    if recovery is None and prefix_was_interrupted(prefix_hash, jobs):
+        recovery = RECOVERY_TEXT
+    return {
+        "id": "",
+        "state": "queued",
+        "index": index,
+        "route_label": str(route["label"]),
+        "route_hash16": str(route["path_hash16"]),
+        "bound": {"g": int(bound["g"]), "h": int(bound["h"]), "f": int(bound["f"])},
+        "identity": identity,
+        "exhausted": False,
+        "exhaustion_scope": None,
+        "stop_reason": None,
+        "recovery": recovery,
+        "priority": index in priority_rank,
+        "frontier_retained": False,
+        "frontier_stuck": False,
+        "frontier_path": None,
+    }
+
+
+def _continuation(latest: dict, *, target: int, route, index, bound, prefix_hash, cfg_base, priority_rank, jobs):
+    """One fresh spill, or a resume, or nothing when this ceiling is stuck."""
+
+    if latest is None:
+        cfg = dict(cfg_base)
+        cfg["frontier_generation"] = 0
+        cfg.pop("resume_frontier", None)
+        return _slice_job(route, index, bound, prefix_hash, target, cfg, priority_rank, jobs)
+    if latest.get("exhausted"):
+        return None
+    if latest.get("frontier_retained") and not latest.get("frontier_stuck") and latest.get("frontier_path"):
+        cfg = dict(cfg_base)
+        cfg["frontier_generation"] = _generation(latest) + 1
+        cfg["resume_frontier"] = str(latest["frontier_path"])
+        return _slice_job(route, index, bound, prefix_hash, target, cfg, priority_rank, jobs)
+    if (
+        not latest.get("frontier_retained")
+        and not latest.get("frontier_stuck")
+        and _generation(latest) == 0
+    ):
+        cfg = dict(cfg_base)
+        cfg["frontier_generation"] = 1
+        cfg.pop("resume_frontier", None)
+        return _slice_job(route, index, bound, prefix_hash, target, cfg, priority_rank, jobs)
+    return None
+
+
+def _unlimited_slice(route, index, bound, prefix_hash, ceiling, cfg_base, jobs, priority_rank):
+    full = _prefix_identity(route, index, bound, prefix_hash, ceiling, cfg_base)
+    latest = _latest_at_ceiling(jobs, full, ceiling)
+    chosen = _continuation(
+        latest,
+        target=int(ceiling),
+        route=route,
+        index=index,
+        bound=bound,
+        prefix_hash=prefix_hash,
+        cfg_base=cfg_base,
+        priority_rank=priority_rank,
+        jobs=jobs,
+    )
+    if chosen is not None:
+        return chosen
+    if latest is None:
+        return None
+    proven = _proven_ceiling(jobs, full)
+    target = int(bound["f"]) if proven is None else int(proven) + 1
+    if target >= int(ceiling):
+        return None
+    band = _latest_at_ceiling(jobs, full, target)
+    return _continuation(
+        band,
+        target=target,
+        route=route,
+        index=index,
+        bound=bound,
+        prefix_hash=prefix_hash,
+        cfg_base=cfg_base,
+        priority_rank=priority_rank,
+        jobs=jobs,
+    )
+
+
+def _assign_ids(jobs: list, chosen: list) -> list:
+    next_number = 1 + max(
+        [int(str(job["id"])[1:]) for job in jobs if str(job.get("id", "")).startswith("j")] or [0]
+    )
+    for job in chosen:
+        job["id"] = f"j{next_number}"
+        next_number += 1
+    return chosen
+
+
+def plan_unlimited_jobs(route: dict, opening, *, ceiling: int, settings: dict, resources: dict, jobs: list) -> tuple[list, list]:
+    """Keep a slice queued until every in-ceiling prefix is exhausted.
+
+    The full ceiling is first. A stored frontier is resumed. A cap with no
+    stored frontier is tried once more with a disk frontier. After that the
+    prefix climbs one cost at a time from its admissible f.
+    """
+
+    cfg_base = configuration(settings, resources)
+    cfg_base["max_unique"] = DISK_IDENTITY_CAP
+    notes = []
+    created = []
+    extras = []
+    actions = list(route["actions"])
+    priority_rank = {index: pos for pos, index in enumerate(PRIORITY_INDEXES)}
+    for index in eligible_indexes(actions):
+        bound = bound_at(opening, actions, index)
+        prefix_hash = action_path_hash(tuple(actions[:index]))
+        if int(bound["f"]) > int(ceiling):
+            notes.append(
+                f"Skipped action {index}: admissible f={bound['f']} is above ceiling {ceiling}."
+            )
+            continue
+        identity = _prefix_identity(route, index, bound, prefix_hash, ceiling, cfg_base)
+        already = jobs + created + extras
+        if covered_by_exhaustion(identity, already):
+            notes.append(f"Skipped action {index}: already exhausted at this ceiling or a higher one.")
+            continue
+        if _prefix_is_open(already, identity):
+            continue
+        job = _unlimited_slice(
+            route, index, bound, prefix_hash, ceiling, cfg_base, already, priority_rank,
+        )
+        if job is None:
+            notes.append(
+                f"Action {index} is held. Its frontier is stored and does not fit "
+                "in the memory safety cap. It stays unfinished."
+            )
+            continue
+        if index in priority_rank:
+            created.append(job)
+        else:
+            extras.append(job)
+    created.sort(key=lambda item: priority_rank[int(item["index"])])
+    extras.sort(key=lambda item: (-int(item["bound"]["f"]), -int(item["index"])))
+    return _assign_ids(jobs, created + extras), notes
+
+
 def plan_jobs(route: dict, opening, *, ceiling: int, settings: dict, resources: dict, jobs: list) -> tuple[list, list]:
     """Queue prefixes of the best route that stay inside its cost.
 
     Actions 100 and 90 stay first. Every other prefix of this route follows,
     tightest admissible f first, so the analysis widens down from the ceiling.
     A prefix is not rejected for being at action 120 or later. The ceiling and
-    an exhausted pack are the boundary.
+    an exhausted pack are the boundary. Unlimited runs use plan_unlimited_jobs.
     """
 
+    if settings.get("unlimited"):
+        return plan_unlimited_jobs(
+            route, opening, ceiling=ceiling, settings=settings, resources=resources, jobs=jobs,
+        )
     cfg = configuration(settings, resources)
     notes = []
     created = []
     extras = []
     actions = list(route["actions"])
     priority_rank = {index: pos for pos, index in enumerate(PRIORITY_INDEXES)}
-    ordered = [index for index in PRIORITY_INDEXES if 0 < index < len(actions)]
-    ordered.extend(index for index in range(1, len(actions)) if index not in priority_rank)
+    ordered = eligible_indexes(actions)
     for index in ordered:
         if index > len(actions):
             notes.append(f"Skipped action {index}: past the end of route {route['label']}.")
@@ -522,6 +792,15 @@ class OptimiserCampaign:
             job["stop_reason"] = outcome["stop_reason"]
             job["recovery"] = outcome["recovery"]
             job["exhaustion_scope"] = None
+            spill = self.directory / "jobs" / str(job.get("id")) / "search" / "frontier.sqlite"
+            from spider.search_spill import FrontierSpill
+
+            stored = FrontierSpill.peek(spill)
+            if stored and stored.get("resumable"):
+                job["frontier_retained"] = True
+                job["frontier_stuck"] = False
+                job["frontier_path"] = str(spill)
+                job["recovery"] = RETAINED_FRONTIER_TEXT
             changed += 1
         if changed:
             self.campaign["phase"] = "stopped" if requested_stop else "interrupted"
@@ -731,10 +1010,37 @@ class OptimiserCampaign:
             self.save()
 
     def next_queued(self) -> Optional[dict]:
-        for job in self.campaign["jobs"]:
-            if job.get("state") == "queued":
-                return job
-        return None
+        queued = [job for job in self.campaign["jobs"] if job.get("state") == "queued"]
+        if not queued:
+            return None
+        if (self.campaign.get("settings") or {}).get("unlimited"):
+            for job in queued:
+                cfg = (job.get("identity") or {}).get("configuration") or {}
+                if cfg.get("resume_frontier"):
+                    return job
+        return queued[0]
+
+    def boundary_exhausted(self) -> bool:
+        route = select_campaign_route(self.routes, "best")
+        return route_boundary_exhausted(
+            route,
+            self.opening,
+            int(self.campaign["ceiling"]),
+            list(self.campaign.get("jobs") or []),
+        )
+
+    def release_one_hold(self) -> bool:
+        """Let one stored frontier try again after the memory cap blocked it."""
+
+        for job in reversed(list(self.campaign.get("jobs") or [])):
+            if not job.get("frontier_stuck"):
+                continue
+            job["frontier_stuck"] = False
+            self.log(
+                f"Retrying the stored frontier of {job.get('id')} on action {job.get('index')}."
+            )
+            return True
+        return False
 
     def run_expired(self, control: dict) -> bool:
         started = control.get("run_started_at")
@@ -765,7 +1071,9 @@ class OptimiserCampaign:
         if budget.get("unlimited"):
             self.log(
                 "No time limit. This prefix stays inside the best-route ceiling "
-                "until its frontier finishes or memory stops it. The next prefix widens from there."
+                "until its frontier finishes. If memory fills, the frontier is stored "
+                "on disk and the same prefix continues. The deal is optimised only when "
+                "every prefix inside the ceiling has a finished frontier."
             )
         elif float(budget["applied_time_limit_s"]) <= 0:
             self.log("Campaign allowance is exhausted. This attempt was not started.")
@@ -774,10 +1082,17 @@ class OptimiserCampaign:
         def progress(line: str) -> None:
             self.log(line, persist=False)
 
+        unlimited = bool((self.campaign.get("settings") or {}).get("unlimited"))
+        unique_cap = int(cfg["max_unique"])
+        spill_dir = None
+        if unlimited:
+            unique_cap = max(unique_cap, DISK_IDENTITY_CAP)
+            resume = cfg.get("resume_frontier")
+            spill_dir = str(resume or (search_dir / "frontier.sqlite"))
         return run_prefix_attempt(
             action_index=int(job["index"]),
             time_limit_s=float(budget["applied_time_limit_s"]),
-            max_unique=int(cfg["max_unique"]),
+            max_unique=unique_cap,
             memory_mb=float(cfg["requested_rss_mb"]),
             checkpoint_s=float(cfg["checkpoint_s"]),
             output_dir=search_dir,
@@ -789,6 +1104,7 @@ class OptimiserCampaign:
             verify_published=True,
             improvement_below=SEED_G,
             log=progress,
+            spill_dir=spill_dir,
         )
 
     def finish(self, job: dict, document: Optional[dict], error: Optional[BaseException]) -> None:
@@ -827,6 +1143,23 @@ class OptimiserCampaign:
         job["stop_reason"] = outcome["stop_reason"]
         job["recovery"] = outcome["recovery"]
         job["finished_at"] = time.time()
+        attempt_row = {}
+        if document:
+            rows = document.get("attempts") or []
+            if rows and isinstance(rows[-1], dict):
+                attempt_row = rows[-1]
+        job["frontier_path"] = attempt_row.get("frontier_path")
+        job["frontier_retained"] = bool(attempt_row.get("frontier_retained"))
+        job["resume_from_unique"] = attempt_row.get("resume_from_unique")
+        if job["frontier_retained"] and not job["exhausted"]:
+            job["recovery"] = RETAINED_FRONTIER_TEXT
+            started_unique = job.get("resume_from_unique")
+            job["frontier_stuck"] = (
+                started_unique is not None
+                and int(job.get("unique") or 0) <= int(started_unique)
+            )
+        else:
+            job["frontier_stuck"] = False
         if job["exhausted"]:
             suffix = ((document or {}).get("attempts") or [{}])[-1].get("suffix") or {}
             job["launch_ceiling"] = int(job["identity"]["ceiling"])
@@ -913,8 +1246,22 @@ def supervise(directory: Path) -> int:
             campaign.ensure_queue()
             job = campaign.next_queued()
             if job is None:
+                unlimited = bool((campaign.campaign.get("settings") or {}).get("unlimited"))
+                if unlimited and not campaign.boundary_exhausted():
+                    campaign.campaign["phase"] = "running"
+                    activity = campaign.campaign.get("activity") or []
+                    if not activity or not str(activity[-1]).endswith(HELD_ROUTE_TEXT):
+                        campaign.log(HELD_ROUTE_TEXT)
+                    else:
+                        campaign.write_state()
+                    time.sleep(30)
+                    campaign.release_one_hold()
+                    continue
                 campaign.campaign["phase"] = "finished"
-                campaign.log("No distinct useful job remains. Identical capped work was not repeated.")
+                if unlimited:
+                    campaign.log(EXHAUSTED_ROUTE_TEXT)
+                else:
+                    campaign.log("No distinct useful job remains. Identical capped work was not repeated.")
                 return 0
             try:
                 document = campaign.execute(job)
